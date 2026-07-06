@@ -85,6 +85,11 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
+    <section class="hl-sec" data-zoek="🎯 wedstrijd opzetten bij een gloednieuwe wedstrijd doorloop je automatisch vier korte stappen: aanvoerder, aantal spelers, speelwijze en wedstrijddoel. geen tijd of zin? tik op overslaan — alles is later nog aan te passen via wijzig opzet rechtsboven in het wedstrijdscherm.">
+    <h3>🎯 Wedstrijd opzetten</h3>
+    <p>Bij een gloednieuwe wedstrijd doorloop je automatisch vier korte stappen: <b>aanvoerder</b>, <b>aantal spelers</b>, <b>speelwijze</b> en <b>wedstrijddoel</b>. Geen tijd of zin? Tik op <b>Overslaan</b> — alles is later nog aan te passen via <b>Wijzig opzet</b> rechtsboven in het wedstrijdscherm.</p>
+    </section>
+
     <section class="hl-sec" data-zoek="⚽ spelers slepen & wisselen op het veld werk je met spelersbolletjes (de chips ): slepen : houd een speler vast en sleep hem naar een andere positie, een lege plek, of naar de bank. tikken : één tik selecteert (gele rand). tik daarna een doel om de speler daar neer te zetten. positie ruilen : sleep een veldspeler naar een andere veldspeler — ze wisselen van positie. loopt de klok? dan wordt elke bank→veld of veld→bank actie geregistreerd als wissel met tijdstip in het log. tip: de bank is gesorteerd op minste speeltijd — wie aan de beurt is, staat vooraan.">
     <h3>⚽ Spelers slepen & wisselen</h3>
     <p>Op het veld werk je met spelersbolletjes (de <b>chips</b>):</p>
@@ -159,9 +164,9 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
-    <section class="hl-sec" data-zoek="👑 aanvoerder onder ⚙️ in de wedstrijd kies je per wedstrijd de aanvoerder. hij krijgt een geel c -bandje op zijn shirt. in de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.">
+    <section class="hl-sec" data-zoek="👑 aanvoerder onder wijzig opzet in de wedstrijd kies je per wedstrijd de aanvoerder. hij krijgt een geel c -bandje op zijn shirt. in de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.">
     <h3>👑 Aanvoerder</h3>
-    <p>Onder ⚙️ in de wedstrijd kies je per wedstrijd de aanvoerder. Hij krijgt een geel <b>C</b>-bandje op zijn shirt. In de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.</p>
+    <p>Onder <b>Wijzig opzet</b> in de wedstrijd kies je per wedstrijd de aanvoerder. Hij krijgt een geel <b>C</b>-bandje op zijn shirt. In de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.</p>
     </section>
 
     <section class="hl-sec" data-zoek="🏆 toernooien bij een nieuwe wedstrijd kies je toernooi . geef het aantal wedstrijden op en het aantal helften per wedstrijd. de tabs worden dan w1 , w2 ... de tegenstander per wedstrijd vul je in door op de naam in het scorebord te tikken (gestippeld onderstreept). op één scherm: alle wissels en speeltijden lopen over het hele toernooi door, zodat je in wedstrijd 4 ziet wie er bij wedstrijd 1, 2 en 3 al heeft gespeeld.">
@@ -193,9 +198,9 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
-    <section class="hl-sec" data-zoek="📐 format en formatie wijzigen onder ⚙️ in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.">
+    <section class="hl-sec" data-zoek="📐 format en formatie wijzigen onder wijzig opzet in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.">
     <h3>📐 Format en formatie wijzigen</h3>
-    <p>Onder ⚙️ in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. Spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.</p>
+    <p>Onder <b>Wijzig opzet</b> in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. Spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.</p>
     </section>
 
     <section class="hl-sec" data-zoek="📊 statistieken onder ⏱ vind je het seizoensoverzicht: speeltijd, doelpunten, aanvoerdersbeurten, keeperbeurten en kaarten per speler. sorteert vanzelf op meeste speeltijd.">
@@ -299,4 +304,3 @@ export function htmlHandleiding(){
     </p>
   </div>`;
 }
-
