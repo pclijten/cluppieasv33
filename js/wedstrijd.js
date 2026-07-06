@@ -269,6 +269,7 @@ export function modalNieuweWedstrijd(){
       kwarten,
       seizoen: S.huidigSeizoen,
       gemaakt: serverTimestamp(),
+      opzetGedaan: false,
     });
     const ref = await addDoc(collection(db,'teams',S.teamId,'wedstrijden'), w);
     sluitModal();
@@ -302,11 +303,12 @@ function normaliseerWedstrijd(w){
   if (!Array.isArray(w.goals)){ w.goals = []; veranderd = true; }
   if (!Array.isArray(w.kaarten)){ w.kaarten = []; veranderd = true; }
   if (!Array.isArray(w.selectie) || !w.selectie.length){ w.selectie = S.spelers.map(p => p.id); veranderd = true; }
+  if (typeof w.opzetGedaan !== 'boolean'){ w.opzetGedaan = true; veranderd = true; }
   return veranderd;
 }
 
 export function openWedstrijd(wid){
-  S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false;
+  S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
   stopUnsubs('wedstrijd');
   S.unsub.wedstrijd = onSnapshot(doc(db,'teams',S.teamId,'wedstrijden',wid), snap => {
     if (!snap.exists()){ sluitWedstrijd(); return; }
@@ -317,6 +319,10 @@ export function openWedstrijd(wid){
     S.wedstrijd = data;
     renderWedstrijd();
     if (aangevuld) bewaarWedstrijd();
+    if (data.opzetGedaan === false && !S._wizardActief){
+      S._wizardActief = true;
+      toonWedstrijdWizard();
+    }
   }, (err) => {
     console.error(`[Cluppie] Listener "wedstrijd" kon niet lezen (teamId=${S.teamId}, wid=${wid}):`, err.code, err.message);
     if (err.code === 'permission-denied') meld('Geen toegang tot deze wedstrijd — controleer de Firestore-rules');
@@ -327,6 +333,7 @@ export function sluitWedstrijd(){
   stopUnsubs('wedstrijd');
   clearInterval(S.klokInterval); S.klokInterval = null;
   S.wedstrijd = null; S.wedstrijdId = null;
+  verbergWedstrijdWizard();
   import('./teams.js').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
@@ -337,6 +344,175 @@ function bewaarWedstrijd(){
       .catch(e => meld('Opslaan mislukt: ' + e.code));
   }, 600);
 }
+
+/* ==================== WEDSTRIJD-WIZARD (eerste keer opzetten) ====================
+   Volledig scherm, verschijnt automatisch bij een gloednieuwe wedstrijd (opzetGedaan
+   === false). Vier korte stappen: aanvoerder, aantal spelers, speelwijze, doel.
+   Overslaan kan altijd, met een korte waarschuwing dat alles later nog aan te passen
+   is via "Wijzig opzet" rechtsboven. Oude wedstrijden (voor deze feature) krijgen via
+   normaliseerWedstrijd() al opzetGedaan=true en zien deze wizard dus nooit. */
+const WIZARD_STAPPEN = 4;
+
+function toonWedstrijdWizard(){
+  const w = S.wedstrijd;
+  const spelersInSelectie = (w.selectie||[]).map(pid => speler(pid)).filter(Boolean);
+
+  let stap = 0;
+  let gekAanvoerder = w.aanvoerder || null;
+  let gekFormat = w.format;
+  let gekFormatie = w.formatie;
+
+  const stapHtml = [
+    `<div class="wz-icoon">🎖️</div>
+     <h2>Wie is aanvoerder?</h2>
+     <p class="wz-uitleg">Kies de aanvoerder voor deze wedstrijd. Je kunt dit later altijd wijzigen.</p>
+     <div class="wz-keuzelijst" id="wzAanvoerderLijst">
+       <div class="wz-keuze ${!gekAanvoerder?'wz-actief':''}" data-pid="">
+         <div class="wz-shirt">—</div><div class="wz-naam">Nog geen keuze</div><div class="wz-check"></div>
+       </div>
+       ${spelersInSelectie.map(p => `
+         <div class="wz-keuze ${gekAanvoerder===p.id?'wz-actief':''}" data-pid="${p.id}">
+           <div class="wz-shirt">${esc(spelerNr(p.id))}</div>
+           <div class="wz-naam">${esc(p.naam)}</div><div class="wz-check"></div>
+         </div>`).join('')}
+     </div>`,
+    `<div class="wz-icoon">👥</div>
+     <h2>Hoeveel spelers per team?</h2>
+     <p class="wz-uitleg">Dit bepaalt het speelformat van de wedstrijd.</p>
+     <div class="wz-tegels" id="wzFormatTegels">
+       ${['4','6','8','9','11'].map(f => `<div class="wz-tegel ${gekFormat===f?'wz-actief':''}" data-f="${f}"><span class="wz-cijfer">${f}×${f}</span></div>`).join('')}
+     </div>`,
+    `<div class="wz-icoon">📐</div>
+     <h2>Welke speelwijze?</h2>
+     <p class="wz-uitleg" id="wzFormatieUitleg">Kies de formatie voor ${gekFormat}×${gekFormat}.</p>
+     <div class="wz-tegels wz-tegels-drie" id="wzFormatieTegels"></div>`,
+    `<div class="wz-icoon">🎯</div>
+     <h2>Wat is het wedstrijddoel?</h2>
+     <p class="wz-uitleg">Waar wil je dit team vandaag op laten letten?</p>
+     <input class="invoer" id="wzDoelInvoer" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
+     <div class="wz-chips">
+       ${doelSuggesties(S.team?.categorie).slice(0,4).map(s => `<div class="wz-chip" data-doelsug="${esc(s)}">${esc(s)}</div>`).join('')}
+     </div>`,
+  ];
+
+  $('#wizardAchter').innerHTML = `
+    <div class="wz-scherm">
+      <div class="wz-topbar">
+        <span class="wz-titel-mini">Wedstrijd opzetten</span>
+        <div class="wz-dots" id="wzDots">${Array.from({length:WIZARD_STAPPEN},(_,i) =>
+          `<span class="wz-dot ${i===0?'wz-actief':''}" data-d="${i}"></span>`).join('')}</div>
+      </div>
+      <div class="wz-body" id="wzBody">${stapHtml.map((html,i) =>
+        `<div class="wz-stap ${i===0?'wz-actief':''}" data-stap="${i}">${html}</div>`).join('')}</div>
+      <div class="wz-klaar" id="wzKlaar">
+        <div class="wz-klaar-icoon">✓</div>
+        <h2>Helemaal klaar!</h2>
+        <p>De opzet staat. Veel plezier vandaag — je past dit altijd aan via <b>Wijzig opzet</b> rechtsboven.</p>
+      </div>
+      <div class="wz-bottom" id="wzBottom">
+        <div class="wz-skipwarn" id="wzSkipWarn">
+          <span class="wz-skipwarn-ico">💡</span>
+          <div class="wz-skipwarn-tekst">
+            <b>Weet je het zeker?</b> Je kunt aanvoerder, speelwijze, aantal spelers en wedstrijddoel altijd nog aanpassen via <b>Wijzig opzet</b> rechtsboven in het wedstrijdscherm.
+            <div class="wz-skipwarn-btns">
+              <button class="knop licht" id="wzSkipTerug">Toch instellen</button>
+              <button class="knop fluo" id="wzSkipDoor">Ja, overslaan</button>
+            </div>
+          </div>
+        </div>
+        <div class="wz-btnrij" id="wzBtnRij">
+          <button class="wz-terug" id="wzTerug" style="visibility:hidden">←</button>
+          <button class="knop vol fluo" id="wzVolgende">Volgende</button>
+        </div>
+        <button class="wz-skiplink" id="wzSkipLink">Overslaan</button>
+      </div>
+    </div>`;
+  $('#wizardAchter').classList.add('open');
+
+  const vulFormatieTegels = () => {
+    if (!FORMATIES[gekFormat][gekFormatie]) gekFormatie = Object.keys(FORMATIES[gekFormat])[0];
+    $('#wzFormatieUitleg').textContent = `Kies de formatie voor ${gekFormat}×${gekFormat}.`;
+    $('#wzFormatieTegels').innerHTML = Object.keys(FORMATIES[gekFormat]).map(fm =>
+      `<div class="wz-tegel ${gekFormatie===fm?'wz-actief':''}" data-fm="${fm}"><span class="wz-cijfer wz-cijfer-klein">${fm}</span></div>`).join('');
+    $$('#wzFormatieTegels .wz-tegel').forEach(el => el.onclick = () => {
+      $$('#wzFormatieTegels .wz-tegel').forEach(x => x.classList.remove('wz-actief'));
+      el.classList.add('wz-actief');
+      gekFormatie = el.dataset.fm;
+    });
+  };
+  vulFormatieTegels();
+
+  const koppelAanvoerderKliks = () => $$('#wzAanvoerderLijst .wz-keuze').forEach(el => el.onclick = () => {
+    $$('#wzAanvoerderLijst .wz-keuze').forEach(x => x.classList.remove('wz-actief'));
+    el.classList.add('wz-actief');
+    gekAanvoerder = el.dataset.pid || null;
+  });
+  koppelAanvoerderKliks();
+
+  $$('#wzFormatTegels .wz-tegel').forEach(el => el.onclick = () => {
+    $$('#wzFormatTegels .wz-tegel').forEach(x => x.classList.remove('wz-actief'));
+    el.classList.add('wz-actief');
+    gekFormat = el.dataset.f;
+    vulFormatieTegels();
+  });
+
+  $$('#wzBody [data-doelsug]').forEach(b => b.onclick = () => { $('#wzDoelInvoer').value = b.dataset.doelsug; });
+
+  const toonStap = i => {
+    $$('.wz-stap').forEach(s => s.classList.remove('wz-actief'));
+    $(`.wz-stap[data-stap="${i}"]`).classList.add('wz-actief');
+    $$('.wz-dot').forEach((d,di) => d.classList.toggle('wz-actief', di===i));
+    $('#wzTerug').style.visibility = i===0 ? 'hidden' : 'visible';
+    $('#wzVolgende').textContent = i===WIZARD_STAPPEN-1 ? 'Klaar' : 'Volgende';
+  };
+
+  const opslaanEnSluiten = () => {
+    const formatVeranderd = gekFormat !== w.format || gekFormatie !== w.formatie;
+    if (formatVeranderd){
+      const nieuweIds = new Set(bouwSlots(gekFormat, gekFormatie).map(s => s.id));
+      for (const kk of Object.values(w.kwarten)){
+        for (const slot of Object.keys(kk.lineup)) if (!nieuweIds.has(slot)) delete kk.lineup[slot];
+        kk.events = kk.events.filter(e => nieuweIds.has(e.slot));
+      }
+      w.format = gekFormat; w.formatie = gekFormatie;
+    }
+    w.aanvoerder = gekAanvoerder || null;
+    w.doel = ($('#wzDoelInvoer')?.value || '').trim();
+    w.opzetGedaan = true;
+    bewaarWedstrijd();
+    renderWedstrijd();
+    $('#wzBody').style.display = 'none';
+    $('#wzBottom').style.display = 'none';
+    $('#wzKlaar').classList.add('wz-actief');
+    setTimeout(verbergWedstrijdWizard, 1800);
+  };
+
+  $('#wzVolgende').onclick = () => {
+    if (stap < WIZARD_STAPPEN-1){ stap++; toonStap(stap); }
+    else opslaanEnSluiten();
+  };
+  $('#wzTerug').onclick = () => { if (stap > 0){ stap--; toonStap(stap); } };
+  $('#wzSkipLink').onclick = () => {
+    $('#wzSkipWarn').classList.add('wz-actief');
+    $('#wzBtnRij').style.display = 'none';
+    $('#wzSkipLink').style.display = 'none';
+  };
+  $('#wzSkipTerug').onclick = () => {
+    $('#wzSkipWarn').classList.remove('wz-actief');
+    $('#wzBtnRij').style.display = 'flex';
+    $('#wzSkipLink').style.display = 'block';
+  };
+  $('#wzSkipDoor').onclick = opslaanEnSluiten;
+}
+
+function verbergWedstrijdWizard(){
+  const el = $('#wizardAchter');
+  if (!el) return;
+  el.classList.remove('open');
+  el.innerHTML = '';
+  S._wizardActief = false;
+}
+
 
 /* ==================== KLOK ==================== */
 const huidigKwart = () => S.wedstrijd.kwarten[S.kwart];
@@ -853,7 +1029,13 @@ export function renderWedstrijd(){
         ? '🏆 '+esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam))}
       <span class="sub">${datumNL(w.datum)} · ${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden · ' : ''}<span id="subFormatieKlik" style="text-decoration:underline dotted;cursor:pointer">${esc(w.formatie)}</span></span></h1>
-      <button class="terug" id="wInstellingen" title="Wedstrijd aanpassen">⚙️</button></div>
+      <button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3L20 6.5V11C20 15.5 16.9 19.7 12 21C7.1 19.7 4 15.5 4 11V6.5L12 3Z" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M9 12L11 14L15.5 9.5" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Wijzig opzet</span>
+      </button></div>
     <div class="kaart doelbanner" id="doelBanner" style="${w.doel
       ? 'background:rgba(226,6,19,.08);border-left:3px solid var(--grass)'
       : 'background:var(--surface-2);border-left:3px dashed var(--line-d)'};font-size:13.5px;color:${w.doel?'var(--ink)':'var(--ink-2)'};padding:9px 12px;margin-bottom:10px;cursor:pointer">${w.doel ? `<b>🎯 Doel:</b> ${esc(w.doel)}` : '🎯 Nog geen wedstrijddoel gezet — tik om er een te kiezen'}</div>
