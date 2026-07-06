@@ -1,306 +1,1422 @@
-/* ==================== HANDLEIDING (help-tab) ====================
-   Onderdeel van de teams.js-modulaire split. Puur statische help-tekst —
-   geen Firestore/state-afhankelijkheden, dus geen imports nodig behalve
-   wat hierboven al in dit bestand staat. De zoekfunctionaliteit
-   (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
-   want die werkt direct op het gerenderde DOM-element. */
-export function htmlHandleiding(){
-  return `<div class="hl">
-    <div class="hl-zoekbalk">
-      <span class="hl-zoek-ico">🔍</span>
-      <input type="search" id="helpZoek" class="hl-zoek-input" placeholder="Zoek in de handleiding…" autocomplete="off" autocapitalize="none" spellcheck="false">
-      <button class="hl-zoek-wis" id="helpZoekWis" title="Wissen" aria-label="Wissen">✕</button>
+import {
+  db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp
+} from './firebase.js';
+import {
+  S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
+  openModal, sluitModal, toon, stopUnsubs
+} from './state.js';
+import {
+  FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
+  tijdstrafSec, KAART_ICOON, KAART_NAAM,
+  periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
+  CLUB_FORMATIE_11, doelSuggesties
+} from './config.js';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js';
+
+/* ==================== AANMAKEN ==================== */
+function leegKwart(){ return {lineup:{}, events:[], plan:[], klok:{base:0, running:false, start:0}}; }
+
+/* startopstelling van de laatste gespeelde wedstrijd met hetzelfde format */
+function laatsteOpstelling(format){
+  for (const w of S.wedstrijden){            // gesorteerd nieuw → oud
+    if (w.format !== format) continue;
+    const k1 = w.kwarten?.['1'];
+    if (k1 && Object.keys(k1.lineup||{}).length){
+      const lineup = {};
+      for (const [slot, pid] of Object.entries(k1.lineup)) if (speler(pid)) lineup[slot] = pid;
+      if (Object.keys(lineup).length) return {lineup, formatie: w.formatie, bron: w};
+    }
+  }
+  return null;
+}
+
+/* ---- Vorige confrontatie tegen dezelfde tegenstander ----
+   Genormaliseerde naamvergelijking: negeert hoofdletters, spaties, leestekens
+   en het eigen clubvoorvoegsel (ASV'33), zodat "ASV'33 JO11-2" en "jo11 2"
+   als dezelfde tegenstander gelden. */
+function normTegenstander(naam){
+  if (!naam) return '';
+  let s = String(naam).toLowerCase();
+  s = s.replace(/asv['’`]?\s*33/g, ' ');     // eigen club weglaten
+  s = s.replace(/[^a-z0-9]+/g, '');          // alleen letters/cijfers
+  return s;
+}
+
+/* Telt een wedstrijd als "gespeeld"? Uitslag (goals) of een ingevulde
+   startopstelling. Lege/toekomstige (geïmporteerde) wedstrijden tellen niet. */
+function isGespeeld(w){
+  if (Array.isArray(w.goals) && w.goals.length) return true;
+  for (const k of Object.values(w.kwarten || {}))
+    if (Object.keys(k.lineup || {}).length) return true;
+  return false;
+}
+
+/* Zoekt de meest recente gespeelde wedstrijd tegen dezelfde tegenstander,
+   exclusief de huidige wedstrijd. Toernooien slaan we over (geen vaste
+   tegenstander op wedstrijdniveau). Geeft het bron-wedstrijddocument terug. */
+function vorigeConfrontatie(huidige){
+  if (!huidige || isToernooi(huidige)) return null;
+  const doel = normTegenstander(huidige.tegenstander);
+  if (!doel) return null;
+  for (const w of S.wedstrijden){            // gesorteerd nieuw → oud
+    if (w.id === S.wedstrijdId) continue;
+    if (isToernooi(w)) continue;
+    if (normTegenstander(w.tegenstander) !== doel) continue;
+    if (!isGespeeld(w)) continue;
+    return w;
+  }
+  return null;
+}
+
+/* Startopstelling (kwart 1) van een bronwedstrijd als [{pid,slot,keeper}]. */
+/* Bouwt het kleine regeltje + uitklappaneel voor de vorige confrontatie.
+   Geeft '' terug als er geen eerdere ontmoeting is. Open/dicht-stand wordt
+   bewaard in S._confroOpen zodat het paneel niet dichtklapt bij elke rerender. */
+function bouwConfrontatie(w){
+  const v = vorigeConfrontatie(w);
+  if (!v) return '';
+
+  const voor  = (v.goals||[]).filter(g => g.type==='voor').length;
+  const tegen = (v.goals||[]).filter(g => g.type==='tegen').length;
+  const heeftUitslag = (v.goals||[]).length > 0;
+
+  /* Uitslag vanuit óns perspectief; klasse stuurt de kleur. */
+  let kl = 'g', uitslagTekst = '—';
+  if (heeftUitslag){
+    uitslagTekst = `${voor}–${tegen}`;
+    kl = voor > tegen ? 'w' : voor < tegen ? 'v' : 'g';
+  }
+  const thuisuit = v.thuis ? 'thuis' : 'uit';
+  const open = S._confroOpen ? ' open' : '';
+
+  /* --- paneel-inhoud --- */
+  const teamNaam = esc(S.team.naam);
+  const tegenN   = esc(v.tegenstander);
+  const linksNaam  = v.thuis ? teamNaam : tegenN;
+  const rechtsNaam = v.thuis ? tegenN : teamNaam;
+  const scoreMid = heeftUitslag ? `${v.thuis ? voor : tegen} – ${v.thuis ? tegen : voor}` : '–';
+
+  const doelHtml = v.doel
+    ? `<div class="confro-rij doel"><div class="lbl">🎯 Wedstrijddoel</div><div class="val">${esc(v.doel)}</div></div>`
+    : '';
+  const notitieHtml = v.notitie
+    ? `<div class="confro-rij"><div class="lbl">📝 Notitie</div><div class="val">${esc(v.notitie)}</div></div>`
+    : '';
+
+  /* Directe link naar de betreffende wedstrijd (daar staat de opstelling). */
+  const linkHtml = `<button class="confro-link" id="confroOpen" data-wid="${esc(v.id)}">→ Bekijk deze wedstrijd</button>`;
+
+  return `
+    <button class="confro-regel${open}" id="confroRegel">
+      <span class="ico">↩︎</span>
+      <span class="confro-tekst"><b>Vorige keer:</b> ${esc(datumNL(v.datum))} · ${thuisuit}</span>
+      ${heeftUitslag ? `<span class="confro-uitslag ${kl}">${esc(uitslagTekst)}</span>` : ''}
+      <span class="confro-chev">▾</span>
+    </button>
+    <div class="confro-paneel${open}" id="confroPaneel">
+      <div class="confro-card">
+        <div class="confro-titel">↩︎ Vorige confrontatie · ${tegenN}</div>
+        <div class="confro-uitslagblok">
+          <div class="partij">${linksNaam}</div>
+          <div class="score">${scoreMid}</div>
+          <div class="partij r">${rechtsNaam}<span class="datum">${esc(datumNL(v.datum))} · ${thuisuit}</span></div>
+        </div>
+        ${doelHtml}${notitieHtml}${linkHtml}
+      </div>
+    </div>`;
+}
+
+export function modalNieuweWedstrijd(){
+  if (!S.spelers.length) return meld('Voeg eerst spelers toe onder het tabblad Spelers');
+  const vandaag = new Date().toISOString().slice(0,10);
+  const cat = catInfo(S.team.categorie) || null;
+  let type = 'normaal';
+  let periodes = cat ? cat.periodes : 4;
+  let format = cat ? cat.format : S.team.format;
+  let toernooiHelften = 1;
+  const stdDuur = cat ? cat.duur : 15;
+
+  openModal(`
+    <h2>Nieuwe wedstrijd</h2>
+    <div class="veldgroep"><label>Type</label>
+      <div class="segment" id="mWType">
+        <button data-ty="normaal" class="actief">Competitie</button>
+        <button data-ty="toernooi">🏆 Toernooi</button>
+      </div></div>
+    ${cat ? `<p style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">KNVB ${esc(S.team.categorie)}: ${esc(cat.knvb)} — standaarden zijn ingevuld.</p>` : ''}
+
+    <div id="mWNormaal">
+      <div class="veldgroep"><label>Tegenstander</label>
+        <input class="invoer" id="mWTegen" placeholder="Bijv. ASV'33 ${esc(S.team.categorie || 'JO11')}-2" autocomplete="off"></div>
+      <div class="veldgroep"><label>Periodes</label>
+        <div class="segment" id="mWPeriodes">
+          <button data-p="2" class="${periodes===2?'actief':''}">2 helften</button>
+          <button data-p="4" class="${periodes===4?'actief':''}">4 kwarten</button>
+        </div></div>
     </div>
-    <div class="hl-geen" id="helpGeen" hidden>Geen onderdeel gevonden voor <b id="helpGeenTerm"></b>. Probeer een ander woord.</div>
 
-    <div class="hl-hoofdstukken" id="helpHoofdstukken">
-      ${[['starten','🚀 Starten'],['plannen','📅 Trainen & plannen'],['wedstrijddag','⚽ Op de wedstrijddag'],['club','🏛 Club & team beheren'],['beoordelen','📈 Beoordelen & evalueren'],['tips','💡 Tips & privacy']]
-        .map(([id,naam]) => `<button data-hlh="${id}">${naam}</button>`).join('')}
+    <div id="mWToernooi" style="display:none">
+      <div class="veldgroep"><label>Naam toernooi</label>
+        <input class="invoer" id="mWToernooiNaam" placeholder="Bijv. Pinkstertoernooi Mifano" autocomplete="off"></div>
+      <div class="rij">
+        <div class="veldgroep"><label>Aantal wedstrijden</label>
+          <select class="invoer" id="mWAantal">${Array.from({length:9},(_,i)=>`<option value="${i+2}" ${i+2===4?'selected':''}>${i+2}</option>`).join('')}</select></div>
+        <div class="veldgroep"><label>Helften per wedstrijd</label>
+          <div class="segment" id="mWHelften">
+            <button data-h="1" class="actief">1</button><button data-h="2">2</button>
+          </div></div>
+      </div>
     </div>
 
-    <h4 class="hl-hoofdstuk" id="hlh-starten">🚀 Starten</h4>
-    <section class="hl-sec" data-zoek="👋 welkom bij cluppie een app om voor je voetbalteam de opstelling te maken, wissels te beheren, speeltijd eerlijk te verdelen en de wedstrijd te loggen. alles werkt realtime, dus collega-coaches zien direct dezelfde informatie.">
-    <h3>👋 Welkom bij Cluppie</h3>
-    <p>Een app om voor je voetbalteam de opstelling te maken, wissels te beheren, speeltijd eerlijk te verdelen en de wedstrijd te loggen. Alles werkt realtime, dus collega-coaches zien direct dezelfde informatie.</p>
-    </section>
+    <div class="rij">
+      <div class="veldgroep"><label>Datum</label><input class="invoer" type="date" id="mWDatum" value="${vandaag}"></div>
+      <div class="veldgroep"><label id="mWDuurLabel">Minuten per ${periodes===2?'helft':'kwart'}</label><input class="invoer" id="mWDuur" inputmode="decimal" value="${String(stdDuur).replace('.',',')}"></div>
+    </div>
+    <div class="rij">
+      <div class="veldgroep" id="mWThuisWrap"><label>Thuis of uit</label>
+        <div class="segment" id="mWThuis"><button data-t="1" class="actief">Thuis</button><button data-t="0">Uit</button></div></div>
+      <div class="veldgroep"><label>Aantal spelers</label>
+        <div class="segment" id="mWFormat">${['4','6','8','9','11'].map(f =>
+          `<button data-f="${f}" class="${format===f?'actief':''}">${f}</button>`).join('')}</div></div>
+    </div>
 
-    <section class="hl-sec" data-zoek="🔑 de eerste keer inloggen je hoeft niets te installeren. je opent de app gewoon in je browser en logt in op de manier die jij prettig vindt: met google — één tik en je bent binnen. met e-mail en wachtwoord — vul je e-mailadres en een zelfgekozen wachtwoord in. bestaat je account nog niet? dan wordt het automatisch aangemaakt. de volgende keer kom je met diezelfde gegevens direct terug als dezelfde coach. wachtwoord vergeten? tik op "wachtwoord vergeten?" onder de inlogknop — je krijgt dan een mailtje om een nieuw wachtwoord in te stellen.">
-    <h3>🔑 De eerste keer inloggen</h3>
-    <p>Je hoeft niets te installeren. Je opent de app gewoon in je browser en logt in op de manier die jij prettig vindt:</p>
-    <ul>
-      <li><b>Met Google</b> — één tik en je bent binnen.</li>
-      <li><b>Met e-mail en wachtwoord</b> — vul je e-mailadres en een zelfgekozen wachtwoord in. Bestaat je account nog niet? Dan wordt het automatisch aangemaakt. De volgende keer kom je met diezelfde gegevens direct terug als dezelfde coach.</li>
-    </ul>
-    <div class="tip"><b>Wachtwoord vergeten?</b> Tik op "Wachtwoord vergeten?" onder de inlogknop — je krijgt dan een mailtje om een nieuw wachtwoord in te stellen.</div>
-    </section>
+    <label class="lid-rij" id="mWOvernemenWrap" style="cursor:pointer;display:none">
+      <input type="checkbox" id="mWOvernemen" style="width:19px;height:19px;accent-color:var(--grass)">
+      <div class="lid-naam" style="font-weight:500">Begin met opstelling van vorige wedstrijd
+        <span style="display:block;font-size:11.5px;color:var(--ink-2);font-weight:400" id="mWOvernemenInfo"></span></div>
+    </label>
 
-    <section class="hl-sec" data-zoek="🔗 aansluiten bij je team je coach of de clubbeheerder stuurt je een persoonlijke uitnodigingslink (vaak via whatsapp). zo werkt het: tik op de link. je ziet een welkomstscherm met de naam van je team. log in (google of e-mail) — en je zit meteen in het juiste team. geen link gekregen? vraag je coach om de teamcode (bijv. asvjo11-1) en vul die in op het inlogscherm.">
-    <h3>🔗 Aansluiten bij je team</h3>
-    <p>Je coach of de clubbeheerder stuurt je een <b>persoonlijke uitnodigingslink</b> (vaak via WhatsApp). Zo werkt het:</p>
-    <ul>
-      <li>Tik op de link. Je ziet een welkomstscherm met de naam van je team.</li>
-      <li>Log in (Google of e-mail) — en je zit meteen in het juiste team.</li>
-      <li>Geen link gekregen? Vraag je coach om de <b>teamcode</b> (bijv. ASVJO11-1) en vul die in op het inlogscherm.</li>
-    </ul>
-    </section>
+    <button class="knop vol" id="mWOk" style="margin-top:6px">Aanmaken</button>`);
 
-    <section class="hl-sec" data-zoek="📱 zet de app op je beginscherm voor een echt app-gevoel: open het menu van je browser en kies "toevoegen aan beginscherm" . dan staat cluppie als icoontje tussen je apps en open je hem met één tik — geen browser meer nodig.">
-    <h3>📱 Zet de app op je beginscherm</h3>
-    <p>Voor een echt app-gevoel: open het menu van je browser en kies <b>"Toevoegen aan beginscherm"</b>. Dan staat Cluppie als icoontje tussen je apps en open je hem met één tik — geen browser meer nodig.</p>
-    </section>
+  let thuis = true;
+  const duurLabel = () => {
+    $('#mWDuurLabel').textContent = type === 'toernooi'
+      ? (toernooiHelften === 1 ? 'Minuten per wedstrijd' : 'Minuten per helft')
+      : 'Minuten per ' + (periodes===2?'helft':'kwart');
+  };
+  const werkOvernemenBij = () => {
+    const vorige = laatsteOpstelling(format);
+    const wrap = $('#mWOvernemenWrap');
+    if (vorige && type === 'normaal'){
+      wrap.style.display = '';
+      const aantal = Object.keys(vorige.lineup).length;
+      $('#mWOvernemenInfo').textContent =
+        `${vorige.bron.tegenstander ? 'tegen '+vorige.bron.tegenstander+' · ' : ''}${aantal} spelers · ${vorige.formatie}`;
+    } else {
+      wrap.style.display = 'none';
+      $('#mWOvernemen').checked = false;
+    }
+  };
+  $$('#mWType button').forEach(b => b.onclick = () => {
+    $$('#mWType button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief');
+    type = b.dataset.ty;
+    $('#mWNormaal').style.display = type === 'normaal' ? '' : 'none';
+    $('#mWToernooi').style.display = type === 'toernooi' ? '' : 'none';
+    $('#mWThuisWrap').style.display = type === 'normaal' ? '' : 'none';
+    $('#mWDuur').value = type === 'toernooi' ? '15' : String(stdDuur).replace('.',',');
+    duurLabel(); werkOvernemenBij();
+  });
+  $$('#mWThuis button').forEach(b => b.onclick = () => { $$('#mWThuis button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); thuis = b.dataset.t==='1'; });
+  $$('#mWFormat button').forEach(b => b.onclick = () => { $$('#mWFormat button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); format = b.dataset.f; werkOvernemenBij(); });
+  $$('#mWHelften button').forEach(b => b.onclick = () => { $$('#mWHelften button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); toernooiHelften = Number(b.dataset.h); duurLabel(); });
+  $$('#mWPeriodes button').forEach(b => b.onclick = () => {
+    $$('#mWPeriodes button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief');
+    periodes = Number(b.dataset.p);
+    duurLabel();
+    const huidig = parseFloat(($('#mWDuur').value||'').replace(',','.'));
+    if (huidig) $('#mWDuur').value = String(periodes===2 ? huidig*2 : huidig/2).replace('.',',');
+  });
+  werkOvernemenBij();
 
-    <h4 class="hl-hoofdstuk" id="hlh-plannen">📅 Trainen &amp; plannen</h4>
-    <section class="hl-sec" data-zoek="📄 trainingen & 🎬 video's onder het tabblad training vind je de oefenstof voor je team, gedeeld als pdf. onder video staan youtube-links met oefeningen of beelden. elke zondag worden hier de trainingen voor de komende week en eventuele video's klaargezet — kijk er dus aan het begin van de week even in. een 🔴 rood stipje op het tabblad laat zien dat er iets nieuws is.">
-    <h3>📄 Trainingen & 🎬 video's</h3>
-    <p>Onder het tabblad <b>Training</b> vind je de oefenstof voor je team, gedeeld als PDF. Onder <b>Video</b> staan YouTube-links met oefeningen of beelden.</p>
-    <div class="tip"><b>Elke zondag</b> worden hier de trainingen voor de komende week en eventuele video's klaargezet — kijk er dus aan het begin van de week even in. Een <b>🔴 rood stipje</b> op het tabblad laat zien dat er iets nieuws is.</div>
-    </section>
+  $('#mWOk').onclick = async () => {
+    const duur = parseFloat(($('#mWDuur').value||String(stdDuur)).replace(',','.')) || stdDuur;
+    const overnemen = $('#mWOvernemen').checked && type === 'normaal';
+    let w, overTeNemen = null, formatie = Object.keys(FORMATIES[format])[0];
+    if (overnemen){
+      const vorige = laatsteOpstelling(format);
+      if (vorige){
+        overTeNemen = {...vorige.lineup};
+        if (FORMATIES[format][vorige.formatie]) formatie = vorige.formatie;
+      }
+    }
+    if (type === 'toernooi'){
+      const aantal = Number($('#mWAantal').value);
+      w = {
+        type: 'toernooi',
+        tegenstander: $('#mWToernooiNaam').value.trim() || 'Toernooi',
+        thuis: true, format,
+        toernooi: {wedstrijden: aantal, helften: toernooiHelften},
+        tegenstanders: {},
+        periodes: aantal * toernooiHelften,
+      };
+    } else {
+      w = {
+        type: 'normaal',
+        tegenstander: $('#mWTegen').value.trim() || 'Tegenstander',
+        thuis, format, periodes,
+      };
+    }
+    const kwarten = {};
+    for (let i = 1; i <= w.periodes; i++) kwarten[i] = leegKwart();
+    if (overTeNemen) kwarten[1].lineup = {...overTeNemen};
+    Object.assign(w, {
+      formatie,
+      datum: $('#mWDatum').value || vandaag,
+      kwartduur: duur,
+      selectie: S.spelers.map(p => p.id),
+      goals: [],
+      kaarten: [],
+      kwarten,
+      seizoen: S.huidigSeizoen,
+      gemaakt: serverTimestamp(),
+      opzetGedaan: false,
+    });
+    const ref = await addDoc(collection(db,'teams',S.teamId,'wedstrijden'), w);
+    sluitModal();
+    if (overTeNemen) meld('Opstelling van vorige wedstrijd overgenomen — pas aan waar nodig');
+    openWedstrijd(ref.id);
+  };
+}
 
-    <section class="hl-sec" data-zoek="📅 seizoensplanning het tabblad planning toont de hele seizoenskalender van je team in één lijst, per maand gegroepeerd. verleden maanden staan ingeklapt; de huidige en komende maanden staan open. echte wedstrijden uit voetbal.nl verschijnen hier automatisch met een ⚽-stip. de app haalt ze 's nachts op uit de officiële knvb-kalender, dus zodra de competitie-indeling bekend is staat alles klaar — thuis/uit, datum en tegenstander. op een dag met een echte wedstrijd wordt de algemene wd (wedstrijddag) onderdrukt, zodat je geen dubbele regels ziet. tik op een wedstrijd-regel om die wedstrijd direct te openen en de opstelling klaar te zetten. met de filterknoppen bovenaan ( alles , wedstrijden , speeldagen , beker , vrij ) bekijk je gericht één soort dag. + eigen dag : voeg zelf een toernooi, vriendschappelijke wedstrijd of vrije dag toe. die staat dan met een eigen markering tussen de officiële dagen. tip: verschijnen er nog geen wedstrijden? dan is de knvb-kalender voor jouw team nog niet gepubliceerd. zodra dat gebeurt, vullen ze zichzelf aan — je hoeft niets te doen.">
-    <h3>📅 Seizoensplanning</h3>
-    <p>Het tabblad <b>Planning</b> toont de hele seizoenskalender van je team in één lijst, per maand gegroepeerd. Verleden maanden staan ingeklapt; de huidige en komende maanden staan open.</p>
-    <ul>
-      <li><b>Echte wedstrijden uit voetbal.nl</b> verschijnen hier automatisch met een ⚽-stip. De app haalt ze 's nachts op uit de officiële KNVB-kalender, dus zodra de competitie-indeling bekend is staat alles klaar — thuis/uit, datum en tegenstander.</li>
-      <li>Op een dag met een echte wedstrijd wordt de algemene <kbd>WD</kbd> (wedstrijddag) onderdrukt, zodat je geen dubbele regels ziet.</li>
-      <li>Tik op een wedstrijd-regel om die wedstrijd direct te openen en de opstelling klaar te zetten.</li>
-      <li>Met de filterknoppen bovenaan (<kbd>Alles</kbd>, <kbd>Wedstrijden</kbd>, <kbd>Speeldagen</kbd>, <kbd>Beker</kbd>, <kbd>Vrij</kbd>) bekijk je gericht één soort dag.</li>
-      <li><b>+ Eigen dag</b>: voeg zelf een toernooi, vriendschappelijke wedstrijd of vrije dag toe. Die staat dan met een eigen markering tussen de officiële dagen.</li>
-    </ul>
-    <div class="tip"><b>Tip:</b> verschijnen er nog geen wedstrijden? Dan is de KNVB-kalender voor jouw team nog niet gepubliceerd. Zodra dat gebeurt, vullen ze zichzelf aan — je hoeft niets te doen.</div>
-    </section>
+/* ==================== OPENEN & OPSLAAN ==================== */
 
-    <section class="hl-sec" data-zoek="✏️ je eigen naam instellen onder ⚙️ team kun je via "mijn weergavenaam wijzigen" instellen hoe je in de coachlijst verschijnt. handig zodat je teamgenoten zien wie wie is.">
-    <h3>✏️ Je eigen naam instellen</h3>
-    <p>Onder ⚙️ <b>Team</b> kun je via <b>"Mijn weergavenaam wijzigen"</b> instellen hoe je in de coachlijst verschijnt. Handig zodat je teamgenoten zien wie wie is.</p>
-    </section>
+/* Vult ontbrekende wedstrijdvelden aan (bv. geïmporteerde voetbal.nl-wedstrijden
+   hebben geen format/periodes/formatie/kwartduur/kwarten). Geeft true terug als
+   er iets is aangevuld, zodat we het document één keer kunnen wegschrijven. */
+function normaliseerWedstrijd(w){
+  const cat = catInfo(S.team.categorie) || null;
+  let veranderd = false;
+  if (w.type !== 'toernooi' && w.type !== 'normaal'){ w.type = 'normaal'; veranderd = true; }
+  if (!w.format){ w.format = (cat ? cat.format : S.team.format) || '8'; veranderd = true; }
+  if (typeof w.thuis !== 'boolean'){ w.thuis = true; veranderd = true; }
+  if (!w.periodes){ w.periodes = cat ? cat.periodes : 4; veranderd = true; }
+  if (!w.kwartduur){ w.kwartduur = cat ? cat.duur : 15; veranderd = true; }
+  if (!FORMATIES[w.format]){ w.format = '8'; veranderd = true; }
+  if (!w.formatie || !FORMATIES[w.format][w.formatie]){
+    w.formatie = Object.keys(FORMATIES[w.format])[0]; veranderd = true;
+  }
+  if (!w.kwarten || typeof w.kwarten !== 'object' || !Object.keys(w.kwarten).length){
+    const kwarten = {};
+    for (let i = 1; i <= w.periodes; i++) kwarten[i] = leegKwart();
+    w.kwarten = kwarten; veranderd = true;
+  }
+  if (!Array.isArray(w.goals)){ w.goals = []; veranderd = true; }
+  if (!Array.isArray(w.kaarten)){ w.kaarten = []; veranderd = true; }
+  if (!Array.isArray(w.selectie) || !w.selectie.length){ w.selectie = S.spelers.map(p => p.id); veranderd = true; }
+  if (typeof w.opzetGedaan !== 'boolean'){ w.opzetGedaan = true; veranderd = true; }
+  return veranderd;
+}
 
-    <h4 class="hl-hoofdstuk" id="hlh-wedstrijddag">⚽ Op de wedstrijddag</h4>
-    <section class="hl-sec" data-zoek="🚀 snel beginnen voeg je spelers toe onder het tabblad 👕 — naam en rugnummer is genoeg. maak een nieuwe wedstrijd aan onder 📋. kies competitie of toernooi. sleep spelers van de bank naar het veld of tik ze aan en tik daarna een positie. start de klok ▶ zodra de wedstrijd begint. wissels tijdens het spel worden automatisch gelogd met tijdstip.">
-    <h3>🚀 Snel beginnen</h3>
-    <ul>
-      <li>Voeg je <b>spelers</b> toe onder het tabblad 👕 — naam en rugnummer is genoeg.</li>
-      <li>Maak een <b>nieuwe wedstrijd</b> aan onder 📋. Kies competitie of toernooi.</li>
-      <li>Sleep spelers van de bank naar het veld of tik ze aan en tik daarna een positie.</li>
-      <li>Start de klok ▶ zodra de wedstrijd begint. Wissels tijdens het spel worden automatisch gelogd met tijdstip.</li>
-    </ul>
-    </section>
+export function openWedstrijd(wid){
+  S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
+  stopUnsubs('wedstrijd');
+  S.unsub.wedstrijd = onSnapshot(doc(db,'teams',S.teamId,'wedstrijden',wid), snap => {
+    if (!snap.exists()){ sluitWedstrijd(); return; }
+    if (snap.metadata.hasPendingWrites) return;
+    if (Date.now() - S.lokaalTot < 1800) return;
+    const data = snap.data();
+    const aangevuld = normaliseerWedstrijd(data);
+    S.wedstrijd = data;
+    renderWedstrijd();
+    if (aangevuld) bewaarWedstrijd();
+    if (data.opzetGedaan === false && !S._wizardActief){
+      S._wizardActief = true;
+      toonWedstrijdWizard();
+    }
+  }, (err) => {
+    console.error(`[Cluppie] Listener "wedstrijd" kon niet lezen (teamId=${S.teamId}, wid=${wid}):`, err.code, err.message);
+    if (err.code === 'permission-denied') meld('Geen toegang tot deze wedstrijd — controleer de Firestore-rules');
+  });
+  toon('wedstrijd');
+}
+export function sluitWedstrijd(){
+  stopUnsubs('wedstrijd');
+  clearInterval(S.klokInterval); S.klokInterval = null;
+  S.wedstrijd = null; S.wedstrijdId = null;
+  verbergWedstrijdWizard();
+  verbergWijzigOpzet();
+  import('./teams.js').then(m => { m.renderTeam(); toon('team'); });
+}
+function bewaarWedstrijd(){
+  S.lokaalTot = Date.now();
+  clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(() => {
+    setDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId), S.wedstrijd)
+      .catch(e => meld('Opslaan mislukt: ' + e.code));
+  }, 600);
+}
 
-    <section class="hl-sec" data-zoek="🎯 wedstrijd opzetten bij een gloednieuwe wedstrijd doorloop je automatisch vier korte stappen: aanvoerder, aantal spelers, speelwijze en wedstrijddoel. geen tijd of zin? tik op overslaan — alles is later nog aan te passen via wijzig opzet rechtsboven in het wedstrijdscherm.">
-    <h3>🎯 Wedstrijd opzetten</h3>
-    <p>Bij een gloednieuwe wedstrijd doorloop je automatisch vier korte stappen: <b>aanvoerder</b>, <b>aantal spelers</b>, <b>speelwijze</b> en <b>wedstrijddoel</b>. Geen tijd of zin? Tik op <b>Overslaan</b> — alles is later nog aan te passen via <b>Wijzig opzet</b> rechtsboven in het wedstrijdscherm.</p>
-    </section>
+/* ==================== WEDSTRIJD-WIZARD (eerste keer opzetten) ====================
+   Volledig scherm, verschijnt automatisch bij een gloednieuwe wedstrijd (opzetGedaan
+   === false). Vier korte stappen: aanvoerder, aantal spelers, speelwijze, doel.
+   Overslaan kan altijd, met een korte waarschuwing dat alles later nog aan te passen
+   is via "Wijzig opzet" rechtsboven. Oude wedstrijden (voor deze feature) krijgen via
+   normaliseerWedstrijd() al opzetGedaan=true en zien deze wizard dus nooit. */
+const WIZARD_STAPPEN = 4;
 
-    <section class="hl-sec" data-zoek="⚽ spelers slepen & wisselen op het veld werk je met spelersbolletjes (de chips ): slepen : houd een speler vast en sleep hem naar een andere positie, een lege plek, of naar de bank. tikken : één tik selecteert (gele rand). tik daarna een doel om de speler daar neer te zetten. positie ruilen : sleep een veldspeler naar een andere veldspeler — ze wisselen van positie. loopt de klok? dan wordt elke bank→veld of veld→bank actie geregistreerd als wissel met tijdstip in het log. tip: de bank is gesorteerd op minste speeltijd — wie aan de beurt is, staat vooraan.">
-    <h3>⚽ Spelers slepen & wisselen</h3>
-    <p>Op het veld werk je met spelersbolletjes (de <b>chips</b>):</p>
-    <ul>
-      <li><b>Slepen</b>: houd een speler vast en sleep hem naar een andere positie, een lege plek, of naar de bank.</li>
-      <li><b>Tikken</b>: één tik selecteert (gele rand). Tik daarna een doel om de speler daar neer te zetten.</li>
-      <li><b>Positie ruilen</b>: sleep een veldspeler naar een andere veldspeler — ze wisselen van positie.</li>
-      <li><b>Loopt de klok?</b> Dan wordt elke bank→veld of veld→bank actie geregistreerd als wissel met tijdstip in het log.</li>
-    </ul>
-    <div class="tip"><b>Tip:</b> de bank is gesorteerd op minste speeltijd — wie aan de beurt is, staat vooraan.</div>
-    </section>
+function toonWedstrijdWizard(){
+  const w = S.wedstrijd;
+  const spelersInSelectie = (w.selectie||[]).map(pid => speler(pid)).filter(Boolean);
 
-    <section class="hl-sec" data-zoek="🟢 stippen onder spelers onder elke chip verschijnen vanaf het tweede kwart kleine stippen — één per eerder kwart: groen = die periode gespeeld. rood = die periode op de bank. zo zie je in één oogopslag wie er nu echt aan de beurt is.">
-    <h3>🟢 Stippen onder spelers</h3>
-    <p>Onder elke chip verschijnen vanaf het tweede kwart kleine stippen — één per eerder kwart:</p>
-    <ul>
-      <li><b>Groen</b> = die periode gespeeld.</li>
-      <li><b>Rood</b> = die periode op de bank.</li>
-    </ul>
-    <p>Zo zie je in één oogopslag wie er nu echt aan de beurt is.</p>
-    </section>
+  let stap = 0;
+  let gekAanvoerder = w.aanvoerder || null;
+  let gekFormat = w.format;
+  let gekFormatie = w.formatie;
 
-    <section class="hl-sec" data-zoek="⏱ kwarten, helften & klok de app stelt het juiste aantal periodes en de speeltijd in op basis van de knvb-categorie van je team. tik op een periode-tab ( k1 , k2 ... of h1 , h2 ) om eraan te werken. de klok stopt automatisch op de maximale speeltijd — je kunt hem dus niet vergeten. open je een leeg kwart, dan wordt de eindopstelling van het vorige kwart automatisch overgenomen. met ↺ zet je de klok terug op nul; wissels blijven staan.">
-    <h3>⏱ Kwarten, helften & klok</h3>
-    <ul>
-      <li>De app stelt het juiste aantal periodes en de speeltijd in op basis van de KNVB-categorie van je team.</li>
-      <li>Tik op een periode-tab (<kbd>K1</kbd>, <kbd>K2</kbd> ... of <kbd>H1</kbd>, <kbd>H2</kbd>) om eraan te werken.</li>
-      <li>De klok stopt <b>automatisch</b> op de maximale speeltijd — je kunt hem dus niet vergeten.</li>
-      <li>Open je een leeg kwart, dan wordt de eindopstelling van het vorige kwart automatisch overgenomen.</li>
-      <li>Met ↺ zet je de klok terug op nul; wissels blijven staan.</li>
-    </ul>
-    </section>
+  const stapHtml = [
+    `<div class="wz-icoon">🎖️</div>
+     <h2>Wie is aanvoerder?</h2>
+     <p class="wz-uitleg">Kies de aanvoerder voor deze wedstrijd. Je kunt dit later altijd wijzigen.</p>
+     <div class="wz-keuzelijst" id="wzAanvoerderLijst">
+       <div class="wz-keuze ${!gekAanvoerder?'wz-actief':''}" data-pid="">
+         <div class="wz-shirt">—</div><div class="wz-naam">Nog geen keuze</div><div class="wz-check"></div>
+       </div>
+       ${spelersInSelectie.map(p => `
+         <div class="wz-keuze ${gekAanvoerder===p.id?'wz-actief':''}" data-pid="${p.id}">
+           <div class="wz-shirt">${esc(spelerNr(p.id))}</div>
+           <div class="wz-naam">${esc(p.naam)}</div><div class="wz-check"></div>
+         </div>`).join('')}
+     </div>`,
+    `<div class="wz-icoon">👥</div>
+     <h2>Hoeveel spelers per team?</h2>
+     <p class="wz-uitleg">Dit bepaalt het speelformat van de wedstrijd.</p>
+     <div class="wz-tegels" id="wzFormatTegels">
+       ${['4','6','8','9','11'].map(f => `<div class="wz-tegel ${gekFormat===f?'wz-actief':''}" data-f="${f}"><span class="wz-cijfer">${f}×${f}</span></div>`).join('')}
+     </div>`,
+    `<div class="wz-icoon">📐</div>
+     <h2>Welke speelwijze?</h2>
+     <p class="wz-uitleg" id="wzFormatieUitleg">Kies de formatie voor ${gekFormat}×${gekFormat}.</p>
+     <div class="wz-tegels wz-tegels-drie" id="wzFormatieTegels"></div>`,
+    `<div class="wz-icoon">🎯</div>
+     <h2>Wat is het wedstrijddoel?</h2>
+     <p class="wz-uitleg">Waar wil je dit team vandaag op laten letten?</p>
+     <input class="invoer" id="wzDoelInvoer" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
+     <div class="wz-chips">
+       ${doelSuggesties(S.team?.categorie).slice(0,4).map(s => `<div class="wz-chip" data-doelsug="${esc(s)}">${esc(s)}</div>`).join('')}
+     </div>`,
+  ];
 
-    <section class="hl-sec" data-zoek="📋 opstelling van vorige wedstrijd bij een nieuwe wedstrijd kun je de optie "begin met opstelling van vorige wedstrijd" aanvinken. het eerste kwart wordt dan gevuld met de startopstelling van je laatste wedstrijd in hetzelfde format — zo hoef je niet elke keer opnieuw te beginnen, en pas je alleen aan wie er deze keer ontbreekt.">
-    <h3>📋 Opstelling van vorige wedstrijd</h3>
-    <p>Bij een nieuwe wedstrijd kun je de optie <b>"Begin met opstelling van vorige wedstrijd"</b> aanvinken. Het eerste kwart wordt dan gevuld met de startopstelling van je laatste wedstrijd in hetzelfde format — zo hoef je niet elke keer opnieuw te beginnen, en pas je alleen aan wie er deze keer ontbreekt.</p>
-    </section>
+  $('#wizardAchter').innerHTML = `
+    <div class="wz-scherm">
+      <div class="wz-topbar">
+        <span class="wz-titel-mini">Wedstrijd opzetten</span>
+        <div class="wz-dots" id="wzDots">${Array.from({length:WIZARD_STAPPEN},(_,i) =>
+          `<span class="wz-dot ${i===0?'wz-actief':''}" data-d="${i}"></span>`).join('')}</div>
+      </div>
+      <div class="wz-body" id="wzBody">${stapHtml.map((html,i) =>
+        `<div class="wz-stap ${i===0?'wz-actief':''}" data-stap="${i}">${html}</div>`).join('')}</div>
+      <div class="wz-klaar" id="wzKlaar">
+        <div class="wz-klaar-icoon">✓</div>
+        <h2>Helemaal klaar!</h2>
+        <p>De opzet staat. Veel plezier vandaag — je past dit altijd aan via <b>Wijzig opzet</b> rechtsboven.</p>
+      </div>
+      <div class="wz-bottom" id="wzBottom">
+        <div class="wz-skipwarn" id="wzSkipWarn">
+          <span class="wz-skipwarn-ico">💡</span>
+          <div class="wz-skipwarn-tekst">
+            <b>Weet je het zeker?</b> Je kunt aanvoerder, speelwijze, aantal spelers en wedstrijddoel altijd nog aanpassen via <b>Wijzig opzet</b> rechtsboven in het wedstrijdscherm.
+            <div class="wz-skipwarn-btns">
+              <button class="knop licht" id="wzSkipTerug">Toch instellen</button>
+              <button class="knop fluo" id="wzSkipDoor">Ja, overslaan</button>
+            </div>
+          </div>
+        </div>
+        <div class="wz-btnrij" id="wzBtnRij">
+          <button class="wz-terug" id="wzTerug" style="visibility:hidden">←</button>
+          <button class="knop vol fluo" id="wzVolgende">Volgende</button>
+        </div>
+        <button class="wz-skiplink" id="wzSkipLink">Overslaan</button>
+      </div>
+    </div>`;
+  $('#wizardAchter').classList.add('open');
 
-    <section class="hl-sec" data-zoek="↩︎ vorige confrontatie open je een wedstrijd tegen een tegenstander waar je dit seizoen al eens tegen speelde, dan verschijnt bovenin een regeltje "vorige keer:" met datum, thuis/uit en de uitslag (groen = gewonnen, rood = verloren, grijs = gelijk). tik erop om het paneel uit te klappen: je ziet de volledige uitslag en — als je die had ingevuld — het wedstrijddoel en je notitie van toen. met → bekijk deze wedstrijd spring je direct naar de oude wedstrijd om de opstelling van destijds terug te zien. slim: de naamvergelijking negeert hoofdletters, spaties en het eigen clubvoorvoegsel, zodat dezelfde tegenstander altijd herkend wordt — ook als de schrijfwijze net iets verschilt.">
-    <h3>↩︎ Vorige confrontatie</h3>
-    <p>Open je een wedstrijd tegen een tegenstander waar je dit seizoen al eens tegen speelde, dan verschijnt bovenin een regeltje <b>"Vorige keer:"</b> met datum, thuis/uit en de uitslag (groen = gewonnen, rood = verloren, grijs = gelijk).</p>
-    <ul>
-      <li>Tik erop om het paneel uit te klappen: je ziet de volledige uitslag en — als je die had ingevuld — het wedstrijddoel en je notitie van toen.</li>
-      <li>Met <b>→ Bekijk deze wedstrijd</b> spring je direct naar de oude wedstrijd om de opstelling van destijds terug te zien.</li>
-    </ul>
-    <div class="tip"><b>Slim:</b> de naamvergelijking negeert hoofdletters, spaties en het eigen clubvoorvoegsel, zodat dezelfde tegenstander altijd herkend wordt — ook als de schrijfwijze net iets verschilt.</div>
-    </section>
+  const vulFormatieTegels = () => {
+    if (!FORMATIES[gekFormat][gekFormatie]) gekFormatie = Object.keys(FORMATIES[gekFormat])[0];
+    $('#wzFormatieUitleg').textContent = `Kies de formatie voor ${gekFormat}×${gekFormat}.`;
+    $('#wzFormatieTegels').innerHTML = Object.keys(FORMATIES[gekFormat]).map(fm =>
+      `<div class="wz-tegel ${gekFormatie===fm?'wz-actief':''}" data-fm="${fm}"><span class="wz-cijfer wz-cijfer-klein">${fm}</span></div>`).join('');
+    $$('#wzFormatieTegels .wz-tegel').forEach(el => el.onclick = () => {
+      $$('#wzFormatieTegels .wz-tegel').forEach(x => x.classList.remove('wz-actief'));
+      el.classList.add('wz-actief');
+      gekFormatie = el.dataset.fm;
+    });
+  };
+  vulFormatieTegels();
 
-    <section class="hl-sec" data-zoek="📅 wissels vooraf plannen onder het wisselvak staat + wissel plannen : kies wie erin, wie eruit en na hoeveel minuten. zodra de klok dat moment passeert, knippert de geplande wissel en trilt je telefoon. tik op ✓ om hem door te voeren.">
-    <h3>📅 Wissels vooraf plannen</h3>
-    <p>Onder het wisselvak staat <b>+ Wissel plannen</b>: kies wie erin, wie eruit en na hoeveel minuten. Zodra de klok dat moment passeert, knippert de geplande wissel en trilt je telefoon. Tik op <kbd>✓</kbd> om hem door te voeren.</p>
-    </section>
+  const koppelAanvoerderKliks = () => $$('#wzAanvoerderLijst .wz-keuze').forEach(el => el.onclick = () => {
+    $$('#wzAanvoerderLijst .wz-keuze').forEach(x => x.classList.remove('wz-actief'));
+    el.classList.add('wz-actief');
+    gekAanvoerder = el.dataset.pid || null;
+  });
+  koppelAanvoerderKliks();
 
-    <section class="hl-sec" data-zoek="⚽ doelpunten registreren & corrigeren tik op de ⚽-knop aan jouw kant van het scorebord en kies de speler die scoorde. tegendoelpunt: één tik op de andere ⚽-knop. verkeerd getikt? tik op het doelpunt in het gebeurtenissen-log. je kunt dan de juiste scorer kiezen, de kant omdraaien (voor ↔ tegen) of het doelpunt verwijderen. doelpunten verschijnen in het log en in de seizoenstatistieken (topscorer).">
-    <h3>⚽ Doelpunten registreren & corrigeren</h3>
-    <ul>
-      <li>Tik op de <b>⚽-knop</b> aan jouw kant van het scorebord en kies de speler die scoorde.</li>
-      <li>Tegendoelpunt: één tik op de andere ⚽-knop.</li>
-      <li><b>Verkeerd getikt?</b> Tik op het doelpunt in het gebeurtenissen-log. Je kunt dan de juiste scorer kiezen, de kant omdraaien (voor ↔ tegen) of het doelpunt verwijderen.</li>
-      <li>Doelpunten verschijnen in het log en in de seizoenstatistieken (topscorer).</li>
-    </ul>
-    </section>
+  $$('#wzFormatTegels .wz-tegel').forEach(el => el.onclick = () => {
+    $$('#wzFormatTegels .wz-tegel').forEach(x => x.classList.remove('wz-actief'));
+    el.classList.add('wz-actief');
+    gekFormat = el.dataset.f;
+    vulFormatieTegels();
+  });
 
-    <section class="hl-sec" data-zoek="🟨 kaarten & straffen de gele knop naast het scorebord opent het kaartenmenu. kies de speler en het type: 🟨 geel — waarschuwing. een tweede gele in dezelfde wedstrijd geeft automatisch rood . ⏱ tijdstraf — 5 minuten voor pupillen (t/m jo/mo15), 10 minuten voor jo/mo16+ en senioren. 🟥 rood — de speler wordt direct van het veld gehaald. verkeerde kaart? tik erop in het log om de speler te wijzigen of de kaart te verwijderen.">
-    <h3>🟨 Kaarten & straffen</h3>
-    <p>De gele knop naast het scorebord opent het kaartenmenu. Kies de speler en het type:</p>
-    <ul>
-      <li><b>🟨 Geel</b> — waarschuwing. Een tweede gele in dezelfde wedstrijd geeft <b>automatisch rood</b>.</li>
-      <li><b>⏱ Tijdstraf</b> — 5 minuten voor pupillen (t/m JO/MO15), 10 minuten voor JO/MO16+ en senioren.</li>
-      <li><b>🟥 Rood</b> — de speler wordt direct van het veld gehaald.</li>
-      <li>Verkeerde kaart? Tik erop in het log om de speler te wijzigen of de kaart te verwijderen.</li>
-    </ul>
-    </section>
+  $$('#wzBody [data-doelsug]').forEach(b => b.onclick = () => { $('#wzDoelInvoer').value = b.dataset.doelsug; });
 
-    <section class="hl-sec" data-zoek="👑 aanvoerder onder wijzig opzet in de wedstrijd kies je per wedstrijd de aanvoerder. hij krijgt een geel c -bandje op zijn shirt. in de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.">
-    <h3>👑 Aanvoerder</h3>
-    <p>Onder <b>Wijzig opzet</b> in de wedstrijd kies je per wedstrijd de aanvoerder. Hij krijgt een geel <b>C</b>-bandje op zijn shirt. In de statistieken zie je hoe vaak iemand aanvoerder is geweest — handig om te rouleren.</p>
-    </section>
+  const toonStap = i => {
+    $$('.wz-stap').forEach(s => s.classList.remove('wz-actief'));
+    $(`.wz-stap[data-stap="${i}"]`).classList.add('wz-actief');
+    $$('.wz-dot').forEach((d,di) => d.classList.toggle('wz-actief', di===i));
+    $('#wzTerug').style.visibility = i===0 ? 'hidden' : 'visible';
+    $('#wzVolgende').textContent = i===WIZARD_STAPPEN-1 ? 'Klaar' : 'Volgende';
+  };
 
-    <section class="hl-sec" data-zoek="🏆 toernooien bij een nieuwe wedstrijd kies je toernooi . geef het aantal wedstrijden op en het aantal helften per wedstrijd. de tabs worden dan w1 , w2 ... de tegenstander per wedstrijd vul je in door op de naam in het scorebord te tikken (gestippeld onderstreept). op één scherm: alle wissels en speeltijden lopen over het hele toernooi door, zodat je in wedstrijd 4 ziet wie er bij wedstrijd 1, 2 en 3 al heeft gespeeld.">
-    <h3>🏆 Toernooien</h3>
-    <p>Bij een nieuwe wedstrijd kies je <b>Toernooi</b>. Geef het aantal wedstrijden op en het aantal helften per wedstrijd. De tabs worden dan <kbd>W1</kbd>, <kbd>W2</kbd> ... De tegenstander per wedstrijd vul je in door op de naam in het scorebord te tikken (gestippeld onderstreept).</p>
-    <div class="tip"><b>Op één scherm:</b> alle wissels en speeltijden lopen over het hele toernooi door, zodat je in wedstrijd 4 ziet wie er bij wedstrijd 1, 2 en 3 al heeft gespeeld.</div>
-    </section>
+  const opslaanEnSluiten = () => {
+    const formatVeranderd = gekFormat !== w.format || gekFormatie !== w.formatie;
+    if (formatVeranderd){
+      const nieuweIds = new Set(bouwSlots(gekFormat, gekFormatie).map(s => s.id));
+      for (const kk of Object.values(w.kwarten)){
+        for (const slot of Object.keys(kk.lineup)) if (!nieuweIds.has(slot)) delete kk.lineup[slot];
+        kk.events = kk.events.filter(e => nieuweIds.has(e.slot));
+      }
+      w.format = gekFormat; w.formatie = gekFormatie;
+    }
+    w.aanvoerder = gekAanvoerder || null;
+    w.doel = ($('#wzDoelInvoer')?.value || '').trim();
+    w.opzetGedaan = true;
+    bewaarWedstrijd();
+    renderWedstrijd();
+    $('#wzBody').style.display = 'none';
+    $('#wzBottom').style.display = 'none';
+    $('#wzKlaar').classList.add('wz-actief');
+    setTimeout(verbergWedstrijdWizard, 1800);
+  };
 
-    <h4 class="hl-hoofdstuk" id="hlh-club">🏛 Club &amp; team beheren</h4>
-    <section class="hl-sec" data-zoek="🏛 clubs & trainingen delen werk je als hoofdtrainer voor meerdere teams? maak op het startscherm een club aan. daarmee kun je: teams aanmaken die bij jouw club horen (de coaches ervan komen direct in het juiste team). 📥 pdf importeren : upload een pdf met de teamindeling en de app leest de teams en spelers automatisch uit. controleer in de preview, klik "aanmaken" en alle teams + spelers staan klaar. coaches uitnodigen met een persoonlijke link (via whatsapp), zodat ze niet eerst een teamcode hoeven te krijgen. met 🔗 alle uitnodigingen krijg je in één overzicht alle links voor alle teams. pdf-trainingen uploaden en aangeven voor welke teams ze beschikbaar zijn. de trainers zien ze in het 📄 training-tabblad van hun team. met ✏️ pas je de titel, week of de gekoppelde teams later aan, zonder het bestand opnieuw te uploaden. een 🔴 stip op het training-tabblad waarschuwt coaches voor nieuwe, ongelezen trainingen.">
-    <h3>🏛 Clubs & trainingen delen</h3>
-    <p>Werk je als hoofdtrainer voor meerdere teams? Maak op het startscherm een <b>club</b> aan. Daarmee kun je:</p>
-    <ul>
-      <li>Teams aanmaken die bij jouw club horen (de coaches ervan komen direct in het juiste team).</li>
-      <li><b>📥 PDF importeren</b>: upload een PDF met de teamindeling en de app leest de teams en spelers automatisch uit. Controleer in de preview, klik "Aanmaken" en alle teams + spelers staan klaar.</li>
-      <li>Coaches uitnodigen met een persoonlijke link (via WhatsApp), zodat ze niet eerst een teamcode hoeven te krijgen. Met <b>🔗 Alle uitnodigingen</b> krijg je in één overzicht alle links voor alle teams.</li>
-      <li>PDF-trainingen uploaden en aangeven voor welke teams ze beschikbaar zijn. De trainers zien ze in het 📄 Training-tabblad van hun team. Met ✏️ pas je de titel, week of de gekoppelde teams later aan, zonder het bestand opnieuw te uploaden.</li>
-      <li>Een 🔴 stip op het training-tabblad waarschuwt coaches voor nieuwe, ongelezen trainingen.</li>
-    </ul>
-    </section>
+  $('#wzVolgende').onclick = () => {
+    if (stap < WIZARD_STAPPEN-1){ stap++; toonStap(stap); }
+    else opslaanEnSluiten();
+  };
+  $('#wzTerug').onclick = () => { if (stap > 0){ stap--; toonStap(stap); } };
+  $('#wzSkipLink').onclick = () => {
+    $('#wzSkipWarn').classList.add('wz-actief');
+    $('#wzBtnRij').style.display = 'none';
+    $('#wzSkipLink').style.display = 'none';
+  };
+  $('#wzSkipTerug').onclick = () => {
+    $('#wzSkipWarn').classList.remove('wz-actief');
+    $('#wzBtnRij').style.display = 'flex';
+    $('#wzSkipLink').style.display = 'block';
+  };
+  $('#wzSkipDoor').onclick = opslaanEnSluiten;
+}
 
-    <section class="hl-sec" data-zoek="👥 meerdere coaches & rommel opruimen onder ⚙️ team vind je de teamcode (bijv. asvjo11-1) en de lijst coaches . deel de code of een uitnodigingslink met collega-coaches: ze openen de link en loggen in met hun e-mailadres of google. daarna zitten ze direct in het team — en komen ze later met dezelfde login terug als dezelfde coach. staat er iemand verkeerd of dubbel in de lijst? tik op het 🗑 naast een coach om die te verwijderen uit het team. wijzigingen lopen realtime door — handig als de assistent-coach langs de lijn de wissels bijhoudt en de hoofdcoach de score.">
-    <h3>👥 Meerdere coaches & rommel opruimen</h3>
-    <p>Onder ⚙️ <b>Team</b> vind je de <b>teamcode</b> (bijv. ASVJO11-1) en de lijst <b>coaches</b>. Deel de code of een uitnodigingslink met collega-coaches:</p>
-    <ul>
-      <li>Ze openen de link en loggen in met hun e-mailadres of Google. Daarna zitten ze direct in het team — en komen ze later met dezelfde login terug als dezelfde coach.</li>
-      <li>Staat er iemand verkeerd of dubbel in de lijst? Tik op het 🗑 naast een coach om die te verwijderen uit het team.</li>
-      <li>Wijzigingen lopen realtime door — handig als de assistent-coach langs de lijn de wissels bijhoudt en de hoofdcoach de score.</li>
-    </ul>
-    </section>
-
-    <section class="hl-sec" data-zoek="📐 format en formatie wijzigen onder wijzig opzet in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.">
-    <h3>📐 Format en formatie wijzigen</h3>
-    <p>Onder <b>Wijzig opzet</b> in een wedstrijd pas je het format (6×6, 8×8, 9×9, 11×11, 4×4) en de formatie aan. Spelers blijven zoveel mogelijk op hun plek staan; slots die wegvallen worden netjes opgeschoond.</p>
-    </section>
-
-    <section class="hl-sec" data-zoek="📊 statistieken onder ⏱ vind je het seizoensoverzicht: speeltijd, doelpunten, aanvoerdersbeurten, keeperbeurten en kaarten per speler. sorteert vanzelf op meeste speeltijd.">
-    <h3>📊 Statistieken</h3>
-    <p>Onder ⏱ vind je het seizoensoverzicht: speeltijd, doelpunten, aanvoerdersbeurten, keeperbeurten en kaarten per speler. Sorteert vanzelf op meeste speeltijd.</p>
-    </section>
-
-    <h4 class="hl-hoofdstuk" id="hlh-beoordelen">📈 Beoordelen &amp; evalueren</h4>
-    <section class="hl-sec" data-zoek="📋 spelers beoordelen per speler leg je de ontwikkeling vast. open een speler (tab spelers → tik op de speler) en je vindt daar het ontwikkelprofiel met twee manieren om te beoordelen: ⚡ snel beoordelen — een paar tikken na een wedstrijd of training: een algemeen niveau plus optionele "opvallend"-tags. ideaal om er een gewoonte van te maken. 📋 volledige beoordeling — een periodieke, diepere meting op de vijf ontwikkeldomeinen. hieruit komt het ontwikkelprofiel met balkjes. de vijf domeinen (gebaseerd op het asv'33-jeugdbeleidsplan): te — technisch : balbeheersing, traptechniek, 1v1. ta — tactisch : inzicht, positiespel, keuzes maken. fy — fysiek : snelheid, actiesnelheid, duelkracht. me — mentaal : zelfvertrouwen, spelen onder weerstand. ge — gedrag & beleving : inzet, teamgevoel, plezier. een score loopt van 1 (aandacht) via 3 (prima) tot 5 (uitblinker) . leerpunten (tab leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. vink ze af zodra ze beheerst zijn. de app stelt leerpunten voor die passen bij de leeftijd van het team. historie : een tijdlijn met al je eerdere beoordelingen. tik een item aan om het te bekijken of bij te werken. privacy: beoordelingen en leerpunten zijn coach-only . spelers en ouders zien deze nooit. verwijder je een speler, dan gaan zijn beoordelingen mee weg.">
-    <h3>📋 Spelers beoordelen</h3>
-    <p>Per speler leg je de ontwikkeling vast. Open een speler (tab <b>Spelers</b> → tik op de speler) en je vindt daar het ontwikkelprofiel met twee manieren om te beoordelen:</p>
-    <ul>
-      <li><b>⚡ Snel beoordelen</b> — een paar tikken na een wedstrijd of training: een algemeen niveau plus optionele "opvallend"-tags. Ideaal om er een gewoonte van te maken.</li>
-      <li><b>📋 Volledige beoordeling</b> — een periodieke, diepere meting op de vijf ontwikkeldomeinen. Hieruit komt het ontwikkelprofiel met balkjes.</li>
-    </ul>
-    <p>De vijf domeinen (gebaseerd op het ASV'33-jeugdbeleidsplan):</p>
-    <ul>
-      <li><b>TE — Technisch</b>: balbeheersing, traptechniek, 1v1.</li>
-      <li><b>TA — Tactisch</b>: inzicht, positiespel, keuzes maken.</li>
-      <li><b>FY — Fysiek</b>: snelheid, actiesnelheid, duelkracht.</li>
-      <li><b>ME — Mentaal</b>: zelfvertrouwen, spelen onder weerstand.</li>
-      <li><b>GE — Gedrag &amp; beleving</b>: inzet, teamgevoel, plezier.</li>
-    </ul>
-    <p>Een score loopt van <b>1 (Aandacht)</b> via <b>3 (Prima)</b> tot <b>5 (Uitblinker)</b>.</p>
-    <ul>
-      <li><b>Leerpunten</b> (tab Leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. Vink ze af zodra ze beheerst zijn. De app stelt leerpunten voor die passen bij de leeftijd van het team.</li>
-      <li><b>Historie</b>: een tijdlijn met al je eerdere beoordelingen. Tik een item aan om het te bekijken of bij te werken.</li>
-    </ul>
-    <div class="tip"><b>Privacy:</b> beoordelingen en leerpunten zijn <b>coach-only</b>. Spelers en ouders zien deze nooit. Verwijder je een speler, dan gaan zijn beoordelingen mee weg.</div>
-    </section>
-
-    <section class="hl-sec" data-zoek="📈 team evalueren na de wedstrijd naast de beoordeling per speler kun je na elke wedstrijd ook het hele team evalueren. onderaan het wedstrijdscherm, onder het wedstrijdverslag, staat de knop 📈 team evalueren . al een keer ingevuld voor deze wedstrijd? dan heet de knop ✓ teamevaluatie bijwerken en pas je 'm gewoon aan. acht korte vragen, elk met dezelfde kleurbalk als bij spelers (1 aandacht t/m 5 uitblinker): inzet & concentratie, samenwerking & communicatie, taakuitvoering per linie, opbouw van achteruit, omschakeling bij balverlies/-winst, druk zetten & veroveren, spelplezier, coachbaarheid. daarna eventueel een paar tags aantikken (goede samenwerking, veel plezier, afspraken niet nagekomen, enzovoort) en twee optionele tekstvelden: wat ging het beste, en wat is het aandachtspunt voor de volgende training. drie tot vijf minuten werk, alles op één scherm, niets is verplicht behalve de acht kleurbalken.">
-    <h3>📈 Team evalueren na de wedstrijd</h3>
-    <p>Naast de beoordeling per speler kun je na elke wedstrijd ook het <b>hele team</b> evalueren. Onderaan het wedstrijdscherm, onder het wedstrijdverslag, staat de knop <b>📈 Team evalueren</b>.</p>
-    <p>Al een keer ingevuld voor deze wedstrijd? Dan heet de knop <b>✓ Teamevaluatie bijwerken</b> en pas je 'm gewoon aan.</p>
-    <p>Acht korte vragen, elk met dezelfde kleurbalk als bij spelers (1 Aandacht t/m 5 Uitblinker):</p>
-    <ul>
-      <li>Inzet &amp; concentratie</li>
-      <li>Samenwerking &amp; communicatie</li>
-      <li>Taakuitvoering per linie</li>
-      <li>Opbouw van achteruit</li>
-      <li>Omschakeling bij balverlies/-winst</li>
-      <li>Druk zetten &amp; veroveren</li>
-      <li>Spelplezier</li>
-      <li>Coachbaarheid</li>
-    </ul>
-    <p>Daarna eventueel een paar <b>tags</b> aantikken (goede samenwerking, veel plezier, afspraken niet nagekomen, enzovoort) en twee optionele tekstvelden: <b>wat ging het beste</b>, en <b>wat is het aandachtspunt voor de volgende training</b>.</p>
-    <div class="tip"><b>3–5 minuten werk:</b> alles staat op één scherm, tikken in plaats van typen. Niets is verplicht behalve de acht kleurbalken — de tags en tekstvelden mag je overslaan.</div>
-    </section>
-
-    <section class="hl-sec" data-zoek="📊 teamevaluatie-dashboard bekijk je onder het tabblad stats , via het segment 📈 teamevaluatie naast spelers . vier onderdelen: groeicurve — een lijn met de gemiddelde teamontwikkelscore per wedstrijd, zodat je in één oogopslag ziet of het team groeit. categorieën — de acht onderdelen met hun gemiddelde over de laatste vijf wedstrijden, inclusief een pijltje omhoog, gelijk of omlaag. terugkerende aandachtspunten — automatisch signalen zodra hetzelfde onderdeel meerdere wedstrijden op rij het laagst scoort. voorgesteld trainingsthema — een suggestie voor de volgende training, gebaseerd op het onderdeel dat de meeste aandacht vraagt; sluit waar mogelijk aan bij een leercurve-thema uit het jeugdbeleidsplan. tip: na 1 evaluatie zie je alleen een cijfer, vanaf 2 verschijnt de lijn, en de terugkerende aandachtspunten worden pas zichtbaar na een paar wedstrijden — zo voorkom je dat één mindere wedstrijd meteen als patroon wordt gezien.">
-    <h3>📊 Teamevaluatie-dashboard lezen</h3>
-    <p>Alle ingevulde teamevaluaties komen samen onder het tabblad <b>Stats</b>, via het segment <b>📈 Teamevaluatie</b> naast Spelers. Vier onderdelen:</p>
-    <ul>
-      <li><b>Groeicurve</b> — een lijn met de gemiddelde teamontwikkelscore per wedstrijd, zodat je in één oogopslag ziet of het team groeit.</li>
-      <li><b>Categorieën</b> — de acht onderdelen met hun gemiddelde over de laatste vijf wedstrijden, inclusief een pijltje ↗ ↘ → voor de trend.</li>
-      <li><b>Terugkerende aandachtspunten</b> — verschijnt automatisch zodra hetzelfde onderdeel meerdere wedstrijden op rij het laagst scoort.</li>
-      <li><b>Voorgesteld trainingsthema</b> — een suggestie voor de volgende training, gebaseerd op het onderdeel dat nu de meeste aandacht vraagt. Sluit waar mogelijk aan bij een leercurve-thema uit het jeugdbeleidsplan.</li>
-    </ul>
-    <div class="tip"><b>Even geduld bij de start:</b> na 1 evaluatie zie je alleen een cijfer, vanaf 2 verschijnt de lijn. De terugkerende aandachtspunten worden pas zichtbaar na een paar wedstrijden — zo voorkom je dat één mindere wedstrijd meteen als patroon wordt gezien.</div>
-    </section>
-
-    <h4 class="hl-hoofdstuk" id="hlh-tips">💡 Tips &amp; privacy</h4>
-    <section class="hl-sec" data-zoek="💡 praktische tips voeg de app als snelkoppeling op je startscherm toe (browsermenu → "toevoegen aan beginscherm") voor app-gevoel. werkt zonder problemen als de telefoon op slot gaat — de klok loopt door op de juiste tijd. slecht bereik langs de lijn? geen probleem: de app werkt offline door en synchroniseert je wijzigingen automatisch zodra er weer verbinding is. met een powerbank langs de lijn ben je verzekerd van een hele wedstrijd.">
-    <h3>💡 Praktische tips</h3>
-    <ul>
-      <li>Voeg de app als <b>snelkoppeling op je startscherm</b> toe (browsermenu → "Toevoegen aan beginscherm") voor app-gevoel.</li>
-      <li>Werkt zonder problemen als de telefoon op slot gaat — de klok loopt door op de juiste tijd.</li>
-      <li><b>Slecht bereik langs de lijn?</b> Geen probleem: de app werkt offline door en synchroniseert je wijzigingen automatisch zodra er weer verbinding is.</li>
-      <li>Met een powerbank langs de lijn ben je verzekerd van een hele wedstrijd.</li>
-    </ul>
-    </section>
+function verbergWedstrijdWizard(){
+  const el = $('#wizardAchter');
+  if (!el) return;
+  el.classList.remove('open');
+  el.innerHTML = '';
+  S._wizardActief = false;
+}
 
 
-    <section class="hl-sec" data-zoek="⇄ spelers uitlenen speelt een speler een keer mee met een ander team binnen de club? open zijn profiel (tab spelers → tik op de speler) en kies ⇄ uitlenen aan ander team . je kiest het ontvangende team en de wedstrijddag. de andere coach ziet de speler automatisch vanaf 3 dagen vóór tot 3 dagen ná die dag, onder het kopje "geleend" — daarna verdwijnt hij vanzelf. de ontvangende coach ziet alleen voornaam + voorletter (bijv. "tim b."), de voorkeurspositie, de statistieken en het ontwikkelprofiel. alles read-only. je kunt een uitlening op elk moment intrekken vanaf het spelerprofiel.">
-    <h3>⇄ Spelers uitlenen</h3>
-    <p>Speelt een speler een keer mee met een ander team binnen de club? Open zijn profiel (tab Spelers → tik op de speler) en kies <b>⇄ Uitlenen aan ander team</b>. Je kiest het ontvangende team en de wedstrijddag.</p>
-    <ul>
-      <li>De andere coach ziet de speler automatisch vanaf <b>3 dagen vóór</b> tot <b>3 dagen ná</b> die dag, onder het kopje "Geleend" — daarna verdwijnt hij vanzelf.</li>
-      <li>De ontvangende coach ziet alleen <b>voornaam + voorletter</b> (bijv. "Tim B."), de voorkeurspositie, de statistieken en het ontwikkelprofiel. Alles read-only.</li>
-      <li>Je kunt een uitlening op elk moment <b>intrekken</b> vanaf het spelerprofiel.</li>
-    </ul>
-    </section>
+/* ==================== KLOK ==================== */
+const huidigKwart = () => S.wedstrijd.kwarten[S.kwart];
+function klokSec(k){ return k.klok.base + (k.klok.running ? (Date.now() - k.klok.start)/1000 : 0); }
+function kwartLive(k){ return k.klok.running || k.klok.base > 0; }
 
-    <section class="hl-sec" data-zoek="🔒 privacy & namen cluppie gaat zorgvuldig om met de gegevens van (vaak minderjarige) spelers: in de app zie je standaard alleen voornamen . de achternaam wordt wél opgeslagen, maar nergens in de app getoond. de achternaam blijft binnen je eigen team en is alleen zichtbaar voor de coaches van dat team. leen je een speler uit, dan ziet de andere coach alleen de voorletter. beoordelingen en leerpunten zijn coach-only : spelers en ouders zien deze niet. verwijder je een speler, dan worden zijn gegevens (inclusief beoordelingen en leerpunten) verwijderd. deel gegevens uit spelersprofielen niet buiten het technisch kader. heb je vragen over privacy binnen de club? stem af met je hoofdcoach of clubbeheerder.">
-    <h3>🔒 Privacy &amp; namen</h3>
-    <p>Cluppie gaat zorgvuldig om met de gegevens van (vaak minderjarige) spelers:</p>
-    <ul>
-      <li>In de app zie je standaard alleen <b>voornamen</b>. De achternaam wordt wél opgeslagen, maar nergens in de app getoond.</li>
-      <li>De achternaam blijft <b>binnen je eigen team</b> en is alleen zichtbaar voor de coaches van dat team. Leen je een speler uit, dan ziet de andere coach alleen de voorletter.</li>
-      <li>Beoordelingen en leerpunten zijn <b>coach-only</b>: spelers en ouders zien deze niet.</li>
-      <li>Verwijder je een speler, dan worden zijn gegevens (inclusief beoordelingen en leerpunten) verwijderd.</li>
-    </ul>
-    <div class="tip">Deel gegevens uit spelersprofielen niet buiten het technisch kader. Heb je vragen over privacy binnen de club? Stem af met je hoofdcoach of clubbeheerder.</div>
+function klokStartPauze(){
+  const k = huidigKwart();
+  if (k.klok.running){ k.klok.base = klokSec(k); k.klok.running = false; }
+  else { k.klok.start = Date.now(); k.klok.running = true; }
+  bewaarWedstrijd(); renderWedstrijd();
+}
+function klokReset(){
+  const k = huidigKwart();
+  if (!confirm('Klok van deze periode op nul zetten?' + (k.events.length ? '\nGeregistreerde wissels blijven staan.' : ''))) return;
+  k.klok = {base:0, running:false, start:0};
+  bewaarWedstrijd(); renderWedstrijd();
+}
+function tikKlok(){
+  const w = S.wedstrijd; if (!w) return;
+  const k = huidigKwart();
+  if (k.klok.running && klokSec(k) >= w.kwartduur*60){
+    k.klok.base = Math.round(w.kwartduur*60);
+    k.klok.running = false;
+    bewaarWedstrijd();
+    if (navigator.vibrate) navigator.vibrate([300,120,300,120,300]);
+    meld(`⏱ Einde ${periodeOmschrijving(w)} — klok gestopt op ${mmss(w.kwartduur*60)}`);
+    renderWedstrijd();
+    return;
+  }
+  const el = $('#klokTijd'); if (el) el.textContent = mmss(klokSec(k));
+  const sec = klokSec(k);
+  (k.plan||[]).forEach((p,i) => {
+    const item = $(`[data-plan-i="${i}"]`);
+    if (!item) return;
+    if (sec >= p.min*60 && !item.classList.contains('nu')){
+      item.classList.add('nu');
+      if (navigator.vibrate) navigator.vibrate([180,90,180]);
+      meld(`Geplande wissel: ${spelerNaam(p.in)} erin voor ${spelerNaam(p.uit)}`);
+    }
+  });
+}
 
-    
-    </section>
+/* ==================== GEPLANDE WISSELS ==================== */
+function modalPlanWissel(){
+  const k = huidigKwart();
+  const l = effectieveLineup(k);
+  const gepland = k.plan || [];
+  const geplandIn = new Set(gepland.map(p => p.in));
+  const geplandUit = new Set(gepland.map(p => p.uit));
+  const veldSpelers = Object.values(l).filter(pid => speler(pid) && !geplandUit.has(pid));
+  const bankSpelers = (S.wedstrijd.selectie||[]).filter(pid => !Object.values(l).includes(pid) && speler(pid) && !geplandIn.has(pid));
+  if (!veldSpelers.length) return meld('Zet eerst een opstelling neer voor deze periode');
+  if (!bankSpelers.length) return meld('Er staat niemand op de bank om in te brengen');
+  const optie = pid => `<option value="${pid}">${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
+  openModal(`
+    <h2>Wissel plannen — ${esc(periodeOmschrijving(S.wedstrijd))}</h2>
+    <div class="veldgroep"><label>Erin (van de bank)</label>
+      <select class="invoer" id="mPlanIn">${bankSpelers.map(optie).join('')}</select></div>
+    <div class="veldgroep"><label>Eruit (van het veld)</label>
+      <select class="invoer" id="mPlanUit">${veldSpelers.map(optie).join('')}</select></div>
+    <div class="veldgroep"><label>Na hoeveel minuten</label>
+      <input class="invoer" id="mPlanMin" inputmode="decimal" value="${Math.round(S.wedstrijd.kwartduur/2)}"></div>
+    <button class="knop vol" id="mPlanOk">Wissel inplannen</button>
+    <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px;line-height:1.5">Zodra de kwartklok dit moment passeert, licht de wissel op in het wisselvak. Tik dan op ✓ om hem door te voeren — de echte wisseltijd wordt geregistreerd.</p>`);
+  $('#mPlanOk').onclick = () => {
+    const min = parseFloat(($('#mPlanMin').value||'').replace(',','.'));
+    if (!(min >= 0)) return meld('Vul een geldig aantal minuten in');
+    const k2 = huidigKwart();
+    (k2.plan ||= []).push({in: $('#mPlanIn').value, uit: $('#mPlanUit').value, min});
+    k2.plan.sort((a,b) => a.min - b.min);
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+  };
+}
 
-    <p style="font-size:12.5px;color:var(--ink-2);text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--hair)">
-      Vragen of ideeën? Geef ze door aan je hoofdcoach.<br>Veel succes langs de lijn! ⚽
+function voerPlanUit(i){
+  const k = huidigKwart();
+  const p = (k.plan||[])[i];
+  if (!p) return;
+  const l = effectieveLineup(k);
+  const slot = Object.keys(l).find(s => l[s] === p.uit);
+  if (!slot) return meld(`${spelerNaam(p.uit)} staat niet (meer) op het veld`);
+  if (Object.values(l).includes(p.in)) return meld(`${spelerNaam(p.in)} staat al op het veld`);
+  if (kwartLive(k)){
+    const sec = Math.round(klokSec(k));
+    k.events.push({in: p.in, uit: p.uit, slot, sec});
+    meld(`${spelerNaam(p.in)} erin, ${spelerNaam(p.uit)} eruit · ${mmss(sec)}`);
+  } else {
+    k.lineup[slot] = p.in;
+    for (const e of k.events) if (e.in === p.uit && e.slot === slot) e.in = p.in;
+  }
+  k.plan.splice(i,1);
+  bewaarWedstrijd(); renderWedstrijd();
+}
+
+/* ==================== DOELPUNTEN ==================== */
+function registreerGoal({type, pid = null}){
+  const w = S.wedstrijd;
+  const sec = Math.round(klokSec(huidigKwart()));
+  (w.goals ||= []).push({type, pid, kwart: S.kwart, sec});
+  if (navigator.vibrate) navigator.vibrate(type === 'voor' ? [90,60,90,60,200] : 120);
+  meld(type === 'voor' ? `⚽ GOAL! ${pid ? spelerNaam(pid) : S.team.naam}` : `Tegendoelpunt · ${mmss(sec)}`);
+  bewaarWedstrijd(); renderWedstrijd();
+}
+
+function modalGoalVoor(){
+  const k = huidigKwart();
+  const l = effectieveLineup(k);
+  const veldSpelers = Object.values(l).filter(pid => speler(pid));
+  if (!veldSpelers.length){ registreerGoal({type:'voor'}); return; }
+  openModal(`
+    <h2>⚽ Wie scoorde er?</h2>
+    <div class="goal-kies">${veldSpelers.map(pid => `
+      <div class="chip" data-goal-pid="${pid}" style="cursor:pointer">
+        <div class="shirt">${esc(spelerNr(pid))}</div>
+        <div class="naam">${esc(spelerNaam(pid))}</div>
+      </div>`).join('')}</div>
+    <button class="knop licht vol" id="mGoalOnbekend" style="margin-top:10px">Eigen doelpunt tegenstander / onbekend</button>`);
+  $$('#modalInhoud [data-goal-pid]').forEach(c => c.onclick = () => { sluitModal(); registreerGoal({type:'voor', pid: c.dataset.goalPid}); });
+  $('#mGoalOnbekend').onclick = () => { sluitModal(); registreerGoal({type:'voor'}); };
+}
+
+/* ---------- Doelpunt corrigeren (verkeerde knop / verkeerde scorer) ---------- */
+function modalGoalCorrigeren(i){
+  const w = S.wedstrijd;
+  const g = (w.goals||[])[i];
+  if (!g) return;
+  const k = huidigKwart();
+  const l = effectieveLineup(k);
+  const veldSpelers = Object.values(l).filter(pid => speler(pid));
+  const overig = (w.selectie||[]).filter(pid => speler(pid) && !veldSpelers.includes(pid));
+  const huidigeOmschrijving = g.type === 'voor'
+    ? (g.pid ? spelerNaam(g.pid) : 'doelpunt (onbekende maker)')
+    : 'tegendoelpunt';
+  const scorerOptie = pid => `<option value="${pid}" ${g.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
+
+  openModal(`
+    <h2>Doelpunt corrigeren</h2>
+    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:14px">Nu geregistreerd als <b>${esc(huidigeOmschrijving)}</b> op ${mmss(g.sec||0)}.</p>
+    <div class="correctie-opties">
+      ${g.type === 'voor' ? `
+      <div class="veldgroep" style="margin-bottom:6px"><label>Andere scorer kiezen</label>
+        <select class="invoer" id="mGcScorer">
+          <option value="">Onbekend / geen maker</option>
+          ${veldSpelers.length ? `<optgroup label="Op het veld">${veldSpelers.map(scorerOptie).join('')}</optgroup>` : ''}
+          ${overig.length ? `<optgroup label="Overige selectie">${overig.map(scorerOptie).join('')}</optgroup>` : ''}
+        </select></div>
+      <button class="knop vol" id="mGcScorerOk">Scorer opslaan</button>
+      <button class="knop licht vol" id="mGcKant">↔ Toch een tegendoelpunt</button>
+      ` : `
+      <p style="font-size:13.5px;color:var(--ink);margin-bottom:4px">Dit staat als doelpunt voor de tegenstander.</p>
+      <button class="knop vol" id="mGcKant">↔ Maak er een doelpunt vóór ${esc(S.team.naam)} van</button>
+      `}
+      <button class="knop gevaar vol" id="mGcWeg">🗑 Doelpunt verwijderen</button>
+    </div>`);
+
+  const scOk = $('#mGcScorerOk');
+  if (scOk) scOk.onclick = () => {
+    const pid = $('#mGcScorer').value || null;
+    w.goals[i].pid = pid;
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld(pid ? `Scorer gewijzigd naar ${spelerNaam(pid)}` : 'Scorer op onbekend gezet');
+  };
+  $('#mGcKant').onclick = () => {
+    if (g.type === 'voor'){ w.goals[i].type = 'tegen'; w.goals[i].pid = null; }
+    else { w.goals[i].type = 'voor'; }
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld('Doelpunt omgezet');
+  };
+  $('#mGcWeg').onclick = () => {
+    w.goals.splice(i,1);
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld('Doelpunt verwijderd');
+  };
+}
+
+/* ==================== KAARTEN & STRAFFEN ==================== */
+function modalKaart(){
+  const w = S.wedstrijd;
+  const k = huidigKwart();
+  const l = effectieveLineup(k);
+  const veldSpelers = Object.values(l).filter(pid => speler(pid));
+  const bankSpelers = (w.selectie||[]).filter(pid => !Object.values(l).includes(pid) && speler(pid));
+  const alle = [...veldSpelers, ...bankSpelers];
+  if (!alle.length) return meld('Voeg eerst spelers toe aan de selectie');
+  const optie = pid => `<option value="${pid}">${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}${veldSpelers.includes(pid)?' (veld)':' (bank)'}</option>`;
+  const duur = tijdstrafSec();
+  openModal(`
+    <h2>Kaart of straf</h2>
+    <div class="veldgroep"><label>Speler</label>
+      <select class="invoer" id="mKSpeler">${alle.map(optie).join('')}</select></div>
+    <div class="veldgroep"><label>Type</label>
+      <div class="segment" id="mKType">
+        <button data-t="geel" class="actief">🟨 Geel</button>
+        <button data-t="tijd">⏱ Tijdstraf</button>
+        <button data-t="rood">🟥 Rood</button>
+      </div></div>
+    <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:14px;line-height:1.5">
+      <b>KNVB:</b> een gele kaart is een waarschuwing. Bij een tweede gele in dezelfde wedstrijd volgt rood. In de B-categorie geldt een tijdstrafregeling: ${Math.round(duur/60)} minuten voor deze leeftijd${duur===300?' (pupillen)':' (junioren/senioren)'}.
     </p>
-  </div>`;
+    <button class="knop vol" id="mKOk">Registreren</button>`);
+  let type = 'geel';
+  $$('#mKType button').forEach(b => b.onclick = () => {
+    $$('#mKType button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); type = b.dataset.t;
+  });
+  $('#mKOk').onclick = () => {
+    const pid = $('#mKSpeler').value;
+    const sec = Math.round(klokSec(k));
+    const kaart = {pid, type, kwart: S.kwart, sec};
+    if (type === 'tijd') kaart.duur = duur;
+    (w.kaarten ||= []).push(kaart);
+    if (type === 'geel'){
+      const aantalGeel = w.kaarten.filter(c => c.pid === pid && c.type === 'geel').length;
+      if (aantalGeel >= 2){
+        w.kaarten.push({pid, type:'rood', kwart: S.kwart, sec, auto:true});
+        meld(`Tweede gele kaart → rode kaart voor ${spelerNaam(pid)}`);
+      }
+    }
+    if (type === 'rood' || w.kaarten[w.kaarten.length-1].type === 'rood'){
+      const lineup = effectieveLineup(k);
+      const slot = Object.keys(lineup).find(s => lineup[s] === pid);
+      if (slot){
+        if (kwartLive(k)) k.events.push({in: null, uit: pid, slot, sec});
+        else delete k.lineup[slot];
+      }
+    }
+    if (navigator.vibrate) navigator.vibrate(type==='rood' ? [300,100,300] : 180);
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld(`${KAART_NAAM[type]} voor ${spelerNaam(pid)} geregistreerd`);
+  };
+}
+
+/* ---------- Kaart corrigeren ---------- */
+function modalKaartCorrigeren(i){
+  const w = S.wedstrijd;
+  const c = (w.kaarten||[])[i];
+  if (!c) return;
+  const alle = (w.selectie||[]).filter(pid => speler(pid));
+  const optie = pid => `<option value="${pid}" ${c.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
+  openModal(`
+    <h2>Kaart corrigeren</h2>
+    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:14px">Nu: <b>${esc(KAART_NAAM[c.type])}</b> voor <b>${esc(spelerNaam(c.pid))}</b> op ${mmss(c.sec||0)}.</p>
+    <div class="veldgroep"><label>Andere speler</label>
+      <select class="invoer" id="mKcSpeler">${alle.map(optie).join('')}</select></div>
+    <div class="correctie-opties">
+      <button class="knop vol" id="mKcOk">Speler opslaan</button>
+      <button class="knop gevaar vol" id="mKcWeg">🗑 Kaart verwijderen</button>
+    </div>`);
+  $('#mKcOk').onclick = () => {
+    w.kaarten[i].pid = $('#mKcSpeler').value;
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld('Kaart aangepast');
+  };
+  $('#mKcWeg').onclick = () => {
+    w.kaarten.splice(i,1);
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld('Kaart verwijderd');
+  };
+}
+
+/* ==================== WEDSTRIJDVERSLAG ==================== */
+function genereerVerslag(){
+  const w = S.wedstrijd;
+  const voor = (w.goals||[]).filter(g => g.type==='voor').length;
+  const tegen = (w.goals||[]).filter(g => g.type==='tegen').length;
+  const uitslag = w.thuis ? `${voor}–${tegen}` : `${tegen}–${voor}`;
+  const wedstrijdtitel = isToernooi(w)
+    ? `🏆 ${w.tegenstander}`
+    : (w.thuis ? `${S.team.naam} – ${w.tegenstander}` : `${w.tegenstander} – ${S.team.naam}`);
+  const ww = voor > tegen ? 'gewonnen' : voor < tegen ? 'verloren' : 'gelijkgespeeld';
+
+  const lines = [];
+  lines.push(`${wedstrijdtitel}`);
+  lines.push(`${new Date(w.datum+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`);
+  lines.push('');
+  if (w.doel){ lines.push(`🎯 Wedstrijddoel: ${w.doel}`); lines.push(''); }
+  if (voor + tegen > 0 || analyseWedstrijd(w).kwarten){ lines.push(`Eindstand: ${uitslag} (${ww})`); lines.push(''); }
+
+  const scorers = {};
+  for (const g of (w.goals||[])) if (g.type==='voor' && g.pid) scorers[g.pid] = (scorers[g.pid]||0)+1;
+  const top = Object.entries(scorers).sort((a,b) => b[1]-a[1]);
+  if (top.length){
+    lines.push('Doelpuntenmakers:');
+    for (const [pid, n] of top) lines.push(`• ${spelerNaam(pid)}${n>1?` (${n}×)`:''}`);
+    lines.push('');
+  }
+  if (w.aanvoerder){ lines.push(`Aanvoerder: ${spelerNaam(w.aanvoerder)}`); lines.push(''); }
+
+  const a = analyseWedstrijd(w);
+  if (a.kwarten){
+    lines.push('Speeltijd:');
+    const sorted = [...(w.selectie||[])].filter(pid => speler(pid) && a.tijd[pid])
+      .sort((x,y) => (a.tijd[y]||0) - (a.tijd[x]||0));
+    for (const pid of sorted){
+      const kk = a.keeper[pid] ? ` (${a.keeper[pid]}× keeper)` : '';
+      lines.push(`• ${spelerNaam(pid)}: ${uurMin(a.tijd[pid])}${kk}`);
+    }
+    const nietGespeeld = (w.selectie||[]).filter(pid => speler(pid) && !a.tijd[pid]);
+    if (nietGespeeld.length) lines.push(`• Niet ingezet: ${nietGespeeld.map(spelerNaam).join(', ')}`);
+    lines.push('');
+  }
+
+  const heeftWissels = periodeNrs(w).some(nr => (w.kwarten[nr]?.events||[]).length);
+  if (heeftWissels){
+    lines.push('Wissels:');
+    for (const nr of periodeNrs(w)){
+      const k = w.kwarten[nr];
+      if (!k.events?.length) continue;
+      lines.push(`  ${periodeLabel(w, nr)}:`);
+      for (const e of [...k.events].sort((a,b)=>a.sec-b.sec)){
+        const t = mmss(e.sec);
+        if (e.in && e.uit) lines.push(`  • ${t} — ${spelerNaam(e.in)} in voor ${spelerNaam(e.uit)}`);
+        else if (e.in)     lines.push(`  • ${t} — ${spelerNaam(e.in)} erin`);
+        else if (e.uit)    lines.push(`  • ${t} — ${spelerNaam(e.uit)} eruit`);
+      }
+    }
+    lines.push('');
+  }
+
+  if ((w.kaarten||[]).filter(c => !c.auto).length){
+    lines.push('Kaarten:');
+    for (const c of [...w.kaarten].filter(c => !c.auto).sort((a,b)=>a.sec-b.sec)){
+      const lbl = periodeLabel(w, String(c.kwart));
+      const txt = c.type === 'tijd' ? `tijdstraf ${Math.round(c.duur/60)} min` : KAART_NAAM[c.type];
+      lines.push(`• ${spelerNaam(c.pid)} — ${txt} (${lbl}, ${mmss(c.sec)})`);
+    }
+    lines.push('');
+  }
+  return lines.join('\n').trim();
+}
+
+function modalVerslag(){
+  const tekst = genereerVerslag();
+  openModal(`
+    <h2>📋 Wedstrijdverslag</h2>
+    <textarea class="invoer" id="mVTekst" style="min-height:280px;font-family:inherit;line-height:1.55;resize:vertical;font-size:13.5px">${esc(tekst)}</textarea>
+    <p style="font-size:12px;color:var(--ink-2);margin:8px 0 14px">Je kunt de tekst nog aanpassen voordat je hem deelt.</p>
+    <button class="knop vol" id="mVDeel">📤 Delen / kopiëren</button>`);
+  $('#mVDeel').onclick = async () => {
+    const t = $('#mVTekst').value;
+    try {
+      if (navigator.share) await navigator.share({title:'Wedstrijdverslag', text:t});
+      else { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); }
+    } catch { try { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); } catch { meld('Kon niet kopiëren'); } }
+  };
+}
+
+/* ==================== OPSTELLING-LOGICA ==================== */
+function plaats(pid, slotId){
+  const k = huidigKwart(), live = kwartLive(k);
+  const l = effectieveLineup(k);
+  const huidigeSlot = Object.keys(l).find(s => l[s] === pid);
+  const bezet = l[slotId];
+  if (huidigeSlot === slotId) return;
+  if (huidigeSlot){
+    delete k.lineup[huidigeSlot];
+    if (k.lineup[slotId] !== undefined || bezet){
+      const ander = k.lineup[slotId];
+      if (ander !== undefined){ k.lineup[huidigeSlot] = ander; }
+      for (const e of k.events){ if (e.slot === slotId) e.slot = huidigeSlot; else if (e.slot === huidigeSlot) e.slot = slotId; }
+    }
+    k.lineup[slotId] = pid;
+  } else if (live){
+    const sec = Math.round(klokSec(k));
+    k.events.push({in: pid, uit: bezet || null, slot: slotId, sec});
+    if (bezet) meld(`${spelerNaam(pid)} erin, ${spelerNaam(bezet)} eruit · ${mmss(sec)}`);
+  } else {
+    k.lineup[slotId] = pid;
+  }
+  S.geselecteerd = null;
+  bewaarWedstrijd(); renderWedstrijd();
+}
+function naarBank(pid){
+  const k = huidigKwart(), live = kwartLive(k);
+  const l = effectieveLineup(k);
+  const slot = Object.keys(l).find(s => l[s] === pid);
+  if (!slot){ S.geselecteerd = null; renderWedstrijd(); return; }
+  if (live){
+    const sec = Math.round(klokSec(k));
+    k.events.push({in: null, uit: pid, slot, sec});
+    meld(`${spelerNaam(pid)} eruit · ${mmss(sec)}`);
+  } else delete k.lineup[slot];
+  S.geselecteerd = null;
+  bewaarWedstrijd(); renderWedstrijd();
+}
+function verwijderEvent(i){
+  huidigKwart().events.splice(i,1);
+  bewaarWedstrijd(); renderWedstrijd();
+}
+function kopieerVorigKwart(){
+  const nr = Number(S.kwart);
+  if (nr === 1) return;
+  const vorig = S.wedstrijd.kwarten[nr-1];
+  huidigKwart().lineup = effectieveLineup(vorig);
+  bewaarWedstrijd(); renderWedstrijd();
+  meld('Eindopstelling van kwart ' + (nr-1) + ' overgenomen');
+}
+
+/* ==================== STATISTIEK-TAB ==================== */
+export function htmlStats(){
+  if (!S.spelers.length) return `<div class="kaart leeg">Voeg eerst spelers toe.</div>`;
+  const alleSeizoenen = S.statsSeizoen === 'alles';
+  const wedstrijdenLijst = alleSeizoenen ? S.wedstrijden : S.wedstrijden.filter(w => w.seizoen === S.statsSeizoen);
+  const presentieLijst = alleSeizoenen ? (S.presentie||[]) : (S.presentie||[]).filter(p => p.seizoen === S.statsSeizoen);
+  const tot = {tijd:{}, keeper:{}, lijn:{}, wedstrijden:{}, goals:{}, geel:{}, rood:{}, tijd_:{}, aanv:{}};
+  for (const w of wedstrijdenLijst){
+    for (const g of (w.goals||[])) if (g.type==='voor' && g.pid) tot.goals[g.pid] = (tot.goals[g.pid]||0) + 1;
+    for (const c of (w.kaarten||[])){
+      if (c.auto) continue;
+      if (c.type === 'geel') tot.geel[c.pid] = (tot.geel[c.pid]||0) + 1;
+      if (c.type === 'rood') tot.rood[c.pid] = (tot.rood[c.pid]||0) + 1;
+      if (c.type === 'tijd') tot.tijd_[c.pid] = (tot.tijd_[c.pid]||0) + 1;
+    }
+    if (w.aanvoerder) tot.aanv[w.aanvoerder] = (tot.aanv[w.aanvoerder]||0) + 1;
+    const a = analyseWedstrijd(w);
+    if (!a.kwarten) continue;
+    for (const [pid, s] of Object.entries(a.tijd)){
+      tot.tijd[pid] = (tot.tijd[pid]||0) + s;
+      tot.wedstrijden[pid] = (tot.wedstrijden[pid]||0) + 1;
+    }
+    for (const [pid, n] of Object.entries(a.keeper)) tot.keeper[pid] = (tot.keeper[pid]||0) + n;
+    for (const [pid, l] of Object.entries(a.lijn)){
+      tot.lijn[pid] ||= {};
+      for (const [ln, n] of Object.entries(l)) tot.lijn[pid][ln] = (tot.lijn[pid][ln]||0) + n;
+    }
+  }
+  const rijen = [...S.spelers].sort((a,b) => (tot.tijd[b.id]||0) - (tot.tijd[a.id]||0));
+  const heeftData = Object.keys(tot.tijd).length > 0;
+
+  // Opkomst training: aanwezig = niet in de afwezig-lijst van een sessie
+  const totTrainingen = presentieLijst.length;
+  const opkomst = {};
+  if (totTrainingen){
+    for (const p of S.spelers){
+      let aanwezig = 0;
+      for (const sessie of presentieLijst){
+        if (!(sessie.afwezig || []).includes(p.id)) aanwezig++;
+      }
+      opkomst[p.id] = Math.round((aanwezig / totTrainingen) * 100);
+    }
+  }
+  const toonOpkomst = totTrainingen > 0;
+  return `
+    ${heeftData ? '' : `<div class="kaart leeg" style="margin-bottom:12px">Nog geen gespeelde wedstrijden.<br>Zodra je opstellingen maakt, verschijnt hier automatisch de speeltijd per speler.</div>`}
+    <table class="stat-tabel">
+      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>⚽</th><th>C</th><th>K</th><th>🟨</th><th>🟥</th>${toonOpkomst?'<th>Tr.</th>':''}</tr></thead>
+      <tbody>${rijen.map(p => `<tr>
+          <td class="naam-cel">${esc(p.naam)}</td>
+          <td>${tot.wedstrijden[p.id]||0}</td>
+          <td class="tijd-cel">${tot.tijd[p.id] ? uurMin(tot.tijd[p.id]) : '—'}</td>
+          <td style="font-weight:700">${tot.goals[p.id]||0}</td>
+          <td>${tot.aanv[p.id] ? tot.aanv[p.id]+'×' : ''}</td>
+          <td>${tot.keeper[p.id]||0}</td>
+          <td>${tot.geel[p.id]||0}</td>
+          <td>${tot.rood[p.id]||0}</td>${toonOpkomst?`<td class="opkomst-cel ${opkomst[p.id]>=80?'goed':opkomst[p.id]>=50?'matig':'laag'}">${opkomst[p.id]}%</td>`:''}</tr>`).join('')}</tbody>
+    </table>
+    <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
+      ⚽ doelpunten · <b>C</b> aanvoerdersbeurten · <b>K</b> periodes als keeper · 🟨 gele kaarten · 🟥 rode kaarten${toonOpkomst?' · <b>Tr.</b> opkomst training ('+totTrainingen+' geregistreerd)':''}.
+      Speeltijd komt van de kwartklok; zonder klok telt de ingestelde periodeduur.</p>`;
+}
+
+/* ==================== WEERGAVE ==================== */
+export function renderWedstrijd(){
+  const w = S.wedstrijd; if (!w) return;
+  w.goals ||= [];
+  w.kaarten ||= [];
+  const k = huidigKwart();
+  const slots = bouwSlots(w.format, w.formatie);
+  const lineup = effectieveLineup(k);
+  const opVeld = new Set(Object.values(lineup));
+  const aKwart = analyseKwart(w, k);
+  const aWed = analyseWedstrijd(w);
+  const bank = (w.selectie||[]).filter(pid => !opVeld.has(pid) && speler(pid))
+    .sort((a,b) => (aWed.tijd[a]||0) - (aWed.tijd[b]||0));
+
+  const historie = {};
+  for (let nr = 1; nr < Number(S.kwart); nr++){
+    const kk = w.kwarten[nr];
+    if (!kk || !kwartGespeeld(kk)) continue;
+    const a = analyseKwart(w, kk);
+    for (const pid of (w.selectie||[]))
+      (historie[pid] ||= []).push({nr, speelde: (a.tijd[pid]||0) > 0});
+  }
+  const dotsHtml = pid => (historie[pid]||[]).length
+    ? `<div class="dots">${historie[pid].map(h =>
+        `<span class="dot ${h.speelde?'s':'b'}" title="${esc(periodeLabel(w, String(h.nr)))}: ${h.speelde?'gespeeld':'bank'}"></span>`).join('')}</div>`
+    : '';
+
+  const chipHtml = (pid, bron, slotId='') => {
+    const sel = S.geselecteerd?.pid === pid;
+    const aanv = w.aanvoerder === pid;
+    return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''}"
+      data-chip="${pid}" data-bron="${bron}" data-chipslot="${slotId}">
+      <div class="shirt">${esc(spelerNr(pid))}${aanv ? '<span class="aanvoerder-band">C</span>' : ''}</div>
+      <div class="naam">${esc(spelerNaam(pid))}</div>${dotsHtml(pid)}</div>`;
+  };
+
+  const inHuidigeW = g => !isToernooi(w) || toernooiWnr(w, g.kwart) === toernooiWnr(w);
+  const voor = w.goals.filter(g => g.type==='voor' && inHuidigeW(g)).length;
+  const tegen = w.goals.filter(g => g.type==='tegen' && inHuidigeW(g)).length;
+  const tegenNaam = isToernooi(w)
+    ? ((w.tegenstanders||{})[toernooiWnr(w)] || 'Tegenstander '+toernooiWnr(w))
+    : w.tegenstander;
+  const sbLinks  = w.thuis ? {naam:S.team.naam, n:voor, knop:'goalVoor'}  : {naam:tegenNaam, n:tegen, knop:'goalTegen'};
+  const sbRechts = w.thuis ? {naam:tegenNaam, n:tegen, knop:'goalTegen'} : {naam:S.team.naam, n:voor, knop:'goalVoor'};
+
+  const confroHtml = bouwConfrontatie(w);
+  const teamEvalBestaand = (S.teamEvaluaties||[]).some(e => e.wedstrijdId === S.wedstrijdId);
+
+  const v = $('#view-wedstrijd');
+  v.innerHTML = `
+    <div class="kop"><button class="terug" id="naarTeam">‹</button>
+      <h1>${isToernooi(w)
+        ? '🏆 '+esc(w.tegenstander)
+        : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam))}
+      <span class="sub">${datumNL(w.datum)} · ${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden · ' : ''}<span id="subFormatieKlik" style="text-decoration:underline dotted;cursor:pointer">${esc(w.formatie)}</span></span></h1>
+      <button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3L20 6.5V11C20 15.5 16.9 19.7 12 21C7.1 19.7 4 15.5 4 11V6.5L12 3Z" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M9 12L11 14L15.5 9.5" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Wijzig opzet</span>
+      </button></div>
+    <div class="kaart doelbanner" id="doelBanner" style="${w.doel
+      ? 'background:rgba(226,6,19,.08);border-left:3px solid var(--grass)'
+      : 'background:var(--surface-2);border-left:3px dashed var(--line-d)'};font-size:13.5px;color:${w.doel?'var(--ink)':'var(--ink-2)'};padding:9px 12px;margin-bottom:10px;cursor:pointer">${w.doel ? `<b>🎯 Doel:</b> ${esc(w.doel)}` : '🎯 Nog geen wedstrijddoel gezet — tik om er een te kiezen'}</div>
+${confroHtml}
+    <div class="scorebord">
+      <button class="sb-goal" id="${sbLinks.knop}" title="Doelpunt ${esc(sbLinks.naam)}">⚽</button>
+      <span class="sb-team" ${!w.thuis && isToernooi(w) ? 'id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : ''}>${esc(sbLinks.naam)}</span>
+      <span class="sb-cijfers">${sbLinks.n} – ${sbRechts.n}</span>
+      <span class="sb-team" ${w.thuis && isToernooi(w) ? 'id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : ''}>${esc(sbRechts.naam)}</span>
+      <button class="sb-goal" id="${sbRechts.knop}" title="Doelpunt ${esc(sbRechts.naam)}">⚽</button>
+      <button class="sb-goal kaart-knop" id="kaartKnop" title="Kaart of straf">🟨</button>
+    </div>
+
+    ${opVeld.size > 0 && opVeld.size < slots.length ? `<div class="kaart" style="background:#FFF3CD;color:#8B6F00;font-size:13px;padding:9px 12px;margin-bottom:10px">⚠️ Er staan ${opVeld.size} van ${slots.length} spelers op het veld — vul de opstelling aan.</div>` : ''}
+    ${(w.selectie||[]).filter(pid => speler(pid)).length < slots.length ? `<div class="kaart" style="background:#FFF3CD;color:#8B6F00;font-size:13px;padding:9px 12px;margin-bottom:10px">⚠️ Selectie heeft maar ${(w.selectie||[]).filter(pid => speler(pid)).length} spelers, je hebt er ${slots.length} nodig voor ${w.format} tegen ${w.format}.</div>` : ''}
+
+    <div class="kwarten" style="${(w.periodes||4) > 5 ? 'flex-wrap:wrap' : ''}">${periodeNrs(w).map(nr => {
+      const kk = w.kwarten[nr];
+      return `<button data-kwart="${nr}" style="${(w.periodes||4) > 5 ? 'font-size:14px;flex:1 1 20%;padding:8px 0' : ''}" class="${S.kwart===nr?'actief':''}">${periodeLabel(w, nr)}${kwartGespeeld(kk)?' •':''}</button>`;
+    }).join('')}</div>
+
+    <div class="klok">
+      <div><div class="tijd" id="klokTijd">${mmss(klokSec(k))}</div>
+        <div class="label">${esc(periodeOmschrijving(w))} · max ${String(w.kwartduur).replace('.',',')} min</div></div>
+      <div class="acties">
+        ${Number(S.kwart) > 1 && !kwartGespeeld(k) ? `<button id="kopieerKwart" title="Eindopstelling vorig kwart overnemen">⧉</button>` : ''}
+        <button id="klokReset" title="Klok terugzetten">↺</button>
+        <button id="klokStart" class="primair" title="${k.klok.running?'Pauze':'Start'}">${k.klok.running?'❚❚':'▶'}</button>
+      </div>
+    </div>
+
+    ${(() => {
+      if (Number(S.kwart) !== 1 || opVeld.size > 0) return '';
+      const vorige = laatsteOpstelling(w.format);
+      if (!vorige || vorige.bron?.id === S.wedstrijdId) return '';
+      return `<button class="knop vol" id="neemVorigeOver" style="margin-bottom:10px;background:var(--ink);color:#fff">⧉ Opstelling vorige wedstrijd overnemen${vorige.bron.tegenstander ? ' (tegen '+esc(vorige.bron.tegenstander)+')' : ''}</button>`;
+    })()}
+
+    <div class="veld-wrap"><div class="veld" id="veld">
+      <div class="lijn midden"></div><div class="lijn cirkel"></div>
+      <div class="lijn zestien-o"></div><div class="lijn vijf-o"></div>
+      <div class="lijn zestien-b"></div><div class="lijn vijf-b"></div>
+      ${slots.map(s => `
+        <div class="slot ${s.id==='K'?'doel':''}" data-slot="${s.id}" style="left:${s.x}%;top:${s.y}%">
+          ${lineup[s.id] ? chipHtml(lineup[s.id], 'veld', s.id) : `<div class="ring">${s.id}</div>`}
+        </div>`).join('')}
+    </div></div>
+
+    <div class="bank" id="bank">
+      <div class="bank-kop"><span class="t">Wissels</span>
+        <span class="n">${bank.length} op de bank · <button id="kiesSelectie" style="color:var(--fluo);font-weight:600;font-size:12px;text-decoration:underline">selectie</button></span></div>
+      <div class="bank-chips">${bank.length ? bank.map(pid => chipHtml(pid, 'bank')).join('')
+        : `<div class="leeg-bank">Iedereen staat op het veld. Sleep een veldspeler hierheen om te wisselen.</div>`}</div>
+      <div class="plan-lijst">
+        ${(k.plan||[]).length ? `<div class="plan-kop">Geplande wissels</div>` : ''}
+        ${(k.plan||[]).map((p,i) => `
+          <div class="plan-item ${klokSec(k) >= p.min*60 ? 'nu' : ''}" data-plan-i="${i}">
+            <span class="nr in">▲${esc(spelerNr(p.in))}</span>
+            <span class="nr uit">▼${esc(spelerNr(p.uit))}</span>
+            <span>${esc(spelerNaam(p.in))} voor ${esc(spelerNaam(p.uit))}</span>
+            <span class="min">${String(p.min).replace('.',',')}'</span>
+            <button class="pk ok" data-plan-uitvoer="${i}" title="Wissel nu doorvoeren">✓</button>
+            <button class="pk weg" data-plan-weg="${i}" title="Geplande wissel verwijderen">✕</button>
+          </div>`).join('')}
+        <button class="plan-toevoegen" id="planWissel">+ Wissel plannen voor ${esc(periodeOmschrijving(w))}</button>
+      </div>
+    </div>
+
+    ${(() => {
+      const items = [
+        ...k.events.map((e,i) => ({soort:'wissel', ...e, i})),
+        ...w.goals.map((g,i) => ({soort:'goal', ...g, i})).filter(g => String(g.kwart) === S.kwart),
+        ...(w.kaarten||[]).map((c,i) => ({soort:'kaart', ...c, i})).filter(c => String(c.kwart) === S.kwart),
+      ].sort((a,b) => (a.sec||0) - (b.sec||0));
+      if (!items.length) return '';
+      return `<div class="log">
+        <div class="sectie-kop">Gebeurtenissen ${esc(periodeOmschrijving(w))}</div>
+        ${items.map(e => {
+          if (e.soort === 'wissel') return `
+            <div class="log-item">
+              ${e.in ? `<span class="nr in">▲${esc(spelerNr(e.in))}</span>` : ''}
+              ${e.uit ? `<span class="nr uit">▼${esc(spelerNr(e.uit))}</span>` : ''}
+              <span>${e.in ? esc(spelerNaam(e.in)) : ''}${e.in && e.uit ? ' ↔ ' : ''}${e.uit ? esc(spelerNaam(e.uit)) : ''}</span>
+              <span class="min">${mmss(e.sec)}</span>
+              <button class="verwijder" data-weg-ev="${e.i}" title="Wissel verwijderen">✕</button>
+            </div>`;
+          if (e.soort === 'goal') return `
+            <div class="log-item bewerkbaar" data-corrigeer-goal="${e.i}" title="Tik om te corrigeren">
+              <span class="goal-bal">${e.type==='voor' ? '⚽' : '🥅'}</span>
+              <span><b>${e.type==='voor' ? (e.pid ? esc(spelerNaam(e.pid)) : 'Doelpunt') : 'Tegendoelpunt'}</b></span>
+              <span class="min">${mmss(e.sec)}</span>
+              <span class="bewerk-hint">✎</span>
+            </div>`;
+          return `
+            <div class="log-item kaart bewerkbaar ${e.type==='rood'?'rood':''}" ${e.auto?'':`data-corrigeer-kaart="${e.i}" title="Tik om te corrigeren"`}>
+              <span class="goal-bal">${KAART_ICOON[e.type]}</span>
+              <span><b>${esc(spelerNaam(e.pid))}</b> · ${esc(KAART_NAAM[e.type])}${e.type==='tijd' ? ' ('+Math.round(e.duur/60)+' min)' : ''}${e.auto?' (automatisch)':''}</span>
+              <span class="min">${mmss(e.sec)}</span>
+              ${e.auto ? '' : '<span class="bewerk-hint">✎</span>'}
+            </div>`;
+        }).join('')}
+      </div>`;
+    })()}
+
+    <details class="uitklap"><summary>Speeltijd deze wedstrijd</summary>
+      <div class="inhoud"><table class="stat-tabel">
+        <thead><tr><th>Speler</th><th>${periodeLabel(w, S.kwart)}</th><th>Totaal</th><th>Keeper</th></tr></thead>
+        <tbody>${(w.selectie||[]).filter(pid => speler(pid))
+          .sort((a,b) => (aWed.tijd[b]||0) - (aWed.tijd[a]||0)).map(pid => `
+          <tr><td class="naam-cel">${esc(spelerNaam(pid))}</td>
+            <td>${aKwart.tijd[pid] ? mmss(aKwart.tijd[pid]) : '—'}</td>
+            <td class="tijd-cel">${aWed.tijd[pid] ? uurMin(aWed.tijd[pid]) : '—'}</td>
+            <td>${aWed.keeper[pid] ? aWed.keeper[pid]+'×' : ''}</td></tr>`).join('')}
+        </tbody></table></div>
+    </details>
+
+    <button class="knop vol" id="toonVerslag" style="margin-top:16px">📋 Wedstrijdverslag</button>
+    <button class="knop ${teamEvalBestaand?'licht':'fluo'} vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>
+    <button class="knop gevaar vol" id="wegWedstrijd" style="margin-top:10px">Wedstrijd verwijderen</button>`;
+
+  /* ---- koppelingen ---- */
+  v.querySelector('#naarTeam').onclick = () => history.back();
+  v.querySelector('#wInstellingen').onclick = () => toonWijzigOpzet();
+  v.querySelector('#doelBanner').onclick = () => toonWijzigOpzet('doel');
+  v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonWijzigOpzet('speelwijze'); };
+  v.querySelectorAll('[data-kwart]').forEach(b => b.onclick = () => {
+    S.kwart = b.dataset.kwart; S.geselecteerd = null;
+    const nr = Number(S.kwart);
+    const doelK = huidigKwart();
+    const vorig = w.kwarten[nr-1];
+    if (nr > 1 && !kwartGespeeld(doelK) && vorig && kwartGespeeld(vorig)){
+      doelK.lineup = effectieveLineup(vorig);
+      bewaarWedstrijd();
+      meld(`Eindopstelling ${periodeOmschrijving(w, String(nr-1))} overgenomen — pas aan waar nodig`);
+    }
+    renderWedstrijd();
+  });
+  v.querySelector('#goalVoor').onclick = modalGoalVoor;
+  v.querySelector('#goalTegen').onclick = () => registreerGoal({type:'tegen'});
+  v.querySelector('#kaartKnop').onclick = modalKaart;
+  v.querySelector('#toonVerslag').onclick = modalVerslag;
+  v.querySelector('#teamEvalKnop').onclick = () => {
+    import('./teams.js').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+  };
+  v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
+    e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
+  });
+  v.querySelectorAll('[data-corrigeer-kaart]').forEach(b => b.onclick = e => {
+    e.stopPropagation(); modalKaartCorrigeren(Number(b.dataset.corrigeerKaart));
+  });
+  const sbT = v.querySelector('#sbTegenNaam');
+  if (sbT) sbT.onclick = () => {
+    const wnr = toernooiWnr(w);
+    const naam = prompt('Tegenstander voor wedstrijd ' + wnr + ':', (w.tegenstanders||{})[wnr] || '');
+    if (naam === null) return;
+    (w.tegenstanders ||= {})[wnr] = naam.trim();
+    bewaarWedstrijd(); renderWedstrijd();
+  };
+  v.querySelector('#klokStart').onclick = klokStartPauze;
+  v.querySelector('#klokReset').onclick = klokReset;
+  const kp = v.querySelector('#kopieerKwart'); if (kp) kp.onclick = kopieerVorigKwart;
+
+  /* Vorige confrontatie: regeltje klapt het paneel open/dicht (lokale UI-stand). */
+  const confroRegel = v.querySelector('#confroRegel');
+  if (confroRegel) confroRegel.onclick = () => {
+    S._confroOpen = !S._confroOpen;
+    v.querySelector('#confroRegel')?.classList.toggle('open', S._confroOpen);
+    v.querySelector('#confroPaneel')?.classList.toggle('open', S._confroOpen);
+  };
+  const confroOpen = v.querySelector('#confroOpen');
+  if (confroOpen) confroOpen.onclick = () => {
+    const wid = confroOpen.dataset.wid;
+    if (wid){ S._confroOpen = false; openWedstrijd(wid); }
+  };
+  const nvo = v.querySelector('#neemVorigeOver');
+  if (nvo) nvo.onclick = () => {
+    const vorige = laatsteOpstelling(w.format);
+    if (!vorige){ meld('Geen vorige opstelling gevonden'); return; }
+    const lineup = {};
+    for (const [slot, pid] of Object.entries(vorige.lineup))
+      if ((w.selectie||[]).includes(pid) && speler(pid)) lineup[slot] = pid;
+    if (!Object.keys(lineup).length){ meld('Geen spelers uit de vorige opstelling zitten in deze selectie'); return; }
+    w.kwarten['1'].lineup = lineup;
+    if (FORMATIES[w.format][vorige.formatie]) w.formatie = vorige.formatie;
+    S.kwart = '1';
+    bewaarWedstrijd(); renderWedstrijd();
+    meld(`Opstelling overgenomen${vorige.bron.tegenstander ? ' van wedstrijd tegen '+vorige.bron.tegenstander : ''} — pas aan waar nodig`);
+  };
+  v.querySelector('#kiesSelectie').onclick = modalSelectie;
+  v.querySelector('#planWissel').onclick = modalPlanWissel;
+  v.querySelectorAll('[data-plan-uitvoer]').forEach(b => b.onclick = e => { e.stopPropagation(); voerPlanUit(Number(b.dataset.planUitvoer)); });
+  v.querySelectorAll('[data-plan-weg]').forEach(b => b.onclick = e => { e.stopPropagation(); (huidigKwart().plan||[]).splice(Number(b.dataset.planWeg),1); bewaarWedstrijd(); renderWedstrijd(); });
+  v.querySelectorAll('[data-weg-ev]').forEach(b => b.onclick = e => { e.stopPropagation(); verwijderEvent(Number(b.dataset.wegEv)); });
+  v.querySelector('#wegWedstrijd').onclick = async () => {
+    if (!confirm('Deze wedstrijd en alle opstellingen verwijderen?')) return;
+    await deleteDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId));
+    sluitWedstrijd();
+  };
+
+  clearInterval(S.klokInterval);
+  if (k.klok.running) S.klokInterval = setInterval(tikKlok, 500);
+
+  koppelSleep(v);
+}
+
+/* ==================== WEDSTRIJDINSTELLINGEN & SELECTIE ==================== */
+/* ==================== WIJZIG OPZET (basisgegevens + speelwijze + doel & notitie) ====================
+   Eén doorlopend top-paneel met alle drie onderdelen onder elkaar (i.p.v. los doorklikken via
+   een menu). Klapt van bovenaf open — een bewuste keuze t.o.v. de bottom-sheet die de rest van
+   de app gebruikt, omdat dit paneel bewust "zwaarder" mag voelen dan een snelle actie.
+   sectie ('basis' | 'speelwijze' | 'doel') scrollt direct naar het juiste kopje wanneer je
+   binnenkomt via een snelkoppeling (tik op de formatie of het doel-banner in het wedstrijdscherm). */
+function toonWijzigOpzet(sectie){
+  const w = S.wedstrijd;
+  let format = w.format, formatie = w.formatie;
+
+  $('#woPaneel').innerHTML = `
+    <div class="wo-topbar"><h2>Wijzig opzet</h2><div class="wo-sluit" id="woSluit">✕</div></div>
+
+    <div class="wo-sectiekop" id="woSecBasis"><span class="ico">📝</span><span>Basisgegevens</span><div class="wo-lijn"></div></div>
+    <div class="veldgroep"><label>${isToernooi(w) ? 'Naam toernooi' : 'Tegenstander'}</label>
+      <input class="invoer" id="woTegen" value="${esc(w.tegenstander)}"></div>
+    <div class="rij">
+      <div class="veldgroep"><label>Datum</label><input class="invoer" type="date" id="woDatum" value="${esc(w.datum)}"></div>
+      <div class="veldgroep"><label>Minuten per periode</label><input class="invoer" id="woDuur" inputmode="decimal" value="${esc(w.kwartduur)}"></div>
+    </div>
+    <div class="veldgroep"><label>Aanvoerder</label>
+      <select class="invoer" id="woAanvoerder">
+        <option value="">— geen aanvoerder gekozen —</option>
+        ${(w.selectie||[]).map(pid => speler(pid)).filter(Boolean)
+          .map(p => `<option value="${p.id}" ${w.aanvoerder===p.id?'selected':''}>${esc(spelerNr(p.id))} · ${esc(p.naam)}</option>`).join('')}
+      </select></div>
+
+    <div class="wo-sectiekop" id="woSecSpeelwijze"><span class="ico">⚽</span><span>Speelwijze & formatie</span><div class="wo-lijn"></div></div>
+    <div class="veldgroep"><label>Aantal spelers</label>
+      <div class="segment" id="woFormat">${['4','6','8','9','11'].map(f =>
+        `<button data-f="${f}" class="${w.format===f?'actief':''}">${f}×${f}</button>`).join('')}</div></div>
+    <div class="veldgroep"><label>Formatie (excl. keeper)</label>
+      <div class="segment wrap" id="woFormatie"></div>
+      <p style="font-size:12px;color:var(--ink-2);margin-top:6px">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
+      <div id="woFormatieHint"></div></div>
+
+    <div class="wo-sectiekop" id="woSecDoel"><span class="ico">🎯</span><span>Doel & notitie</span><div class="wo-lijn"></div></div>
+    <div class="veldgroep"><label>Wedstrijddoel</label>
+      <input class="invoer" id="woDoel" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
+      <div class="doel-suggesties" id="woDoelSug">
+        ${doelSuggesties(S.team?.categorie).map(s => `<button type="button" data-doelsug="${esc(s)}">${esc(s)}</button>`).join('')}
+      </div>
+      <p style="font-size:11px;color:var(--ink-2);margin-top:5px">💡 Suggesties op basis van de leercurve (§3.3) voor ${esc(S.team?.categorie||'dit team')} — tik om over te nemen, of typ je eigen doel.</p></div>
+    <div class="veldgroep"><label>Notitie</label>
+      <textarea class="invoer" id="woNotitie" rows="3" placeholder="Bijv. sterke counter, druk zetten op hun nr. 7. Zichtbaar bij de volgende keer tegen deze tegenstander.">${esc(w.notitie||'')}</textarea></div>
+
+    <button class="knop vol fluo" id="woOk">Opslaan</button>`;
+  $('#woAchter').classList.add('open');
+
+  const toonFormatieHint = () => {
+    const el = $('#woFormatieHint');
+    if (!el) return;
+    if (format !== '11'){ el.innerHTML = ''; return; }
+    if (formatie === CLUB_FORMATIE_11){
+      el.innerHTML = `<div class="formatie-hint match"><span class="fh-ico">✓</span><span><b>Sluit aan bij de clubvisie (§3.2).</b> Bij balbezit schuift één verdediger in naar het middenveld (1:3:4:3) voor een overtal — steeds een andere speler, zodat iedereen leert opbouwen.</span></div>`;
+    } else {
+      el.innerHTML = `<div class="formatie-hint info"><span class="fh-ico">💡</span><span>Het jeugdbeleidsplan gaat uit van <b>${esc(CLUB_FORMATIE_11)}</b> als basis (§3.2). Kies je bewust voor ${esc(formatie)}? Laat dan de vrije verdediger een opbouwende rol spelen, niet achter de mandekkers.</span></div>`;
+    }
+  };
+  const vulFormaties = () => {
+    $('#woFormatie').innerHTML = Object.keys(FORMATIES[format]).map(f =>
+      `<button data-f="${f}" class="${formatie===f?'actief':''}">${f}</button>`).join('');
+    $$('#woFormatie button').forEach(b => b.onclick = () => {
+      $$('#woFormatie button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); formatie = b.dataset.f;
+      toonFormatieHint();
+    });
+    toonFormatieHint();
+  };
+  vulFormaties();
+  $$('#woFormat button').forEach(b => b.onclick = () => {
+    $$('#woFormat button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief');
+    format = b.dataset.f;
+    if (!FORMATIES[format][formatie]) formatie = Object.keys(FORMATIES[format])[0];
+    vulFormaties();
+  });
+
+  $$('#woDoelSug [data-doelsug]').forEach(b => b.onclick = () => { $('#woDoel').value = b.dataset.doelsug; });
+
+  $('#woSluit').onclick = verbergWijzigOpzet;
+  $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') verbergWijzigOpzet(); };
+
+  $('#woOk').onclick = () => {
+    w.tegenstander = $('#woTegen').value.trim() || w.tegenstander;
+    w.datum = $('#woDatum').value || w.datum;
+    w.kwartduur = parseFloat(($('#woDuur').value||'').replace(',','.')) || w.kwartduur;
+    w.aanvoerder = $('#woAanvoerder').value || null;
+    if (format !== w.format || formatie !== w.formatie){
+      const nieuweIds = new Set(bouwSlots(format, formatie).map(s => s.id));
+      for (const kk of Object.values(w.kwarten)){
+        for (const slot of Object.keys(kk.lineup)) if (!nieuweIds.has(slot)) delete kk.lineup[slot];
+        kk.events = kk.events.filter(e => nieuweIds.has(e.slot));
+      }
+      w.format = format; w.formatie = formatie;
+    }
+    w.doel = $('#woDoel').value.trim();
+    w.notitie = $('#woNotitie').value.trim();
+    verbergWijzigOpzet();
+    bewaarWedstrijd();
+    renderWedstrijd();
+  };
+
+  if (sectie){
+    const anker = {basis:'woSecBasis', speelwijze:'woSecSpeelwijze', doel:'woSecDoel'}[sectie];
+    if (anker) requestAnimationFrame(() => $(`#${anker}`)?.scrollIntoView({block:'start'}));
+  }
+}
+
+function verbergWijzigOpzet(){
+  const el = $('#woAchter');
+  if (!el) return;
+  el.classList.remove('open');
+}
+
+function modalSelectie(){
+  const w = S.wedstrijd;
+  const sel = new Set(w.selectie || []);
+  openModal(`
+    <h2>Selectie voor deze wedstrijd</h2>
+    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Vink af wie er vandaag bij is. Afwezige spelers verschijnen niet op de bank.</p>
+    ${S.spelers.map(p => `
+      <label class="speler-rij" style="cursor:pointer">
+        <input type="checkbox" data-sel="${p.id}" ${sel.has(p.id)?'checked':''} style="width:19px;height:19px;accent-color:var(--grass)">
+        <div class="mini-shirt">${esc(p.nummer ?? '·')}</div><div class="n">${esc(p.naam)}</div>
+      </label>`).join('')}
+    <button class="knop vol" id="mSelOk" style="margin-top:6px">Klaar</button>`);
+  $('#mSelOk').onclick = () => {
+    w.selectie = $$('#modalInhoud [data-sel]').filter(c => c.checked).map(c => c.dataset.sel);
+    const toegestaan = new Set(w.selectie);
+    for (const kk of Object.values(w.kwarten)){
+      for (const [slot, pid] of Object.entries(kk.lineup)) if (!toegestaan.has(pid)) delete kk.lineup[slot];
+      kk.events = kk.events.filter(e => (!e.in || toegestaan.has(e.in)) && (!e.uit || toegestaan.has(e.uit)));
+      kk.plan = (kk.plan||[]).filter(p => toegestaan.has(p.in) && toegestaan.has(p.uit));
+    }
+    w.kaarten = (w.kaarten||[]).filter(c => toegestaan.has(c.pid));
+    if (w.aanvoerder && !toegestaan.has(w.aanvoerder)) w.aanvoerder = null;
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+  };
+}
+
+/* ==================== TIKKEN (geen slepen meer — verticaal scrollen blijft werken) ==================== */
+function koppelSleep(v){
+  const veld = v.querySelector('#veld');
+  const bank = v.querySelector('#bank');
+
+  // tik op een chip: selecteer/deselecteer, of wissel met al-geselecteerde speler
+  v.querySelectorAll('[data-chip]').forEach(chip => {
+    chip.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const pid = chip.dataset.chip;
+      const bron = chip.dataset.bron;
+      if (S.geselecteerd && S.geselecteerd.pid !== pid){
+        // staat de getikte speler op het veld? dan ruilen we van plek
+        const k = huidigKwart(), l = effectieveLineup(k);
+        const slot = Object.keys(l).find(s => l[s] === pid);
+        if (slot){ plaats(S.geselecteerd.pid, slot); return; }
+      }
+      S.geselecteerd = S.geselecteerd?.pid === pid ? null : {pid, bron};
+      renderWedstrijd();
+    });
+  });
+
+  // tik op een leeg veldvak: plaats de geselecteerde speler daar
+  veld.querySelectorAll('.slot').forEach(slot => {
+    slot.addEventListener('click', ev => {
+      if (!S.geselecteerd) return;
+      if (ev.target.closest('[data-chip]')) return;
+      plaats(S.geselecteerd.pid, slot.dataset.slot);
+    });
+  });
+
+  // tik op de bank: haal de geselecteerde veldspeler naar de bank
+  bank.addEventListener('click', ev => {
+    if (!S.geselecteerd || S.geselecteerd.bron !== 'veld') return;
+    if (ev.target.closest('[data-chip],button')) return;
+    naarBank(S.geselecteerd.pid);
+  });
 }
