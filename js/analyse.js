@@ -6,7 +6,8 @@ import { periodeNrs, slotLijn } from './config.js';
    als het statistiekentabblad ervan gebruik kunnen maken zonder kringverwijzing. */
 
 export function kwartGespeeld(k){
-  return Object.keys(k.lineup||{}).length > 0 || (k.events||[]).length > 0;
+  return Object.keys(k.lineup||{}).length > 0 || (k.events||[]).length > 0
+    || Object.keys(k.correcties||{}).length > 0;
 }
 
 /* effectieve opstelling = startopstelling + alle wissel-events in volgorde */
@@ -50,6 +51,9 @@ export function analyseKwart(w, k){
   }
   for (const [pid, start] of Object.entries(aan))
     res.tijd[pid] = (res.tijd[pid]||0) + Math.max(0, D - start);
+  if (k.correcties){
+    for (const [pid, sec] of Object.entries(k.correcties)) res.tijd[pid] = sec;
+  }
   return res;
 }
 
