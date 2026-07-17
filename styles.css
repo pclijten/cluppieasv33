@@ -301,6 +301,23 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .modal h2{font-family:'Barlow Condensed';font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:14px}
 .modal .sluitbalk{width:42px;height:4px;border-radius:2px;background:var(--hair);margin:0 auto 14px}
 
+/* ---------- PDF-viewer (fullscreen, fit-to-width) ---------- */
+.pdfv-achter{position:fixed;inset:0;background:var(--paper);z-index:60;display:none;flex-direction:column}
+.pdfv-achter.open{display:flex}
+.pdfv-kop{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border-bottom:1px solid var(--hair);flex-shrink:0}
+.pdfv-sluit{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.pdfv-titelblok{flex:1;min-width:0}
+.pdfv-titel{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.pdfv-meta{font-size:12px;color:var(--ink-2)}
+.pdfv-teller{font-size:12px;color:#fff;background:var(--pitch-ink);padding:4px 9px;border-radius:8px;flex-shrink:0}
+.pdfv-stage{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:y proximity;background:var(--bg);display:flex;flex-direction:column;align-items:center;padding:10px 0 30px;touch-action:pan-y pinch-zoom}
+.pdfv-pagina{scroll-snap-align:start;display:flex;justify-content:center;padding:6px 10px;width:100%}
+.pdfv-pagina canvas{max-width:100%;height:auto;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.5);background:#fff}
+.pdfv-footer{flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--hair);font-size:12px;color:var(--ink-2);text-align:center}
+.pdfv-laad{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:60px 20px;color:var(--ink-2);font-size:13px;text-align:center}
+.pdfv-spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--surface-2, var(--hair));border-top-color:var(--accent);animation:pdfvSpin .8s linear infinite}
+@keyframes pdfvSpin{to{transform:rotate(360deg)}}
+
 /* ---------- Login ---------- */
 .login{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;background:
   repeating-linear-gradient(0deg,var(--accent) 0 12.5%,var(--grass-2) 12.5% 25%)}
