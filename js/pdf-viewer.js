@@ -34,6 +34,23 @@ function laadPdfJs(){
   return _pdfjsLoad;
 }
 
+function bestandsnaamVoor(titel){
+  const basis = (titel || 'training').trim().replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_');
+  return (basis || 'training') + '.pdf';
+}
+
+function downloadPdf(bytes, titel){
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = bestandsnaamVoor(titel);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+}
+
 let _overlay = null;
 let _viewportOrigineel = null;
 
@@ -61,6 +78,7 @@ function bouwOverlay(){
         <div class="pdfv-meta"></div>
       </div>
       <div class="pdfv-teller"></div>
+      <button class="pdfv-download" aria-label="Downloaden" disabled>⬇</button>
     </div>
     <div class="pdfv-stage"></div>
     <div class="pdfv-footer">🔍 dubbeltik of pinch om in te zoomen · scroll omlaag voor volgende pagina</div>`;
@@ -83,6 +101,9 @@ export async function openPdfViewer({ url, titel, meta }){
   el.querySelector('.pdfv-meta').textContent = meta || '';
   const teller = el.querySelector('.pdfv-teller');
   const stage = el.querySelector('.pdfv-stage');
+  const dlBtn = el.querySelector('.pdfv-download');
+  dlBtn.disabled = true;
+  dlBtn.onclick = null;
   teller.textContent = '';
   stage.innerHTML = `<div class="pdfv-laad"><div class="pdfv-spinner"></div>Oefenstof laden…</div>`;
   el.classList.add('open');
@@ -93,6 +114,8 @@ export async function openPdfViewer({ url, titel, meta }){
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('Download mislukt (' + resp.status + ')');
     const bytes = new Uint8Array(await resp.arrayBuffer());
+    dlBtn.disabled = false;
+    dlBtn.onclick = () => downloadPdf(bytes, titel);
     const pdfDoc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
 
     teller.textContent = '1 / ' + pdfDoc.numPages;
