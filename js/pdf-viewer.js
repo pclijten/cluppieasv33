@@ -35,6 +35,20 @@ function laadPdfJs(){
 }
 
 let _overlay = null;
+let _viewportOrigineel = null;
+
+/* De app zet globaal user-scalable=no (voorkomt per ongeluk uitzoomen tijdens
+   normaal gebruik). Voor de PDF-viewer willen we juist wél kunnen pinch-zoomen,
+   dus zetten we 'm tijdelijk aan zolang de viewer open staat. */
+function zetViewportZoombaar(aan){
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  if (_viewportOrigineel === null) _viewportOrigineel = meta.getAttribute('content');
+  meta.setAttribute('content', aan
+    ? 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes'
+    : _viewportOrigineel);
+}
+
 function bouwOverlay(){
   if (_overlay) return _overlay;
   const el = document.createElement('div');
@@ -58,6 +72,7 @@ function bouwOverlay(){
 
 export function sluitPdfViewer(){
   if (_overlay) _overlay.classList.remove('open');
+  zetViewportZoombaar(false);
 }
 
 /* openPdfViewer({url, titel, meta}) — url moet cross-origin ophaalbaar zijn
@@ -71,6 +86,7 @@ export async function openPdfViewer({ url, titel, meta }){
   teller.textContent = '';
   stage.innerHTML = `<div class="pdfv-laad"><div class="pdfv-spinner"></div>Oefenstof laden…</div>`;
   el.classList.add('open');
+  zetViewportZoombaar(true);
 
   try {
     await laadPdfJs();
