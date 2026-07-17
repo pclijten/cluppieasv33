@@ -890,7 +890,14 @@ function koppelTeamTab(v, tab){
     };
     v.querySelectorAll('[data-open-training]').forEach(r => r.onclick = async () => {
       const id = r.dataset.openTraining;
-      window.open(r.dataset.url, '_blank');
+      const t = S.trainingen.find(x => x.id === id);
+      const datum = t?.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
+      const { openPdfViewer } = await import('./pdf-viewer.js');
+      openPdfViewer({
+        url: r.dataset.url,
+        titel: t?.titel || t?.bestandsnaam || 'Training',
+        meta: [t?.week, datum].filter(Boolean).join(' · ')
+      });
       if (!S.trainingenGelezen[id]){
         try { await setDoc(doc(db,'gebruikers',S.user.uid,'gelezen',id), {tijd: serverTimestamp()}); } catch(e){}
       }
