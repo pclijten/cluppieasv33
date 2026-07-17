@@ -282,6 +282,11 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .stat-tabel tr:last-child td{border-bottom:none}
 .stat-tabel .naam-cel{font-weight:600}
 .stat-tabel .tijd-cel{font-family:'Barlow Condensed';font-weight:700;font-size:16px}
+.stat-tabel td.bewerkbaar{cursor:pointer}
+.stat-tabel td.bewerkbaar:active{opacity:.7}
+.stat-tabel td.bewerkbaar .bewerk-hint{color:var(--ink-2);font-size:11px;opacity:.5;margin-left:3px}
+.stat-tabel td.bewerkbaar.aangepast{color:var(--grass);font-weight:700}
+.stat-tabel td.bewerkbaar.aangepast .bewerk-hint{color:var(--grass);opacity:.9}
 
 /* ---------- Correctie-menu (goal / kaart) ---------- */
 .correctie-opties{display:flex;flex-direction:column;gap:8px}
