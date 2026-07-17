@@ -14,7 +14,7 @@ import {
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js';
 
 /* ==================== AANMAKEN ==================== */
-function leegKwart(){ return {lineup:{}, events:[], plan:[], klok:{base:0, running:false, start:0}}; }
+function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
 
 /* startopstelling van de laatste gespeelde wedstrijd met hetzelfde format */
 function laatsteOpstelling(format){
@@ -532,6 +532,15 @@ function klokReset(){
   k.klok = {base:0, running:false, start:0};
   bewaarWedstrijd(); renderWedstrijd();
 }
+function klokNaarEinde(){
+  const w = S.wedstrijd, k = huidigKwart();
+  const eind = Math.round(w.kwartduur*60);
+  if (!confirm(`Klok direct op eindtijd (${mmss(eind)}) zetten voor ${periodeOmschrijving(w)}?`)) return;
+  k.klok = {base:eind, running:false, start:0};
+  bewaarWedstrijd(); renderWedstrijd();
+  if (navigator.vibrate) navigator.vibrate([300,120,300,120,300]);
+  meld(`⏱ Klok gezet op einde ${periodeOmschrijving(w)} (${mmss(eind)})`);
+}
 function tikKlok(){
   const w = S.wedstrijd; if (!w) return;
   const k = huidigKwart();
@@ -607,6 +616,38 @@ function voerPlanUit(i){
   }
   k.plan.splice(i,1);
   bewaarWedstrijd(); renderWedstrijd();
+}
+
+/* ==================== SPEELTIJD-CORRECTIE ==================== */
+/* Handmatige overschrijving van de berekende speeltijd voor één speler in de huidige
+   periode — bedoeld voor het geval een wissel vergeten is door te voeren. */
+function modalSpeeltijdCorrigeren(pid){
+  const w = S.wedstrijd, k = huidigKwart();
+  const aKwart = analyseKwart(w, k);
+  const huidigSec = aKwart.tijd[pid] || 0;
+  const heeftCorrectie = k.correcties && k.correcties[pid] != null;
+  openModal(`
+    <h2>Speeltijd aanpassen</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:14px">${esc(spelerNaam(pid))} · ${esc(periodeOmschrijving(w))}</p>
+    <div class="veldgroep"><label>Gespeelde minuten</label>
+      <input class="invoer" id="mCorrMin" inputmode="decimal" value="${String(Math.round(huidigSec/6)/10).replace('.',',')}"></div>
+    <p style="font-size:12px;color:var(--ink-2);margin:8px 0 14px;line-height:1.5">Overschrijft de automatische berekening voor deze periode — handig als een wissel vergeten is door te voeren.</p>
+    <button class="knop vol" id="mCorrOk">Opslaan</button>
+    ${heeftCorrectie ? `<button class="knop licht vol" id="mCorrWeg" style="margin-top:8px">Correctie verwijderen</button>` : ''}`);
+  $('#mCorrOk').onclick = () => {
+    const min = parseFloat(($('#mCorrMin').value||'').replace(',','.'));
+    if (!(min >= 0)) return meld('Vul een geldig aantal minuten in');
+    const sec = Math.round(min*60);
+    (k.correcties ||= {})[pid] = sec;
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld(`Speeltijd ${spelerNaam(pid)} aangepast naar ${mmss(sec)}`);
+  };
+  const wegBtn = $('#mCorrWeg');
+  if (wegBtn) wegBtn.onclick = () => {
+    delete k.correcties[pid];
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+    meld(`Correctie verwijderd — speeltijd weer automatisch berekend`);
+  };
 }
 
 /* ==================== DOELPUNTEN ==================== */
@@ -1064,6 +1105,7 @@ ${confroHtml}
       <div class="acties">
         ${Number(S.kwart) > 1 && !kwartGespeeld(k) ? `<button id="kopieerKwart" title="Eindopstelling vorig kwart overnemen">⧉</button>` : ''}
         <button id="klokReset" title="Klok terugzetten">↺</button>
+        <button id="klokNaarEinde" title="Spring naar eindtijd">⏭</button>
         <button id="klokStart" class="primair" title="${k.klok.running?'Pauze':'Start'}">${k.klok.running?'❚❚':'▶'}</button>
       </div>
     </div>
@@ -1145,12 +1187,13 @@ ${confroHtml}
       <div class="inhoud"><table class="stat-tabel">
         <thead><tr><th>Speler</th><th>${periodeLabel(w, S.kwart)}</th><th>Totaal</th><th>Keeper</th></tr></thead>
         <tbody>${(w.selectie||[]).filter(pid => speler(pid))
-          .sort((a,b) => (aWed.tijd[b]||0) - (aWed.tijd[a]||0)).map(pid => `
+          .sort((a,b) => (aWed.tijd[b]||0) - (aWed.tijd[a]||0)).map(pid => { const aangepast = k.correcties && k.correcties[pid] != null; return `
           <tr><td class="naam-cel">${esc(spelerNaam(pid))}</td>
-            <td>${aKwart.tijd[pid] ? mmss(aKwart.tijd[pid]) : '—'}</td>
+            <td class="bewerkbaar${aangepast?' aangepast':''}" data-corrigeer-speeltijd="${pid}" title="Tik om speeltijd deze periode aan te passen">${aKwart.tijd[pid] ? mmss(aKwart.tijd[pid]) : '—'}<span class="bewerk-hint">✎</span></td>
             <td class="tijd-cel">${aWed.tijd[pid] ? uurMin(aWed.tijd[pid]) : '—'}</td>
-            <td>${aWed.keeper[pid] ? aWed.keeper[pid]+'×' : ''}</td></tr>`).join('')}
+            <td>${aWed.keeper[pid] ? aWed.keeper[pid]+'×' : ''}</td></tr>`; }).join('')}
         </tbody></table></div>
+      <p style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5">Tik op een speeltijd om die periode voor een speler handmatig te corrigeren — bijvoorbeeld als een wissel vergeten is door te voeren.</p>
     </details>
 
     <button class="knop vol" id="toonVerslag" style="margin-top:16px">📋 Wedstrijdverslag</button>
@@ -1197,6 +1240,7 @@ ${confroHtml}
   };
   v.querySelector('#klokStart').onclick = klokStartPauze;
   v.querySelector('#klokReset').onclick = klokReset;
+  v.querySelector('#klokNaarEinde').onclick = klokNaarEinde;
   const kp = v.querySelector('#kopieerKwart'); if (kp) kp.onclick = kopieerVorigKwart;
 
   /* Vorige confrontatie: regeltje klapt het paneel open/dicht (lokale UI-stand). */
@@ -1230,6 +1274,9 @@ ${confroHtml}
   v.querySelectorAll('[data-plan-uitvoer]').forEach(b => b.onclick = e => { e.stopPropagation(); voerPlanUit(Number(b.dataset.planUitvoer)); });
   v.querySelectorAll('[data-plan-weg]').forEach(b => b.onclick = e => { e.stopPropagation(); (huidigKwart().plan||[]).splice(Number(b.dataset.planWeg),1); bewaarWedstrijd(); renderWedstrijd(); });
   v.querySelectorAll('[data-weg-ev]').forEach(b => b.onclick = e => { e.stopPropagation(); verwijderEvent(Number(b.dataset.wegEv)); });
+  v.querySelectorAll('[data-corrigeer-speeltijd]').forEach(td => td.onclick = e => {
+    e.stopPropagation(); modalSpeeltijdCorrigeren(td.dataset.corrigeerSpeeltijd);
+  });
   v.querySelector('#wegWedstrijd').onclick = async () => {
     if (!confirm('Deze wedstrijd en alle opstellingen verwijderen?')) return;
     await deleteDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId));
