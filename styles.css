@@ -194,7 +194,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .video-rij .acties{display:flex;gap:4px;flex-shrink:0}
 .video-rij .acties button{width:32px;height:32px;border-radius:8px;color:var(--ink-2);font-size:14px}
 .training-rij .ico{width:38px;height:38px;border-radius:10px;background:rgba(229,72,77,.12);color:var(--uit);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;font-weight:700;font-family:'Barlow Condensed'}
-.training-rij .ico.formulier{background:rgba(53,196,122,.14);color:var(--ok)}
+.training-rij .ico.knvb{background:rgba(53,196,122,.14);color:var(--ok);font-size:12px;letter-spacing:.2px}
 .training-rij .ico.overig{background:rgba(245,177,61,.14);color:var(--warn)}
 .training-rij .t{flex:1;min-width:0}
 .training-rij .t-titel{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
