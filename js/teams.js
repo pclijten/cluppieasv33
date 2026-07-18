@@ -625,18 +625,30 @@ function startUitleningenListener(teamId){
   const clubId = S.team?.club;
   if (!clubId){ return; }              // los team zonder club: geen uitleningen
   if (S.unsub.uitleningen){ S.unsub.uitleningen(); delete S.unsub.uitleningen; }
-  S.unsub.uitleningen = onSnapshot(collection(db,'clubs',clubId,'uitleningen'), snap => {
-    const alle = snap.docs.map(d => ({id:d.id, ...d.data()}));
-    S.uitleningenUit = alle.filter(u => u.vanTeam === teamId);
-    S.uitleningenIn  = alle.filter(u => u.naarTeam === teamId);
-    if (!S.wedstrijdId && (S.teamTab === 'spelers' || S._beoordeelProfiel)) renderTeam();
-  }, (err) => {
+  if (S.unsub.uitleningenIn){ S.unsub.uitleningenIn(); delete S.unsub.uitleningenIn; }
+  const herteken = () => { if (!S.wedstrijdId && (S.teamTab === 'spelers' || S._beoordeelProfiel)) renderTeam(); };
+  const foutmelding = (err) => {
     console.error(`[Cluppie] Listener "uitleningen" kon niet lezen (clubId=${clubId}):`, err.code, err.message);
     if (err.code === 'permission-denied') meld('Kon uitleningen niet laden — controleer de Firestore-rules');
-  });
+  };
+  /* Twee losse, where()-gefilterde queries i.p.v. één ongefilterde collection-
+     listener: de Firestore-rule voor uitleningen toetst per document op
+     vanTeam/naarTeam. Zo'n rule vereist een overeenkomstige where()-filter in
+     de query — zonder filter kan Firestore niet bewijzen dat élk mogelijk
+     resultaat aan de regel voldoet, en wijst hij de HELE lijst-aanvraag af. */
+  S.unsub.uitleningen = onSnapshot(
+    query(collection(db,'clubs',clubId,'uitleningen'), where('vanTeam','==',teamId)),
+    snap => { S.uitleningenUit = snap.docs.map(d => ({id:d.id, ...d.data()})); herteken(); },
+    foutmelding
+  );
+  S.unsub.uitleningenIn = onSnapshot(
+    query(collection(db,'clubs',clubId,'uitleningen'), where('naarTeam','==',teamId)),
+    snap => { S.uitleningenIn = snap.docs.map(d => ({id:d.id, ...d.data()})); herteken(); },
+    foutmelding
+  );
 }
 export function verlaatTeamView(){
-  stopUnsubs('team','spelers','wedstrijden','presentie','planning','beoordelingen','uitleningen','teamevaluaties','seizoen');
+  stopUnsubs('team','spelers','wedstrijden','presentie','planning','beoordelingen','uitleningen','uitleningenIn','teamevaluaties','seizoen');
   S.teamId = null; S.team = null; S.spelers = []; S.wedstrijden = []; S.planning = [];
   S._planningToonEerder = false; S._planningDichteMaanden = null;
   S.uitleningenUit = []; S.uitleningenIn = []; S.teamEvaluaties = [];
