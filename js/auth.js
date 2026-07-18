@@ -179,7 +179,10 @@ export async function zorgClubLidmaatschap(clubId){
       ['leden.'+S.user.uid]: true,
       ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
     });
-  } catch(e){ /* stil negeren — dieperliggend rechtenprobleem blijft zichtbaar via de listener-foutmelding */ }
+    console.info(`[Cluppie] Club-lidmaatschap gecontroleerd/hersteld voor clubId=${clubId}`);
+  } catch(e){
+    console.error(`[Cluppie] Zelf-reparatie club-lidmaatschap mislukt (clubId=${clubId}):`, e.code, e.message);
+  }
 }
 
 /* koppel de ingelogde gebruiker aan een team op basis van de teamcode */
