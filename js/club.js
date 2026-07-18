@@ -16,6 +16,15 @@ import { startClubContentListener, htmlClubContent, koppelClubContent } from './
 const DASH_DAGEN_INACTIEF = 14;
 const DASH_OPKOMST_LAAG = 50;
 
+/* categorieën voor het documenten-tabblad — bewust geen bouw-indeling zoals
+   bij trainingen/video's: documenten (beleid, formulieren) zijn doorgaans
+   niet leeftijdsgebonden maar wel van verschillend type. */
+const DOC_CATEGORIEN = [
+  {id:'beleid',     naam:'Beleid'},
+  {id:'formulier',  naam:'Formulieren'},
+  {id:'overig',     naam:'Overig'},
+];
+
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
 async function teamsModule(){ return await import('./teams.js'); }
@@ -84,6 +93,12 @@ async function clubTrainingenOphalen(){
 
 async function clubVideosOphalen(){
   const snap = await getDocs(query(collection(db,'videos'), where('club','==',S.clubId)));
+  return snap.docs.map(d => ({id:d.id, ...d.data()}))
+    .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
+}
+
+async function clubDocumentenOphalen(){
+  const snap = await getDocs(query(collection(db,'documenten'), where('club','==',S.clubId)));
   return snap.docs.map(d => ({id:d.id, ...d.data()}))
     .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
 }
@@ -427,6 +442,8 @@ async function renderClub(){
   S.clubTrainingen = trainingen;
   const videos = await clubVideosOphalen();
   S.clubVideos = videos;
+  const documenten = await clubDocumentenOphalen();
+  S.clubDocumenten = documenten;
   const afgelastingen = await clubAfgelastingenOphalen();
   S.clubAfgelastingen = afgelastingen;
   const tab = S.clubTab;
@@ -439,6 +456,7 @@ async function renderClub(){
   if (tab === 'teams')      inhoud = htmlClubTeams(teams, afgelastingen);
   if (tab === 'trainingen') inhoud = htmlClubTrainingen(teams, trainingen);
   if (tab === 'videos')     inhoud = htmlClubVideos(teams, videos);
+  if (tab === 'documenten') inhoud = htmlClubDocumenten(teams, documenten);
   let clubEvalData = null;
   if (tab === 'dashboard'){
     const dashModus = S.clubDashModus || 'overzicht';
@@ -475,7 +493,7 @@ async function renderClub(){
       <h1>🏛 ${esc(S.club.naam)}<span class="sub">${Object.keys(S.club.teams||{}).length} teams · clubcode ${esc(S.club.code)}</span></h1></div>
     ${inhoud}
     <nav class="onderbalk">
-      ${[['teams','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>','Teams'],['trainingen','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>','Training'],['videos','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>','Videos'],['dashboard','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>','Dashboard'],
+      ${[['teams','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>','Teams'],['trainingen','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>','Training'],['videos','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>','Videos'],['documenten','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>','Documenten'],['dashboard','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>','Dashboard'],
         ...(isBeheerder() ? [['content','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h8M9 15h8M9 7h3"/></svg>','Content']] : []),
         ['instel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7.6 1.6 1.6 0 0 0-1.1 1.5V20a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>','Club']]
         .map(([id,ico,naam]) => `<button data-ctab="${id}" class="${tab===id?'actief':''}"><span class="ico">${ico}</span>${naam}</button>`).join('')}
@@ -489,7 +507,7 @@ async function renderClub(){
   if (tab === 'dashboard' && S.clubDashModus === 'evaluaties' && clubEvalData){
     koppelClubEvaluaties(v, clubEvalData, () => renderClub());
   }
-  koppelClubTab(v, tab, teams, trainingen, videos);
+  koppelClubTab(v, tab, teams, trainingen, videos, documenten);
 }
 
 function htmlClubTeams(teams, afgelastingen = []){
@@ -625,6 +643,45 @@ function htmlClubVideos(teams, videos){
 
   return `
     <button class="upload-knop" id="videoToevoegen">🎬 YouTube-video toevoegen voor één of meer teams</button>
+    ${segment}
+    ${lijst}`;
+}
+
+function htmlClubDocumenten(teams, documenten){
+  const actief = S.clubDocCategorie || 'alle';
+  const telPerCat = {beleid:0, formulier:0, overig:0};
+  for (const d of documenten) telPerCat[d.categorie] = (telPerCat[d.categorie]||0) + 1;
+
+  const segment = `
+    <div class="segment" id="docCatTabs" style="margin-bottom:14px">
+      <button data-doccat="alle" class="${actief==='alle'?'actief':''}">Alle</button>
+      ${DOC_CATEGORIEN.map(c => `<button data-doccat="${c.id}" class="${actief===c.id?'actief':''}">${c.naam}${telPerCat[c.id]?` <span style="opacity:.6">(${telPerCat[c.id]})</span>`:''}</button>`).join('')}
+    </div>`;
+
+  const zichtbaar = actief === 'alle' ? documenten : documenten.filter(d => d.categorie === actief);
+  const icoonPerCat = {beleid:'PDF', formulier:'FRM', overig:'DOC'};
+
+  const lijst = zichtbaar.length ? zichtbaar.map(d => {
+    const teamNamen = (d.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
+    const catNaam = DOC_CATEGORIEN.find(c => c.id === d.categorie)?.naam || 'Overig';
+    return `
+      <div class="training-rij">
+        <div class="ico ${d.categorie==='formulier'?'formulier':d.categorie==='overig'?'overig':''}">${icoonPerCat[d.categorie] || 'DOC'}</div>
+        <div class="t"><div class="t-titel">${esc(d.titel || d.bestandsnaam)}</div>
+          <div class="t-meta">${esc(catNaam)} · ${esc(teamNamen)}</div></div>
+        <div class="acties">
+          <button data-ddownload="${esc(d.url)}" title="Openen">↗</button>
+          <button data-dbewerk="${d.id}" title="Titel, categorie en teams wijzigen">✏️</button>
+          <button data-dshare="${d.id}" title="Delen naar WhatsApp">📤</button>
+          <button data-dweg="${d.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+        </div>
+      </div>`;
+  }).join('')
+  : `<div class="kaart leeg">Nog geen documenten${actief!=='alle' ? ' in deze categorie' : ''}.<br>Upload een PDF en koppel 'm aan één of meer teams.</div>`;
+
+  return `
+    <button class="upload-knop" id="documentUpload">📄 Document toevoegen voor één of meer teams
+      <input type="file" id="documentFile" accept="application/pdf" style="display:none"></button>
     ${segment}
     ${lijst}`;
 }
@@ -849,7 +906,7 @@ async function clubAfgelastOpheffen(teams){
   }
 }
 
-function koppelClubTab(v, tab, teams, trainingen, videos){
+function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
   if (tab === 'teams'){
     const aflastBtn = v.querySelector('#clubAflast');
     if (aflastBtn) aflastBtn.onclick = () => modalClubAflasten(teams);
@@ -918,6 +975,35 @@ function koppelClubTab(v, tab, teams, trainingen, videos){
       if (!confirm(`Video "${vid.titel || ''}" verwijderen?`)) return;
       await deleteDoc(doc(db,'videos',vid.id));
       meld('Video verwijderd'); renderClub();
+    });
+  }
+  if (tab === 'documenten'){
+    v.querySelectorAll('[data-doccat]').forEach(b => b.onclick = () => {
+      S.clubDocCategorie = b.dataset.doccat; renderClub();
+    });
+    const knop = v.querySelector('#documentUpload');
+    const input = v.querySelector('#documentFile');
+    knop.onclick = () => input.click();
+    input.onchange = e => {
+      const file = e.target.files[0]; if (!file) return;
+      modalNieuwDocument(file, teams, S.clubDocCategorie);
+    };
+    v.querySelectorAll('[data-ddownload]').forEach(b => b.onclick = () => window.open(b.dataset.ddownload, '_blank'));
+    v.querySelectorAll('[data-dbewerk]').forEach(b => b.onclick = () => {
+      const d = documenten.find(x => x.id === b.dataset.dbewerk);
+      modalBewerkDocument(d, teams);
+    });
+    v.querySelectorAll('[data-dshare]').forEach(b => b.onclick = () => {
+      const d = documenten.find(x => x.id === b.dataset.dshare);
+      const tekst = `📄 ${d.titel || 'Document'}\n${d.url}`;
+      window.open('https://wa.me/?text=' + encodeURIComponent(tekst), '_blank');
+    });
+    v.querySelectorAll('[data-dweg]').forEach(b => b.onclick = async () => {
+      const d = documenten.find(x => x.id === b.dataset.dweg);
+      if (!confirm(`Document "${d.titel || d.bestandsnaam}" verwijderen?`)) return;
+      try { if (d.path) await deleteObject(sRef(storage, d.path)); } catch(e){}
+      await deleteDoc(doc(db,'documenten',d.id));
+      meld('Document verwijderd'); renderClub();
     });
   }
   if (tab === 'dashboard'){
@@ -1442,6 +1528,104 @@ function modalBewerkVideo(vid, teams){
       meld('Video bijgewerkt'); renderClub();
     } catch(e){
       meld('Opslaan mislukt: ' + (e.code || e.message));
+    }
+  };
+}
+
+/* ==================== DOCUMENTEN (beleid, formulieren, overig) ====================
+   Zelfde upload-patroon als trainingen (PDF naar Storage), maar met een
+   categorie-veld i.p.v. week/periode. De teamkeuze hergebruikt bewust de
+   bestaande per-bouw-indeling (teamKeuzePerBouw) — niet omdat een document
+   leeftijdsgebonden is, maar omdat het gewoon de handigste manier is om snel
+   teams terug te vinden in een lange lijst. */
+function modalNieuwDocument(file, teams, voorCategorie = null){
+  openModal(`
+    <h2>Document uploaden</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
+    <div class="veldgroep"><label>Titel</label>
+      <input class="invoer" id="mDoTitel" value="${esc(file.name.replace(/\.pdf$/i,''))}" autocomplete="off"></div>
+    <div class="veldgroep"><label>Categorie</label>
+      <select class="invoer" id="mDoCategorie">
+        ${DOC_CATEGORIEN.map(c => `<option value="${c.id}" ${voorCategorie===c.id?'selected':''}>${c.naam}</option>`).join('')}
+      </select></div>
+    <div class="veldgroep"><label>Voor welke teams?</label>
+      <div id="mDoTeams">${teams.length ? teamKeuzePerBouw(teams, new Set()) : '<p style="font-size:13px;color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
+      <div class="rij" style="margin-top:8px">
+        <button class="knop licht klein" id="mDoAlle">Alle teams</button>
+        <button class="knop licht klein" id="mDoGeen">Geen</button>
+      </div>
+    </div>
+    <button class="knop vol" id="mDoOk">Uploaden en delen</button>`);
+  const sync = () => $$('#mDoTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+  $$('#mDoTeams input').forEach(c => c.onchange = sync);
+  $('#mDoAlle').onclick = () => { $$('#mDoTeams input').forEach(c => c.checked = true); sync(); };
+  $('#mDoGeen').onclick = () => { $$('#mDoTeams input').forEach(c => c.checked = false); sync(); };
+  $('#mDoOk').onclick = async () => {
+    const gekozen = $$('#mDoTeams input').filter(c => c.checked).map(c => c.dataset.tid);
+    if (!gekozen.length) return meld('Kies minstens één team');
+    const titel = $('#mDoTitel').value.trim() || file.name;
+    const categorie = $('#mDoCategorie').value;
+    const knop = $('.upload-knop');
+    if (knop){ knop.classList.add('bezig'); knop.textContent = 'Uploaden...'; }
+    sluitModal();
+    try {
+      const ts = Date.now();
+      const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `clubs/${S.clubId}/documenten/${ts}_${veiligeNaam}`;
+      const r = sRef(storage, path);
+      await uploadBytes(r, file, {contentType:'application/pdf'});
+      const url = await getDownloadURL(r);
+      await addDoc(collection(db,'documenten'), {
+        club: S.clubId, clubNaam: S.club.naam,
+        titel, categorie, bestandsnaam: file.name, path, url,
+        teams: gekozen,
+        gemaakt: serverTimestamp(),
+        door: S.user.displayName || S.user.email || '',
+      });
+      meld('Document geüpload'); renderClub();
+    } catch(e){
+      console.error(e); meld('Upload mislukt — staat Firebase Storage aan?');
+      if (knop){ knop.classList.remove('bezig'); knop.textContent = '📄 Document toevoegen voor één of meer teams'; }
+    }
+  };
+}
+
+/* Toewijzing (titel, categorie, teams) van een bestaand document achteraf
+   aanpassen — zonder het PDF-bestand opnieuw te uploaden. */
+function modalBewerkDocument(d, teams){
+  const huidig = new Set(d.teams || []);
+  openModal(`
+    <h2>Document aanpassen</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(d.bestandsnaam || d.titel)}</b>${d.url ? ` · <a href="${esc(d.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
+    <div class="veldgroep"><label>Titel</label>
+      <input class="invoer" id="mDbTitel" value="${esc(d.titel || '')}" autocomplete="off"></div>
+    <div class="veldgroep"><label>Categorie</label>
+      <select class="invoer" id="mDbCategorie">
+        ${DOC_CATEGORIEN.map(c => `<option value="${c.id}" ${d.categorie===c.id?'selected':''}>${c.naam}</option>`).join('')}
+      </select></div>
+    <div class="veldgroep"><label>Voor welke teams?</label>
+      <div id="mDbTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:13px;color:var(--ink-2)">Geen teams in deze club.</p>'}</div>
+      <div class="rij" style="margin-top:8px">
+        <button class="knop licht klein" id="mDbAlle">Alle teams</button>
+        <button class="knop licht klein" id="mDbGeen">Geen</button>
+      </div>
+    </div>
+    <button class="knop vol" id="mDbOk">Wijzigingen opslaan</button>`);
+  const sync = () => $$('#mDbTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+  $$('#mDbTeams input').forEach(c => c.onchange = sync);
+  $('#mDbAlle').onclick = () => { $$('#mDbTeams input').forEach(c => c.checked = true); sync(); };
+  $('#mDbGeen').onclick = () => { $$('#mDbTeams input').forEach(c => c.checked = false); sync(); };
+  $('#mDbOk').onclick = async () => {
+    const gekozen = $$('#mDbTeams input').filter(c => c.checked).map(c => c.dataset.tid);
+    if (!gekozen.length) return meld('Kies minstens één team');
+    const titel = $('#mDbTitel').value.trim() || d.bestandsnaam || 'Document';
+    const categorie = $('#mDbCategorie').value;
+    sluitModal();
+    try {
+      await updateDoc(doc(db,'documenten',d.id), {teams: gekozen, titel, categorie});
+      meld('Document bijgewerkt'); renderClub();
+    } catch(e){
+      console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
     }
   };
 }

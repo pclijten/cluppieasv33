@@ -44,6 +44,7 @@ import {
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
 } from './teams-training.js';
+import { htmlTeamDocumenten } from './teams-documenten.js';
 import { htmlHandleiding } from './teams-handleiding.js';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
@@ -64,7 +65,13 @@ const NAV_ICON = {
   videos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>',
   stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   help:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/></svg>',
+  documenten:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>',
+  meer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
 };
+
+/* Team-tabs die niet meer rechtstreeks in de onderbalk staan, maar via de
+   verzameltegel "Meer" bereikt worden (zie htmlMeer() verderop). */
+const MEER_GROEP = ['planning', 'documenten', 'stats', 'help'];
 
 /* ==================== TEAMS-OVERZICHT ==================== */
 export function startTeams(){
@@ -81,6 +88,7 @@ export function startTeams(){
     if (!S.teamId && !S.clubId) renderTeams();
     laadTrainingenVoorTeams();
     laadVideosVoorTeams();
+    laadDocumentenVoorTeams();
   }, meldFout('teams'));
   const q2 = query(collection(db,'clubs'), where('admins.'+S.user.uid, '==', true));
   S.unsub.clubs = onSnapshot(q2, snap => {
@@ -148,6 +156,33 @@ function laadVideosVoorTeams(){
       if (S.team) renderTeam();
     });
     videoUnsubs.push(u);
+  });
+}
+
+/* documenten voor de teams waar de coach lid van is */
+let documentenUnsubs = [];
+function laadDocumentenVoorTeams(){
+  documentenUnsubs.forEach(u => u());
+  documentenUnsubs = [];
+  const teamIds = S.teams.map(t => t.id);
+  if (!teamIds.length){ S.documenten = []; return; }
+  const chunks = [];
+  for (let i = 0; i < teamIds.length; i += 30) chunks.push(teamIds.slice(i, i+30));
+  S.documenten = [];
+  chunks.forEach(c => {
+    const q = query(collection(db,'documenten'), where('teams','array-contains-any', c));
+    const u = onSnapshot(q, snap => {
+      const ids = new Set(snap.docs.map(d => d.id));
+      S.documenten = S.documenten.filter(t => !c.some(tid => (t.teams||[]).includes(tid)) || ids.has(t.id));
+      snap.docs.forEach(d => {
+        const i = S.documenten.findIndex(t => t.id === d.id);
+        const data = {id:d.id, ...d.data()};
+        if (i >= 0) S.documenten[i] = data; else S.documenten.push(data);
+      });
+      S.documenten.sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
+      if (S.team) renderTeam();
+    });
+    documentenUnsubs.push(u);
   });
 }
 
@@ -606,6 +641,31 @@ export function verlaatTeamView(){
   renderTeams(); toon('teams');
 }
 
+/* Tegelmenu "Meer" — verzamelt de minder tijdkritische tabbladen (Planning,
+   Documenten, Stats, Help) zodat de onderbalk zelf niet overvol raakt.
+   Wedstrijden/Spelers/Training/Video's blijven rechtstreeks bereikbaar,
+   want dat zijn de onderdelen die een coach tijdens training/wedstrijd
+   het vaakst nodig heeft. Zie ook MEER_GROEP hierboven. */
+function htmlMeer(){
+  const documentenOngelezen = S.documenten
+    .filter(d => (d.teams||[]).includes(S.teamId) && !S.trainingenGelezen[d.id]).length;
+  const tegels = [
+    ['planning',   'Planning',   'Seizoenskalender'],
+    ['documenten', 'Documenten', 'Beleid & formulieren', documentenOngelezen],
+    ['stats',      'Stats',      'Speeltijd & cijfers'],
+    ['help',       'Help',       'Handleiding'],
+  ];
+  return `<div class="tegel-grid">
+    ${tegels.map(([id, naam, meta, badge]) => `
+      <button class="tegel" data-meer-open="${id}">
+        ${badge ? `<span class="stip">${badge} nieuw</span>` : ''}
+        <div class="ico">${NAV_ICON[id]}</div>
+        <div class="naam">${naam}</div>
+        <div class="meta">${meta}</div>
+      </button>`).join('')}
+  </div>`;
+}
+
 export function renderTeam(){
   if (!S.team) return;
   const v = $('#view-team');
@@ -613,15 +673,20 @@ export function renderTeam(){
   let inhoud = '';
   if (tab === 'wedstrijden') inhoud = htmlWedstrijden();
   if (tab === 'spelers')     inhoud = S._leenProfiel ? htmlLeenProfiel() : (S._beoordeelProfiel ? htmlProfiel() : htmlSpelers());
-  if (tab === 'planning')    inhoud = htmlPlanning();
-  if (tab === 'stats')       inhoud = htmlStatsTab();
   if (tab === 'trainingen')  inhoud = htmlTeamTrainingen();
   if (tab === 'videos')      inhoud = htmlTeamVideos();
+  if (tab === 'meer')        inhoud = htmlMeer();
+  if (tab === 'planning')    inhoud = htmlPlanning();
+  if (tab === 'documenten')  inhoud = htmlTeamDocumenten();
+  if (tab === 'stats')       inhoud = htmlStatsTab();
   if (tab === 'instellingen')inhoud = htmlInstellingen();
   if (tab === 'help')        inhoud = htmlHandleiding();
 
   const teamTrainingen = S.trainingen.filter(t => (t.teams||[]).includes(S.teamId));
   const ongelezen = teamTrainingen.filter(t => !S.trainingenGelezen[t.id]).length;
+  const documentenOngelezen = S.documenten
+    .filter(d => (d.teams||[]).includes(S.teamId) && !S.trainingenGelezen[d.id]).length;
+  const meerActief = tab === 'meer' || MEER_GROEP.includes(tab);
 
   const profielOpen = (tab === 'spelers' && (S._beoordeelProfiel || S._leenProfiel));
   v.innerHTML = `
@@ -630,8 +695,12 @@ export function renderTeam(){
       <button class="terug" id="teamInstel" title="Teaminstellingen">⚙️</button></div>`}
     ${inhoud}
     <nav class="onderbalk">
-      ${[['wedstrijden','Wedstr.'],['spelers','Spelers'],['planning','Planning'],['trainingen','Training'],['videos','Video'],['stats','Stats'],['help','Help']]
-        .map(([id,naam]) => `<button data-tab="${id}" class="${tab===id?'actief':''}"><span class="ico">${NAV_ICON[id]}</span><span class="tablabel">${naam}${id==='trainingen' && ongelezen ? '<span class="puntje"></span>' : ''}</span></button>`).join('')}
+      ${[['wedstrijden','Wedstr.'],['spelers','Spelers'],['trainingen','Training'],['videos','Video'],['meer','Meer']]
+        .map(([id,naam]) => {
+          const actief = id === 'meer' ? meerActief : tab === id;
+          const toonStip = (id === 'trainingen' && ongelezen) || (id === 'meer' && documentenOngelezen);
+          return `<button data-tab="${id}" class="${actief?'actief':''}"><span class="ico">${NAV_ICON[id]}</span><span class="tablabel">${naam}${toonStip ? '<span class="puntje"></span>' : ''}</span></button>`;
+        }).join('')}
     </nav>`;
 
   const naarTeamsBtn = v.querySelector('#naarTeams');
@@ -831,6 +900,28 @@ function htmlPlanning(){
    (zie modalClubAflasten in club.js). Elk team toont 'm hier zolang de datum geldig is.
    Geen naam in de banner of het WhatsApp-bericht. */
 function koppelTeamTab(v, tab){
+  if (tab === 'meer'){
+    v.querySelectorAll('[data-meer-open]').forEach(b => b.onclick = () => {
+      S.teamTab = b.dataset.meerOpen; renderTeam();
+    });
+    return;
+  }
+  if (tab === 'documenten'){
+    v.querySelectorAll('[data-open-document]').forEach(r => r.onclick = async () => {
+      const id = r.dataset.openDocument;
+      const d = S.documenten.find(x => x.id === id);
+      const { openPdfViewer } = await import('./pdf-viewer.js');
+      openPdfViewer({
+        url: r.dataset.url,
+        titel: d?.titel || d?.bestandsnaam || 'Document',
+        meta: d?.categorie === 'beleid' ? 'Beleid' : d?.categorie === 'formulier' ? 'Formulier' : 'Overig'
+      });
+      if (!S.trainingenGelezen[id]){
+        try { await setDoc(doc(db,'gebruikers',S.user.uid,'gelezen',id), {tijd: serverTimestamp()}); } catch(e){}
+      }
+    });
+    return;
+  }
   if (tab === 'stats'){
     v.querySelectorAll('[data-statsmodus]').forEach(b => b.onclick = () => {
       S.statsSubTab = b.dataset.statsmodus; renderTeam();
