@@ -20,7 +20,7 @@ export const S = {
   trainingen:[], trainingenGelezen:{}, videos:[], documenten:[], presentie:[],
   beoordelingen:[], _beoordeelProfiel:null, _profielTab:'overzicht',
   teamEvaluaties:[], statsSubTab:'spelers', huidigSeizoen:null, statsSeizoen:null,
-  planning:[], _planningFilter:'alles', _planningDichteMaanden:null,
+  planning:[], _planningFilter:'alles', _planningDichteMaanden:null, _planningToonEerder:false,
   uitleningenUit:[], uitleningenIn:[], _leenProfiel:null,
   unsub:{}, klokInterval:null, saveTimer:null, lokaalTot:0,
 };

@@ -637,6 +637,7 @@ function startUitleningenListener(teamId){
 export function verlaatTeamView(){
   stopUnsubs('team','spelers','wedstrijden','presentie','planning','beoordelingen','uitleningen','teamevaluaties','seizoen');
   S.teamId = null; S.team = null; S.spelers = []; S.wedstrijden = []; S.planning = [];
+  S._planningToonEerder = false; S._planningDichteMaanden = null;
   S.uitleningenUit = []; S.uitleningenIn = []; S.teamEvaluaties = [];
   renderTeams(); toon('teams');
 }
@@ -828,6 +829,14 @@ function htmlPlanning(){
   if (filter !== 'alles'){
     items = items.filter(it => it.type === filter);
   }
+
+  // Voorgaande dágen (niet alleen -maanden) staan standaard helemaal niet in
+  // de lijst — pas na een klik op "Eerder" komen ze terug. Dit is dus een
+  // aparte, grovere stap vóór de bestaande per-maand inklap-logica hieronder.
+  const nuDatum = new Date().toISOString().slice(0,10);
+  const verledenItems = items.filter(it => it.datum < nuDatum);
+  if (!S._planningToonEerder) items = items.filter(it => it.datum >= nuDatum);
+
   // standaard: verleden maanden ingeklapt. _planningDichteMaanden = expliciet gesloten set;
   // bij eerste render vullen we 'm met alle maanden vóór de huidige.
   if (S._planningDichteMaanden === null){
@@ -842,6 +851,12 @@ function htmlPlanning(){
 
   const chips = PLAN_FILTERS.map(([id,lbl]) =>
     `<button class="plan-chip ${filter===id?'aan':''}" data-planfilter="${id}">${lbl}</button>`).join('');
+
+  const eerderKnop = verledenItems.length
+    ? `<button class="knop licht klein" id="planEerder" style="margin-bottom:12px;width:100%">
+        ${S._planningToonEerder ? '↑ Verberg eerdere speeldagen' : `← ${verledenItems.length} eerdere speeldag${verledenItems.length===1?'':'en'} bekijken`}
+      </button>`
+    : '';
 
   let body = '';
   if (!items.length){
@@ -892,6 +907,7 @@ function htmlPlanning(){
       <button class="knop vol klein" id="planEigenDag">+ Eigen dag</button>
     </div>
     <div class="plan-chips">${chips}</div>
+    ${eerderKnop}
     ${body}`;
 }
 
@@ -937,6 +953,12 @@ function koppelTeamTab(v, tab){
   if (tab === 'planning'){
     const eigenBtn = v.querySelector('#planEigenDag');
     if (eigenBtn) eigenBtn.onclick = () => modalEigenDag();
+    const eerderBtn = v.querySelector('#planEerder');
+    if (eerderBtn) eerderBtn.onclick = () => {
+      S._planningToonEerder = !S._planningToonEerder;
+      if (S._planningToonEerder) S._planningDichteMaanden = null;  // opnieuw seeden zodat vers-getoonde verleden maanden weer ingeklapt starten
+      renderTeam();
+    };
     v.querySelectorAll('[data-planfilter]').forEach(b => b.onclick = () => {
       S._planningFilter = b.dataset.planfilter; renderTeam();
     });
