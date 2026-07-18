@@ -1023,6 +1023,21 @@ body{ background:var(--bg); color:var(--ink); }
 .segment.klein-seg{margin-bottom:10px}
 .segment.klein-seg button{padding:7px 4px;font-size:13px}
 
+/* meest gespeelde positie — suggestie in spelerprofiel bewerken */
+.meest-gespeeld{margin-bottom:12px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line-d);border-radius:10px}
+.mg-titel{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:7px}
+.mg-lijst{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.mg-item{font-size:12px;color:var(--ink-2);background:var(--card);border:1px solid var(--line-d);border-radius:20px;padding:4px 10px}
+.mg-item b{color:var(--ink);font-weight:700;margin-left:3px}
+.mg-item.mg-top{color:var(--ink);border-color:var(--accent)}
+.mg-item.mg-top b{color:var(--accent)}
+.mg-knop{width:100%;background:var(--accent);color:#fff;font-weight:700;font-size:13px;padding:9px;border-radius:9px}
+
+/* gegroepeerde voorkeurspositie-kiezer (per linie: keeper/verdediging/middenveld/aanval) */
+.pos-groep{margin-bottom:8px}
+.pos-groep:last-child{margin-bottom:0}
+.pos-lijnlabel{font-size:11px;color:var(--ink-2);margin-bottom:4px;font-weight:600}
+
 /* kleurenbalk */
 .kleurbalk{display:flex;gap:6px;margin:6px 0 2px}
 .kleurbalk button{flex:1;height:46px;border-radius:10px;border:2px solid transparent;position:relative;font-weight:700;color:#fff;font-size:14px;transition:transform .08s}
