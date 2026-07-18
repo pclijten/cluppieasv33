@@ -1,10 +1,6 @@
 /* ====================================================================
-   FIREBASE CONFIG — TESTOMGEVING
+   FIREBASE CONFIG 
    ------------------------------------------------------------------
-   Dit is bewust een LEEG/nieuw Firebase-project, los van de productie-
-   backend (asv33-21865), zodat je hier veilig kunt testen zonder enig
-   risico voor de live clubdata.
-
    Vervang de placeholders hieronder door de config van je nieuwe project:
    Firebase Console → (nieuw project aanmaken) → Project settings →
    "Your apps" → Web app (</>) toevoegen → kopieer het firebaseConfig-object.
