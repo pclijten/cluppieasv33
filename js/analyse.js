@@ -1,5 +1,5 @@
 import { S } from './state.js';
-import { periodeNrs, slotLijn } from './config.js';
+import { periodeNrs, slotLijn, slotPositieNaam } from './config.js';
 
 /* ==================== SPEELTIJD-BEREKENING ====================
    Losse module zonder UI-afhankelijkheden, zodat zowel het wedstrijdscherm
@@ -33,9 +33,12 @@ export function analyseKwart(w, k){
   if (!kwartGespeeld(k)) return res;
   const D = kwartDuurSec(w, k);
   const aan = {};
-  const telLijn = (pid, l) => { (res.lijn[pid] ||= {}); res.lijn[pid][l] = (res.lijn[pid][l]||0) + 1; };
+  const telLijn = (pid, slot) => {
+    const naam = slotPositieNaam(w.format, w.formatie, slot) || slotLijn(slot);
+    (res.lijn[pid] ||= {}); res.lijn[pid][naam] = (res.lijn[pid][naam]||0) + 1;
+  };
   for (const [slot, pid] of Object.entries(k.lineup||{})){
-    aan[pid] = 0; telLijn(pid, slotLijn(slot));
+    aan[pid] = 0; telLijn(pid, slot);
     if (slot === 'K') res.keeper.add(pid);
   }
   for (const e of [...(k.events||[])].sort((a,b) => a.sec - b.sec)){
@@ -45,7 +48,7 @@ export function analyseKwart(w, k){
       delete aan[e.uit];
     }
     if (e.in){
-      aan[e.in] = sec; telLijn(e.in, slotLijn(e.slot));
+      aan[e.in] = sec; telLijn(e.in, e.slot);
       if (e.slot === 'K') res.keeper.add(e.in);
     }
   }

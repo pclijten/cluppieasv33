@@ -120,6 +120,32 @@ export function bouwSlots(format, formatie){
 }
 export const slotLijn = id => id[0];
 
+/* ==================== EXACTE POSITIENAMEN (KNVB) ====================
+   Leidt uit lijn (K/V/M/A) + horizontale positie (x%) de meest gebruikelijke
+   KNVB-benaming af: links (<35%), midden (35–65%), rechts (>65%). Werkt
+   generiek voor elke formatie/format, zonder per formatie te hoeven hardcoden. */
+const ZONE_NAAM = {
+  V: {links:'Linksback', midden:'Centrale verdediger', rechts:'Rechtsback'},
+  M: {links:'Linksmidden', midden:'Centrale middenvelder', rechts:'Rechtsmidden'},
+  A: {links:'Linksbuiten', midden:'Spits', rechts:'Rechtsbuiten'},
+};
+function zone(x){ return x < 35 ? 'links' : x > 65 ? 'rechts' : 'midden'; }
+export function positieNaam(lijn, x){
+  if (lijn === 'K') return 'Keeper';
+  return (ZONE_NAAM[lijn] && ZONE_NAAM[lijn][zone(x)]) || LIJN_NAAM[lijn] || '';
+}
+export function slotPositieNaam(format, formatie, slotId){
+  const slot = bouwSlots(format, formatie).find(s => s.id === slotId);
+  return slot ? positieNaam(slot.lijn, slot.x) : null;
+}
+/* Volledige, gegroepeerde lijst voor de voorkeurspositie-kiezer in het spelerprofiel. */
+export const POSITIE_GROEPEN = [
+  {lijn:'K', naam:'Keeper', posities:['Keeper']},
+  {lijn:'V', naam:'Verdediging', posities:['Linksback','Centrale verdediger','Rechtsback']},
+  {lijn:'M', naam:'Middenveld', posities:['Linksmidden','Centrale middenvelder','Rechtsmidden']},
+  {lijn:'A', naam:'Aanval', posities:['Linksbuiten','Spits','Rechtsbuiten']},
+];
+
 /* ==================== BOUW-INDELING (voor trainingen) ====================
    Onderbouw  : JO7–JO11  / MO7–MO11
    Middenbouw : JO12–JO15 / MO12–MO15

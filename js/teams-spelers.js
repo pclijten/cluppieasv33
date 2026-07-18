@@ -13,7 +13,8 @@ import {
 } from './state.js';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
-  LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS
+  LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
+  POSITIE_GROEPEN
 } from './config.js';
 import { analyseWedstrijd } from './analyse.js';
 import { toonThemaInfo } from './teams-leerlijn.js';
@@ -101,12 +102,14 @@ export function htmlSpelers(){
 
 function spelerStats(pid){
   let wedstrijden = 0, tijd = 0, keeper = 0, goals = 0;
+  const posities = {};
   for (const w of S.wedstrijden){
     for (const g of (w.goals||[])) if (g.type === 'voor' && g.pid === pid) goals++;
     const a = analyseWedstrijd(w);
     if (!a.kwarten) continue;
     if (a.tijd[pid]){ tijd += a.tijd[pid]; wedstrijden++; }
     if (a.keeper[pid]) keeper += a.keeper[pid];
+    if (a.lijn[pid]) for (const [naam, n] of Object.entries(a.lijn[pid])) posities[naam] = (posities[naam]||0) + n;
   }
   const totTr = (S.presentie||[]).length;
   let aanwezig = 0, blessure = 0, metReden = 0, zonderReden = 0;
@@ -119,7 +122,15 @@ function spelerStats(pid){
     else zonderReden++;
   }
   const opkomst = totTr ? Math.round((aanwezig/totTr)*100) : null;
-  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, blessure, metReden, zonderReden};
+  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, blessure, metReden, zonderReden, posities};
+}
+
+/* Meest gespeelde posities voor een speler, aflopend gesorteerd: [{naam, n}, ...] */
+function meestGespeeldePosities(pid){
+  const posities = spelerStats(pid).posities;
+  return Object.entries(posities)
+    .map(([naam, n]) => ({naam, n}))
+    .sort((a, b) => b.n - a.n);
 }
 
 function laatsteVolledig(pid){
@@ -595,11 +606,23 @@ export async function verwijderLeerpunt(lpId){
   await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), {leerpunten: lp});
 }
 
-const SPELER_POSITIES = ['Keeper','Verdediger','Middenvelder','Aanvaller'];
+function meestGespeeldHtml(top){
+  if (!top.length) return '';
+  const beste = top[0];
+  return `
+    <div class="meest-gespeeld" id="mSpMg">
+      <div class="mg-titel">⚽ Meest gespeeld dit seizoen</div>
+      <div class="mg-lijst">
+        ${top.slice(0,4).map((t,i) => `<span class="mg-item${i===0?' mg-top':''}">${esc(t.naam)} <b>${t.n}×</b></span>`).join('')}
+      </div>
+      <button type="button" class="mg-knop" id="mSpMgOk" data-pos="${esc(beste.naam)}">Overnemen: ${esc(beste.naam)}</button>
+    </div>`;
+}
 
 export function modalSpeler(p){
   const bewerken = !!p;
   let gekozenPositie = p?.positie || '';
+  const topPosities = bewerken ? meestGespeeldePosities(p.id) : [];
   openModal(`
     <h2>${bewerken ? 'Speler bewerken' : 'Speler toevoegen'}</h2>
     <div class="rij">
@@ -613,20 +636,31 @@ export function modalSpeler(p){
     <div class="avg-balk"><span class="slot">🔒</span>
       <span>De achternaam blijft binnen je eigen team en wordt nergens in de app getoond. Leen je deze speler uit, dan ziet de andere coach alleen de voorletter.</span></div>
     ${bewerken ? `
-      <div class="veldgroep"><label>Voorkeurspositie</label>
-        <div class="segment wrap" id="mSpPos">
-          ${SPELER_POSITIES.map(pos => `<button type="button" data-pos="${pos}" class="${gekozenPositie===pos?'actief':''}">${pos}</button>`).join('')}
+      <div class="veldgroep">
+        <label>Voorkeurspositie</label>
+        ${meestGespeeldHtml(topPosities)}
+        <div id="mSpPos">
+          ${POSITIE_GROEPEN.map(g => `
+            <div class="pos-groep">
+              <div class="pos-lijnlabel">${esc(g.naam)}</div>
+              <div class="segment klein-seg wrap">
+                ${g.posities.map(pos => `<button type="button" data-pos="${esc(pos)}" class="${gekozenPositie===pos?'actief':''}">${esc(pos)}</button>`).join('')}
+              </div>
+            </div>`).join('')}
         </div>
       </div>` : ''}
     <button class="knop vol" id="mSpOk">${bewerken ? 'Opslaan' : 'Toevoegen'}</button>`);
 
   if (bewerken){
-    $('#mSpPos').querySelectorAll('[data-pos]').forEach(b => b.onclick = () => {
-      const pos = b.dataset.pos;
-      gekozenPositie = (gekozenPositie === pos) ? '' : pos;   // nogmaals tikken = leegmaken (optioneel)
+    const zetPositie = (pos) => {
+      gekozenPositie = pos;
       $('#mSpPos').querySelectorAll('[data-pos]').forEach(x =>
         x.classList.toggle('actief', x.dataset.pos === gekozenPositie));
+    };
+    $('#mSpPos').querySelectorAll('[data-pos]').forEach(b => b.onclick = () => {
+      zetPositie(gekozenPositie === b.dataset.pos ? '' : b.dataset.pos);   // nogmaals tikken = leegmaken
     });
+    if ($('#mSpMgOk')) $('#mSpMgOk').onclick = () => zetPositie($('#mSpMgOk').dataset.pos);
   }
 
   const ok = async (sluiten) => {
