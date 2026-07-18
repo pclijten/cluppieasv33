@@ -105,6 +105,19 @@ export function startTeams(){
   renderTeams(); toon('teams');
 }
 
+/* Stopt ALLE actieve Firestore-listeners, over alle modules heen (S.unsub
+   is gedeelde state, dus dit pakt ook club.js-listeners mee) plus de losse
+   trainingen/video/documenten-arrays van het teamoverzicht. Wordt vóór
+   signOut() aangeroepen: zonder dit blijven listeners nog even actief
+   terwijl de auth-status al is ingetrokken, wat een reeks onschuldige maar
+   verwarrende permission-denied-meldingen in de console geeft. */
+export function stopAlleListeners(){
+  trainingenUnsubs.forEach(u => u()); trainingenUnsubs = [];
+  videoUnsubs.forEach(u => u()); videoUnsubs = [];
+  documentenUnsubs.forEach(u => u()); documentenUnsubs = [];
+  stopUnsubs(...Object.keys(S.unsub));
+}
+
 /* trainingen voor de teams waar de coach lid van is */
 let trainingenUnsubs = [];
 function laadTrainingenVoorTeams(){
@@ -425,7 +438,7 @@ export function renderTeams(){
     : `
     <button class="knop licht vol" id="joinTeam" style="margin-top:14px">Aansluiten met teamcode</button>`}`;
 
-  v.querySelector('#uitloggen').onclick = () => doSignOut();
+  v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
   v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
