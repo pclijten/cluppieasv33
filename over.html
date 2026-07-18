@@ -141,6 +141,27 @@
   .functie h3{font-family:'Inter';font-size:15.5px;font-weight:700;color:var(--fluo);margin-bottom:6px;text-transform:none}
   .functie p{font-size:13.5px;color:var(--ink-2)}
 
+  /* ---- Compleet overzicht (gegroepeerd) ---- */
+  .overzicht-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .overzicht-blok{
+    background:var(--surface);border:1px solid var(--line-d);border-radius:var(--radius);
+    padding:24px 24px 20px;box-shadow:var(--shadow);
+  }
+  .overzicht-blok .ov-kop{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .overzicht-blok .ov-icoon{
+    width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:15px;
+    flex:0 0 auto;
+  }
+  .overzicht-blok h3{font-family:'Barlow Condensed';font-size:18px;text-transform:uppercase;letter-spacing:.3px}
+  .overzicht-blok ul{list-style:none}
+  .overzicht-blok li{
+    display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2);
+    padding:7px 0;border-top:1px solid var(--line-d);
+  }
+  .overzicht-blok li:first-of-type{border-top:none}
+  .overzicht-blok li::before{content:'✓';color:var(--ok);font-weight:700;flex:0 0 auto;line-height:1.4}
+
   /* ---- Beleidsplan tijdlijn ---- */
   .tijdlijn{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:8px}
   .tl-stap{
@@ -232,14 +253,14 @@
   /* ---- Responsive ---- */
   @media (max-width:900px){
     .hero-grid{grid-template-columns:1fr}
-    .probleem-grid,.functies-grid,.doelgroep-grid,.waarom-grid,.stappen{grid-template-columns:repeat(2,1fr)}
+    .probleem-grid,.functies-grid,.doelgroep-grid,.waarom-grid,.stappen,.overzicht-grid{grid-template-columns:repeat(2,1fr)}
     .pijlers{grid-template-columns:repeat(2,1fr)}
   }
   @media (max-width:600px){
     .wrap{padding:0 18px}
     .hero{padding:52px 0 40px}
     section{padding:48px 0}
-    .probleem-grid,.functies-grid,.doelgroep-grid,.waarom-grid,.stappen,.pijlers{grid-template-columns:1fr}
+    .probleem-grid,.functies-grid,.doelgroep-grid,.waarom-grid,.stappen,.pijlers,.overzicht-grid{grid-template-columns:1fr}
     .topbar .btn-ghost{display:none}
     .tijdlijn{flex-direction:column}
     .tl-pijl{display:none}
@@ -419,6 +440,93 @@
         <h3>Eén plek voor communicatie</h3>
         <p>Geen losse appjes en Excel-bestanden meer — iedereen kijkt naar dezelfde, actuele informatie.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section id="overzicht">
+  <div class="wrap">
+    <div class="sectie-kop reveal">
+      <div class="eyebrow">Compleet overzicht</div>
+      <h2>Alles wat Cluppie kan, op een rij</h2>
+      <p>Van de eerste keer inloggen tot het clubbrede evaluatieoverzicht — dit is de volledige gereedschapskist.</p>
+    </div>
+    <div class="overzicht-grid">
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">⚽</div><h3>Op de wedstrijddag</h3></div>
+        <ul>
+          <li>Opstelling maken door spelers te slepen of te tikken, per kwart of helft</li>
+          <li>Wissels automatisch gelogd met tijdstip zodra de klok loopt</li>
+          <li>Speeltijd-stippen per periode, zodat direct zichtbaar is wie aan de beurt is</li>
+          <li>Klok en aantal periodes automatisch ingesteld op de KNVB-categorie</li>
+          <li>Doelpunten en kaarten registreren, corrigeren en terugzien in het log</li>
+          <li>Aanvoerder aanwijzen per wedstrijd, met overzicht van rotatie</li>
+          <li>Toernooimodus met doorlopende wissels en speeltijd over meerdere wedstrijden</li>
+          <li>Vorige confrontatie: uitslag en notities tegen dezelfde tegenstander direct terugzien</li>
+          <li>Format en formatie aanpassen (4×4 t/m 11×11) via "Wijzig opzet"</li>
+        </ul>
+      </div>
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">📈</div><h3>Beoordelen &amp; evalueren</h3></div>
+        <ul>
+          <li>Spelersbeoordeling op vijf ontwikkeldomeinen: technisch, tactisch, fysiek, mentaal, gedrag</li>
+          <li>Snelle beoordeling in een paar tikken, of een volledige periodieke meting</li>
+          <li>Leerpunten per speler, leeftijdsgebonden en afvinkbaar zodra ze beheerst zijn</li>
+          <li>Teamevaluatie in acht korte vragen, in drie tot vijf minuten na de wedstrijd</li>
+          <li>Groeicurve per team en categorieën met trend over de laatste wedstrijden</li>
+          <li>Automatische signalering van terugkerende aandachtspunten</li>
+          <li>Voorgesteld trainingsthema, aansluitend bij het jeugdbeleidsplan</li>
+          <li>Seizoensstatistieken: speeltijd, doelpunten, aanvoerdersbeurten, kaarten</li>
+        </ul>
+      </div>
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">📅</div><h3>Trainen &amp; plannen</h3></div>
+        <ul>
+          <li>Trainingen delen als PDF per team, met melding bij iets nieuws</li>
+          <li>Video's delen via YouTube-links, gekoppeld aan het team</li>
+          <li>Seizoenskalender per maand, met filters op wedstrijden, speeldagen en beker</li>
+          <li>Automatische synchronisatie van officiële wedstrijden vanuit de KNVB-kalender</li>
+          <li>Zelf toernooien, vriendschappelijke wedstrijden of vrije dagen toevoegen</li>
+        </ul>
+      </div>
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">🏛</div><h3>Club &amp; team beheren</h3></div>
+        <ul>
+          <li>PDF-import van teamindelingen: teams en spelers automatisch uitgelezen</li>
+          <li>Coaches uitnodigen en beheren per team, met persoonlijke links</li>
+          <li>Documenten (KNVB, beleid, overig) centraal uploaden en delen per team</li>
+          <li>Club-brede evaluatieheatmap met Excel-export voor de technische commissie</li>
+          <li>Spelers tijdelijk uitlenen aan een ander team binnen de club</li>
+          <li>Seizoensbeheer en club-breed afgelasten van speeldagen</li>
+        </ul>
+      </div>
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">◎</div><h3>Altijd beschikbaar</h3></div>
+        <ul>
+          <li>Werkt offline door langs de lijn en synchroniseert automatisch bij verbinding</li>
+          <li>Toe te voegen aan het beginscherm — voelt als een echte app, geen browser nodig</li>
+          <li>Inloggen met Google of e-mail, geen installatie of account vooraf nodig</li>
+          <li>Ingebouwde handleiding met zoekfunctie, altijd binnen handbereik</li>
+        </ul>
+      </div>
+
+      <div class="overzicht-blok reveal">
+        <div class="ov-kop"><div class="ov-icoon">🔒</div><h3>Privacy</h3></div>
+        <ul>
+          <li>Standaard alleen voornamen zichtbaar in de app</li>
+          <li>Achternamen blijven binnen het eigen team, alleen zichtbaar voor de coaches</li>
+          <li>Beoordelingen en leerpunten zijn coach-only — spelers en ouders zien ze niet</li>
+          <li>Bij een uitlening ziet de ontvangende coach alleen voornaam en voorletter</li>
+        </ul>
+      </div>
+
     </div>
   </div>
 </section>
