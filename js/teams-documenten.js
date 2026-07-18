@@ -11,9 +11,9 @@
    clubscherm zijn hier niet nodig). */
 import { S, esc } from './state.js';
 
-const CATEGORIE_ICOON = { beleid: 'PDF', formulier: 'FRM', overig: 'DOC' };
-const CATEGORIE_KLASSE = { beleid: '', formulier: 'formulier', overig: 'overig' };
-const CATEGORIE_NAAM = { beleid: 'Beleid', formulier: 'Formulier', overig: 'Overig' };
+const CATEGORIE_ICOON = { beleid: 'PDF', knvb: 'KNVB', overig: 'DOC' };
+const CATEGORIE_KLASSE = { beleid: '', knvb: 'knvb', overig: 'overig' };
+const CATEGORIE_NAAM = { beleid: 'Beleid', knvb: 'KNVB', overig: 'Overig' };
 
 export function htmlTeamDocumenten(){
   const lijst = S.documenten.filter(d => (d.teams||[]).includes(S.teamId));

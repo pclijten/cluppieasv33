@@ -20,8 +20,8 @@ const DASH_OPKOMST_LAAG = 50;
    bij trainingen/video's: documenten (beleid, formulieren) zijn doorgaans
    niet leeftijdsgebonden maar wel van verschillend type. */
 const DOC_CATEGORIEN = [
+  {id:'knvb',       naam:'KNVB'},
   {id:'beleid',     naam:'Beleid'},
-  {id:'formulier',  naam:'Formulieren'},
   {id:'overig',     naam:'Overig'},
 ];
 
@@ -649,7 +649,7 @@ function htmlClubVideos(teams, videos){
 
 function htmlClubDocumenten(teams, documenten){
   const actief = S.clubDocCategorie || 'alle';
-  const telPerCat = {beleid:0, formulier:0, overig:0};
+  const telPerCat = {knvb:0, beleid:0, overig:0};
   for (const d of documenten) telPerCat[d.categorie] = (telPerCat[d.categorie]||0) + 1;
 
   const segment = `
@@ -659,14 +659,14 @@ function htmlClubDocumenten(teams, documenten){
     </div>`;
 
   const zichtbaar = actief === 'alle' ? documenten : documenten.filter(d => d.categorie === actief);
-  const icoonPerCat = {beleid:'PDF', formulier:'FRM', overig:'DOC'};
+  const icoonPerCat = {beleid:'PDF', knvb:'KNVB', overig:'DOC'};
 
   const lijst = zichtbaar.length ? zichtbaar.map(d => {
     const teamNamen = (d.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
     const catNaam = DOC_CATEGORIEN.find(c => c.id === d.categorie)?.naam || 'Overig';
     return `
       <div class="training-rij">
-        <div class="ico ${d.categorie==='formulier'?'formulier':d.categorie==='overig'?'overig':''}">${icoonPerCat[d.categorie] || 'DOC'}</div>
+        <div class="ico ${d.categorie==='knvb'?'knvb':d.categorie==='overig'?'overig':''}">${icoonPerCat[d.categorie] || 'DOC'}</div>
         <div class="t"><div class="t-titel">${esc(d.titel || d.bestandsnaam)}</div>
           <div class="t-meta">${esc(catNaam)} · ${esc(teamNamen)}</div></div>
         <div class="acties">
@@ -1532,7 +1532,7 @@ function modalBewerkVideo(vid, teams){
   };
 }
 
-/* ==================== DOCUMENTEN (beleid, formulieren, overig) ====================
+/* ==================== DOCUMENTEN (KNVB, beleid, overig) ====================
    Zelfde upload-patroon als trainingen (PDF naar Storage), maar met een
    categorie-veld i.p.v. week/periode. De teamkeuze hergebruikt bewust de
    bestaande per-bouw-indeling (teamKeuzePerBouw) — niet omdat een document

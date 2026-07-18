@@ -914,7 +914,7 @@ function koppelTeamTab(v, tab){
       openPdfViewer({
         url: r.dataset.url,
         titel: d?.titel || d?.bestandsnaam || 'Document',
-        meta: d?.categorie === 'beleid' ? 'Beleid' : d?.categorie === 'formulier' ? 'Formulier' : 'Overig'
+        meta: d?.categorie === 'beleid' ? 'Beleid' : d?.categorie === 'knvb' ? 'KNVB' : 'Overig'
       });
       if (!S.trainingenGelezen[id]){
         try { await setDoc(doc(db,'gebruikers',S.user.uid,'gelezen',id), {tijd: serverTimestamp()}); } catch(e){}
