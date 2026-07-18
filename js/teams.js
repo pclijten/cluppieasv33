@@ -140,6 +140,9 @@ function laadTrainingenVoorTeams(){
       });
       S.trainingen.sort((a,b) => (b.week||'').localeCompare(a.week||'') || (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
       if (S.team) renderTeam();
+    }, (err) => {
+      console.error(`[Cluppie] Listener "trainingen" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
+      if (err.code === 'permission-denied') meld('Geen toegang tot trainingen — controleer de Firestore-rules');
     });
     trainingenUnsubs.push(u);
   });
@@ -167,6 +170,9 @@ function laadVideosVoorTeams(){
       });
       S.videos.sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
       if (S.team) renderTeam();
+    }, (err) => {
+      console.error(`[Cluppie] Listener "videos" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
+      if (err.code === 'permission-denied') meld('Geen toegang tot video\'s — controleer de Firestore-rules');
     });
     videoUnsubs.push(u);
   });
@@ -194,6 +200,9 @@ function laadDocumentenVoorTeams(){
       });
       S.documenten.sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
       if (S.team) renderTeam();
+    }, (err) => {
+      console.error(`[Cluppie] Listener "documenten" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
+      if (err.code === 'permission-denied') meld('Geen toegang tot documenten — controleer de Firestore-rules');
     });
     documentenUnsubs.push(u);
   });
