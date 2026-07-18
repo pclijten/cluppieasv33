@@ -13,7 +13,7 @@ import {
 } from './config.js';
 import { kompasTips, startContentListener } from './content.js';
 import { analyseWedstrijd } from './analyse.js';
-import { doSignOut, joinMetCode } from './auth.js';
+import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js';
 import { tekenPwaBanner } from './pwa.js';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd
@@ -551,6 +551,7 @@ export function openTeam(teamId, beginTab = 'trainingen', opties = {}){
     S.team = {id:snap.id, ...snap.data()};
     if (S.team.club && !S.unsub.uitleningen) startUitleningenListener(teamId);
     if (S.team.club && !S.unsub.seizoen) startSeizoenListener(teamId);
+    if (S.team.club) zorgClubLidmaatschap(S.team.club);
     if (!S.team.club) S.huidigSeizoen = SEIZOEN_FALLBACK; // los team zonder club: geen seizoenbeheer
     if (!S.wedstrijdId) renderTeam();
   }, luisterfout('team'));

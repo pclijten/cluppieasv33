@@ -163,6 +163,25 @@ export async function registreerLogin(){
   }
 }
 
+/* Stille zelf-reparatie: coaches die vóór deze fix via een teamcode zijn
+   aangesloten, missen de clubs/{clubId}.leden-vermelding (zie joinMetCode)
+   en krijgen permission-denied op club-brede listeners (seizoen, uitleningen).
+   Wordt bij het openen van een team met een club aangeroepen; eenmaal per
+   sessie per club, en negeert fouten stil (de bestaande listener-foutmelding
+   blijft dan gewoon zichtbaar als er een dieperliggend rechtenprobleem is). */
+const _clubLidGeprobeerd = new Set();
+export async function zorgClubLidmaatschap(clubId){
+  if (!clubId || !S.user || _clubLidGeprobeerd.has(clubId)) return;
+  _clubLidGeprobeerd.add(clubId);
+  const ledNaam = S.user.displayName || (S.user.email ? S.user.email.split('@')[0] : '') || 'Coach';
+  try {
+    await updateDoc(doc(db,'clubs',clubId), {
+      ['leden.'+S.user.uid]: true,
+      ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
+    });
+  } catch(e){ /* stil negeren — dieperliggend rechtenprobleem blijft zichtbaar via de listener-foutmelding */ }
+}
+
 /* koppel de ingelogde gebruiker aan een team op basis van de teamcode */
 export async function joinMetCode(code, naam = null){
   const snap = await getDocs(query(collection(db,'teams'), where('code','==',code)));
@@ -176,6 +195,17 @@ export async function joinMetCode(code, naam = null){
     ['leden.'+S.user.uid]: true,
     ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
   });
+  /* Team hoort mogelijk bij een club: zonder dit mist de coach de
+     clubs/{clubId}.leden-vermelding en krijgt hij permission-denied op
+     club-brede listeners (seizoen, uitleningen) — dit gebeurde eerder
+     alleen bij aansluiten via een clubcode-deeplink, niet via teamcode. */
+  const clubId = t.data().club;
+  if (clubId){
+    await updateDoc(doc(db,'clubs',clubId), {
+      ['leden.'+S.user.uid]: true,
+      ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
+    });
+  }
   return t;
 }
 
