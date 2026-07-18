@@ -12,7 +12,7 @@
    club-evaluaties.js) — de rest van de app heeft deze library nooit
    nodig, dus pas ophalen op het moment dat een trainer echt een
    training opent. */
-import { meld } from './state.js';
+import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js';
 
 const PDFJS_VERSIE = '3.11.174';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIE}/`;
@@ -89,8 +89,10 @@ function bouwOverlay(){
 }
 
 export function sluitPdfViewer(){
+  const wasOpen = !!(_overlay && _overlay.classList.contains('open'));
   if (_overlay) _overlay.classList.remove('open');
   zetViewportZoombaar(false);
+  vangnetStilTerugAlsNodig(wasOpen);
 }
 
 /* openPdfViewer({url, titel, meta}) — url moet cross-origin ophaalbaar zijn
@@ -108,6 +110,7 @@ export async function openPdfViewer({ url, titel, meta }){
   stage.innerHTML = `<div class="pdfv-laad"><div class="pdfv-spinner"></div>Oefenstof laden…</div>`;
   el.classList.add('open');
   zetViewportZoombaar(true);
+  bewaakTerug();
 
   try {
     await laadPdfJs();

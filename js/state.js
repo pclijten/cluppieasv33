@@ -106,16 +106,7 @@ export function openModal(html){
 export function sluitModal(){
   const wasOpen = $('#modalAchter').classList.contains('open');
   $('#modalAchter').classList.remove('open');
-  /* Modal met de knop/achtergrond gesloten (niet via terugknop): als er nu
-     géén dieper niveau meer is dat het vangnet rechtvaardigt, halen we het
-     vangnet weg zodat de eerstvolgende terugtik niet een extra niveau "opeet".
-     Bij sluiten via de terugknop is het vangnet al verbruikt en is dit een
-     no-op (_terugBezig voorkomt dubbel werk). */
-  if (wasOpen && _vangnetActief && !_terugBezig){
-    /* Vangnet stil terughalen zonder een navigatiestap te veroorzaken. */
-    _stilTerug = true;
-    history.back();
-  }
+  vangnetStilTerugAlsNodig(wasOpen);
 }
 
 /* ---------- Navigatie ---------- */
@@ -180,10 +171,18 @@ function actieveView(){
 function modalOpen(){
   return !!document.querySelector('#modalAchter')?.classList.contains('open');
 }
+/* PDF-viewer (pdf-viewer.js) is een losse fullscreen-overlay bovenop alles
+   (ook bovenop een open modal, zie z-index in styles.css) en checkt via de
+   DOM i.p.v. een import, om een circulaire import met pdf-viewer.js te
+   vermijden — zelfde patroon als modalOpen() hierboven. */
+function pdfViewerOpen(){
+  return !!document.querySelector('.pdfv-achter')?.classList.contains('open');
+}
 
 /* Zit de app op dit moment "ergens binnen", d.w.z. valt er iets terug te gaan? */
 function kanTerug(){
   if (!S.user) return false;
+  if (pdfViewerOpen()) return true;
   if (modalOpen()) return true;
   const view = actieveView();
   if (view !== 'teams') return true;          // team / wedstrijd / club
@@ -194,6 +193,21 @@ let _vangnetActief = false;   // ligt het vangnet op de history-stack?
 let _afsluitGewapend = false; // eerste terugtik op hoofdscherm gehad?
 let _stilTerug = false;       // history.back() zonder navigatiestap (modal-knop)
 let _terugBezig = false;      // voorkomt herentry tijdens afhandeling
+
+/* Herbruikbare 'stille terug' voor overlays die net als de modal het vangnet
+   mogen verbruiken zonder een zichtbare navigatiestap te veroorzaken.
+   wasOpen = stond de overlay nog open vlak vóór het sluiten?
+   Bij sluiten via de eigen kruisknop (niet via de terugknop): als er nu géén
+   dieper niveau meer is dat het vangnet rechtvaardigt, halen we het vangnet
+   weg zodat de eerstvolgende terugtik niet een extra niveau "opeet".
+   Bij sluiten via de terugknop is het vangnet al verbruikt en is dit een
+   no-op (_terugBezig voorkomt dubbel werk). */
+export function vangnetStilTerugAlsNodig(wasOpen){
+  if (wasOpen && _vangnetActief && !_terugBezig){
+    _stilTerug = true;
+    history.back();
+  }
+}
 
 /* Zorg dat het vangnet de juiste status heeft voor de huidige UI-stand.
    Aanroepen na elke navigatie/render/modalwissel. */
@@ -210,6 +224,10 @@ export function bewaakTerug(){
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
+  if (pdfViewerOpen()){
+    import('./pdf-viewer.js').then(m => m.sluitPdfViewer());
+    return true;
+  }
   if (modalOpen()){ sluitModal(); return true; }
   const view = actieveView();
   if (view === 'team' && (S._beoordeelProfiel || S._leenProfiel)){
