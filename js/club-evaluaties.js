@@ -4,9 +4,9 @@
    Puur leeswerk — geen schrijf-acties hier — plus een client-side Excel-export.
    Losse module (i.p.v. in club.js) omdat de Excel-export een eigen lui geladen
    library (ExcelJS via CDN) nodig heeft die de rest van de app nooit gebruikt. */
-import { db, collection, getDocs, query, where } from './firebase.js';
-import { S, esc, meld, openModal } from './state.js';
-import { TEAM_CATEGORIEEN, SKILLS } from './config.js';
+import { db, collection, getDocs, query, where } from './firebase.js?v=20260719';
+import { S, esc, meld, openModal } from './state.js?v=20260719';
+import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20260719';
 
 /* korte kolomkoppen voor de heatmap — TEAM_CATEGORIEEN.naam is te lang voor
    een tabelkop; alleen hier lokaal gebruikt, config.js blijft de brontekst. */

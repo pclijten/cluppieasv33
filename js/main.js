@@ -1,16 +1,16 @@
-import { auth, onAuthStateChanged } from './firebase.js';
-import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js';
+import { auth, onAuthStateChanged } from './firebase.js?v=20260719';
+import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260719';
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
-} from './auth.js';
-import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js';
-import { sluitWedstrijd } from './wedstrijd.js';
+} from './auth.js?v=20260719';
+import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260719';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260719';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260719').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -24,7 +24,7 @@ initGlobaleFoutafhandeling();
    is club.js sowieso al geladen en is dit een instant cache-hit. */
 S._navRerender       = renderTeam;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js').then(m => m.verlaatClubView());
+S._navVerlaatClub    = () => import('./club.js?v=20260719').then(m => m.verlaatClubView());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 

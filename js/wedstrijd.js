@@ -1,17 +1,17 @@
 import {
   db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp
-} from './firebase.js';
+} from './firebase.js?v=20260719';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs
-} from './state.js';
+} from './state.js?v=20260719';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties
-} from './config.js';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js';
+} from './config.js?v=20260719';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260719';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -335,7 +335,7 @@ export function sluitWedstrijd(){
   S.wedstrijd = null; S.wedstrijdId = null;
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
-  import('./teams.js').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260719').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1222,7 +1222,7 @@ ${confroHtml}
   v.querySelector('#kaartKnop').onclick = modalKaart;
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   v.querySelector('#teamEvalKnop').onclick = () => {
-    import('./teams.js').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260719').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

@@ -1,5 +1,5 @@
 /* ==================== STATE & HELPERS ==================== */
-import { onSnapshot } from './firebase.js';
+import { onSnapshot } from './firebase.js?v=20260719';
 
 /* Alleen deze accounts mogen clubs en teams aanmaken. Iedereen anders is een
    gewone coach die meedraait in teams waarvoor hij is uitgenodigd.
@@ -225,7 +225,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260719').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }

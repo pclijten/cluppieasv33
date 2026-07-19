@@ -2,8 +2,8 @@ import {
   auth, db, GoogleAuthProvider, signInWithPopup, signOut,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
   collection, doc, addDoc, setDoc, getDocs, updateDoc, query, where, serverTimestamp, increment
-} from './firebase.js';
-import { S, $, meld } from './state.js';
+} from './firebase.js?v=20260719';
+import { S, $, meld } from './state.js?v=20260719';
 
 /* ====================================================================
    AANMELD-FLOW — Google of e-mail+wachtwoord.
