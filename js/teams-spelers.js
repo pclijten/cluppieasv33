@@ -14,7 +14,7 @@ import {
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
-  POSITIE_GROEPEN
+  POSITIE_GROEPEN, SEIZOEN_FALLBACK
 } from './config.js?v=20260719';
 import { analyseWedstrijd } from './analyse.js?v=20260719';
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260719';
@@ -448,7 +448,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       tags:[...gekozenTags], notities:{algemeen:$('#mSnNotitie').value.trim()},
       door:deelnemer(), gemaaktMs:Date.now(),
     };
-    if (!bestaande) data.seizoen = S.huidigSeizoen;
+    if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
       else await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data);
@@ -522,7 +522,7 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
       bron:{type:'los', label:$('#mVbMoment').value.trim() || 'Periodieke meting'},
       scores, notities, door:deelnemer(), gemaaktMs:Date.now(),
     };
-    if (!bestaande) data.seizoen = S.huidigSeizoen;
+    if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
       else await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data);

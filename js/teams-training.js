@@ -10,7 +10,8 @@ import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
 } from './state.js?v=20260719';
 import {
-  CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch
+  CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
+  SEIZOEN_FALLBACK
 } from './config.js?v=20260719';
 import { htmlKompas } from './teams-leerlijn.js?v=20260719';
 
@@ -481,7 +482,7 @@ export function modalPresentie(bestaande = null){
       const zelfde = S.presentie.find(p => p.datum === datum);
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'presentie',bestaande.id), data);
       else if (zelfde) await updateDoc(doc(db,'teams',S.teamId,'presentie',zelfde.id), data);
-      else await addDoc(collection(db,'teams',S.teamId,'presentie'), {...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen});
+      else await addDoc(collection(db,'teams',S.teamId,'presentie'), {...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK});
       sluitModal();
       meld(afwezig.size ? `${afwezig.size} afwezig genoteerd` : 'Iedereen aanwezig genoteerd');
     } catch(e){
@@ -522,6 +523,7 @@ export function modalEigenDag(){
       await addDoc(collection(db,'teams',S.teamId,'planning'), {
         bron: 'eigen', datum, type: 'eigen', label,
         opmerking: $('#mEdOpm').value.trim(),
+        seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
         gemaakt: serverTimestamp(),
       });
       // zorg dat de maand zichtbaar is na toevoegen
@@ -559,6 +561,7 @@ export function modalPlanDag(it){
       } else {
         await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+it.datum), {
           bron:'knvb', datum: it.datum, type, label, opmerking, verborgen:false,
+          seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
         });
       }
       sluitModal(); meld('Opgeslagen');
@@ -583,6 +586,7 @@ export function modalPlanDag(it){
       try {
         await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+it.datum), {
           bron:'knvb', datum: it.datum, verborgen:true,
+          seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
         });
         sluitModal(); meld('Verborgen');
       } catch(e){ meld('Mislukt: ' + (e.code || e.message)); }

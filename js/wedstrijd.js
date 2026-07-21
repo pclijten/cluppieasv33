@@ -9,7 +9,7 @@ import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
-  CLUB_FORMATIE_11, doelSuggesties
+  CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK
 } from './config.js?v=20260719';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260719';
 
@@ -267,7 +267,7 @@ export function modalNieuweWedstrijd(){
       goals: [],
       kaarten: [],
       kwarten,
-      seizoen: S.huidigSeizoen,
+      seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
       gemaakt: serverTimestamp(),
       opzetGedaan: false,
     });

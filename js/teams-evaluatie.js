@@ -9,7 +9,7 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon
 } from './state.js?v=20260719';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie } from './config.js?v=20260719';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260719';
 import { htmlStats } from './wedstrijd.js?v=20260719';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
@@ -69,7 +69,7 @@ export function modalTeamEvaluatie(wedstrijdId){
       notitieGoed:$('#mTeGoed').value.trim(), notitieAandacht:$('#mTeAandacht').value.trim(),
       door:deelnemer(), gemaaktMs:Date.now(),
     };
-    if (!bestaande) data.seizoen = S.huidigSeizoen;
+    if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'teamevaluaties',bestaande.id), data);
       else await addDoc(collection(db,'teams',S.teamId,'teamevaluaties'), data);
