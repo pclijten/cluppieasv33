@@ -1,17 +1,17 @@
 import {
   db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp
-} from './firebase.js?v=20260719';
+} from './firebase.js?v=20260727';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
-  openModal, sluitModal, toon, stopUnsubs
-} from './state.js?v=20260719';
+  openModal, sluitModal, toon, stopUnsubs, modAan
+} from './state.js?v=20260727';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK
-} from './config.js?v=20260719';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260719';
+} from './config.js?v=20260727';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260727';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -335,7 +335,7 @@ export function sluitWedstrijd(){
   S.wedstrijd = null; S.wedstrijdId = null;
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
-  import('./teams.js?v=20260719').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260727').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1197,7 +1197,7 @@ ${confroHtml}
     </details>
 
     <button class="knop vol" id="toonVerslag" style="margin-top:16px">📋 Wedstrijdverslag</button>
-    <button class="knop ${teamEvalBestaand?'licht':'fluo'} vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>
+    ${modAan('evaluaties') ? `<button class="knop ${teamEvalBestaand?'licht':'fluo'} vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>` : ''}
     <button class="knop gevaar vol" id="wegWedstrijd" style="margin-top:10px">Wedstrijd verwijderen</button>`;
 
   /* ---- koppelingen ---- */
@@ -1221,8 +1221,9 @@ ${confroHtml}
   v.querySelector('#goalTegen').onclick = () => registreerGoal({type:'tegen'});
   v.querySelector('#kaartKnop').onclick = modalKaart;
   v.querySelector('#toonVerslag').onclick = modalVerslag;
-  v.querySelector('#teamEvalKnop').onclick = () => {
-    import('./teams.js?v=20260719').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+  const teamEvalKnop = v.querySelector('#teamEvalKnop');
+  if (teamEvalKnop) teamEvalKnop.onclick = () => {
+    import('./teams.js?v=20260727').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

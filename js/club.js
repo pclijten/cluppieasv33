@@ -3,14 +3,14 @@ import {
   query, where, onSnapshot, serverTimestamp, documentId, writeBatch,
   sRef, uploadBytes, getDownloadURL, deleteObject,
   functions, httpsCallable
-} from './firebase.js?v=20260719';
+} from './firebase.js?v=20260727';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260719';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK } from './config.js?v=20260719';
-import { analyseWedstrijd } from './analyse.js?v=20260719';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260719';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260719';
+} from './state.js?v=20260727';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK } from './config.js?v=20260727';
+import { analyseWedstrijd } from './analyse.js?v=20260727';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260727';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260727';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -27,7 +27,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260719'); }
+async function teamsModule(){ return await import('./teams.js?v=20260727'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -70,7 +70,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260719').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260727').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -510,6 +510,58 @@ async function renderClub(){
   koppelClubTab(v, tab, teams, trainingen, videos, documenten);
 }
 
+/* ==================== TEAMMODULES (admin, per team) ====================
+   De admin kan per team bepalen welke onderdelen coaches zien. De vlaggen staan
+   op het team-document onder `modules`. Ontbreekt een vlag of staat hij niet
+   expliciet op false, dan is de module AAN — bestaande teams merken dus niets
+   en "uit" wist nooit data (alleen de UI verdwijnt).
+   Let op: de ASV-kompas-tip staat bewust los van de leerlijn, zodat het
+   beleidsplan standaard bij elke coach blijft terugkomen op de Training-tab. */
+const MODULE_DEFS = [
+  ['evaluaties', '📈', 'Evaluaties', 'Stats-tabblad & de teamevaluatie na de wedstrijd.'],
+  ['leerlijn',   '🧭', 'Leerlijn',   'Leerlijn-tabblad bij spelers, met thema-achtergrond & leerpunten.'],
+  ['kompas',     '🎯', 'ASV-kompas tips', 'Wekelijkse beleidsplan-tip op de Training-tab. Aanbevolen om aan te laten.'],
+];
+
+/* korte samenvatting van uitgeschakelde modules, getoond in de teamrij */
+function modulesMeta(t){
+  const uit = MODULE_DEFS.filter(([k]) => t.modules?.[k] === false).map(([,,naam]) => naam);
+  return uit.length ? ` · <span style="color:var(--uit)">${esc(uit.join(', '))} uit</span>` : '';
+}
+
+function modalTeamModules(team){
+  if (!team) return;
+  const m = team.modules || {};
+  const rijen = MODULE_DEFS.map(([k, ico, naam, uitleg]) => {
+    const aan = m[k] !== false;
+    return `
+      <label class="lid-rij" style="cursor:pointer;align-items:flex-start;gap:12px;padding:12px 0">
+        <input type="checkbox" data-mod="${k}" ${aan?'checked':''} style="width:20px;height:20px;accent-color:var(--grass);flex-shrink:0;margin-top:2px">
+        <div class="lid-naam" style="font-weight:600">${ico} ${esc(naam)}
+          <span style="display:block;font-size:12px;color:var(--ink-2);font-weight:400;margin-top:2px">${esc(uitleg)}</span></div>
+      </label>`;
+  }).join('<div style="border-top:1px solid var(--line-d)"></div>');
+
+  openModal(`
+    <h2>Modules · ${esc(team.naam)}</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:6px">Bepaal wat coaches van dit team zien. Uitzetten verbergt alleen de knoppen — bestaande gegevens blijven bewaard en komen terug zodra je het weer aanzet.</p>
+    <div class="kaart" style="padding:2px 14px">${rijen}</div>
+    <button class="knop vol" id="mModulesOk" style="margin-top:14px">Opslaan</button>`);
+
+  const okBtn = $('#mModulesOk');
+  if (okBtn) okBtn.onclick = async () => {
+    const modules = {};
+    document.querySelectorAll('[data-mod]').forEach(c => { modules[c.dataset.mod] = c.checked; });
+    try {
+      await updateDoc(doc(db,'teams',team.id), { modules });
+      team.modules = modules; // lokaal bijwerken zodat de teamrij meteen klopt
+      sluitModal();
+      renderClub();
+      meld('Modules opgeslagen');
+    } catch(e){ meld('Opslaan mislukt — probeer opnieuw'); }
+  };
+}
+
 function htmlClubTeams(teams, afgelastingen = []){
   // is er nu een geldige (vandaag of toekomstige) afgelasting actief?
   const vandaag = new Date().toISOString().slice(0,10);
@@ -555,7 +607,8 @@ function htmlClubTeams(teams, afgelastingen = []){
       <button class="lijst-item" data-open-team="${t.id}">
         <div class="mini-shirt" style="width:40px;height:40px;border-radius:50%;background:var(--grass);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:16px">${esc(t.format)}v${esc(t.format)}</div>
         <div><div class="titel">${esc(t.naam)}</div>
-        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)</div></div>
+        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)${modulesMeta(t)}</div></div>
+        <button class="actie" data-modules-team="${t.id}" title="Modules aan/uit">🎛️</button>
         <button class="actie" data-uitnodig-team="${t.id}" title="Coach uitnodigen">📨</button>
         <span class="pijl">›</span>
       </button>`).join('')
@@ -918,13 +971,18 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const linkBtn = v.querySelector('#clubAlleLinks');
     if (linkBtn) linkBtn.onclick = () => modalAlleLinks(teams);
     v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = async e => {
-      if (e.target.closest('[data-uitnodig-team]')) return;
+      if (e.target.closest('[data-uitnodig-team]') || e.target.closest('[data-modules-team]')) return;
       (await teamsModule()).openTeam(b.dataset.openTeam);
     });
     v.querySelectorAll('[data-uitnodig-team]').forEach(b => b.onclick = e => {
       e.stopPropagation();
       const team = teams.find(t => t.id === b.dataset.uitnodigTeam);
       modalUitnodig(team);
+    });
+    v.querySelectorAll('[data-modules-team]').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const team = teams.find(t => t.id === b.dataset.modulesTeam);
+      modalTeamModules(team);
     });
   }
   if (tab === 'trainingen'){

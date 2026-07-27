@@ -7,24 +7,24 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc,
   getDoc, getDocs, query, where, serverTimestamp, documentId
-} from './firebase.js?v=20260719';
+} from './firebase.js?v=20260727';
 import {
-  S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal
-} from './state.js?v=20260719';
+  S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
+} from './state.js?v=20260727';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK
-} from './config.js?v=20260719';
-import { analyseWedstrijd } from './analyse.js?v=20260719';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260719';
+} from './config.js?v=20260727';
+import { analyseWedstrijd } from './analyse.js?v=20260727';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260727';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260719');
+  const m = await import('./teams.js?v=20260727');
   m.renderTeam();
 }
 
@@ -197,6 +197,9 @@ export function htmlLeenProfiel(){
 export function htmlProfiel(){
   const p = speler(S._beoordeelProfiel);
   if (!p) { S._beoordeelProfiel = null; return htmlSpelers(); }
+  const leerlijnAan = modAan('leerlijn');
+  // Leerlijn-module uit? Nooit op het Leerlijn-tabblad blijven staan.
+  if (!leerlijnAan && S._profielTab === 'leerlijn') S._profielTab = 'overzicht';
   const tab = S._profielTab || 'overzicht';
   const st = spelerStats(p.id);
   const vol = laatsteVolledig(p.id);
@@ -224,7 +227,7 @@ export function htmlProfiel(){
 
     <div class="segment" id="profielTabs" style="margin-bottom:14px">
       <button data-ptab="overzicht" class="${tab==='overzicht'?'actief':''}">Overzicht</button>
-      <button data-ptab="leerlijn" class="${tab==='leerlijn'?'actief':''}">Leerlijn</button>
+      ${leerlijnAan ? `<button data-ptab="leerlijn" class="${tab==='leerlijn'?'actief':''}">Leerlijn</button>` : ''}
       <button data-ptab="historie" class="${tab==='historie'?'actief':''}">Historie</button>
     </div>
 

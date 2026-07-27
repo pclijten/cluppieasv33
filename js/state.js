@@ -1,5 +1,5 @@
 /* ==================== STATE & HELPERS ==================== */
-import { onSnapshot } from './firebase.js?v=20260719';
+import { onSnapshot } from './firebase.js?v=20260727';
 
 /* Alleen deze accounts mogen clubs en teams aanmaken. Iedereen anders is een
    gewone coach die meedraait in teams waarvoor hij is uitgenodigd.
@@ -74,6 +74,12 @@ export function speler(pid){ return S.spelers.find(p => p.id === pid); }
 export function spelerNaam(pid){ const p = speler(pid); return p ? p.naam : '—'; }
 export function spelerNr(pid){ const p = speler(pid); return p && p.nummer != null && p.nummer !== '' ? p.nummer : '·'; }
 export function initialen(naam){ return String(naam||'?').trim().slice(0,1).toUpperCase() || '?'; }
+/* Per-team modules aan/uit (admin regelt dit in het clubdashboard).
+   Ontbreekt het veld of staat het niet expliciet op false, dan is de module AAN
+   — zo merken bestaande teams niets en wist "uit" nooit data. Sleutels:
+   'evaluaties' (Stats-tab + na-wedstrijd-evaluatie), 'leerlijn' (thema-koppeling
+   + leerpunten), 'kompas' (wekelijkse ASV-kompas-tip op de Training-tab). */
+export function modAan(sleutel, team = S.team){ return team?.modules?.[sleutel] !== false; }
 /* korte afkorting uit een clubnaam.
    "ASV'33" → "ASV", "RKVV Mifano" → "RKVV", "SV Brandevoort" → "SV".
    Aanpak: pak het eerste woord; bestaat dat (vooral) uit hoofdletters, dan is
@@ -225,7 +231,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260719').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260727').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
