@@ -7,7 +7,7 @@ import {
   db, collection, doc, addDoc, deleteDoc, updateDoc
 } from './firebase.js?v=20260727';
 import {
-  S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon
+  S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
 } from './state.js?v=20260727';
 import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260727';
 import { htmlStats } from './wedstrijd.js?v=20260727';
@@ -19,6 +19,7 @@ function deelnemer(){
 }
 
 export function modalTeamEvaluatie(wedstrijdId){
+  if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   const w = S.wedstrijden.find(x => x.id === wedstrijdId);
   if (!w) return meld('Kon de wedstrijd niet vinden — probeer de pagina te verversen');
   const bestaande = S.teamEvaluaties.find(e => e.wedstrijdId === wedstrijdId) || null;

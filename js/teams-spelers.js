@@ -36,12 +36,13 @@ export function htmlSpelers(){
     if (!laatsteSnel[b.spelerId]) laatsteSnel[b.spelerId] = b;   // lijst is al op datum gesorteerd
   }
   const openLeerpunten = pid => ((speler(pid)?.leerpunten)||[]).filter(l => !l.klaar).length;
+  const evalAan = modAan('evaluaties');
 
   return `
-    <div class="segment" id="spelersModus" style="margin-bottom:14px">
+    ${evalAan ? `<div class="segment" id="spelersModus" style="margin-bottom:14px">
       <button data-modus="selectie" class="actief">Selectie</button>
       <button data-modus="snel">⚡ Snel beoordelen</button>
-    </div>
+    </div>` : ''}
 
     <div class="avg-balk">
       <span class="slot">🔒</span>
@@ -51,7 +52,8 @@ export function htmlSpelers(){
     <button class="knop vol licht" id="nieuweSpeler" style="margin-bottom:14px">+ Speler toevoegen</button>
     ${S.spelers.length ? S.spelers.map(p => {
       const b = laatsteSnel[p.id];
-      const stip = b ? `<span class="beoordeel-stip" style="background:${niveauKleur(b.niveau)}" title="Laatste: ${esc(niveau(b.niveau)?.label||'')}"></span>`
+      const stip = !evalAan ? ''
+                 : b ? `<span class="beoordeel-stip" style="background:${niveauKleur(b.niveau)}" title="Laatste: ${esc(niveau(b.niveau)?.label||'')}"></span>`
                      : `<span class="beoordeel-stip leeg" title="Nog niet beoordeeld"></span>`;
       const lp = openLeerpunten(p.id);
       return `
@@ -198,6 +200,7 @@ export function htmlProfiel(){
   const p = speler(S._beoordeelProfiel);
   if (!p) { S._beoordeelProfiel = null; return htmlSpelers(); }
   const leerlijnAan = modAan('leerlijn');
+  const evalAan = modAan('evaluaties');
   // Leerlijn-module uit? Nooit op het Leerlijn-tabblad blijven staan.
   if (!leerlijnAan && S._profielTab === 'leerlijn') S._profielTab = 'overzicht';
   const tab = S._profielTab || 'overzicht';
@@ -245,7 +248,7 @@ export function htmlProfiel(){
         ${st.zonderReden ? `<span>❔ ${st.zonderReden}× zonder reden</span>` : ''}
       </div>` : ''}
 
-      <div class="kaart">
+      ${evalAan ? `<div class="kaart">
         <div class="veldlabel" style="margin-top:0">Ontwikkelprofiel${vol ? ` · ${datumNL(vol.datum)}` : ''}</div>
         ${vol ? SKILLS.map(d => `
           <div class="tips-rij">
@@ -260,7 +263,7 @@ export function htmlProfiel(){
       <div class="fab-rij">
         <button class="knop fluo klein" style="flex:1" data-snel-speler="${p.id}">⚡ Snel beoordelen</button>
         <button class="knop klein" style="flex:1" data-volledig-speler="${p.id}">📋 Volledige beoordeling</button>
-      </div>
+      </div>` : ''}
 
       <div class="rij" style="margin-top:4px">
         <button class="knop licht klein" data-bewerk-speler="${p.id}">✏️ Speler bewerken</button>
@@ -272,11 +275,11 @@ export function htmlProfiel(){
     ${tab === 'leerlijn' ? htmlLeerlijn(p) : ''}
 
     ${tab === 'historie' ? `
-      <div class="kaart">
+      ${evalAan ? `<div class="kaart">
         <div class="veldlabel" style="margin-top:0">Tijdlijn</div>
         ${eigen.length ? eigen.map(b => htmlTijdlijnItem(b)).join('')
           : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen beoordelingen vastgelegd.</p>`}
-      </div>
+      </div>` : ''}
       <div class="kaart">
         <div class="veldlabel" style="margin-top:0">Presentie training</div>
         ${S.presentie.length ? S.presentie.map(ses => {
@@ -364,6 +367,7 @@ function deelnemer(){ return {uid:S.user.uid, naam:(S.team.ledenInfo?.[S.user.ui
 
 /* --- Snelle beoordeling (één speler) --- */
 export function modalSnelBeoordeling(spelerId, bestaande = null){
+  if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   const p = speler(spelerId); if (!p) return;
   const opts = bronOpties();
   let gekozenNiveau = bestaande?.niveau || 0;
@@ -471,6 +475,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
 
 /* ---------- Snelle beoordelingsronde (alle spelers achter elkaar) ---------- */
 export function startSnelRonde(){
+  if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   if (!S.spelers.length) return meld('Voeg eerst spelers toe');
   S._snelRonde = {index:0, ids:S.spelers.map(p => p.id)};
   modalSnelBeoordeling(S._snelRonde.ids[0]);
@@ -485,6 +490,7 @@ function volgendeSnelRonde(){
 /* --- Volledige beoordeling (5 ontwikkeldomeinen) --- */
 
 export function modalVolledigeBeoordeling(spelerId, bestaande = null){
+  if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   const p = speler(spelerId); if (!p) return;
   const scores = {...(bestaande?.scores || {})};
   const notities = {...(bestaande?.notities || {})};
