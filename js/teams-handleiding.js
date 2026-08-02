@@ -4,8 +4,11 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
+import { onboardingHerstartBlok } from './onboarding.js?v=20260727';
+
 export function htmlHandleiding(){
   return `<div class="hl">
+    ${onboardingHerstartBlok()}
     <div class="hl-zoekbalk">
       <span class="hl-zoek-ico">🔍</span>
       <input type="search" id="helpZoek" class="hl-zoek-input" placeholder="Zoek in de handleiding…" autocomplete="off" autocapitalize="none" spellcheck="false">
