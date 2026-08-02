@@ -536,6 +536,27 @@ function plaatsSpotlight(el){
   Object.assign(ring.style, { left:lef+'px', top:top+'px', width:(rig-lef)+'px', height:(bot-top)+'px' });
 }
 
+/* Als het uitgelichte doel (bv. het ⚙️-tandwiel rechtsboven) onder de HUD-balk
+   valt, dan zit de ✕-sluitknop van de voortgangsbalk er precies bovenop en vangt
+   die de tik op i.p.v. het doel. In dat geval zetten we de HUD-knoppen voor deze
+   stap opzij, zodat de tik het echte element bereikt. */
+function rechthoekenRaken(a, b, marge = 6){
+  return !(a.right < b.left - marge || a.left > b.right + marge ||
+           a.bottom < b.top - marge || a.top > b.bottom + marge);
+}
+function ontwijkHud(el){
+  const hud = document.getElementById('obHud');
+  if (!hud) return;
+  hud.classList.remove('ob-hud-wijk');
+  if (!el) return;
+  const sluit = document.getElementById('obSluit');
+  if (!sluit) return;
+  const dr = el.getBoundingClientRect();
+  if (dr.width === 0 || dr.height === 0) return;
+  const kr = sluit.getBoundingClientRect();
+  if (rechthoekenRaken(dr, kr)) hud.classList.add('ob-hud-wijk');
+}
+
 function plaatsBubbel(el){
   const b = document.getElementById('obBubbel');
   if (st._versleept) return;   // gebruiker heeft de bubbel zelf verplaatst: laat staan
@@ -655,6 +676,7 @@ async function toonStap(){
   }
 
   plaatsSpotlight(el);
+  ontwijkHud(el);
   const b = document.getElementById('obBubbel');
   const totaal = st.stappen.length;
   const heeftOpdr = !!stap.wacht;
