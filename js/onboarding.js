@@ -29,7 +29,7 @@
    onderaan). */
 
 import { db, doc, getDoc, setDoc } from './firebase.js?v=20260727';
-import { S, $, $$, esc, meld } from './state.js?v=20260727';
+import { S, $, $$, esc, meld, modAan } from './state.js?v=20260727';
 
 /* ---------- Rollen ----------
    Iedere rol krijgt alleen hoofdstukken waarvan de 'rollen'-set de rol bevat.
@@ -38,15 +38,12 @@ import { S, $, $$, esc, meld } from './state.js?v=20260727';
    krijgt daarbovenop het clubdashboard. */
 export const ONBOARDING_ROLLEN = [
   { id:'coach',     emoji:'📋', naam:'Coach / trainer', desc:'Opstelling, training, beoordelen' },
-  { id:'leider',    emoji:'🧭', naam:'Teamleider',      desc:'Planning & communicatie' },
-  { id:'kijker',    emoji:'👀', naam:'Speler / ouder',  desc:'Meekijken & voorbereiden' },
-  { id:'beheerder', emoji:'🏛', naam:'Clubbeheerder',   desc:'Teams, coaches & content' },
 ];
-/* leider valt qua schermen samen met coach; kijker = alleen-lezen subset. */
-function rolSet(rol){
-  if (rol === 'kijker')    return new Set(['kijker']);
-  if (rol === 'beheerder') return new Set(['kijker','coach','beheerder']);
-  return new Set(['kijker','coach']); // coach + leider
+/* Er is nog maar één rol: coach/trainer (dekt ook leider). Het rollen-veld op de
+   stappen blijft staan zodat de engine ongewijzigd werkt en de tour later weer
+   uitgebreid kan worden, maar de rolSet levert altijd de coach-set. */
+function rolSet(){
+  return new Set(['kijker','coach']);
 }
 
 /* ==================== STAP-DEFINITIES ====================
@@ -278,10 +275,9 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'📈', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'📈', rollen:['coach'], modKey:'evaluaties',
     titel:'Team evalueren',
     tekst:'Direct na de wedstrijd leg je kort vast wat goed ging en wat aandacht vraagt. Deze teamevaluaties verzamelen zich onder <b>Stats</b>.',
-    wist:'Deze knop verschijnt alleen als de clubbeheerder <b>evaluaties</b> voor je team heeft aangezet.',
     voor:async () => { await zorgWedstrijdOpen(); },
     doel:() => document.querySelector('#view-wedstrijd #teamEvalKnop'),
     optioneelAls:() => !wedstrijdOpen() || !document.querySelector('#view-wedstrijd #teamEvalKnop'),
@@ -315,7 +311,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !heeftSpelers(),
   },
   {
-    hfd:'spelers', hfdNaam:'Beoordelen', emoji:'⭐', rollen:['coach'],
+    hfd:'spelers', hfdNaam:'Beoordelen', emoji:'⭐', rollen:['coach'], modKey:'leerlijn',
     titel:'Beoordelen & leerpunten',
     tekst:'In het profiel leg je korte <b>beoordelingen</b> vast op vijf domeinen (TE·TA·FY·ME·GE) en formuleer je concrete <b>leerpunten</b> die over meerdere metingen doorlopen.',
     wist:'Beoordelingen zijn alleen zichtbaar voor coaches — spelers en ouders zien ze niet.',
@@ -342,10 +338,9 @@ export const ONBOARDING_STAPPEN = [
     doel:() => document.querySelector('#view-team #presentieVandaag, #view-team .presentie-rij'),
   },
   {
-    hfd:'training', hfdNaam:'ASV-kompas', emoji:'🧭', rollen:['coach'],
+    hfd:'training', hfdNaam:'ASV-kompas', emoji:'🧭', rollen:['coach'], modKey:'kompas',
     titel:'Het ASV-kompas',
     tekst:'Bovenaan de Training-tab staat de wekelijkse <b>ASV-kompas</b>-tip: een pedagogisch thema uit het jeugdbeleidsplan om je training richting te geven.',
-    wist:'De clubbeheerder kan het kompas per team aan- of uitzetten.',
     voor:() => naarTab('trainingen'),
     doel:() => document.querySelector('#view-team .kompas'),
     optioneelAls:() => !document.querySelector('#view-team .kompas'),
@@ -405,7 +400,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 10. STATS ══════════════ */
   {
-    hfd:'stats', hfdNaam:'Stats', emoji:'📊', rollen:['coach'],
+    hfd:'stats', hfdNaam:'Stats', emoji:'📊', rollen:['coach'], modKey:'evaluaties',
     titel:'Stats & speeltijd',
     tekst:'Onder <b>Stats</b> zie je per speler de opgebouwde speeltijd en — via de segment-knoppen — de teamevaluaties over het seizoen.',
     opdracht:'Open “Stats”',
@@ -415,7 +410,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !meerTegel('stats'),
   },
   {
-    hfd:'stats', hfdNaam:'Stats', emoji:'🗓', rollen:['coach'],
+    hfd:'stats', hfdNaam:'Stats', emoji:'🗓', rollen:['coach'], modKey:'evaluaties',
     titel:'Spelers, team & seizoen',
     tekst:'Wissel tussen <b>Spelers</b> en <b>Team</b>, en filter op seizoen. Zo vergelijk je ontwikkeling door het jaar heen.',
     voor:() => naarTab('stats'),
@@ -543,6 +538,7 @@ function plaatsSpotlight(el){
 
 function plaatsBubbel(el){
   const b = document.getElementById('obBubbel');
+  if (st._versleept) return;   // gebruiker heeft de bubbel zelf verplaatst: laat staan
   if (!el){
     // geen doel: gecentreerd tonen, inline positie wissen zodat CSS .midden werkt
     b.style.left = ''; b.style.top = '';
@@ -573,9 +569,66 @@ function plaatsBubbel(el){
   b.style.left = left + 'px'; b.style.top = top + 'px';
 }
 
+/* Maak de uitleg-bubbel versleepbaar (touch + muis). Zo kan de coach het
+   venster opzij schuiven om achter de popup te kijken — en komt het nooit
+   in de weg te zitten van een knop die hij moet indrukken (bv. de ✕ van de
+   teaminstellingen). Slepen begint alleen op de kop, niet op de knoppen. */
+const _sleep = { bezig:false, dx:0, dy:0 };
+function maakSleepbaar(b){
+  const greep = b.querySelector('#obSleepGreep');
+  if (!greep) return;
+
+  const start = e => {
+    if (e.target.closest('button')) return;   // knop-tik is geen sleep
+    const p = e.touches ? e.touches[0] : e;
+    const r = b.getBoundingClientRect();
+    b.classList.remove('midden');             // van .midden/transform naar harde pixels
+    b.style.left = r.left + 'px';
+    b.style.top  = r.top  + 'px';
+    _sleep.dx = p.clientX - r.left;
+    _sleep.dy = p.clientY - r.top;
+    _sleep.bezig = true;
+    b.classList.add('sleept');
+    if (e.cancelable) e.preventDefault();
+  };
+  greep.addEventListener('mousedown', start);
+  greep.addEventListener('touchstart', start, { passive:false });
+
+  // De document-brede beweeg/stop-handlers hoeven maar één keer te bestaan; ze
+  // werken op de vaste bubbel-node en gedeelde _sleep-state, dus we koppelen ze
+  // niet opnieuw bij elke stap.
+  if (!b._sleepDocGekoppeld){
+    b._sleepDocGekoppeld = true;
+    const beweeg = e => {
+      if (!_sleep.bezig) return;
+      const p = e.touches ? e.touches[0] : e;
+      const bw = b.offsetWidth, bh = b.offsetHeight, m = 6;
+      let left = p.clientX - _sleep.dx, top = p.clientY - _sleep.dy;
+      left = Math.min(Math.max(m, left), Math.max(m, innerWidth  - bw - m));
+      top  = Math.min(Math.max(m, top),  Math.max(m, innerHeight - bh - m));
+      b.style.left = left + 'px';
+      b.style.top  = top  + 'px';
+      st._versleept = true;   // vanaf nu niet meer automatisch herpositioneren
+      if (e.cancelable) e.preventDefault();
+    };
+    const stop = () => { _sleep.bezig = false; b.classList.remove('sleept'); };
+    document.addEventListener('mousemove', beweeg);
+    document.addEventListener('touchmove', beweeg, { passive:false });
+    document.addEventListener('mouseup', stop);
+    document.addEventListener('touchend', stop);
+  }
+}
+
 function zichtbareStappen(){
   const rs = rolSet(st.rol);
-  return ONBOARDING_STAPPEN.filter(s => s.rollen.some(r => rs.has(r)));
+  return ONBOARDING_STAPPEN.filter(s => {
+    if (!s.rollen.some(r => rs.has(r))) return false;
+    // Module-adaptief: stappen die aan een uitgeschakelde teammodule hangen,
+    // laten we helemaal weg. Zo krijgt een team zonder evaluaties/leerlijn/kompas
+    // ook geen uitleg over knoppen die het niet ziet.
+    if (s.modKey && !modAan(s.modKey)) return false;
+    return true;
+  });
 }
 
 async function toonStap(){
@@ -606,10 +659,11 @@ async function toonStap(){
   const totaal = st.stappen.length;
   const heeftOpdr = !!stap.wacht;
   b.innerHTML = `
-    <div class="ob-b-kop">
+    <div class="ob-b-kop" id="obSleepGreep" title="Versleep om het venster te verplaatsen">
       <span class="ob-b-emoji">${stap.emoji||'💡'}</span>
       <span class="ob-b-titel">${esc(stap.titel)}</span>
       <span class="ob-b-stap">${st.i+1}/${totaal}</span>
+      <span class="ob-b-greep" aria-hidden="true">⠿</span>
     </div>
     <div class="ob-b-tekst">${stap.tekst}</div>
     ${stap.opdracht ? `<div class="ob-b-opdr"><span class="ob-pijltje">➜</span>${esc(stap.opdracht)}</div>` : ''}
@@ -624,7 +678,9 @@ async function toonStap(){
       </button>
     </div>`;
   b.style.display = 'block';
+  st._versleept = false;               // nieuwe stap: bubbel weer automatisch plaatsen
   plaatsBubbel(el);
+  maakSleepbaar(b);
   requestAnimationFrame(() => b.classList.add('aan'));
 
   document.getElementById('obVul').style.width = ((st.i)/totaal*100) + '%';
@@ -671,30 +727,16 @@ function toonIntro(bekendeRol){
   intro.innerHTML = `
     <img class="ob-intro-logo" src="icons/icon-192.png" alt="Cluppie" onerror="this.onerror=null;this.style.background='var(--accent)';this.removeAttribute('src')">
     <h1>Even samen<br>rondkijken</h1>
-    <p>In een paar minuten leer je de hele app kennen — en je doet alles meteen zelf. Voor wie ben jij hier?</p>
-    <div class="ob-rollen" id="obRollen">
-      ${ONBOARDING_ROLLEN.map(r => `
-        <button class="ob-rol ${r.id===bekendeRol?'gekozen':''}" data-rol="${r.id}">
-          <span class="ob-rol-emoji">${r.emoji}</span>
-          <span class="ob-rol-naam">${esc(r.naam)}</span>
-          <span class="ob-rol-desc">${esc(r.desc)}</span>
-        </button>`).join('')}
-    </div>
-    <button class="ob-intro-start" id="obStart" ${bekendeRol?'':'disabled'}>Start de rondleiding</button>
+    <p>In een paar minuten leer je de hele app kennen als coach — en je doet alles meteen zelf. Elk uitlegvenster kun je <b>verslepen</b> om achter het scherm te kijken.</p>
+    <button class="ob-intro-start" id="obStart">Start de rondleiding</button>
     <button class="ob-intro-skip" id="obSkip">Overslaan, ik red me wel</button>`;
   document.body.appendChild(intro);
   requestAnimationFrame(() => intro.classList.add('aan'));
 
-  let gekozen = bekendeRol || null;
-  intro.querySelectorAll('[data-rol]').forEach(btn => btn.onclick = () => {
-    gekozen = btn.dataset.rol;
-    intro.querySelectorAll('.ob-rol').forEach(x => x.classList.toggle('gekozen', x===btn));
-    document.getElementById('obStart').disabled = false;
-  });
   document.getElementById('obStart').onclick = () => {
     intro.classList.remove('aan');
     setTimeout(() => intro.remove(), 400);
-    beginTour(gekozen || 'coach', 0);
+    beginTour('coach', 0);
   };
   document.getElementById('obSkip').onclick = () => {
     intro.classList.remove('aan'); setTimeout(() => intro.remove(), 400);
