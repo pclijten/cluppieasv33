@@ -1318,3 +1318,354 @@ body::before{
 .wo-sectiekop .ico{font-size:15px}
 .wo-sectiekop span{font-size:11.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px}
 .wo-lijn{height:1px;background:var(--line-d);flex:1}
+/* ==================== ONBOARDING / INTERACTIEVE RONDLEIDING ====================
+   Coach-marks bovenop de ECHTE app. Geen losse demoschermen: we lichten
+   bestaande knoppen uit met een spotlight, tonen een coachmark-bubbel en
+   wachten tot de coach de opdracht daadwerkelijk uitvoert.
+
+   Gebruikt uitsluitend bestaande dark-theme-tokens uit styles.css
+   (--accent #e2342f, --surface, --ink, --ink-2, Barlow Condensed / Inter).
+   Niets hierin verandert de app zelf; alles staat op een eigen z-index-laag
+   ver boven de onderbalk (z-index 20) maar onder losse system-toasts. */
+
+/* --- Lagen ---
+   ob-overlay  : donkere waas met een uitgesneden 'gat' rond het doel (spotlight)
+   ob-bubbel   : de coachmark met uitleg + knoppen
+   ob-hud      : voortgangsbalk + AI-coach-knop, altijd bovenaan
+   ob-vier     : confetti-canvas bij afronden */
+:root{
+  --ob-z: 4000;               /* boven onderbalk(20) en modal(±1000), onder melding */
+  --ob-waas: rgba(10,13,18,.5);
+  --ob-ring: var(--accent, #e2342f);
+}
+
+/* ---------- Spotlight-overlay ----------
+   We tekenen de waas met vier panelen rond het doel i.p.v. één box-shadow-gat,
+   zodat het uitgesneden gebied klikbaar blijft (de coach moet de echte knop
+   kunnen indrukken). De vier .ob-waas-panelen vullen alles BEHALVE het gat. */
+.ob-overlay{ position:fixed; inset:0; z-index:var(--ob-z); pointer-events:none;
+  opacity:0; transition:opacity .28s ease; }
+.ob-overlay.aan{ opacity:1; }
+/* pointer-events:none — de waas is puur visueel. Zo blijft ELK element van de
+   app eronder aanklikbaar (bv. spelers op het veld zetten), niet alleen het
+   ene uitgelichte doel. De tour luistert zelf op de echte klik om verder te
+   gaan; de waas hoeft klikken dus niet te vangen. */
+.ob-waas{ position:fixed; background:var(--ob-waas); pointer-events:none;
+  transition:all .32s cubic-bezier(.4,0,.2,1); }
+
+/* De lichtring rond het uitgesneden doel */
+.ob-ring{ position:fixed; z-index:calc(var(--ob-z) + 1); pointer-events:none;
+  border-radius:16px;
+  box-shadow:0 0 0 2px rgba(255,255,255,.9),
+    0 0 0 5px var(--ob-ring),
+    0 0 0 10px color-mix(in srgb, var(--ob-ring) 30%, transparent),
+    0 0 26px 6px color-mix(in srgb, var(--ob-ring) 45%, transparent),
+    0 12px 44px rgba(0,0,0,.45);
+  transition:all .32s cubic-bezier(.4,0,.2,1); }
+.ob-ring.puls::after{ content:''; position:absolute; inset:-3px; border-radius:inherit;
+  border:2px solid var(--ob-ring); animation:ob-puls 1.6s ease-out infinite; }
+@keyframes ob-puls{
+  0%{ transform:scale(1); opacity:.9; }
+  100%{ transform:scale(1.35); opacity:0; } }
+
+/* Pijl die van de bubbel naar het doel wijst */
+.ob-pijl{ position:fixed; z-index:calc(var(--ob-z) + 2); pointer-events:none;
+  width:0; height:0; transition:all .3s ease; filter:drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+
+/* ---------- Coachmark-bubbel ---------- */
+.ob-bubbel{ position:fixed; z-index:calc(var(--ob-z) + 3); max-width:330px;
+  width:calc(100vw - 32px); background:var(--surface-2, #1f262f);
+  border:1px solid rgba(255,255,255,.16); border-radius:18px;
+  box-shadow:0 18px 50px rgba(0,0,0,.6); padding:16px 16px 14px;
+  pointer-events:auto; opacity:0; transform:translateY(8px) scale(.98);
+  transition:opacity .26s ease, transform .26s cubic-bezier(.34,1.56,.64,1); }
+.ob-bubbel.aan{ opacity:1; transform:translateY(0) scale(1); }
+.ob-bubbel.midden{ left:50%; top:50%; transform:translate(-50%,-50%) scale(.98); }
+.ob-bubbel.midden.aan{ transform:translate(-50%,-50%) scale(1); }
+
+.ob-b-kop{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+.ob-b-emoji{ font-size:22px; line-height:1; flex-shrink:0; }
+.ob-b-titel{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:20px; letter-spacing:.3px; text-transform:uppercase;
+  color:#ffffff; line-height:1.05; flex:1; }
+.ob-b-stap{ font-size:11px; font-weight:700; color:var(--ink-2, #8b95a1);
+  background:color-mix(in srgb, var(--accent) 14%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color:var(--accent); padding:2px 8px; border-radius:99px; flex-shrink:0; }
+.ob-b-tekst{ font-size:14.5px; line-height:1.6; color:#f2f5f9; }
+.ob-b-tekst b{ color:var(--ink); }
+.ob-b-tekst .ob-kbd{ display:inline-block; padding:1px 7px; border-radius:6px;
+  background:var(--surface-2, #1f262f); border:1px solid var(--line-d);
+  font-size:12px; font-weight:600; }
+.ob-b-opdr{ margin-top:10px; padding:9px 11px; border-radius:11px;
+  background:color-mix(in srgb, var(--accent) 18%, var(--surface-2, #1f262f));
+  border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  font-size:13.5px; font-weight:600; color:#ffffff; display:flex;
+  align-items:center; gap:8px; }
+.ob-b-opdr .ob-pijltje{ color:var(--accent); font-size:15px; }
+
+/* Wist-je-dat-kaart (verdieping) */
+.ob-b-wist{ margin-top:9px; padding:9px 11px; border-radius:11px;
+  background:rgba(255,255,255,.05); border:1px dashed rgba(255,255,255,.2);
+  font-size:13px; line-height:1.55; color:#d3d9e0; }
+.ob-b-wist b{ color:var(--ink); }
+
+/* Voetregel met navigatie */
+.ob-b-voet{ display:flex; align-items:center; gap:8px; margin-top:14px; }
+.ob-b-voet .ob-links{ display:flex; gap:6px; flex:1; }
+.ob-knop{ display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  border-radius:10px; padding:9px 14px; font-weight:600; font-size:13.5px;
+  font-family:'Inter',sans-serif; }
+.ob-knop.prim{ background:var(--accent); color:#fff;
+  box-shadow:0 8px 22px rgba(226,52,47,.32); }
+.ob-knop.prim:active{ transform:translateY(1px); }
+.ob-knop.sec{ background:var(--surface-2, #1f262f); color:#cdd4dc;
+  border:1px solid rgba(255,255,255,.18); }
+.ob-knop.mini{ padding:7px 10px; font-size:12.5px; }
+.ob-knop:disabled{ opacity:.4; cursor:default; }
+.ob-knop.wacht{ opacity:.55; }
+.ob-knop.wacht .ob-sp{ width:13px; height:13px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.3); border-top-color:#fff;
+  animation:ob-draai .7s linear infinite; }
+@keyframes ob-draai{ to{ transform:rotate(360deg); } }
+
+/* ---------- HUD: voortgangsbalk + AI-coach + sluitknop ---------- */
+.ob-hud{ position:fixed; top:0; left:50%; transform:translateX(-50%);
+  width:100%; max-width:540px; z-index:calc(var(--ob-z) + 4);
+  padding:calc(8px + env(safe-area-inset-top)) 14px 8px;
+  display:flex; align-items:center; gap:10px; pointer-events:none; }
+.ob-hud > *{ pointer-events:auto; }
+.ob-voortgang{ flex:1; height:7px; border-radius:99px;
+  background:var(--surface-2, #1f262f); overflow:hidden;
+  border:1px solid var(--line-d); }
+.ob-voortgang-vul{ height:100%; border-radius:inherit;
+  background:linear-gradient(90deg, var(--accent), #ff6a55);
+  width:0; transition:width .5s cubic-bezier(.4,0,.2,1); }
+.ob-hud-badge{ font-size:11px; font-weight:700; color:var(--ink-2);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ob-hud-knop{ width:34px; height:34px; border-radius:10px;
+  background:var(--surface, #181d24); border:1px solid var(--line-d);
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+  color:var(--ink); flex-shrink:0; }
+.ob-hud-knop.coach{ color:var(--accent); }
+
+/* ---------- Mascotte / AI-coach-paneel ---------- */
+.ob-coach-achter{ position:fixed; inset:0; z-index:calc(var(--ob-z) + 10);
+  background:rgba(6,8,11,.6); display:none; align-items:flex-end;
+  justify-content:center; }
+.ob-coach-achter.open{ display:flex; }
+.ob-coach{ width:100%; max-width:540px; background:var(--surface, #181d24);
+  border-top-left-radius:22px; border-top-right-radius:22px;
+  border:1px solid var(--line-d); border-bottom:none; max-height:78vh;
+  display:flex; flex-direction:column; transform:translateY(100%);
+  transition:transform .34s cubic-bezier(.34,1.2,.64,1);
+  padding-bottom:env(safe-area-inset-bottom); }
+.ob-coach-achter.open .ob-coach{ transform:translateY(0); }
+.ob-coach-kop{ display:flex; align-items:center; gap:11px; padding:16px 16px 12px;
+  border-bottom:1px solid var(--line-d); }
+.ob-coach-avatar{ width:40px; height:40px; border-radius:12px; flex-shrink:0;
+  background:color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+  display:flex; align-items:center; justify-content:center; font-size:22px; }
+.ob-coach-naam{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:18px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink); }
+.ob-coach-sub{ font-size:11.5px; color:var(--ink-2); margin-top:1px; }
+.ob-coach-x{ margin-left:auto; width:32px; height:32px; border-radius:9px;
+  background:var(--surface-2); border:1px solid var(--line-d); color:var(--ink-2);
+  display:flex; align-items:center; justify-content:center; font-size:15px; }
+.ob-coach-lijf{ overflow-y:auto; padding:14px 16px; display:flex;
+  flex-direction:column; gap:10px; }
+.ob-msg{ max-width:85%; padding:10px 13px; border-radius:14px; font-size:13.5px;
+  line-height:1.5; }
+.ob-msg.bot{ align-self:flex-start; background:var(--surface-2, #1f262f);
+  color:var(--ink); border-bottom-left-radius:4px; }
+.ob-msg.ik{ align-self:flex-end; background:var(--accent); color:#fff;
+  border-bottom-right-radius:4px; }
+.ob-msg.bot b{ color:var(--ink); }
+.ob-coach-chips{ display:flex; flex-wrap:wrap; gap:7px; padding:2px 16px 10px; }
+.ob-chip{ font-size:12px; font-weight:600; padding:7px 12px; border-radius:99px;
+  background:var(--surface-2, #1f262f); border:1px solid var(--line-d);
+  color:var(--ink); }
+.ob-coach-invoer{ display:flex; gap:8px; padding:10px 14px 14px;
+  border-top:1px solid var(--line-d); }
+.ob-coach-invoer input{ flex:1; background:var(--surface-2, #1f262f);
+  border:1px solid var(--line-d); border-radius:12px; padding:11px 13px;
+  font-size:14px; color:var(--ink); }
+.ob-coach-invoer input:focus{ outline:none; border-color:var(--accent); }
+.ob-coach-stuur{ width:44px; border-radius:12px; background:var(--accent);
+  color:#fff; font-size:16px; display:flex; align-items:center; justify-content:center; }
+.ob-tik{ display:flex; gap:4px; padding:12px 13px; }
+.ob-tik span{ width:7px; height:7px; border-radius:50%; background:var(--ink-2);
+  animation:ob-tikanim 1.2s infinite; }
+.ob-tik span:nth-child(2){ animation-delay:.2s; }
+.ob-tik span:nth-child(3){ animation-delay:.4s; }
+@keyframes ob-tikanim{ 0%,60%,100%{ opacity:.3; transform:translateY(0); }
+  30%{ opacity:1; transform:translateY(-3px); } }
+
+/* ---------- Welkom- & rol-keuzescherm (fullscreen, wél een 'demo'-achtig
+   scherm — maar alleen bij de allereerste start, vóór de app-tour) ---------- */
+.ob-intro{ position:fixed; inset:0; z-index:calc(var(--ob-z) + 6);
+  background:radial-gradient(120% 90% at 50% 0%, #16202b 0%, var(--bg, #0e1116) 60%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:32px 24px calc(24px + env(safe-area-inset-bottom));
+  opacity:0; transition:opacity .4s ease; }
+.ob-intro.aan{ opacity:1; }
+.ob-intro-logo{ width:76px; height:76px; border-radius:20px; margin-bottom:20px;
+  box-shadow:0 12px 40px rgba(226,52,47,.35); }
+.ob-intro h1{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:34px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink);
+  line-height:1.05; margin-bottom:10px; }
+.ob-intro p{ font-size:15px; line-height:1.6; color:var(--ink-2); max-width:340px;
+  margin-bottom:26px; }
+.ob-rollen{ display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%;
+  max-width:360px; margin-bottom:22px; }
+.ob-rol{ display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:16px 10px; border-radius:16px; background:var(--surface, #181d24);
+  border:1.5px solid var(--line-d); transition:border-color .18s, transform .12s; }
+.ob-rol:active{ transform:scale(.97); }
+.ob-rol.gekozen{ border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.ob-rol-emoji{ font-size:26px; }
+.ob-rol-naam{ font-size:13px; font-weight:600; color:var(--ink); }
+.ob-rol-desc{ font-size:10.5px; color:var(--ink-2); line-height:1.3; }
+.ob-intro-start{ width:100%; max-width:360px; padding:15px; border-radius:14px;
+  background:var(--accent); color:#fff; font-weight:700; font-size:16px;
+  box-shadow:0 10px 30px rgba(226,52,47,.4); }
+.ob-intro-start:disabled{ opacity:.4; box-shadow:none; }
+.ob-intro-skip{ margin-top:14px; font-size:13px; color:var(--ink-2);
+  text-decoration:underline; }
+
+/* ---------- Afrondscherm + confetti ---------- */
+.ob-vier{ position:fixed; inset:0; z-index:calc(var(--ob-z) + 20);
+  pointer-events:none; }
+.ob-klaar{ position:fixed; inset:0; z-index:calc(var(--ob-z) + 8);
+  background:radial-gradient(120% 90% at 50% 10%, #16202b 0%, var(--bg,#0e1116) 60%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:32px 24px; opacity:0; transition:opacity .4s ease;
+  pointer-events:auto; }
+.ob-klaar.aan{ opacity:1; }
+.ob-klaar-emoji{ font-size:64px; margin-bottom:14px; animation:ob-pop .6s cubic-bezier(.34,1.56,.64,1); }
+@keyframes ob-pop{ 0%{ transform:scale(0) rotate(-20deg); } 100%{ transform:scale(1) rotate(0); } }
+.ob-klaar h1{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:32px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink);
+  margin-bottom:8px; }
+.ob-klaar p{ font-size:14.5px; line-height:1.6; color:var(--ink-2);
+  max-width:320px; margin-bottom:20px; }
+.ob-badges{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center;
+  margin-bottom:26px; }
+.ob-badge{ display:flex; flex-direction:column; align-items:center; gap:5px;
+  width:78px; }
+.ob-badge-cirkel{ width:56px; height:56px; border-radius:50%;
+  background:color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border:2px solid var(--accent); display:flex; align-items:center;
+  justify-content:center; font-size:26px;
+  box-shadow:0 6px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ob-badge-naam{ font-size:10.5px; font-weight:600; color:var(--ink-2);
+  line-height:1.2; text-align:center; }
+
+/* Herstartknop-ingang in Help/handleiding en instellingen */
+.ob-herstart-blok{ margin:14px 0 4px; padding:14px; border-radius:14px;
+  background:color-mix(in srgb, var(--accent) 8%, var(--surface, #181d24));
+  border:1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  display:flex; align-items:center; gap:12px; }
+.ob-herstart-blok .ob-hb-emoji{ font-size:26px; }
+.ob-herstart-blok .ob-hb-txt{ flex:1; }
+.ob-herstart-blok .ob-hb-txt b{ display:block; font-size:14px; color:var(--ink);
+  font-family:'Barlow Condensed',sans-serif; text-transform:uppercase;
+  letter-spacing:.3px; }
+.ob-herstart-blok .ob-hb-txt span{ font-size:12px; color:var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce){
+  .ob-ring.puls::after,.ob-tik span,.ob-klaar-emoji{ animation:none; }
+  .ob-overlay,.ob-bubbel,.ob-waas,.ob-ring{ transition:none; }
+}
+/* ==================== HULP-CHATBOT ====================
+   Zwevende hulp-knop + chat-bottomsheet. Gebruikt dezelfde dark-theme-tokens
+   als de rest van de app (--accent #e2342f, --surface, --ink, Barlow/Inter). */
+
+/* Zwevende knop — net boven de onderbalk, rechtsonder. */
+.cb-fab{ position:fixed; right:16px;
+  bottom:calc(74px + env(safe-area-inset-bottom)); z-index:30;
+  display:inline-flex; align-items:center; gap:8px; padding:12px 16px;
+  border-radius:99px; background:var(--accent); color:#fff;
+  font-family:'Inter',sans-serif; font-weight:700; font-size:14px; border:none;
+  box-shadow:0 8px 24px rgba(226,52,47,.42); }
+.cb-fab:active{ transform:translateY(1px); }
+.cb-fab-p{ width:8px; height:8px; border-radius:50%; background:#fff;
+  animation:cb-puls 2s ease-in-out infinite; }
+@keyframes cb-puls{ 0%,100%{ opacity:.55 } 50%{ opacity:1 } }
+
+/* Overlay + paneel (bottomsheet). */
+.cb-achter{ position:fixed; inset:0; z-index:5000;
+  background:rgba(6,8,11,.6); display:none; align-items:flex-end;
+  justify-content:center; }
+.cb-achter.open{ display:flex; }
+.cb-paneel{ width:100%; max-width:540px; background:var(--surface, #181d24);
+  border-top-left-radius:22px; border-top-right-radius:22px;
+  border:1px solid var(--line-d, rgba(255,255,255,.08)); border-bottom:none;
+  max-height:80vh; display:flex; flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .34s cubic-bezier(.34,1.2,.64,1);
+  padding-bottom:env(safe-area-inset-bottom); }
+.cb-achter.open .cb-paneel{ transform:translateY(0); }
+
+.cb-kop{ display:flex; align-items:center; gap:11px; padding:16px 16px 12px;
+  border-bottom:1px solid var(--line-d, rgba(255,255,255,.08)); }
+.cb-avatar{ width:40px; height:40px; border-radius:12px; flex-shrink:0;
+  background:color-mix(in srgb, var(--accent) 18%, var(--surface-2, #1f262f));
+  display:flex; align-items:center; justify-content:center; font-size:22px; }
+.cb-naam{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:18px; text-transform:uppercase; letter-spacing:.3px;
+  color:var(--ink, #f5f6f8); }
+.cb-sub{ font-size:11.5px; color:var(--ink-2, #8b95a1); margin-top:1px; }
+.cb-x{ margin-left:auto; width:32px; height:32px; border-radius:9px;
+  background:var(--surface-2, #1f262f); border:1px solid var(--line-d);
+  color:var(--ink-2, #8b95a1); display:flex; align-items:center;
+  justify-content:center; font-size:15px; }
+
+.cb-lijf{ overflow-y:auto; padding:14px 16px; display:flex;
+  flex-direction:column; gap:10px; -webkit-overflow-scrolling:touch; }
+.cb-msg{ max-width:86%; padding:10px 13px; border-radius:14px; font-size:14px;
+  line-height:1.55; }
+.cb-msg.bot{ align-self:flex-start; background:var(--surface-2, #1f262f);
+  color:#f2f5f9; border-bottom-left-radius:4px; }
+.cb-msg.bot b{ color:#fff; }
+.cb-msg.ik{ align-self:flex-end; background:var(--accent); color:#fff;
+  border-bottom-right-radius:4px; }
+
+/* Actieknop onder een botbericht (bv. "Start de rondleiding"). */
+.cb-actie{ align-self:flex-start; }
+.cb-actie-knop{ display:inline-flex; align-items:center; gap:6px;
+  padding:9px 14px; border-radius:11px; background:var(--accent); color:#fff;
+  font-weight:600; font-size:13px; border:none;
+  box-shadow:0 6px 18px rgba(226,52,47,.3); }
+
+.cb-chips{ display:flex; flex-wrap:wrap; gap:7px; padding:2px 16px 10px; }
+.cb-chip{ font-size:12.5px; font-weight:600; padding:8px 12px; border-radius:99px;
+  background:var(--surface-2, #1f262f); border:1px solid rgba(255,255,255,.14);
+  color:var(--ink, #f5f6f8); }
+.cb-chip:active{ background:color-mix(in srgb, var(--accent) 20%, var(--surface-2)); }
+
+.cb-invoer{ display:flex; gap:8px; padding:10px 14px 14px;
+  border-top:1px solid var(--line-d, rgba(255,255,255,.08)); }
+.cb-invoer input{ flex:1; background:var(--surface-2, #1f262f);
+  border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 13px;
+  font-size:15px; color:var(--ink, #f5f6f8); }
+.cb-invoer input:focus{ outline:none; border-color:var(--accent); }
+.cb-stuur{ width:46px; border-radius:12px; background:var(--accent); color:#fff;
+  font-size:16px; display:flex; align-items:center; justify-content:center;
+  border:none; flex-shrink:0; }
+.cb-stuur:active{ transform:translateY(1px); }
+
+/* Typen-indicator. */
+.cb-tik{ display:flex !important; gap:4px; padding:12px 13px; }
+.cb-tik span{ width:7px; height:7px; border-radius:50%;
+  background:var(--ink-2, #8b95a1); animation:cb-tikanim 1.2s infinite; }
+.cb-tik span:nth-child(2){ animation-delay:.2s; }
+.cb-tik span:nth-child(3){ animation-delay:.4s; }
+@keyframes cb-tikanim{ 0%,60%,100%{ opacity:.3; transform:translateY(0) }
+  30%{ opacity:1; transform:translateY(-3px) } }
+
+@media (prefers-reduced-motion: reduce){
+  .cb-fab-p,.cb-tik span{ animation:none; }
+  .cb-paneel{ transition:none; }
+}
