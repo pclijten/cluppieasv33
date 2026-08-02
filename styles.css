@@ -1383,7 +1383,14 @@ body::before{
 .ob-bubbel.midden{ left:50%; top:50%; transform:translate(-50%,-50%) scale(.98); }
 .ob-bubbel.midden.aan{ transform:translate(-50%,-50%) scale(1); }
 
-.ob-b-kop{ display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+.ob-b-kop{ display:flex; align-items:center; gap:9px; margin-bottom:8px;
+  cursor:grab; touch-action:none; -webkit-user-select:none; user-select:none; }
+.ob-b-kop:active{ cursor:grabbing; }
+.ob-b-greep{ margin-left:2px; font-size:16px; line-height:1; color:var(--ink-2, #8b95a1);
+  opacity:.7; flex-shrink:0; letter-spacing:-1px; }
+.ob-bubbel.sleept{ transition:none; opacity:.96;
+  box-shadow:0 22px 60px rgba(0,0,0,.7); cursor:grabbing; }
+.ob-bubbel.sleept .ob-b-kop{ cursor:grabbing; }
 .ob-b-emoji{ font-size:22px; line-height:1; flex-shrink:0; }
 .ob-b-titel{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
   font-size:20px; letter-spacing:.3px; text-transform:uppercase;
