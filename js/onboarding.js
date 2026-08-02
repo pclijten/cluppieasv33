@@ -91,12 +91,12 @@ function zichtbaarGelayout(el){
   // een nog-niet-gelayout element geeft 0×0 op {0,0} en zou de spotlight naar de hoek schieten.
   return r.width > 0 && r.height > 0;
 }
-function wachtOpElement(getter, timeout = 2000){
+function wachtOpElement(getter, timeout = 2000, eisLayout = false){
   return new Promise(res => {
     const t0 = performance.now();
     (function tik(){
       const el = getter();
-      if (el && zichtbaarGelayout(el)) return res(el);
+      if (el && (!eisLayout || zichtbaarGelayout(el))) return res(el);
       if (performance.now() - t0 > timeout) return res(el || null); // fallback: geef terug wat er is
       requestAnimationFrame(tik);
     })();
@@ -142,7 +142,9 @@ async function zorgWedstrijdOpen(){
   if (!heeftWedstrijden()) return false;
   const eersteId = (S.wedstrijden[0]||{}).id;
   if (!eersteId) return false;
-  const m = await import('./wedstrijd.js?v=20260727');
+  let m;
+  try { m = await import('./wedstrijd.js?v=20260727'); }
+  catch(e){ console.warn('[ob] kon wedstrijd.js niet laden', e); return false; }
   m.openWedstrijd?.(eersteId);
   await wachtOpElement(() => document.querySelector('#view-wedstrijd.actief'), 2000);
   return wedstrijdOpen();
@@ -177,7 +179,7 @@ export const ONBOARDING_STAPPEN = [
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        const t = await import('./teams.js?v=20260727'); t.startTeams?.();
+        try { const t = await import('./teams.js?v=20260727'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
@@ -582,16 +584,20 @@ async function toonStap(){
   if (st.stopWacht){ st.stopWacht(); st.stopWacht = null; }
 
   if (stap.voor){ try { await stap.voor(); } catch(e){ console.warn('[ob] voor() faalde', e); } }
-  const el = await wachtOpElement(() => stap.doel?.() || null, 1500);
+  // eisLayout=true: netjes positioneren zodra gelayout. Het BESTAAN van het
+  // element (ook 0×0) bepaalt of een optionele stap wordt getoond of overgeslagen.
+  const el = await wachtOpElement(() => stap.doel?.() || null, 1500, true);
+  const bestaat = !!(stap.doel?.() || null);
 
   /* Conditionele stap: hoort alleen thuis als er echte data/knoppen zijn
      (bv. opstelling-stappen vereisen een geopende wedstrijd). Ontbreekt het
      doel én zegt optioneelAls() dat het mag, sla dan stil over — zo krijgt een
      kersvers account met nog geen wedstrijden/spelers geen dood scherm. */
-  if (!el && stap.optioneelAls?.()){
+  if (!bestaat && stap.optioneelAls?.()){
     const richting = st._richting || 1;
     st.i += richting;
     if (st.i < 0) st.i = 0;
+    if (st.i >= st.stappen.length){ voltooien(); return; } // vangnet tegen eindeloze recursie
     return toonStap();
   }
 
