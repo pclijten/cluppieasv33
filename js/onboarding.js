@@ -526,15 +526,24 @@ function plaatsSpotlight(el){
 
 function plaatsBubbel(el){
   const b = document.getElementById('obBubbel');
+  if (!el){
+    // geen doel: gecentreerd tonen, inline positie wissen zodat CSS .midden werkt
+    b.style.left = ''; b.style.top = '';
+    b.classList.add('midden');
+    return;
+  }
   b.classList.remove('midden');
+  b.style.left = ''; b.style.top = ''; // wis eerst, zodat offsetWidth de echte (max 330px) breedte meet
   requestAnimationFrame(() => {
+    void b.offsetWidth; // forceer reflow ná het wissen van .midden + inline stijlen
     const bw = b.offsetWidth, bh = b.offsetHeight, vw = innerWidth, vh = innerHeight, m = 12;
-    if (!el){ b.classList.add('midden'); return; }
     const r = el.getBoundingClientRect();
-    let top, left = Math.min(Math.max(m, r.left + r.width/2 - bw/2), vw - bw - m);
+    // horizontaal centreren op doel, maar altijd binnen [m, vw - bw - m] houden.
+    // vw - bw - m kan kleiner zijn dan m op smalle schermen -> harde ondergrens m.
+    const maxLeft = Math.max(m, vw - bw - m);
+    const left = Math.min(Math.max(m, r.left + r.width/2 - bw/2), maxLeft);
     const onder = r.bottom + 14, boven = r.top - bh - 14;
-    /* onder het doel als het past, anders erboven */
-    top = (onder + bh < vh - m) ? onder : Math.max(m, boven);
+    const top = (onder + bh < vh - m) ? onder : Math.max(m, boven);
     b.style.left = left + 'px'; b.style.top = top + 'px';
   });
 }
@@ -586,8 +595,8 @@ async function toonStap(){
       </button>
     </div>`;
   b.style.display = 'block';
-  requestAnimationFrame(() => b.classList.add('aan'));
   plaatsBubbel(el);
+  requestAnimationFrame(() => b.classList.add('aan'));
 
   document.getElementById('obVul').style.width = ((st.i)/totaal*100) + '%';
   document.getElementById('obBadge').textContent = `${st.i+1}/${totaal}`;

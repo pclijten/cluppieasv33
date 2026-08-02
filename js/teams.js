@@ -46,7 +46,7 @@ import {
 } from './teams-training.js?v=20260727';
 import { htmlTeamDocumenten } from './teams-documenten.js?v=20260727';
 import { htmlHandleiding } from './teams-handleiding.js?v=20260727';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260727';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260802';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
    importeren deze twee nog altijd via './teams.js' — ze wonen nu fysiek in

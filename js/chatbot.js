@@ -18,7 +18,7 @@
 
 import { functions, httpsCallable } from './firebase.js?v=20260727';
 import { S, esc } from './state.js?v=20260727';
-import { startOnboarding } from './onboarding.js?v=20260727';
+import { startOnboarding } from './onboarding.js?v=20260802';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]

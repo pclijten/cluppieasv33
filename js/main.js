@@ -5,7 +5,7 @@ import {
 } from './auth.js?v=20260727';
 import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260727';
 import { sluitWedstrijd } from './wedstrijd.js?v=20260727';
-import { startOnboardingIndienNodig } from './onboarding.js?v=20260727';
+import { startOnboardingIndienNodig } from './onboarding.js?v=20260802';
 import { initChatbot, toonChatbotKnop } from './chatbot.js?v=20260727';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
