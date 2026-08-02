@@ -1455,6 +1455,14 @@ body::before{
   display:flex; align-items:center; justify-content:center; font-size:16px;
   color:var(--ink); flex-shrink:0; }
 .ob-hud-knop.coach{ color:var(--accent); }
+/* Stap waarin het uitgelichte doel onder de HUD valt: knoppen (incl. ✕) opzij,
+   zodat ze de tik op het echte element niet onderscheppen. De voortgangsbalk
+   blijft zichtbaar maar vangt geen tikken meer op. */
+.ob-hud.ob-hud-wijk{ pointer-events:none; }
+.ob-hud.ob-hud-wijk .ob-hud-knop{ opacity:0; pointer-events:none;
+  transition:opacity .2s; }
+.ob-hud.ob-hud-wijk .ob-voortgang,
+.ob-hud.ob-hud-wijk .ob-hud-badge{ opacity:.35; pointer-events:none; }
 
 /* ---------- Mascotte / AI-coach-paneel ---------- */
 .ob-coach-achter{ position:fixed; inset:0; z-index:calc(var(--ob-z) + 10);
