@@ -84,13 +84,20 @@ function naarTab(tab){
   });
 }
 /* Wacht tot een element bestaat (na een render), max ~2s. */
+function zichtbaarGelayout(el){
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  // element moet echte afmetingen hebben én binnen (of net buiten) het scherm liggen;
+  // een nog-niet-gelayout element geeft 0×0 op {0,0} en zou de spotlight naar de hoek schieten.
+  return r.width > 0 && r.height > 0;
+}
 function wachtOpElement(getter, timeout = 2000){
   return new Promise(res => {
     const t0 = performance.now();
     (function tik(){
       const el = getter();
-      if (el) return res(el);
-      if (performance.now() - t0 > timeout) return res(null);
+      if (el && zichtbaarGelayout(el)) return res(el);
+      if (performance.now() - t0 > timeout) return res(el || null); // fallback: geef terug wat er is
       requestAnimationFrame(tik);
     })();
   });
@@ -511,6 +518,14 @@ function plaatsSpotlight(el){
     return;
   }
   const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0){ // ontaard element: behandel als doelloze (gecentreerde) stap
+    ['obWaasT','obWaasB','obWaasL','obWaasR'].forEach((id,idx) => {
+      const p = document.getElementById(id);
+      p.style.cssText = idx===0 ? 'inset:0' : 'display:none';
+    });
+    ring.style.display = 'none';
+    return;
+  }
   const pad = 8, vw = innerWidth, vh = innerHeight;
   const top = Math.max(0, r.top - pad), bot = Math.min(vh, r.bottom + pad);
   const lef = Math.max(0, r.left - pad), rig = Math.min(vw, r.right + pad);
@@ -534,18 +549,26 @@ function plaatsBubbel(el){
   }
   b.classList.remove('midden');
   b.style.left = ''; b.style.top = ''; // wis eerst, zodat offsetWidth de echte (max 330px) breedte meet
-  requestAnimationFrame(() => {
-    void b.offsetWidth; // forceer reflow ná het wissen van .midden + inline stijlen
-    const bw = b.offsetWidth, bh = b.offsetHeight, vw = innerWidth, vh = innerHeight, m = 12;
-    const r = el.getBoundingClientRect();
-    // horizontaal centreren op doel, maar altijd binnen [m, vw - bw - m] houden.
-    // vw - bw - m kan kleiner zijn dan m op smalle schermen -> harde ondergrens m.
-    const maxLeft = Math.max(m, vw - bw - m);
-    const left = Math.min(Math.max(m, r.left + r.width/2 - bw/2), maxLeft);
-    const onder = r.bottom + 14, boven = r.top - bh - 14;
-    const top = (onder + bh < vh - m) ? onder : Math.max(m, boven);
-    b.style.left = left + 'px'; b.style.top = top + 'px';
-  });
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0){ b.classList.add('midden'); return; } // ontaard doel: centreer
+  void b.offsetWidth; // forceer reflow ná het wissen van .midden + inline stijlen
+  const bw = b.offsetWidth, bh = b.offsetHeight, vw = innerWidth, vh = innerHeight, m = 12;
+  // horizontaal centreren op doel, maar altijd binnen [m, vw - bw - m] houden.
+  const maxLeft = Math.max(m, vw - bw - m);
+  const left = Math.min(Math.max(m, r.left + r.width/2 - bw/2), maxLeft);
+  // verticaal: onder het doel als het past, anders erboven, anders in de grootste
+  // vrije zone geklemd binnen [m, vh - bh - m] — nooit half buiten beeld.
+  const onder = r.bottom + 14, boven = r.top - bh - 14;
+  const maxTop = Math.max(m, vh - bh - m);
+  let top;
+  if (onder + bh < vh - m) top = onder;              // past onder het doel
+  else if (boven >= m)     top = boven;               // past boven het doel
+  else {                                              // past nergens netjes: kies grootste ruimte
+    const ruimteOnder = vh - r.bottom, ruimteBoven = r.top;
+    top = ruimteOnder >= ruimteBoven ? r.bottom + 14 : r.top - bh - 14;
+  }
+  top = Math.min(Math.max(m, top), maxTop);
+  b.style.left = left + 'px'; b.style.top = top + 'px';
 }
 
 function zichtbareStappen(){
@@ -613,8 +636,10 @@ async function toonStap(){
       // korte bevestiging + auto-door na een tik
       meld('✓ Gelukt!');
       vBtn.onclick = () => gaNaar(st.i + 1);
-      // herpositioneer op de (mogelijk) nieuwe layout
-      setTimeout(() => { const e2 = stap.doel?.(); plaatsSpotlight(e2||null); plaatsBubbel(e2||null); }, 60);
+      // herpositioneer zodra het (mogelijk nieuwe) doel echt gelayout is
+      wachtOpElement(() => stap.doel?.() || null, 1200).then(e2 => {
+        plaatsSpotlight(e2||null); plaatsBubbel(e2||null);
+      });
     });
     vBtn.onclick = () => { if (!vBtn.disabled) gaNaar(st.i + 1); };
   } else {
