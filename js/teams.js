@@ -46,7 +46,7 @@ import {
 } from './teams-training.js?v=20260727';
 import { htmlTeamDocumenten } from './teams-documenten.js?v=20260727';
 import { htmlHandleiding } from './teams-handleiding.js?v=20260727';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260802';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260803';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
    importeren deze twee nog altijd via './teams.js' — ze wonen nu fysiek in
@@ -66,6 +66,7 @@ const NAV_ICON = {
   videos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>',
   stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   help:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/></svg>',
+  hulpchat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3.2V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 9.5h8M8 12.5h5"/></svg>',
   documenten:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>',
   meer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
 };
@@ -694,10 +695,11 @@ function htmlMeer(){
     ['documenten', 'Documenten', 'Beleid & formulieren', documentenOngelezen],
     ...(modAan('evaluaties') ? [['stats', 'Stats', 'Speeltijd & cijfers']] : []),
     ['help',       'Help',       'Handleiding'],
+    ['hulpchat',   'Hulpchat',   'Stel je vraag over de app', null, true],
   ];
   return `<div class="tegel-grid">
-    ${tegels.map(([id, naam, meta, badge]) => `
-      <button class="tegel" data-meer-open="${id}">
+    ${tegels.map(([id, naam, meta, badge, chat]) => `
+      <button class="tegel" ${chat ? 'data-open-hulpchat="1"' : `data-meer-open="${id}"`}>
         ${badge ? `<span class="stip">${badge} nieuw</span>` : ''}
         <div class="ico">${NAV_ICON[id]}</div>
         <div class="naam">${naam}</div>
@@ -962,6 +964,9 @@ function koppelTeamTab(v, tab){
     v.querySelectorAll('[data-meer-open]').forEach(b => b.onclick = () => {
       S.teamTab = b.dataset.meerOpen; renderTeam();
     });
+    const chatKnop = v.querySelector('[data-open-hulpchat]');
+    if (chatKnop) chatKnop.onclick = () =>
+      import('./chatbot.js?v=20260803').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){

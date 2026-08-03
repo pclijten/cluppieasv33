@@ -5,8 +5,8 @@ import {
 } from './auth.js?v=20260727';
 import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260727';
 import { sluitWedstrijd } from './wedstrijd.js?v=20260727';
-import { startOnboardingIndienNodig } from './onboarding.js?v=20260802';
-import { initChatbot, toonChatbotKnop } from './chatbot.js?v=20260727';
+import { startOnboardingIndienNodig } from './onboarding.js?v=20260803';
+import { initChatbot } from './chatbot.js?v=20260803';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
@@ -39,9 +39,9 @@ onAuthStateChanged(auth, async user => {
     startTeams();
     registreerLogin();
 
-    /* Hulp-chatbot: knop klaarzetten en tonen zodra je ingelogd bent. */
+    /* Hulp-chatbot: paneel klaarzetten. Openen gebeurt via de "Hulpchat"-tegel
+       onder Meer (er is geen zwevende knop meer). */
     initChatbot();
-    toonChatbotKnop(true);
 
     /* Interactieve onboarding: alleen bij de allereerste keer (of hervatten).
        Wacht kort tot het teamsoverzicht daadwerkelijk gerenderd is, zodat de
@@ -56,7 +56,6 @@ onAuthStateChanged(auth, async user => {
     setTimeout(() => verwerkDeeplink(openTeam, openClubLazy), 800);
   } else {
     $('#app').style.display = 'none';
-    toonChatbotKnop(false);
     for (const k of Object.keys(S.unsub)){ try { S.unsub[k](); } catch(e){} delete S.unsub[k]; }
 
     const heeftUitnodiging = await checkUitnodiging();

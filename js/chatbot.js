@@ -11,14 +11,16 @@
      van de app is de sessie weg (geen opslag = AVG-vriendelijk).
    - Kan de interactieve rondleiding aanbieden als iemand vastloopt.
 
-   Publieke API (aangeroepen vanuit main.js):
-     initChatbot()   -> zet de zwevende knop + chat klaar (één keer)
-     toonChatbotKnop(aan) -> knop tonen/verbergen (bv. verbergen op inlogscherm)
+   Publieke API:
+     initChatbot()   -> bouwt de chat-bottomsheet klaar (één keer, vanuit main.js)
+     openChatbot()   -> opent de chat (aangeroepen vanuit de "Hulpchat"-tegel
+                        onder Meer). Er is bewust GEEN zwevende knop meer:
+                        die stond te veel in beeld op mobiel.
    ============================================================================ */
 
 import { functions, httpsCallable } from './firebase.js?v=20260727';
 import { S, esc } from './state.js?v=20260727';
-import { startOnboarding } from './onboarding.js?v=20260802';
+import { startOnboarding } from './onboarding.js?v=20260803';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]
@@ -35,13 +37,7 @@ const START_CHIPS = [
 ];
 
 export function initChatbot(){
-  if (document.getElementById('cbFab')) return;
-
-  const fab = document.createElement('button');
-  fab.id = 'cbFab'; fab.className = 'cb-fab'; fab.type = 'button';
-  fab.setAttribute('aria-label', 'Hulp bij de app');
-  fab.innerHTML = '<span class="cb-fab-p"></span>💬 Hulp';
-  document.body.appendChild(fab);
+  if (document.getElementById('cbAchter')) return;
 
   const achter = document.createElement('div');
   achter.id = 'cbAchter'; achter.className = 'cb-achter';
@@ -63,7 +59,6 @@ export function initChatbot(){
     </div>`;
   document.body.appendChild(achter);
 
-  fab.onclick = openChat;
   document.getElementById('cbX').onclick = sluitChat;
   achter.addEventListener('click', e => { if (e.target === achter) sluitChat(); });
 
@@ -82,9 +77,11 @@ export function initChatbot(){
   });
 }
 
-export function toonChatbotKnop(aan){
-  const fab = document.getElementById('cbFab');
-  if (fab) fab.style.display = aan ? '' : 'none';
+/* Opent de hulpchat. Bouwt de bottomsheet lui op als dat nog niet gebeurd is
+   (zodat een tik op de tegel altijd werkt, ook vóór de eerste init). */
+export function openChatbot(){
+  if (!document.getElementById('cbAchter')) initChatbot();
+  openChat();
 }
 
 function openChat(){

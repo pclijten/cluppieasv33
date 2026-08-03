@@ -782,7 +782,13 @@ function stopTour(voltooid){
     const e = document.getElementById(id); if (e){ e.classList?.remove('aan'); e.style.display = 'none'; }
   });
   document.getElementById('obOverlay')?.classList.remove('aan');
-  if (!voltooid){ meld('Onboarding gepauzeerd — hervat later via Meer → Handleiding'); }
+  if (!voltooid){
+    // Coach stopt tussendoor: de rondleiding niet meer automatisch aanbieden
+    // bij een volgende keer inloggen. Hij blijft altijd zelf te starten via
+    // Meer → Handleiding (knop "Rondleiding opnieuw").
+    voortgangSchrijf({ rol:st.rol, overgeslagen:true, gestart:true, laatsteIndex:st.i });
+    meld('Rondleiding gestopt — opnieuw starten kan via Meer → Handleiding');
+  }
 }
 
 /* ---------- Afronden + confetti + badges ---------- */
