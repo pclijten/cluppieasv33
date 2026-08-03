@@ -648,6 +648,9 @@ function zichtbareStappen(){
     // laten we helemaal weg. Zo krijgt een team zonder evaluaties/leerlijn/kompas
     // ook geen uitleg over knoppen die het niet ziet.
     if (s.modKey && !modAan(s.modKey)) return false;
+    // Onderwerp-adaptief: als de tour vanuit de hulpchat op één hoofdstuk is
+    // gestart (bv. alleen "opstelling"), toon dan uitsluitend dat hoofdstuk.
+    if (st.hfdFilter && s.hfd !== st.hfdFilter) return false;
     return true;
   });
 }
@@ -681,6 +684,7 @@ async function toonStap(){
   const totaal = st.stappen.length;
   const heeftOpdr = !!stap.wacht;
   b.innerHTML = `
+    <div class="ob-b-label"><span class="ob-b-label-dot"></span>Uitleg</div>
     <div class="ob-b-kop" id="obSleepGreep" title="Versleep om het venster te verplaatsen">
       <span class="ob-b-emoji">${stap.emoji||'💡'}</span>
       <span class="ob-b-titel">${esc(stap.titel)}</span>
@@ -766,12 +770,16 @@ function toonIntro(bekendeRol){
   };
 }
 
-function beginTour(rol, startIndex){
-  st.rol = rol; st.stappen = zichtbareStappen();
+function beginTour(rol, startIndex, hfdFilter){
+  st.rol = rol;
+  st.hfdFilter = hfdFilter || null;
+  st.stappen = zichtbareStappen();
   st.i = Math.max(0, Math.min(startIndex||0, st.stappen.length-1));
   st.actief = true;
   document.getElementById('obHud').style.display = 'flex';
-  voortgangSchrijf({ rol, laatsteIndex:st.i, gestart:true });
+  // Bij een deel-rondleiding (één hoofdstuk vanuit de hulpchat) laten we de
+  // opgeslagen voortgang van de volledige tour ongemoeid.
+  if (!st.hfdFilter) voortgangSchrijf({ rol, laatsteIndex:st.i, gestart:true });
   toonStap();
 }
 
@@ -782,17 +790,25 @@ function stopTour(voltooid){
     const e = document.getElementById(id); if (e){ e.classList?.remove('aan'); e.style.display = 'none'; }
   });
   document.getElementById('obOverlay')?.classList.remove('aan');
-  if (!voltooid){
+  if (!voltooid && !st.hfdFilter){
     // Coach stopt tussendoor: de rondleiding niet meer automatisch aanbieden
     // bij een volgende keer inloggen. Hij blijft altijd zelf te starten via
     // Meer → Handleiding (knop "Rondleiding opnieuw").
     voortgangSchrijf({ rol:st.rol, overgeslagen:true, gestart:true, laatsteIndex:st.i });
     meld('Rondleiding gestopt — opnieuw starten kan via Meer → Handleiding');
   }
+  st.hfdFilter = null;
 }
 
 /* ---------- Afronden + confetti + badges ---------- */
 function voltooien(){
+  // Deel-rondleiding (één hoofdstuk): geen badges/confetti, geen overschrijven
+  // van de voortgang van de volledige tour. Gewoon netjes afsluiten.
+  if (st.hfdFilter){
+    stopTour(true);
+    meld('Klaar! Je kunt de hele rondleiding altijd starten via Meer → Handleiding');
+    return;
+  }
   voortgangSchrijf({ rol:st.rol, voltooid:true, gestart:true, laatsteIndex:st.stappen.length });
   stopTour(true);
   const scherm = document.createElement('div');
@@ -948,6 +964,20 @@ export async function startOnboardingIndienNodig(){
 export async function startOnboarding(force = true){
   const vg = await voortgangLees();
   toonIntro(vg.rol || null);
+}
+
+/* Bestaat er een hoofdstuk met dit id in de rondleiding? (voor de hulpchat) */
+export function heeftOnboardingHoofdstuk(hfd){
+  return ONBOARDING_STAPPEN.some(s => s.hfd === hfd);
+}
+
+/* Start meteen een MINI-rondleiding van één hoofdstuk (bv. alleen "opstelling"),
+   zonder introscherm, badges of confetti. Wordt aangeroepen vanuit de hulpchat
+   wanneer een antwoord naar een specifiek onderdeel verwijst. */
+export function startOnboardingHoofdstuk(hfd){
+  if (!heeftOnboardingHoofdstuk(hfd)) return startOnboarding(true);
+  if (st.actief) stopTour(true);
+  beginTour('coach', 0, hfd);
 }
 
 /* HTML-blokje voor onderaan de Handleiding of Instellingen. */

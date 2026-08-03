@@ -20,7 +20,7 @@
 
 import { functions, httpsCallable } from './firebase.js?v=20260727';
 import { S, esc } from './state.js?v=20260727';
-import { startOnboarding } from './onboarding.js?v=20260803';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260803';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]
@@ -147,10 +147,14 @@ async function verstuur(vraag){
   try {
     const res = await chatHulp()({ berichten });
     tik(false);
-    const antwoord = res?.data?.antwoord || 'Sorry, ik heb hier geen antwoord op.';
-    berichten.push({ role: 'assistant', content: antwoord });
-    bot(veiligHtml(antwoord));
-    naspel(antwoord);
+    const ruw = res?.data?.antwoord || 'Sorry, ik heb hier geen antwoord op.';
+    // De Cloud Function kan aan het eind een verwijzing naar een rondleiding-
+    // hoofdstuk meegeven als marker [[TOUR:opstelling]]. Die halen we uit de
+    // zichtbare tekst en gebruiken we voor een gerichte "start"-knop.
+    const { schoon, hfd } = haalTourUit(ruw);
+    berichten.push({ role: 'assistant', content: schoon });
+    bot(veiligHtml(schoon));
+    naspel(schoon, hfd);
   } catch (err){
     tik(false);
     const reden = err?.code === 'unauthenticated'
@@ -163,15 +167,42 @@ async function verstuur(vraag){
   }
 }
 
+/* Leesbare labels per rondleiding-hoofdstuk, voor de knoptekst. */
+const HFD_LABEL = {
+  team:'je team', wedstrijden:'de wedstrijden', opstelling:'de opstelling',
+  spelers:'de spelers', training:'de trainingen', video:'de video’s',
+  planning:'de planning', documenten:'de documenten', stats:'de statistieken',
+  instellingen:'de instellingen', meer:'het Meer-menu',
+};
+
+/* Splitst een [[TOUR:hfd]]-marker af van het antwoord. Retourneert de schone
+   tekst (zonder marker) en het hoofdstuk-id (of null). */
+function haalTourUit(tekst){
+  const m = String(tekst).match(/\[\[TOUR:\s*([a-z]+)\s*\]\]/i);
+  if (!m) return { schoon: String(tekst).trim(), hfd: null };
+  const hfd = m[1].toLowerCase();
+  const schoon = String(tekst).replace(m[0], '').replace(/\n{3,}/g, '\n\n').trim();
+  return { schoon, hfd: heeftOnboardingHoofdstuk(hfd) ? hfd : null };
+}
+
 /* Biedt na een antwoord waar nodig de rondleiding aan (knop onder het bericht).
-   Zo kan iemand die vastloopt met één tik de interactieve tour starten. */
-function naspel(antwoord){
-  if (!/rondleiding|tour|stap voor stap|begin/i.test(antwoord)) return;
+   Als er een specifiek hoofdstuk (hfd) bij hoort, starten we alleen dát deel —
+   dus een vraag over de opstelling geeft alleen de opstelling-rondleiding. */
+function naspel(antwoord, hfd){
+  const algemeen = /rondleiding|tour|stap voor stap/i.test(antwoord);
+  if (!hfd && !algemeen) return;
   const lijf = document.getElementById('cbLijf');
   const wrap = document.createElement('div');
   wrap.className = 'cb-actie';
-  wrap.innerHTML = '<button class="cb-actie-knop" id="cbTour">🎓 Start de rondleiding</button>';
+  const label = hfd
+    ? `🎓 Laat me ${HFD_LABEL[hfd] || 'dit onderdeel'} zien`
+    : '🎓 Start de rondleiding';
+  wrap.innerHTML = `<button class="cb-actie-knop" id="cbTour">${esc(label)}</button>`;
   lijf.appendChild(wrap);
   lijf.scrollTop = lijf.scrollHeight;
-  document.getElementById('cbTour').onclick = () => { sluitChat(); startOnboarding(true); };
+  document.getElementById('cbTour').onclick = () => {
+    sluitChat();
+    if (hfd) startOnboardingHoofdstuk(hfd);
+    else startOnboarding(true);
+  };
 }

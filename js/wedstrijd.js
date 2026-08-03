@@ -1,5 +1,6 @@
 import {
-  db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp
+  db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp,
+  functions, httpsCallable
 } from './firebase.js?v=20260727';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
@@ -329,12 +330,13 @@ export function openWedstrijd(wid){
   });
   toon('wedstrijd');
 }
-export function sluitWedstrijd(){
+export function sluitWedstrijd(naarTab){
   stopUnsubs('wedstrijd');
   clearInterval(S.klokInterval); S.klokInterval = null;
   S.wedstrijd = null; S.wedstrijdId = null;
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
+  if (typeof naarTab === 'string') S.teamTab = naarTab;
   import('./teams.js?v=20260727').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
@@ -886,20 +888,124 @@ function genereerVerslag(){
   return lines.join('\n').trim();
 }
 
-function modalVerslag(){
-  const tekst = genereerVerslag();
+/* ---- AI-wedstrijdverslag ----
+   We laten Claude (server-side Cloud Function 'genereerVerslagAI', europe-west1)
+   een levendig, vlot lopend verslagje schrijven. AVG: er gaan NOOIT namen van
+   (minderjarige) spelers naar het model. In plaats daarvan sturen we neutrale
+   labels ("Speler 1", "Speler 2", …); ná het antwoord zetten we die labels
+   client-side terug naar de echte namen. Zo blijft alle herleidbare data op het
+   toestel. Lukt de AI-generatie niet, dan valt de modal terug op de kale
+   feitentekst uit genereerVerslag(). */
+function genereerVerslagData(){
+  const w = S.wedstrijd;
+  const voor = (w.goals||[]).filter(g => g.type==='voor').length;
+  const tegen = (w.goals||[]).filter(g => g.type==='tegen').length;
+  const ww = voor > tegen ? 'gewonnen' : voor < tegen ? 'verloren' : 'gelijkgespeeld';
+
+  // Pseudonimiseer elke betrokken speler-id naar een neutraal label.
+  const labels = {};                 // pid -> "Speler N"
+  const naamVoor = {};               // "Speler N" -> echte naam (blijft client-side)
+  let teller = 0;
+  const label = (pid) => {
+    if (!pid) return null;
+    if (!labels[pid]){
+      teller++;
+      labels[pid] = 'Speler ' + teller;
+      naamVoor[labels[pid]] = spelerNaam(pid);
+    }
+    return labels[pid];
+  };
+
+  const scorers = {};
+  for (const g of (w.goals||[])) if (g.type==='voor' && g.pid) scorers[g.pid] = (scorers[g.pid]||0)+1;
+  const doelpunten = Object.entries(scorers)
+    .sort((a,b) => b[1]-a[1])
+    .map(([pid,n]) => ({ speler: label(pid), aantal: n }));
+
+  const a = analyseWedstrijd(w);
+  const speeltijd = [];
+  if (a.kwarten){
+    for (const pid of (w.selectie||[]).filter(pid => speler(pid) && a.tijd[pid])){
+      speeltijd.push({ speler: label(pid), minuten: Math.round((a.tijd[pid]||0)/60),
+        keerKeeper: a.keeper[pid] || 0 });
+    }
+  }
+
+  const data = {
+    team: S.team?.naam || 'ons team',
+    tegenstander: w.tegenstander || 'de tegenstander',
+    thuis: !!w.thuis,
+    toernooi: isToernooi(w),
+    datum: w.datum || null,
+    doel: w.doel || null,
+    doelBin: voor, doelTegen: tegen, resultaat: ww,
+    aanvoerder: w.aanvoerder ? label(w.aanvoerder) : null,
+    doelpunten,
+    speeltijd,
+  };
+  return { data, naamVoor };
+}
+
+/* Zet neutrale labels ("Speler 3") in de AI-tekst terug naar echte namen. */
+function herstelNamen(tekst, naamVoor){
+  let t = String(tekst);
+  // langste labels eerst, zodat "Speler 12" niet half door "Speler 1" wordt geraakt
+  for (const lbl of Object.keys(naamVoor).sort((a,b) => b.length - a.length)){
+    t = t.split(lbl).join(naamVoor[lbl]);
+  }
+  return t;
+}
+
+async function modalVerslag(){
+  const fallback = genereerVerslag();
   openModal(`
     <h2>📋 Wedstrijdverslag</h2>
-    <textarea class="invoer" id="mVTekst" style="min-height:280px;font-family:inherit;line-height:1.55;resize:vertical;font-size:13.5px">${esc(tekst)}</textarea>
-    <p style="font-size:12px;color:var(--ink-2);margin:8px 0 14px">Je kunt de tekst nog aanpassen voordat je hem deelt.</p>
-    <button class="knop vol" id="mVDeel">📤 Delen / kopiëren</button>`);
-  $('#mVDeel').onclick = async () => {
-    const t = $('#mVTekst').value;
-    try {
-      if (navigator.share) await navigator.share({title:'Wedstrijdverslag', text:t});
-      else { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); }
-    } catch { try { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); } catch { meld('Kon niet kopiëren'); } }
+    <div id="mVLaad" style="display:flex;align-items:center;gap:10px;padding:22px 4px;color:var(--ink-2);font-size:14px">
+      <span class="mV-spin" aria-hidden="true"></span>
+      <span>Cluppie schrijft het verslag…</span>
+    </div>
+    <textarea class="invoer" id="mVTekst" style="display:none;min-height:280px;font-family:inherit;line-height:1.55;resize:vertical;font-size:13.5px"></textarea>
+    <p id="mVHint" style="display:none;font-size:12px;color:var(--ink-2);margin:8px 0 14px">Je kunt de tekst nog aanpassen voordat je hem deelt.</p>
+    <div id="mVKnoppen" style="display:none">
+      <button class="knop vol" id="mVDeel">📤 Delen / kopiëren</button>
+      <button class="knop licht vol" id="mVFeiten" style="margin-top:8px">📊 Toon kale feiten</button>
+    </div>`);
+
+  const toonTekst = (tekst, isAI) => {
+    const laad = $('#mVLaad'); if (laad) laad.style.display = 'none';
+    const ta = $('#mVTekst'); ta.style.display = ''; ta.value = tekst;
+    $('#mVHint').style.display = ''; $('#mVKnoppen').style.display = '';
+    // Bij de AI-versie kun je terugvallen op de feiten; bij de feiten verbergen.
+    const fk = $('#mVFeiten'); if (fk) fk.style.display = isAI ? '' : 'none';
   };
+
+  const koppelKnoppen = () => {
+    $('#mVDeel').onclick = async () => {
+      const t = $('#mVTekst').value;
+      try {
+        if (navigator.share) await navigator.share({title:'Wedstrijdverslag', text:t});
+        else { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); }
+      } catch { try { await navigator.clipboard.writeText(t); meld('Verslag gekopieerd'); } catch { meld('Kon niet kopiëren'); } }
+    };
+    const fk = $('#mVFeiten');
+    if (fk) fk.onclick = () => toonTekst(fallback, false);
+  };
+  koppelKnoppen();
+
+  // Probeer de AI-versie; val bij elke hapering terug op de feitentekst.
+  try {
+    const { data, naamVoor } = genereerVerslagData();
+    const res = await httpsCallable(functions, 'genereerVerslagAI')({ data });
+    const ruw = res?.data?.verslag;
+    if (ruw && $('#mVTekst')){          // modal kan intussen gesloten zijn
+      toonTekst(herstelNamen(ruw, naamVoor), true);
+    } else if ($('#mVTekst')){
+      toonTekst(fallback, false);
+    }
+  } catch (err){
+    console.warn('[verslag] AI-generatie mislukt, val terug op feiten:', err?.code, err?.message);
+    if ($('#mVTekst')) toonTekst(fallback, false);
+  }
 }
 
 /* ==================== OPSTELLING-LOGICA ==================== */
@@ -1196,7 +1302,8 @@ ${confroHtml}
       <p style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5">Tik op een speeltijd om die periode voor een speler handmatig te corrigeren — bijvoorbeeld als een wissel vergeten is door te voeren.</p>
     </details>
 
-    <button class="knop vol" id="toonVerslag" style="margin-top:16px">📋 Wedstrijdverslag</button>
+    <button class="knop fluo vol" id="wedstrijdKlaar" style="margin-top:16px">💾 Opslaan &amp; terug naar team</button>
+    <button class="knop vol" id="toonVerslag" style="margin-top:10px">📋 Wedstrijdverslag</button>
     ${modAan('evaluaties') ? `<button class="knop ${teamEvalBestaand?'licht':'fluo'} vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>` : ''}
     <button class="knop gevaar vol" id="wegWedstrijd" style="margin-top:10px">Wedstrijd verwijderen</button>`;
 
@@ -1220,6 +1327,15 @@ ${confroHtml}
   v.querySelector('#goalVoor').onclick = modalGoalVoor;
   v.querySelector('#goalTegen').onclick = () => registreerGoal({type:'tegen'});
   v.querySelector('#kaartKnop').onclick = modalKaart;
+  v.querySelector('#wedstrijdKlaar').onclick = () => {
+    // Directe (flush) save — het meeste is al automatisch bewaard, maar dit
+    // geeft de coach het vertrouwde "opslaan"-gevoel en dekt de laatste wijziging.
+    clearTimeout(S.saveTimer);
+    setDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId), S.wedstrijd)
+      .catch(e => meld('Opslaan mislukt: ' + e.code));
+    meld('Wedstrijd opgeslagen');
+    sluitWedstrijd('trainingen');
+  };
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
