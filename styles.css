@@ -1598,16 +1598,8 @@ body::before{
    als de rest van de app (--accent #e2342f, --surface, --ink, Barlow/Inter). */
 
 /* Zwevende knop — net boven de onderbalk, rechtsonder. */
-.cb-fab{ position:fixed; right:16px;
-  bottom:calc(74px + env(safe-area-inset-bottom)); z-index:30;
-  display:inline-flex; align-items:center; gap:8px; padding:12px 16px;
-  border-radius:99px; background:var(--accent); color:#fff;
-  font-family:'Inter',sans-serif; font-weight:700; font-size:14px; border:none;
-  box-shadow:0 8px 24px rgba(226,52,47,.42); }
-.cb-fab:active{ transform:translateY(1px); }
-.cb-fab-p{ width:8px; height:8px; border-radius:50%; background:#fff;
-  animation:cb-puls 2s ease-in-out infinite; }
-@keyframes cb-puls{ 0%,100%{ opacity:.55 } 50%{ opacity:1 } }
+/* De hulpchat wordt nu geopend via de "Hulpchat"-tegel onder Meer.
+   (De vroegere zwevende knop .cb-fab stond te veel in beeld en is verwijderd.) */
 
 /* Overlay + paneel (bottomsheet). */
 .cb-achter{ position:fixed; inset:0; z-index:5000;
@@ -1681,6 +1673,6 @@ body::before{
   30%{ opacity:1; transform:translateY(-3px) } }
 
 @media (prefers-reduced-motion: reduce){
-  .cb-fab-p,.cb-tik span{ animation:none; }
+  .cb-tik span{ animation:none; }
   .cb-paneel{ transition:none; }
 }
