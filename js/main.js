@@ -5,7 +5,6 @@ import {
 } from './auth.js?v=20260727';
 import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260727';
 import { sluitWedstrijd } from './wedstrijd.js?v=20260727';
-import { startOnboardingIndienNodig } from './onboarding.js?v=20260803';
 import { initChatbot } from './chatbot.js?v=20260803';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
@@ -43,10 +42,8 @@ onAuthStateChanged(auth, async user => {
        onder Meer (er is geen zwevende knop meer). */
     initChatbot();
 
-    /* Interactieve onboarding: alleen bij de allereerste keer (of hervatten).
-       Wacht kort tot het teamsoverzicht daadwerkelijk gerenderd is, zodat de
-       rondleiding meteen een echt team kan uitlichten. */
-    setTimeout(() => { startOnboardingIndienNodig().catch(()=>{}); }, 1200);
+    /* De interactieve rondleiding start NIET meer automatisch. Coaches starten
+       hem zelf via de tegel "Rondleiding opnieuw" onder Meer → Handleiding. */
 
     /* openstaande teamkoppeling (uit uitnodiging) afhandelen */
     const t = await handelPendingJoin();
