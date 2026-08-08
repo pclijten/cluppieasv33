@@ -76,7 +76,7 @@ function naarTab(tab){
     if (S.teamTab === tab && inTeamView()){ res(); return; }
     const b = tabKnop(tab);
     if (b){ b.click(); }
-    else { S.teamTab = tab; import('./teams.js?v=20260808').then(m => m.renderTeam?.()); }
+    else { S.teamTab = tab; import('./teams.js?v=20260808b').then(m => m.renderTeam?.()); }
     requestAnimationFrame(() => requestAnimationFrame(res));
   });
 }
@@ -176,7 +176,7 @@ export const ONBOARDING_STAPPEN = [
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        try { const t = await import('./teams.js?v=20260808'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
+        try { const t = await import('./teams.js?v=20260808b'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
@@ -432,7 +432,7 @@ export const ONBOARDING_STAPPEN = [
     hfd:'instellingen', hfdNaam:'Uitnodigen', emoji:'📲', rollen:['coach'],
     titel:'Coaches uitnodigen',
     tekst:'Hier vind je de <b>teamcode</b> en een <b>uitnodigingslink</b>. Deel die via WhatsApp en collega-coaches sluiten met één tik aan.',
-    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20260808'); m.renderTeam?.();
+    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20260808b'); m.renderTeam?.();
       await wachtOpElement(() => document.querySelector('#view-team #deelLink, #view-team #deelCode')); },
     doel:() => document.querySelector('#view-team #deelLink, #view-team #deelCode'),
     optioneelAls:() => !document.querySelector('#view-team #deelLink, #view-team #deelCode'),

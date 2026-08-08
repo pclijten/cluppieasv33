@@ -29,7 +29,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260808')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260808b')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -773,10 +773,18 @@ function htmlWedstrijden(){
       const titel = w.type === 'toernooi'
         ? '🏆 ' + esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam));
-      const tijd = w.aftrap ? ` · ${esc(w.aftrap)}` : '';
-      const meta = w.type === 'toernooi'
-        ? `${datumNL(w.datum)}${tijd} · ${w.toernooi.wedstrijden} wedstrijden · ${esc(w.format)}v${esc(w.format)}`
-        : `${datumNL(w.datum)}${tijd} · ${esc(w.format)}v${esc(w.format)} · ${esc(w.formatie)}`;
+      // Onderdelen alleen tonen als ze bestaan: geïmporteerde wedstrijden hebben
+      // nog geen format/formatie tot de coach de wedstrijd opent (normaliseerWedstrijd).
+      const metaDelen = [datumNL(w.datum)];
+      if (w.aftrap) metaDelen.push(esc(w.aftrap));
+      if (w.type === 'toernooi'){
+        metaDelen.push(`${w.toernooi.wedstrijden} wedstrijden`);
+        if (w.format) metaDelen.push(`${esc(w.format)}v${esc(w.format)}`);
+      } else {
+        if (w.format) metaDelen.push(`${esc(w.format)}v${esc(w.format)}`);
+        if (w.formatie) metaDelen.push(esc(w.formatie));
+      }
+      const meta = metaDelen.join(' · ');
       return `
       <button class="lijst-item" data-open-w="${w.id}">
         <div class="li-tekst"><div class="titel">${titel}</div>
