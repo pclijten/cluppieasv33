@@ -29,7 +29,7 @@
    onderaan). */
 
 import { db, doc, getDoc, setDoc } from './firebase.js?v=20260727';
-import { S, $, $$, esc, meld, modAan } from './state.js?v=20260727';
+import { S, $, $$, esc, meld, modAan, toon } from './state.js?v=20260727';
 
 /* ---------- Rollen ----------
    Iedere rol krijgt alleen hoofdstukken waarvan de 'rollen'-set de rol bevat.
@@ -70,14 +70,30 @@ function meerTegel(sub){ return document.querySelector(`[data-meer-open="${sub}"
 function huidigeTeamTab(){ return S.teamTab; }
 function inTeamView(){ return !!document.querySelector('#view-team.actief'); }
 
-/* Schakel programmatisch naar een team-tab en wacht tot de render klaar is. */
+/* Schakel programmatisch naar een team-tab en wacht tot de wissel écht rond is.
+   Niet slechts twee frames: trage renders (of een dynamische import in de
+   fallback) kregen vroeger te weinig tijd, waardoor de volgende stap zijn doel
+   niet vond en onterecht werd overgeslagen of gecentreerd verscheen. */
 function naarTab(tab){
   return new Promise(res => {
     if (S.teamTab === tab && inTeamView()){ res(); return; }
     const b = tabKnop(tab);
     if (b){ b.click(); }
-    else { S.teamTab = tab; import('./teams.js?v=20260808b').then(m => m.renderTeam?.()); }
-    requestAnimationFrame(() => requestAnimationFrame(res));
+    else {
+      // Onderbalk niet in beeld (bv. wedstrijdscherm of teamsoverzicht):
+      // zet de tab direct, render en toon de team-view expliciet.
+      S.teamTab = tab;
+      import('./teams.js?v=20260808c').then(m => { m.renderTeam?.(); toon('team'); });
+    }
+    const t0 = performance.now();
+    (function wacht(){
+      if (S.teamTab === tab && inTeamView()){
+        requestAnimationFrame(() => res());        // nog één frame voor layout
+        return;
+      }
+      if (performance.now() - t0 > 1800) return res(); // vangnet: nooit blijven hangen
+      requestAnimationFrame(wacht);
+    })();
   });
 }
 /* Wacht tot een element bestaat (na een render), max ~2s. */
@@ -140,17 +156,25 @@ async function zorgWedstrijdOpen(){
   const eersteId = (S.wedstrijden[0]||{}).id;
   if (!eersteId) return false;
   let m;
-  try { m = await import('./wedstrijd.js?v=20260727'); }
+  try { m = await import('./wedstrijd.js?v=20260808c'); }
   catch(e){ console.warn('[ob] kon wedstrijd.js niet laden', e); return false; }
   m.openWedstrijd?.(eersteId);
   await wachtOpElement(() => document.querySelector('#view-wedstrijd.actief'), 2000);
   return wedstrijdOpen();
 }
-/* Terug van het wedstrijdscherm naar de team-tabs (voor stappen ná de opstelling). */
+/* Terug van het wedstrijdscherm naar de team-tabs (voor stappen ná de opstelling).
+   Via sluitWedstrijd() i.p.v. history.back(): dat laatste was afhankelijk van de
+   browsergeschiedenis en kon de tour op een onverwacht scherm laten belanden. */
 async function verlaatWedstrijd(){
   if (!wedstrijdOpen()) return;
-  const terug = document.querySelector('#view-wedstrijd #naarTeam');
-  if (terug){ terug.click(); await wachtOpElement(() => document.querySelector('#view-team.actief'), 1500); }
+  try {
+    const m = await import('./wedstrijd.js?v=20260808c');
+    m.sluitWedstrijd?.('wedstrijden');
+  } catch(e){
+    console.warn('[ob] sluitWedstrijd faalde, val terug op terugknop', e);
+    document.querySelector('#view-wedstrijd #naarTeam')?.click();
+  }
+  await wachtOpElement(() => document.querySelector('#view-team.actief'), 1500);
 }
 
 /* De volledige rondleiding voor COACHES: alle schermen én acties die een coach
@@ -176,13 +200,13 @@ export const ONBOARDING_STAPPEN = [
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        try { const t = await import('./teams.js?v=20260808b'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
+        try { const t = await import('./teams.js?v=20260808c'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
-    doel:() => document.querySelector('#view-teams .lijst-item, #view-teams [data-team]'),
+    doel:() => document.querySelector('#view-teams [data-open-team]'),
     wacht:(klaar) => bijKlik(
-      e => e.target.closest('#view-teams .lijst-item, #view-teams [data-team]'),
+      e => e.target.closest('#view-teams [data-open-team]'),
       () => wachtOpElement(() => document.querySelector('#view-team.actief')).then(klaar)
     ),
   },
@@ -203,7 +227,7 @@ export const ONBOARDING_STAPPEN = [
     tekst:'Met deze knop zet je een wedstrijd klaar: datum, tegenstander en thuis/uit. Competitiewedstrijden staan er vaak al automatisch in.',
     wist:'De KNVB-kalender wordt <b>elke nacht</b> uit voetbal.nl opgehaald — zodra de poule bekend is, staan de wedstrijden er vanzelf.',
     voor:() => naarTab('wedstrijden'),
-    doel:() => document.querySelector('#view-team .opzet-knop, #view-team button.knop.fluo'),
+    doel:() => document.querySelector('#view-team #nieuweWedstrijd'),
   },
 
   /* ══════════════ 3. OPSTELLING MAKEN (het hart van de app) ══════════════ */
@@ -213,7 +237,7 @@ export const ONBOARDING_STAPPEN = [
     tekst:'Tik op een wedstrijd in de lijst om het wedstrijdscherm te openen. Daar maak je de opstelling en houd je de wedstrijd bij.',
     opdracht:'Open een wedstrijd uit de lijst',
     voor:() => naarTab('wedstrijden'),
-    doel:() => document.querySelector('#view-team .lijst-item, #view-team [data-wid], #view-team .wedstrijd-rij'),
+    doel:() => document.querySelector('#view-team [data-open-w]'),
     wacht:(klaar) => bijVoorwaarde(() => wedstrijdOpen(), klaar),
     optioneelAls:() => !heeftWedstrijden(), // sla over als er nog geen wedstrijd is
   },
@@ -432,7 +456,7 @@ export const ONBOARDING_STAPPEN = [
     hfd:'instellingen', hfdNaam:'Uitnodigen', emoji:'📲', rollen:['coach'],
     titel:'Coaches uitnodigen',
     tekst:'Hier vind je de <b>teamcode</b> en een <b>uitnodigingslink</b>. Deel die via WhatsApp en collega-coaches sluiten met één tik aan.',
-    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20260808b'); m.renderTeam?.();
+    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20260808c'); m.renderTeam?.();
       await wachtOpElement(() => document.querySelector('#view-team #deelLink, #view-team #deelCode')); },
     doel:() => document.querySelector('#view-team #deelLink, #view-team #deelCode'),
     optioneelAls:() => !document.querySelector('#view-team #deelLink, #view-team #deelCode'),
@@ -477,6 +501,7 @@ async function voortgangSchrijf(o){
 /* ==================== ENGINE ==================== */
 const st = {
   actief:false, rol:'coach', stappen:[], i:0, stopWacht:null, klaarGezet:new Set(),
+  beurt:0,   // stap-token: verouderde async-callbacks (van een vórige stap) negeren
 };
 
 function bouwLagen(){
@@ -499,6 +524,50 @@ function bouwLagen(){
   document.body.appendChild(wrap);
   document.getElementById('obCoachKnop').onclick = openCoach;
   document.getElementById('obSluit').onclick = () => stopTour(false);
+
+  /* De spotlight en bubbel staan op vaste pixels. Alles wat de layout verandert
+     — scrollen, draaien, toetsenbord, of een tik die de app laat her-renderen
+     (de waas laat kliks door!) — zette ze vroeger scheef. Daarom: bij elk van
+     die signalen het doel opnieuw opzoeken en alles herpositioneren. */
+  window.addEventListener('resize', herpositioneer);
+  window.addEventListener('orientationchange', herpositioneer);
+  window.addEventListener('scroll', herpositioneer, true);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', herpositioneer);
+  document.addEventListener('click', () => {
+    if (st.actief) setTimeout(herpositioneer, 0);   // ná de (synchrone) app-render
+  }, true);
+}
+
+/* Zoek het doel van de huidige stap opnieuw op en zet spotlight, bubbel en
+   HUD-ontwijking er weer strak omheen. RAF-gedempt zodat scroll-events niet
+   elke pixel opnieuw rekenen. */
+let _herposGepland = false;
+function herpositioneer(){
+  if (!st.actief || _herposGepland) return;
+  _herposGepland = true;
+  requestAnimationFrame(() => {
+    _herposGepland = false;
+    if (!st.actief) return;
+    const stap = st.stappen[st.i]; if (!stap) return;
+    const el = stap.doel?.() || null;
+    plaatsSpotlight(el);
+    ontwijkHud(el);
+    if (!st._versleept) plaatsBubbel(el);
+  });
+}
+
+/* Scroll het doel netjes (gecentreerd) in beeld als het buiten de bruikbare
+   zone valt — veel doelen (verslag-knop, presentielijst, bank) staan onder de
+   vouw. Zonder dit rekende de spotlight met een rechthoek buiten het scherm
+   en leek de stap 'nergens' te wijzen. */
+async function zorgInBeeld(el){
+  if (!el || !zichtbaarGelayout(el)) return;
+  const r = el.getBoundingClientRect();
+  const bovenM = 64, onderM = 84;   // vrij van de HUD-balk (boven) en onderbalk
+  if (r.top >= bovenM && r.bottom <= innerHeight - onderM) return;
+  try { el.scrollIntoView({ block:'center', behavior:'instant' }); }
+  catch { el.scrollIntoView(); }
+  await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
 }
 
 /* Positioneer spotlight (vier waas-panelen + ring + pijl) rond een element. */
@@ -524,13 +593,13 @@ function plaatsSpotlight(el){
     return;
   }
   const pad = 8, vw = innerWidth, vh = innerHeight;
-  const top = Math.max(0, r.top - pad), bot = Math.min(vh, r.bottom + pad);
-  const lef = Math.max(0, r.left - pad), rig = Math.min(vw, r.right + pad);
+  const top = Math.max(0, r.top - pad), bot = Math.max(top, Math.min(vh, r.bottom + pad));
+  const lef = Math.max(0, r.left - pad), rig = Math.max(lef, Math.min(vw, r.right + pad));
   const S_ = document.getElementById.bind(document);
   Object.assign(S_('obWaasT').style, { display:'block', left:'0', top:'0', width:vw+'px', height:top+'px' });
-  Object.assign(S_('obWaasB').style, { display:'block', left:'0', top:bot+'px', width:vw+'px', height:(vh-bot)+'px' });
-  Object.assign(S_('obWaasL').style, { display:'block', left:'0', top:top+'px', width:lef+'px', height:(bot-top)+'px' });
-  Object.assign(S_('obWaasR').style, { display:'block', left:rig+'px', top:top+'px', width:(vw-rig)+'px', height:(bot-top)+'px' });
+  Object.assign(S_('obWaasB').style, { display:'block', left:'0', top:bot+'px', width:vw+'px', height:Math.max(0, vh-bot)+'px' });
+  Object.assign(S_('obWaasL').style, { display:'block', left:'0', top:top+'px', width:lef+'px', height:Math.max(0, bot-top)+'px' });
+  Object.assign(S_('obWaasR').style, { display:'block', left:rig+'px', top:top+'px', width:Math.max(0, vw-rig)+'px', height:Math.max(0, bot-top)+'px' });
   ring.style.display = 'block';
   ring.classList.add('puls');
   Object.assign(ring.style, { left:lef+'px', top:top+'px', width:(rig-lef)+'px', height:(bot-top)+'px' });
@@ -659,24 +728,40 @@ async function toonStap(){
   const stap = st.stappen[st.i];
   if (!stap){ voltooien(); return; }
   if (st.stopWacht){ st.stopWacht(); st.stopWacht = null; }
+  const beurt = ++st.beurt;   // alles wat hierna async terugkomt voor een OUDE beurt wordt genegeerd
 
   if (stap.voor){ try { await stap.voor(); } catch(e){ console.warn('[ob] voor() faalde', e); } }
-  // eisLayout=true: netjes positioneren zodra gelayout. Het BESTAAN van het
-  // element (ook 0×0) bepaalt of een optionele stap wordt getoond of overgeslagen.
-  const el = await wachtOpElement(() => stap.doel?.() || null, 1500, true);
-  const bestaat = !!(stap.doel?.() || null);
+  if (beurt !== st.beurt || !st.actief) return;
 
-  /* Conditionele stap: hoort alleen thuis als er echte data/knoppen zijn
-     (bv. opstelling-stappen vereisen een geopende wedstrijd). Ontbreekt het
-     doel én zegt optioneelAls() dat het mag, sla dan stil over — zo krijgt een
-     kersvers account met nog geen wedstrijden/spelers geen dood scherm. */
-  if (!bestaat && stap.optioneelAls?.()){
-    const richting = st._richting || 1;
-    st.i += richting;
-    if (st.i < 0) st.i = 0;
-    if (st.i >= st.stappen.length){ voltooien(); return; } // vangnet tegen eindeloze recursie
-    return toonStap();
+  /* Doel opzoeken met een tweetrapswachttijd:
+     1) kort (500ms) — dekt de normale render na een tab-wissel;
+     2) bestaat het doel dan nog niet én zegt optioneelAls() dat overslaan mag
+        (geen wedstrijden/spelers, module uit), sla dan METEEN over — zo blijft
+        een leeg account vlot;
+     3) hoort het doel er wél te zijn, wacht dan geduldig langer (3s extra) —
+        trage lijsten/listeners sloegen vroeger stappen onterecht over. */
+  let el = null;
+  const wilDoel = !stap.midden && !!stap.doel;
+  if (wilDoel){
+    el = await wachtOpElement(() => stap.doel?.() || null, 500, true);
+    if (beurt !== st.beurt || !st.actief) return;
+    const bestaat = !!(stap.doel?.() || null);
+    if (!bestaat){
+      if (stap.optioneelAls?.()){
+        const richting = st._richting || 1;
+        st.i += richting;
+        if (st.i < 0) st.i = 0;
+        if (st.i >= st.stappen.length){ voltooien(); return; } // vangnet tegen eindeloze recursie
+        return toonStap();
+      }
+      el = await wachtOpElement(() => stap.doel?.() || null, 3000, true);
+      if (beurt !== st.beurt || !st.actief) return;
+    }
   }
+
+  /* Doel buiten beeld? Eerst netjes centreren in de viewport, dán meten. */
+  await zorgInBeeld(el);
+  if (beurt !== st.beurt || !st.actief) return;
 
   plaatsSpotlight(el);
   ontwijkHud(el);
@@ -718,15 +803,21 @@ async function toonStap(){
   if (heeftOpdr){
     vBtn.disabled = true; // pas actief na échte actie
     st.stopWacht = stap.wacht(() => {
+      if (beurt !== st.beurt || !st.actief) return;   // actie kwam binnen voor een oude stap
       vBtn.classList.remove('wacht'); vBtn.disabled = false;
       vBtn.innerHTML = (st.i===totaal-1 ? 'Afronden ✓' : 'Gelukt! Volgende ›');
       st.klaarGezet.add(st.i);
       // korte bevestiging + auto-door na een tik
       meld('✓ Gelukt!');
       vBtn.onclick = () => gaNaar(st.i + 1);
-      // herpositioneer zodra het (mogelijk nieuwe) doel echt gelayout is
-      wachtOpElement(() => stap.doel?.() || null, 1200).then(e2 => {
-        plaatsSpotlight(e2||null); plaatsBubbel(e2||null);
+      // herpositioneer zodra het (mogelijk nieuwe) doel echt gelayout is —
+      // maar alleen als we intussen niet al naar een volgende stap zijn gegaan
+      wachtOpElement(() => stap.doel?.() || null, 1200).then(async e2 => {
+        if (beurt !== st.beurt || !st.actief) return;
+        await zorgInBeeld(e2);
+        if (beurt !== st.beurt || !st.actief) return;
+        plaatsSpotlight(e2||null); ontwijkHud(e2||null);
+        if (!st._versleept) plaatsBubbel(e2||null);
       });
     });
     vBtn.onclick = () => { if (!vBtn.disabled) gaNaar(st.i + 1); };
@@ -738,6 +829,8 @@ async function toonStap(){
 function gaNaar(n){
   const b = document.getElementById('obBubbel');
   b.classList.remove('aan');
+  st.beurt++;                                          // vorige stap direct ongeldig
+  if (st.stopWacht){ st.stopWacht(); st.stopWacht = null; }
   st._richting = (n < st.i) ? -1 : 1;   // onthoud richting voor het overslaan van lege optionele stappen
   st.i = Math.max(0, Math.min(n, st.stappen.length));
   const hfd = st.stappen[Math.min(st.i, st.stappen.length-1)]?.hfd;
@@ -785,6 +878,8 @@ function beginTour(rol, startIndex, hfdFilter){
 
 function stopTour(voltooid){
   st.actief = false;
+  st.beurt++;              // lopende async-callbacks van de laatste stap doodleggen
+  st._versleept = false;
   if (st.stopWacht){ st.stopWacht(); st.stopWacht = null; }
   ['obOverlay','obRing','obBubbel','obHud'].forEach(id => {
     const e = document.getElementById(id); if (e){ e.classList?.remove('aan'); e.style.display = 'none'; }
