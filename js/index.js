@@ -8,6 +8,8 @@
                            verwijzen met een [[TOUR:x]]-marker.
      • genereerVerslagAI – schrijft een levendig wedstrijdverslag op basis van
                            GEANONIMISEERDE wedstrijddata (labels "Speler 1" …).
+     • syncNu            – handmatige voetbal.nl-sync (callable, knop in club.js).
+     • syncVoetbalNl     – nachtelijke voetbal.nl-sync (scheduled, 03:30 NL).
 
    AVG / privacy:
      Er gaan NOOIT namen of andere herleidbare gegevens van (minderjarige)
@@ -15,7 +17,7 @@
      de echte namen worden pas ná het antwoord, client-side, teruggezet.
 
    Kosten:
-     Beide functies gebruiken Claude Haiku met prompt-caching op het vaste
+     Beide AI-functies gebruiken Claude Haiku met prompt-caching op het vaste
      systeemdeel (kennisbank / instructies), zodat herhaalvragen goedkoop zijn.
 
    Secret:
@@ -24,8 +26,13 @@
    ================================================================ */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const admin = require('firebase-admin');
 const { KENNIS_TEKST } = require('./kennis');
+
+if (!admin.apps.length) admin.initializeApp();
 
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
@@ -219,5 +226,229 @@ exports.genereerVerslagAI = onCall(
       throw new HttpsError('internal', 'Kon geen verslag genereren.');
     }
     return { verslag };
+  }
+);
+
+/* ==================== 3. VOETBAL.NL / SPORTLINK iCAL-SYNC ====================
+   Haalt per gekoppeld team de teamkalender op bij data.sportlink.com en zet de
+   wedstrijden in teams/{teamId}/wedstrijden. Getest tegen een echte voetbal.nl-feed.
+
+   Firestore-model (bestaand):
+     clubs/{clubId}/geheim/{teamId}  → { icalToken | icalUrl, laatsteSync,
+                                         laatsteAantal, laatsteFout }
+     teams/{teamId}/wedstrijden/{id} → wedstrijd-document
+     teamId in 'geheim' == document-ID in top-level 'teams'-collectie.
+
+   Dedup:
+     Elk wedstrijd-document krijgt een stabiel doc-ID afgeleid van de iCal-UID.
+     Een re-sync overschrijft (merge:true) dezelfde wedstrijd i.p.v. te dupliceren;
+     handmatig ingevulde velden (opstelling, goals, kwarten) blijven behouden.
+   =========================================================================== */
+
+/* iCal line-unfolding: regels die met spatie/tab beginnen horen bij de vorige. */
+function unfoldICal(text){
+  return text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r\n|\n/);
+}
+function normNaam(s){
+  return (s || '').toLowerCase().replace(/['’`]/g, '').replace(/\s+/g, ' ').trim();
+}
+function escapeRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/* Detecteert automatisch het eigen team: de ploeg die in ELKE SUMMARY voorkomt
+   (tegenstanders wisselen, het eigen team is constant). Zo hoeven we niet te
+   vertrouwen op een exacte naam-match met het team-document. */
+function detecteerEigenTeam(summaries){
+  if (!summaries.length) return '';
+  const nsums = summaries.map(normNaam);
+  let best = '';
+  const parts = summaries[0].split('-');
+  for (let i = 1; i < parts.length; i++){
+    const links  = parts.slice(0, i).join('-').trim();
+    const rechts = parts.slice(i).join('-').trim();
+    for (const cand of [links, rechts]){
+      const nc = normNaam(cand);
+      if (nc.length > best.length && nsums.every(s => s.includes(nc))) best = cand.trim();
+    }
+  }
+  return best;
+}
+
+/* Zet één VEVENT-object om naar een genormaliseerde wedstrijd. */
+function mapEvent(e, eigenTeam){
+  if (!e.summary || !e.dtstart) return null;
+  let thuis, tegenstander;
+
+  if (eigenTeam){
+    const re = new RegExp(escapeRe(eigenTeam), 'i');
+    const mm = re.exec(e.summary);
+    if (mm){
+      const voor = e.summary.slice(0, mm.index);
+      const na   = e.summary.slice(mm.index + mm[0].length);
+      if (voor.replace(/[-\s]/g, '') === ''){
+        // eigen team staat vooraan → thuis
+        thuis = true;  tegenstander = na.replace(/^\s*-\s*/, '').trim();
+      } else {
+        // eigen team staat achteraan → uit
+        thuis = false; tegenstander = voor.replace(/\s*-\s*$/, '').trim();
+      }
+    }
+  }
+  if (tegenstander === undefined){
+    // fallback: locatie-heuristiek (thuis = bekende thuislocatie in Aarle-Rixtel)
+    thuis = /aarle-rixtel|de hut/i.test(e.location || '');
+    tegenstander = e.summary.trim();
+  }
+
+  const m = /(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/.exec(e.dtstart);
+  if (!m) return null;
+  const datum = `${m[1]}-${m[2]}-${m[3]}`;
+  const tijd  = m[4] ? `${m[4]}:${m[5]}` : null;
+
+  return {
+    uid: e.uid || `${datum}-${normNaam(tegenstander)}`,
+    datum, tijd, thuis,
+    tegenstander: tegenstander || 'Tegenstander',
+    klasse: (e.description || '').trim(),
+    locatie: (e.location || '').trim(),
+  };
+}
+
+/* Parseert volledige iCal-tekst naar { eigenTeam, wedstrijden[] }. */
+function parseICal(text){
+  const lines = unfoldICal(text);
+  const events = []; let cur = null;
+  for (const line of lines){
+    if (line === 'BEGIN:VEVENT'){ cur = {}; continue; }
+    if (line === 'END:VEVENT'){ if (cur) events.push(cur); cur = null; continue; }
+    if (!cur) continue;
+    const idx = line.indexOf(':'); if (idx < 0) continue;
+    let key = line.slice(0, idx); const val = line.slice(idx + 1);
+    const semi = key.indexOf(';'); if (semi >= 0) key = key.slice(0, semi);
+    if (key === 'UID') cur.uid = val.trim();
+    else if (key === 'SUMMARY') cur.summary = val.trim();
+    else if (key === 'DTSTART') cur.dtstart = val.trim();
+    else if (key === 'LOCATION') cur.location = val.trim();
+    else if (key === 'DESCRIPTION') cur.description = val.trim();
+  }
+  const eigenTeam = detecteerEigenTeam(events.map(e => e.summary).filter(Boolean));
+  return { eigenTeam, wedstrijden: events.map(e => mapEvent(e, eigenTeam)).filter(Boolean) };
+}
+
+/* Stabiel, deterministisch document-ID uit de iCal-UID. */
+function wedstrijdDocId(uid){
+  return 'ical_' + String(uid).replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 120);
+}
+
+/* Bouwt de op te halen URL uit het geheim-document. */
+function bouwIcalUrl(geheim){
+  if (geheim.icalUrl) return geheim.icalUrl;
+  if (geheim.icalToken) return `https://data.sportlink.com/ical-team?token=${encodeURIComponent(geheim.icalToken)}`;
+  return null;
+}
+
+/* Sync één team. Geeft { aantal, overgeslagen } terug. */
+async function syncTeam(db, teamId, geheim, seizoen){
+  const url = bouwIcalUrl(geheim);
+  if (!url) return { aantal: 0, overgeslagen: true };
+
+  const resp = await fetch(url, { headers: { 'User-Agent': 'Cluppie/1.0' } });
+  if (!resp.ok) throw new Error(`voetbal.nl gaf status ${resp.status}`);
+  const tekst = await resp.text();
+
+  const { wedstrijden } = parseICal(tekst);
+
+  let aantal = 0;
+  const batch = db.batch();
+  for (const w of wedstrijden){
+    const ref = db.collection('teams').doc(teamId)
+      .collection('wedstrijden').doc(wedstrijdDocId(w.uid));
+    batch.set(ref, {
+      type: 'normaal',
+      tegenstander: w.tegenstander,
+      thuis: w.thuis,
+      datum: w.datum,
+      aftrap: w.tijd || null,
+      klasse: w.klasse || null,
+      locatie: w.locatie || null,
+      seizoen: seizoen,
+      bron: 'voetbalnl',
+      icalUid: w.uid,
+      // opzetGedaan bewust NIET zetten → normaliseerWedstrijd() in de app vult
+      // format/periodes/kwarten aan zodra de coach de wedstrijd opent.
+    }, { merge: true });
+    aantal++;
+  }
+  await batch.commit();
+  return { aantal, overgeslagen: false };
+}
+
+/* Sync alle gekoppelde teams van één club. Geeft { totaalWedstrijden } terug. */
+async function syncClub(clubId){
+  const db = getFirestore();
+
+  const clubSnap = await db.collection('clubs').doc(clubId).get();
+  const seizoen = (clubSnap.exists && clubSnap.data().huidigSeizoen) || "2025/'26";
+
+  const geheimSnap = await db.collection('clubs').doc(clubId).collection('geheim').get();
+  let totaalWedstrijden = 0;
+
+  for (const doc of geheimSnap.docs){
+    const teamId = doc.id;
+    const geheim = doc.data();
+    if (!geheim.icalToken && !geheim.icalUrl) continue;
+
+    try {
+      const { aantal, overgeslagen } = await syncTeam(db, teamId, geheim, seizoen);
+      if (overgeslagen) continue;
+      totaalWedstrijden += aantal;
+      await doc.ref.set({
+        laatsteSync: FieldValue.serverTimestamp(),
+        laatsteAantal: aantal,
+        laatsteFout: FieldValue.delete(),
+      }, { merge: true });
+    } catch (e){
+      await doc.ref.set({
+        laatsteSync: FieldValue.serverTimestamp(),
+        laatsteFout: String(e.message || e).slice(0, 200),
+      }, { merge: true });
+    }
+  }
+  return { totaalWedstrijden };
+}
+
+/* Handmatige sync — aangeroepen vanuit de knop "Sync nu alle teams" in club.js. */
+exports.syncNu = onCall(
+  { region: REGIO, cors: true },
+  async (request) => {
+    if (!request.auth){
+      throw new HttpsError('unauthenticated', 'Log in om te synchroniseren.');
+    }
+    const clubId = request.data?.clubId;
+    if (!clubId){
+      throw new HttpsError('invalid-argument', 'clubId ontbreekt.');
+    }
+    try {
+      return await syncClub(String(clubId));
+    } catch (e){
+      console.error('[syncNu] mislukt', e);
+      throw new HttpsError('internal', String(e.message || e));
+    }
+  }
+);
+
+/* Nachtelijke sync — elke dag om 03:30 Europe/Amsterdam, alle clubs. */
+exports.syncVoetbalNl = onSchedule(
+  { region: REGIO, schedule: '30 3 * * *', timeZone: 'Europe/Amsterdam' },
+  async () => {
+    const db = getFirestore();
+    const clubs = await db.collection('clubs').get();
+    for (const c of clubs.docs){
+      try {
+        const { totaalWedstrijden } = await syncClub(c.id);
+        console.log(`[syncVoetbalNl] club ${c.id}: ${totaalWedstrijden} wedstrijden`);
+      } catch (e){
+        console.error(`[syncVoetbalNl] club ${c.id} mislukt:`, e);
+      }
+    }
   }
 );
