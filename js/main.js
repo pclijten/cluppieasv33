@@ -3,7 +3,7 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20260727';
-import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260727';
+import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260808';
 import { sluitWedstrijd } from './wedstrijd.js?v=20260727';
 import { initChatbot } from './chatbot.js?v=20260803';
 

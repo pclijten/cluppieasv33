@@ -29,7 +29,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260727')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260808')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -773,9 +773,10 @@ function htmlWedstrijden(){
       const titel = w.type === 'toernooi'
         ? '🏆 ' + esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam));
+      const tijd = w.aftrap ? ` · ${esc(w.aftrap)}` : '';
       const meta = w.type === 'toernooi'
-        ? `${datumNL(w.datum)} · ${w.toernooi.wedstrijden} wedstrijden · ${esc(w.format)}v${esc(w.format)}`
-        : `${datumNL(w.datum)} · ${esc(w.format)}v${esc(w.format)} · ${esc(w.formatie)}`;
+        ? `${datumNL(w.datum)}${tijd} · ${w.toernooi.wedstrijden} wedstrijden · ${esc(w.format)}v${esc(w.format)}`
+        : `${datumNL(w.datum)}${tijd} · ${esc(w.format)}v${esc(w.format)} · ${esc(w.formatie)}`;
       return `
       <button class="lijst-item" data-open-w="${w.id}">
         <div class="li-tekst"><div class="titel">${titel}</div>
