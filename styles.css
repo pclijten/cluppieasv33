@@ -1754,3 +1754,46 @@ body::before{
 
 /* AI-icoon in de trainingslijst (vervangt "PDF" voor omgezette trainingen) */
 .training-rij .ico.ai{background:rgba(53,196,122,.16);color:var(--ok);font-size:16px}
+/* ==================== TRAINING BEWERKEN (diff + edit) ==================== */
+.trb-overlay{position:fixed;inset:0;background:var(--bg);z-index:62;display:none;flex-direction:column}
+.trb-overlay.open{display:flex}
+.trb-balk{display:flex;align-items:center;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--hair);flex-shrink:0}
+.trb-terug{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.trb-kop{flex:1;min-width:0}
+.trb-titel{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.trb-meta{font-size:12px;color:var(--ink-2)}
+
+.trb-modus{display:flex;margin:12px 14px;background:var(--card);border-radius:11px;padding:4px;border:1px solid var(--hair);flex-shrink:0}
+.trb-modus button{flex:1;padding:9px;border-radius:8px;background:none;color:var(--ink-2);font-size:13px;font-weight:600;border:none}
+.trb-modus button.aan{background:var(--accent);color:#fff}
+
+.trb-stage{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0 14px calc(20px + env(safe-area-inset-bottom))}
+
+.trb-uitleg{font-size:12.5px;color:var(--ink-2);line-height:1.5;background:var(--card);border-radius:10px;padding:11px 13px;border:1px solid var(--hair);margin-bottom:14px}
+.trb-uitleg b{color:var(--ink)}
+.trb-uitleg b.del-b{color:#ff8f8b}
+.trb-uitleg .minor-b{border-bottom:1px dashed var(--ink-2)}
+
+.trb-oef{background:var(--card);border-radius:var(--radius);padding:15px 14px 8px;margin-bottom:14px;box-shadow:var(--shadow)}
+.trb-oef-kop{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.trb-oef-nr{flex-shrink:0;width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center}
+.trb-oef-kop h2{font-family:'Barlow Condensed';font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.4px;line-height:1.05;color:var(--ink)}
+
+/* diff-tekst */
+.trb-diff{font-size:14px;line-height:1.75;color:var(--ink);margin-bottom:10px}
+.trb-diff ins{background:rgba(53,196,122,.22);color:#7ee2a8;text-decoration:none;border-radius:3px;padding:1px 3px}
+.trb-diff del{background:rgba(226,52,47,.20);color:#ff8f8b;text-decoration:line-through;border-radius:3px;padding:1px 3px}
+.trb-diff .minor{border-bottom:1px dashed var(--ink-2)}
+
+/* bewerk-veld */
+.trb-bewerk{font-size:14px;line-height:1.6;color:var(--ink);background:var(--pitch-ink);border:1.5px solid var(--hair);border-radius:9px;padding:10px 12px;min-height:44px;margin-bottom:10px;white-space:pre-wrap}
+.trb-bewerk:focus{outline:none;border-color:var(--accent)}
+
+.trb-opslaan{position:sticky;bottom:0;display:flex;gap:8px;padding:12px 0 4px;background:linear-gradient(to top, var(--bg) 70%, transparent);margin-top:4px}
+.trb-knop{flex:1;border:none;border-radius:11px;font-weight:600;font-size:14.5px;padding:13px}
+.trb-knop.vol{background:var(--accent);color:#fff}
+.trb-knop.grijs{background:var(--card);color:var(--ink-2);border:1px solid var(--hair)}
+
+/* potlood-knop in de trainingslijst (alleen admin) */
+.training-rij .bewerk-knop{width:34px;height:34px;border-radius:8px;color:var(--ink-2);font-size:15px;background:none;border:none}
+.training-rij .bewerk-knop:active{color:var(--accent)}
