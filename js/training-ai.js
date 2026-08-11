@@ -25,54 +25,112 @@ import { laadPdfJs } from './pdf-viewer.js?v=20260811a';
    - paginas: [{ pagina, tekst }]  (ruwe tekst voor de AI)
    - diagramBlobs: [{ pagina, blob }]  (PNG per pagina voor Storage)
    - bytes: de originele PDF-bytes (voor de PDF-upload) */
-/* Haalt de ingebedde veld-afbeelding uit één PDF-pagina en geeft een PNG-blob
-   terug (of null als er geen ingebedde afbeelding is). Zo krijgt de coach alleen
-   het veldje te zien, niet de PDF-tekst als plaatje. */
+/* Haalt het ingebedde veld-diagram uit één PDF-pagina en geeft een PNG-blob
+   terug (of null). Zo ziet de coach alleen het veldje, niet de PDF-tekst.
+
+   Drie strategieën achter elkaar, want in de browser (met PDF.js-worker) is
+   de ingebedde bitmap niet altijd direct beschikbaar:
+     1. de ingebedde afbeelding-bitmap rechtstreeks uitlezen (page.objs);
+     2. als dat niet lukt: de pagina renderen en het beeldgebied uitknippen
+        (positie bepaald uit de transformatie-matrix);
+     3. lukt niets → null + een console-waarschuwing (faalt niet stil). */
 async function veldDiagramBlob(page){
   const OPS = window.pdfjsLib.OPS;
-  const ops = await page.getOperatorList();
+  const vp = page.getViewport({ scale: 1 });
+  let ops;
+  try { ops = await page.getOperatorList(); }
+  catch(e){ console.warn('[training-ai] getOperatorList faalde:', e); return null; }
 
-  // zoek de eerste geschilderde afbeelding op de pagina
-  let naam = null;
+  // Vind de eerste geschilderde afbeelding + de transformatie-matrix ervoor,
+  // zodat we zowel de naam (voor strategie 1) als de positie (strategie 2) hebben.
+  let naam = null, rect = null;
+  let ctm = [1,0,0,1,0,0];
+  const stack = [];
   for (let i = 0; i < ops.fnArray.length; i++){
-    if (ops.fnArray[i] === OPS.paintImageXObject || ops.fnArray[i] === OPS.paintJpegXObject){
-      naam = ops.argsArray[i][0];
+    const fn = ops.fnArray[i], args = ops.argsArray[i];
+    if (fn === OPS.save){ stack.push(ctm.slice()); }
+    else if (fn === OPS.restore){ ctm = stack.pop() || [1,0,0,1,0,0]; }
+    else if (fn === OPS.transform){
+      const [a,b,c,d,e,f] = args;
+      const [A,B,C,D,E,F] = ctm;
+      ctm = [A*a+C*b, B*a+D*b, A*c+C*d, B*c+D*d, A*e+C*f+E, B*e+D*f+F];
+    }
+    else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintJpegXObject){
+      naam = args[0];
+      const x0 = ctm[4], y0 = ctm[5];
+      const x1 = ctm[0]+ctm[2]+ctm[4], y1 = ctm[1]+ctm[3]+ctm[5];
+      const bx = Math.min(x0,x1), bw = Math.abs(x1-x0), bh = Math.abs(y1-y0);
+      const topY = vp.height - (Math.min(y0,y1) + bh);
+      rect = { x: bx, y: topY, w: bw, h: bh };
       break;
     }
   }
-  if (!naam) return null;
+  if (!naam && !rect){ console.warn('[training-ai] geen afbeelding op pagina gevonden'); return null; }
 
-  // bitmap ophalen (kan in page.objs of commonObjs zitten)
-  const img = await new Promise((res) => {
+  // --- Strategie 1: ingebedde bitmap rechtstreeks ---
+  if (naam){
     try {
-      if (page.objs.has(naam)) return res(page.objs.get(naam));
-    } catch(e){}
-    try { return page.objs.get(naam, res); } catch(e){ res(null); }
-  });
-  if (!img || !img.width || !img.height) return null;
+      const img = await new Promise((res) => {
+        let klaar = false;
+        const geef = (v) => { if (!klaar){ klaar = true; res(v); } };
+        try { if (page.objs.has(naam)) return geef(page.objs.get(naam)); } catch(e){}
+        try { page.objs.get(naam, geef); } catch(e){ geef(null); }
+        // veiligheids-timeout: als de worker niets teruggeeft, ga door naar strategie 2
+        setTimeout(() => geef(null), 3000);
+      });
+      const blob = img && bitmapNaarBlob(img);
+      if (blob) return await blob;
+    } catch(e){ console.warn('[training-ai] bitmap-extractie faalde, val terug op bijsnijden:', e); }
+  }
 
+  // --- Strategie 2: pagina renderen en het beeldgebied uitknippen ---
+  if (rect && rect.w > 20 && rect.h > 20){
+    try {
+      const schaal = 1000 / vp.width;               // scherp genoeg
+      const vp2 = page.getViewport({ scale: schaal });
+      const vol = document.createElement('canvas');
+      vol.width = Math.ceil(vp2.width); vol.height = Math.ceil(vp2.height);
+      await page.render({ canvasContext: vol.getContext('2d'), viewport: vp2 }).promise;
+      const crop = document.createElement('canvas');
+      crop.width = Math.round(rect.w * schaal);
+      crop.height = Math.round(rect.h * schaal);
+      crop.getContext('2d').drawImage(
+        vol,
+        Math.round(rect.x * schaal), Math.round(rect.y * schaal),
+        crop.width, crop.height,
+        0, 0, crop.width, crop.height
+      );
+      return await new Promise(res => crop.toBlob(res, 'image/png', 0.92));
+    } catch(e){ console.warn('[training-ai] bijsnijden faalde:', e); }
+  }
+
+  console.warn('[training-ai] kon geen diagram maken voor deze pagina');
+  return null;
+}
+
+/* Zet een pdf.js-bitmap (page.objs) om naar een PNG-blob, of null bij onbekend formaat. */
+function bitmapNaarBlob(img){
+  if (!img || !img.width || !img.height || !img.data) return null;
   const { width, height, data, kind } = img;
   const canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext('2d');
   const out = ctx.createImageData(width, height);
-
-  // kind: 1=grayscale, 2=RGB, 3=RGBA (pdf.js ImageKind)
-  if (kind === 3 || (data && data.length === width*height*4)){
+  if (kind === 3 || data.length === width*height*4){
     out.data.set(data);
-  } else if (kind === 2 || (data && data.length === width*height*3)){
+  } else if (kind === 2 || data.length === width*height*3){
     for (let i=0, j=0; i<data.length; i+=3, j+=4){
       out.data[j]=data[i]; out.data[j+1]=data[i+1]; out.data[j+2]=data[i+2]; out.data[j+3]=255;
     }
-  } else if (kind === 1 || (data && data.length === width*height)){
+  } else if (kind === 1 || data.length === width*height){
     for (let i=0, j=0; i<data.length; i++, j+=4){
       out.data[j]=out.data[j+1]=out.data[j+2]=data[i]; out.data[j+3]=255;
     }
   } else {
-    return null;   // onbekend formaat → liever geen diagram dan een verkeerd
+    return null;
   }
   ctx.putImageData(out, 0, 0);
-  return await new Promise(res => canvas.toBlob(res, 'image/png', 0.92));
+  return new Promise(res => canvas.toBlob(res, 'image/png', 0.92));
 }
 
 export async function leesPdf(file){
