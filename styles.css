@@ -1687,3 +1687,70 @@ body::before{
   .cb-tik span{ animation:none; }
   .cb-paneel{ transition:none; }
 }
+/* ==================== AI-TRAINING: SCROLBARE WEERGAVE ====================
+   Fullscreen overlay (zoals de pdf-viewer) die een AI-gestructureerde training
+   verticaal scrolbaar toont in het donkere thema. Hergebruikt .hl voor de
+   tekstblokken; hieronder alleen de overlay, oefenkaart, nav en origineel-knop. */
+
+.trw-overlay{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column}
+.trw-overlay.open{display:flex}
+.trw-balk{display:flex;align-items:center;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--hair);flex-shrink:0}
+.trw-terug{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.trw-kop{flex:1;min-width:0}
+.trw-titel{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.trw-meta{font-size:12px;color:var(--ink-2)}
+.trw-stage{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+
+.trw-orig{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:var(--pitch-ink);color:#fff;border:1px solid var(--line-d);border-radius:11px;padding:12px;font-weight:600;font-size:14px;margin-bottom:14px}
+.trw-pdftag{background:var(--accent);color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:11px;padding:2px 6px;border-radius:5px;letter-spacing:.3px}
+
+.trw-nav{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.trw-nav::-webkit-scrollbar{display:none}
+.trw-chip{flex-shrink:0;background:var(--card);border:1.5px solid var(--hair);border-radius:20px;padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;box-shadow:var(--shadow)}
+.trw-chip:active{background:var(--accent);color:#fff;border-color:transparent}
+
+.trw-oef{background:var(--card);border-radius:var(--radius);padding:15px 14px 6px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:8px}
+.trw-oef-kop{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.trw-oef-nr{flex-shrink:0;width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center}
+.trw-oef-kop h2{font-family:'Barlow Condensed';font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.4px;line-height:1.05;color:var(--ink)}
+.trw-diagram{margin:0 0 13px;border-radius:10px;overflow:hidden;background:#fff}
+.trw-diagram img{display:block;width:100%;height:auto}
+
+/* ==================== AI-TRAINING: ADMIN-PREVIEW + SCORE ====================
+   Getoond in het uploadscherm (club.js) na de AI-structurering, vóór delen. */
+
+.tr-verwerk{background:var(--card);border-radius:var(--radius);padding:24px 20px;box-shadow:var(--shadow);text-align:center;margin:8px 0}
+.tr-verwerk .tr-spin{width:40px;height:40px;border:4px solid var(--hair);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:pdfvSpin .9s linear infinite}
+.tr-verwerk h2{font-family:'Barlow Condensed';font-weight:700;font-size:19px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;color:var(--ink)}
+.tr-verwerk p{color:var(--ink-2);font-size:13px;line-height:1.5}
+.tr-stapjes{text-align:left;margin:14px auto 0;max-width:260px;font-size:13px}
+.tr-stapjes div{padding:5px 0;color:var(--ink-2)}
+.tr-stapjes div.klaar{color:var(--ok);font-weight:600}
+.tr-stapjes div.klaar::before{content:'\2713  '}
+.tr-stapjes div.actief{color:var(--ink);font-weight:600}
+.tr-stapjes div.actief::before{content:'\23F3  '}
+
+.tr-score{border-radius:12px;padding:14px 14px 12px;margin-bottom:14px;box-shadow:var(--shadow)}
+.tr-score.goed{background:rgba(53,196,122,.10);border:1.5px solid rgba(53,196,122,.35)}
+.tr-score.fout{background:rgba(245,177,61,.10);border:1.5px solid rgba(245,177,61,.4)}
+.tr-score-kop{display:flex;align-items:center;gap:9px;font-size:15px;margin-bottom:10px;color:var(--ink)}
+.tr-badge{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;flex-shrink:0}
+.tr-badge.goed-b{background:var(--ok)}
+.tr-badge.fout-b{background:var(--warn)}
+.tr-tabel{width:100%;border-collapse:collapse;font-size:13.5px}
+.tr-tabel td{padding:7px 0;border-bottom:1px solid var(--hair);color:var(--ink)}
+.tr-tabel td.v{text-align:right;font-family:'Barlow Condensed';font-weight:700;font-size:19px}
+.tr-tabel .goed-t{color:var(--ok)}
+.tr-tabel .fout-t{color:var(--warn)}
+.tr-score-uitleg{font-size:12.5px;color:var(--ink-2);line-height:1.45;margin-top:10px}
+.tr-score-uitleg b{color:var(--ink)}
+.tr-verzonnen{margin-top:10px;font-size:12px;color:var(--warn);background:rgba(245,177,61,.08);border-radius:8px;padding:8px 10px;line-height:1.4}
+.tr-verzonnen span{color:var(--ink-2);font-weight:600}
+
+.tr-preview-acties{display:flex;gap:8px;margin:14px 0 0}
+.tr-preview-acties .knop{flex:1}
+.tr-preview-acties2{display:flex;gap:8px;margin:8px 0}
+.tr-preview-acties2 .knop{flex:1;font-size:13.5px;padding:11px}
+
+/* AI-icoon in de trainingslijst (vervangt "PDF" voor omgezette trainingen) */
+.training-rij .ico.ai{background:rgba(53,196,122,.16);color:var(--ok);font-size:16px}
