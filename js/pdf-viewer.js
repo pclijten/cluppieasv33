@@ -12,13 +12,13 @@
    club-evaluaties.js) — de rest van de app heeft deze library nooit
    nodig, dus pas ophalen op het moment dat een trainer echt een
    training opent. */
-import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260727';
+import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260811a';
 
 const PDFJS_VERSIE = '3.11.174';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIE}/`;
 
 let _pdfjsLoad = null;
-function laadPdfJs(){
+export function laadPdfJs(){
   if (window.pdfjsLib) return Promise.resolve();
   if (_pdfjsLoad) return _pdfjsLoad;
   _pdfjsLoad = new Promise((resolve, reject) => {

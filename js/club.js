@@ -3,14 +3,14 @@ import {
   query, where, onSnapshot, serverTimestamp, documentId, writeBatch,
   sRef, uploadBytes, getDownloadURL, deleteObject,
   functions, httpsCallable
-} from './firebase.js?v=20260727';
+} from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260727';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK } from './config.js?v=20260727';
-import { analyseWedstrijd } from './analyse.js?v=20260727';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260727';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260727';
+} from './state.js?v=20260811a';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK } from './config.js?v=20260811a';
+import { analyseWedstrijd } from './analyse.js?v=20260811a';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260811a';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260811a';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -27,7 +27,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260808c'); }
+async function teamsModule(){ return await import('./teams.js?v=20260811a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -70,7 +70,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260808c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260811a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1423,29 +1423,196 @@ function modalNieuweTraining(file, teams, voorBouw = null){
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mTrTitel').value.trim() || file.name;
     const week  = $('#mTrWeek').value.trim();
-    const knop = $('.upload-knop');
-    if (knop){ knop.classList.add('bezig'); knop.textContent = 'Uploaden...'; }
-    sluitModal();
+    startTrainingVerwerking(file, { titel, week, teams: gekozen });
+  };
+}
+
+/* ---------- AI-verwerking van een training-PDF ----------
+   Draait binnen dezelfde modal: upload PDF + diagrammen naar Storage, laat de
+   AI de tekst structureren, bereken de overeenkomst-score, en toon een preview
+   met de keuze: zo delen / opnieuw genereren / alleen als PDF delen.
+   De originele PDF wordt ALTIJD bewaard, ongeacht de keuze. */
+async function startTrainingVerwerking(file, meta){
+  const mod = $('.modal'); if (!mod) return;
+  const ts = Date.now();
+  const mapId = String(ts);
+  const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const pdfPath = `clubs/${S.clubId}/trainingen/${mapId}/${veiligeNaam}`;
+
+  const toonVerwerk = (stapjesHtml) => {
+    mod.innerHTML = `
+      <div class="tr-verwerk">
+        <div class="tr-spin"></div>
+        <h2>Training omzetten</h2>
+        <p>De app leest de PDF en maakt er een makkelijk leesbare weergave van voor je coaches.</p>
+        <div class="tr-stapjes">${stapjesHtml}</div>
+      </div>`;
+  };
+  const stap = (klaar, actief, rest) =>
+    klaar.map(t=>`<div class="klaar">${t}</div>`).join('') +
+    (actief?`<div class="actief">${actief}</div>`:'') +
+    rest.map(t=>`<div>${t}</div>`).join('');
+
+  try {
+    const ai = await import('./training-ai.js?v=20260811a');
+
+    toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
+    const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
+
+    // originele PDF bewaren
+    toonVerwerk(stap(['PDF ingelezen ('+aantalPaginas+' pagina’s)'], 'Origineel + diagrammen opslaan…', ['Oefeningen structureren','Controleren']));
+    const pdfRef = sRef(storage, pdfPath);
+    await uploadBytes(pdfRef, new Blob([bytes], {type:'application/pdf'}), {contentType:'application/pdf'});
+    const pdfUrl = await getDownloadURL(pdfRef);
+    const diagramUrls = await ai.uploadDiagrammen(S.clubId, mapId, diagramBlobs);
+
+    // AI-structurering
+    toonVerwerk(stap(['PDF ingelezen','Origineel + diagrammen opgeslagen'], 'Oefeningen structureren met AI…', ['Controleren']));
+    let oefeningen;
     try {
-      const ts = Date.now();
-      const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const path = `clubs/${S.clubId}/trainingen/${ts}_${veiligeNaam}`;
-      const r = sRef(storage, path);
-      await uploadBytes(r, file, {contentType:'application/pdf'});
-      const url = await getDownloadURL(r);
+      oefeningen = await ai.structureer(paginas);
+    } catch(e){
+      console.error('[training-ai] structureren mislukt', e);
+      return toonAlleenPdfKeuze(file, meta, { mapId, pdfPath, pdfUrl }, 'De automatische opmaak lukte niet. Je kunt de training wel gewoon als PDF delen.');
+    }
+
+    // overeenkomst-score (programmatisch)
+    const origineleTekst = paginas.map(p=>p.tekst).join(' ');
+    const score = ai.berekenScore(origineleTekst, oefeningen);
+
+    toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, score });
+  } catch(e){
+    console.error('[training-ai] verwerking mislukt', e);
+    meld('Verwerking mislukt — staat Firebase Storage aan?');
+    sluitModal();
+  }
+}
+
+/* Preview-scherm met score + de drie keuzes. */
+function toonPreview(file, meta, ctx){
+  const mod = $('.modal'); if (!mod) return;
+  const { score, oefeningen, diagramUrls } = ctx;
+  const goed = score.dekkingPct >= 90 && score.verzonnenAantal <= 3;
+
+  const scoreKaart = `
+    <div class="tr-score ${goed?'goed':'fout'}">
+      <div class="tr-score-kop">
+        <span class="tr-badge ${goed?'goed-b':'fout-b'}">${goed?'✓':'!'}</span>
+        <b>${goed?'Tekstcontrole geslaagd':'Tekstcontrole — let op'}</b>
+      </div>
+      <table class="tr-tabel">
+        <tr><td>Tekst behouden uit PDF</td><td class="v ${goed?'goed-t':'fout-t'}">${score.dekkingPct}%</td></tr>
+        <tr><td>Woorden door AI verzonnen</td><td class="v ${goed?'goed-t':'fout-t'}">${score.verzonnenAantal}</td></tr>
+      </table>
+      <p class="tr-score-uitleg">${goed
+        ? 'De app heeft woord-voor-woord vergeleken: de AI paste alleen de <b>layout</b> aan, niet de tekst zelf.'
+        : 'De AI week te veel af van de originele tekst. <b>Genereer opnieuw</b>, of deel de training alleen als PDF.'}</p>
+      ${(!goed && score.verzonnenVoorbeelden.length)
+        ? `<div class="tr-verzonnen"><span>Toegevoegde woorden:</span> ${esc(score.verzonnenVoorbeelden.join(', '))}…</div>` : ''}
+    </div>`;
+
+  const oefHtml = oefeningen.map((o,i)=>{
+    const url = diagramUrls[o.diagramPagina];
+    const diagram = url ? `<figure class="trw-diagram"><img src="${esc(url)}" alt=""></figure>` : '';
+    const blokken = (o.blokken||[]).map(b=>{
+      const kop = b.kop?`<h3>${esc(b.kop)}</h3>`:'';
+      if (b.type==='lijst' && Array.isArray(b.items))
+        return kop+'<ul>'+b.items.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>';
+      return kop+`<p>${esc(b.tekst||'')}</p>`;
+    }).join('');
+    return `<div class="trw-oef"><div class="trw-oef-kop"><span class="trw-oef-nr">${i+1}</span><h2>${esc(o.titel||'Oefening '+(i+1))}</h2></div>${diagram}<div class="hl">${blokken}</div></div>`;
+  }).join('');
+
+  const acties = `
+    <div class="tr-preview-acties"><button class="knop vol" id="trDeel">✓ Zo delen</button></div>
+    <div class="tr-preview-acties2">
+      <button class="knop licht" id="trOpnieuw">🔄 Opnieuw genereren</button>
+      <button class="knop grijs" id="trPdfOnly">Alleen als PDF</button>
+    </div>`;
+
+  mod.innerHTML = `
+    <h2>Controleer</h2>
+    ${scoreKaart}
+    <div style="font-size:13px;color:var(--ink-2);margin-bottom:12px;line-height:1.45">Zo zien je coaches de training straks.${goed?' Klopt de opmaak? Deel hem.':''}</div>
+    ${acties}
+    ${oefHtml}
+    ${acties}`;
+
+  const deel = async () => {
+    const b = $('#trDeel'); if (b){ b.disabled = true; b.textContent = 'Delen…'; }
+    try {
       await addDoc(collection(db,'trainingen'), {
         club: S.clubId, clubNaam: S.club.naam,
-        titel, week, bestandsnaam: file.name, path, url,
-        teams: gekozen,
+        titel: meta.titel, week: meta.week, bestandsnaam: file.name,
+        path: ctx.pdfPath, url: ctx.pdfUrl,
+        mapId: ctx.mapId,
+        oefeningen, diagramUrls,
+        aiScore: { dekking: score.dekkingPct, verzonnen: score.verzonnenAantal },
+        teams: meta.teams,
         gemaakt: serverTimestamp(),
         door: S.user.displayName || S.user.email || '',
       });
-      meld('Training geüpload'); renderClub();
+      sluitModal(); meld('Training gedeeld'); renderClub();
     } catch(e){
-      console.error(e); meld('Upload mislukt — staat Firebase Storage aan?');
-      if (knop){ knop.classList.remove('bezig'); knop.textContent = '📄 PDF-training toevoegen voor één of meer teams'; }
+      console.error(e); const bb = $('#trDeel'); if (bb){ bb.disabled = false; bb.textContent = '✓ Zo delen'; }
+      meld('Delen mislukt');
     }
   };
+
+  $('#trDeel').onclick = deel;
+  $('#trPdfOnly').onclick = () => deelAlleenPdf(file, meta, ctx);
+  $('#trOpnieuw').onclick = () => startTrainingHerstructureer(file, meta, ctx);
+}
+
+/* Alleen de AI opnieuw draaien (PDF + diagrammen bestaan al in Storage). */
+async function startTrainingHerstructureer(file, meta, ctx){
+  const mod = $('.modal'); if (!mod) return;
+  mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
+  try {
+    const ai = await import('./training-ai.js?v=20260811a');
+    const { paginas } = await ai.leesPdf(file);
+    const oefeningen = await ai.structureer(paginas);
+    const origineleTekst = paginas.map(p=>p.tekst).join(' ');
+    const score = ai.berekenScore(origineleTekst, oefeningen);
+    toonPreview(file, meta, { ...ctx, oefeningen, score });
+  } catch(e){
+    console.error('[training-ai] opnieuw mislukt', e);
+    toonAlleenPdfKeuze(file, meta, ctx, 'Opnieuw genereren lukte niet. Je kunt de training als PDF delen.');
+  }
+}
+
+/* Training opslaan zonder AI-layout — alleen als PDF (bestaand gedrag). */
+async function deelAlleenPdf(file, meta, ctx){
+  const btn = $('#trPdfOnly'); if (btn){ btn.disabled = true; btn.textContent = 'Delen…'; }
+  try {
+    await addDoc(collection(db,'trainingen'), {
+      club: S.clubId, clubNaam: S.club.naam,
+      titel: meta.titel, week: meta.week, bestandsnaam: file.name,
+      path: ctx.pdfPath, url: ctx.pdfUrl,
+      teams: meta.teams,
+      gemaakt: serverTimestamp(),
+      door: S.user.displayName || S.user.email || '',
+    });
+    sluitModal(); meld('Training gedeeld (als PDF)'); renderClub();
+  } catch(e){
+    console.error(e); meld('Delen mislukt');
+    if (btn){ btn.disabled = false; btn.textContent = 'Alleen als PDF'; }
+  }
+}
+
+/* Fallback-scherm als de AI helemaal niet lukte: alleen-PDF aanbieden. */
+function toonAlleenPdfKeuze(file, meta, ctx, boodschap){
+  const mod = $('.modal'); if (!mod) return;
+  mod.innerHTML = `
+    <h2>Training delen</h2>
+    <div class="tr-score fout" style="margin-top:4px">
+      <div class="tr-score-kop"><span class="tr-badge fout-b">!</span><b>Automatische opmaak niet gelukt</b></div>
+      <p class="tr-score-uitleg">${esc(boodschap||'')}</p>
+    </div>
+    <div class="tr-preview-acties"><button class="knop vol" id="trPdfOnly">Als PDF delen</button></div>
+    <div class="tr-preview-acties2"><button class="knop grijs" id="trOpnieuw2">🔄 Opnieuw proberen</button></div>`;
+  $('#trPdfOnly').onclick = () => deelAlleenPdf(file, meta, ctx);
+  $('#trOpnieuw2').onclick = () => startTrainingHerstructureer(file, meta, ctx);
 }
 
 /* Toewijzing (titel, week, teams) van een bestaande training achteraf aanpassen

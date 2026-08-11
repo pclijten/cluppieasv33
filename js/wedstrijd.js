@@ -1,18 +1,18 @@
 import {
   db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp,
   functions, httpsCallable
-} from './firebase.js?v=20260727';
+} from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260727';
+} from './state.js?v=20260811a';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK
-} from './config.js?v=20260727';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260727';
+} from './config.js?v=20260811a';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd } from './analyse.js?v=20260811a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -337,7 +337,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260808c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260811a').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1339,7 +1339,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260808c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260811a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

@@ -5,15 +5,15 @@
    (naam wijzigen, teamcode, uitnodigen — modalUitnodig komt uit club.js). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
-} from './firebase.js?v=20260727';
+} from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260727';
+} from './state.js?v=20260811a';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK
-} from './config.js?v=20260727';
-import { htmlKompas } from './teams-leerlijn.js?v=20260727';
+} from './config.js?v=20260811a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260811a';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -156,9 +156,10 @@ export function htmlTeamTrainingen(){
   const pdfRijHtml = (t) => {
     const ongelezen = !S.trainingenGelezen[t.id];
     const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
+    const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
     return `
       <div class="training-rij ${ongelezen?'ongelezen':''}" data-open-training="${t.id}" data-url="${esc(t.url)}" style="cursor:pointer">
-        <div class="ico">PDF</div>
+        <div class="ico${heeftAi?' ai':''}">${heeftAi?'✨':'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           <div class="t-meta">${esc(t.week || '')}${t.week && datum?' · ':''}${esc(datum)}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
         <div class="acties"><button title="Openen">↗</button></div>
