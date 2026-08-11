@@ -641,13 +641,18 @@ function htmlClubTrainingen(teams, trainingen){
 
   const lijst = zichtbaar.length ? zichtbaar.map(t => {
     const teamNamen = (t.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
+    const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
+    const tekstKnop = heeftAi
+      ? `<button data-ttekst="${t.id}" title="Tekst controleren en bewerken">📝</button>`
+      : '';
     return `
       <div class="training-rij">
-        <div class="ico">PDF</div>
+        <div class="ico${heeftAi?' ai':''}">${heeftAi?'✨':'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           <div class="t-meta">${esc(t.week || '')}${t.week?' · ':''}${esc(teamNamen)}</div></div>
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
+          ${tekstKnop}
           <button data-tbewerk="${t.id}" title="Teams en titel wijzigen">✏️</button>
           <button data-tshare="${t.id}" title="Delen naar WhatsApp">📤</button>
           <button data-tweg="${t.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
@@ -997,6 +1002,20 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       modalNieuweTraining(file, teams, S.clubTrainBouw);
     };
     v.querySelectorAll('[data-tdownload]').forEach(b => b.onclick = () => window.open(b.dataset.tdownload, '_blank'));
+    v.querySelectorAll('[data-ttekst]').forEach(b => b.onclick = async () => {
+      const t = trainingen.find(x => x.id === b.dataset.ttekst);
+      if (!t) return;
+      const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260811a');
+      openTrainingBewerken({
+        trainingId: t.id,
+        titel: t.titel || t.bestandsnaam || 'Training',
+        meta: [t.week, datum].filter(Boolean).join(' · '),
+        oefeningen: t.oefeningen || [],
+        paginas: t.paginas || [],
+        onOpgeslagen: (nieuw) => { t.oefeningen = nieuw; },
+      });
+    });
     v.querySelectorAll('[data-tbewerk]').forEach(b => b.onclick = () => {
       const t = trainingen.find(x => x.id === b.dataset.tbewerk);
       modalBewerkTraining(t, teams);
@@ -1527,6 +1546,9 @@ function toonPreview(file, meta, ctx){
   const acties = `
     <div class="tr-preview-acties"><button class="knop vol" id="trDeel">✓ Zo delen</button></div>
     <div class="tr-preview-acties2">
+      <button class="knop licht" id="trTekst">📝 Tekst controleren/bewerken</button>
+    </div>
+    <div class="tr-preview-acties2">
       <button class="knop licht" id="trOpnieuw">🔄 Opnieuw genereren</button>
       <button class="knop grijs" id="trPdfOnly">Alleen als PDF</button>
     </div>`;
@@ -1561,9 +1583,25 @@ function toonPreview(file, meta, ctx){
     }
   };
 
-  $('#trDeel').onclick = deel;
-  $('#trPdfOnly').onclick = () => deelAlleenPdf(file, meta, ctx);
-  $('#trOpnieuw').onclick = () => startTrainingHerstructureer(file, meta, ctx);
+  $$('#trDeel').forEach(b => b.onclick = deel);
+  $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
+  $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
+  $$('#trTekst').forEach(b => b.onclick = async () => {
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260811a');
+    openTrainingBewerken({
+      titel: meta.titel || file.name,
+      meta: meta.week || '',
+      oefeningen: ctx.oefeningen,
+      paginas: ctx.paginas || [],
+      // In de preview is er nog geen Firestore-doc: sla lokaal op en herteken
+      // de preview met de aangepaste tekst.
+      opslaanLokaal: (nieuw) => {
+        ctx.oefeningen = nieuw;
+        const score = ctx.score;  // score herberekenen is niet nodig voor bewerkte tekst
+        toonPreview(file, meta, ctx);
+      },
+    });
+  });
 }
 
 /* Alleen de AI opnieuw draaien (PDF + diagrammen bestaan al in Storage). */

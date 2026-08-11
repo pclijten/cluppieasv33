@@ -157,17 +157,12 @@ export function htmlTeamTrainingen(){
     const ongelezen = !S.trainingenGelezen[t.id];
     const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
     const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
-    // Potlood alleen tonen aan admins van de club waar deze training bij hoort.
-    const magBewerken = heeftAi && (S.clubs || []).some(c => c.id === t.club);
-    const bewerkKnop = magBewerken
-      ? `<button class="bewerk-knop" title="Tekst bewerken" data-bewerk-training="${t.id}">✏️</button>`
-      : '';
     return `
       <div class="training-rij ${ongelezen?'ongelezen':''}" data-open-training="${t.id}" data-url="${esc(t.url)}" style="cursor:pointer">
         <div class="ico${heeftAi?' ai':''}">${heeftAi?'✨':'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           <div class="t-meta">${esc(t.week || '')}${t.week && datum?' · ':''}${esc(datum)}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
-        <div class="acties">${bewerkKnop}<button title="Openen">↗</button></div>
+        <div class="acties"><button title="Openen">↗</button></div>
       </div>`;
   };
 
