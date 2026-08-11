@@ -1057,7 +1057,9 @@ function koppelTeamTab(v, tab){
       const tekst = encodeURIComponent(afgelastWhatsappTekst(a));
       window.open('https://wa.me/?text=' + tekst, '_blank');
     };
-    v.querySelectorAll('[data-open-training]').forEach(r => r.onclick = async () => {
+    v.querySelectorAll('[data-open-training]').forEach(r => r.onclick = async (ev) => {
+      // klik op de potlood-knop opent niet de training, maar het bewerk-scherm
+      if (ev.target.closest('[data-bewerk-training]')) return;
       const id = r.dataset.openTraining;
       const t = S.trainingen.find(x => x.id === id);
       const datum = t?.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
@@ -1085,6 +1087,23 @@ function koppelTeamTab(v, tab){
       if (!S.trainingenGelezen[id]){
         try { await setDoc(doc(db,'gebruikers',S.user.uid,'gelezen',id), {tijd: serverTimestamp()}); } catch(e){}
       }
+    });
+    // Admin: potlood → tekst bekijken (verschillen) en bewerken
+    v.querySelectorAll('[data-bewerk-training]').forEach(b => b.onclick = async (ev) => {
+      ev.stopPropagation();
+      const id = b.dataset.bewerkTraining;
+      const t = S.trainingen.find(x => x.id === id);
+      if (!t) return;
+      const datum = t?.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260811a');
+      openTrainingBewerken({
+        trainingId: id,
+        titel: t.titel || t.bestandsnaam || 'Training',
+        meta: [t.week, datum].filter(Boolean).join(' · '),
+        oefeningen: t.oefeningen || [],
+        paginas: t.paginas || [],
+        onOpgeslagen: (nieuw) => { t.oefeningen = nieuw; },
+      });
     });
     const pv = v.querySelector('#presentieVandaag');
     if (pv) pv.onclick = () => modalPresentie();

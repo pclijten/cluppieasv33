@@ -1480,7 +1480,7 @@ async function startTrainingVerwerking(file, meta){
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');
     const score = ai.berekenScore(origineleTekst, oefeningen);
 
-    toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, score });
+    toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, score, paginas });
   } catch(e){
     console.error('[training-ai] verwerking mislukt', e);
     meld('Verwerking mislukt — staat Firebase Storage aan?');
@@ -1548,6 +1548,7 @@ function toonPreview(file, meta, ctx){
         path: ctx.pdfPath, url: ctx.pdfUrl,
         mapId: ctx.mapId,
         oefeningen, diagramUrls,
+        paginas: (ctx.paginas || []).map(p => ({ pagina: p.pagina, tekst: p.tekst })),
         aiScore: { dekking: score.dekkingPct, verzonnen: score.verzonnenAantal },
         teams: meta.teams,
         gemaakt: serverTimestamp(),
