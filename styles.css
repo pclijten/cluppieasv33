@@ -1753,7 +1753,7 @@ body::before{
 .tr-preview-acties2 .knop{flex:1;font-size:13.5px;padding:11px}
 
 /* AI-icoon in de trainingslijst (vervangt "PDF" voor omgezette trainingen) */
-.training-rij .ico.ai{background:rgba(53,196,122,.16);color:var(--ok);font-size:16px}
+.training-rij .ico.ai{background:color-mix(in srgb,var(--accent) 16%, var(--surface));color:var(--accent);font-size:16px}
 /* ==================== TRAINING BEWERKEN (diff + edit) ==================== */
 .trb-overlay{position:fixed;inset:0;background:var(--bg);z-index:62;display:none;flex-direction:column}
 .trb-overlay.open{display:flex}
