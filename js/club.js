@@ -1512,7 +1512,8 @@ function toonPreview(file, meta, ctx){
     </div>`;
 
   const oefHtml = oefeningen.map((o,i)=>{
-    const url = diagramUrls[o.diagramPagina];
+    const paginaKey = (o.diagramPagina != null) ? o.diagramPagina : (i+1);
+    const url = (diagramUrls||{})[paginaKey] || (diagramUrls||{})[String(paginaKey)] || (diagramUrls||{})[i+1];
     const diagram = url ? `<figure class="trw-diagram"><img src="${esc(url)}" alt=""></figure>` : '';
     const blokken = (o.blokken||[]).map(b=>{
       const kop = b.kop?`<h3>${esc(b.kop)}</h3>`:'';
