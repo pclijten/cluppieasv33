@@ -25,6 +25,56 @@ import { laadPdfJs } from './pdf-viewer.js?v=20260811a';
    - paginas: [{ pagina, tekst }]  (ruwe tekst voor de AI)
    - diagramBlobs: [{ pagina, blob }]  (PNG per pagina voor Storage)
    - bytes: de originele PDF-bytes (voor de PDF-upload) */
+/* Haalt de ingebedde veld-afbeelding uit één PDF-pagina en geeft een PNG-blob
+   terug (of null als er geen ingebedde afbeelding is). Zo krijgt de coach alleen
+   het veldje te zien, niet de PDF-tekst als plaatje. */
+async function veldDiagramBlob(page){
+  const OPS = window.pdfjsLib.OPS;
+  const ops = await page.getOperatorList();
+
+  // zoek de eerste geschilderde afbeelding op de pagina
+  let naam = null;
+  for (let i = 0; i < ops.fnArray.length; i++){
+    if (ops.fnArray[i] === OPS.paintImageXObject || ops.fnArray[i] === OPS.paintJpegXObject){
+      naam = ops.argsArray[i][0];
+      break;
+    }
+  }
+  if (!naam) return null;
+
+  // bitmap ophalen (kan in page.objs of commonObjs zitten)
+  const img = await new Promise((res) => {
+    try {
+      if (page.objs.has(naam)) return res(page.objs.get(naam));
+    } catch(e){}
+    try { return page.objs.get(naam, res); } catch(e){ res(null); }
+  });
+  if (!img || !img.width || !img.height) return null;
+
+  const { width, height, data, kind } = img;
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const out = ctx.createImageData(width, height);
+
+  // kind: 1=grayscale, 2=RGB, 3=RGBA (pdf.js ImageKind)
+  if (kind === 3 || (data && data.length === width*height*4)){
+    out.data.set(data);
+  } else if (kind === 2 || (data && data.length === width*height*3)){
+    for (let i=0, j=0; i<data.length; i+=3, j+=4){
+      out.data[j]=data[i]; out.data[j+1]=data[i+1]; out.data[j+2]=data[i+2]; out.data[j+3]=255;
+    }
+  } else if (kind === 1 || (data && data.length === width*height)){
+    for (let i=0, j=0; i<data.length; i++, j+=4){
+      out.data[j]=out.data[j+1]=out.data[j+2]=data[i]; out.data[j+3]=255;
+    }
+  } else {
+    return null;   // onbekend formaat → liever geen diagram dan een verkeerd
+  }
+  ctx.putImageData(out, 0, 0);
+  return await new Promise(res => canvas.toBlob(res, 'image/png', 0.92));
+}
+
 export async function leesPdf(file){
   await laadPdfJs();
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -43,17 +93,11 @@ export async function leesPdf(file){
       .trim();
     paginas.push({ pagina: n, tekst });
 
-    // --- diagram (pagina als PNG, fit op ~1000px breed voor scherpte) ---
-    const ongeschaald = page.getViewport({ scale: 1 });
-    const doelBreedte = 1000;
-    const schaal = doelBreedte / ongeschaald.width;
-    const viewport = page.getViewport({ scale: schaal });
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/png', 0.92));
+    // --- diagram: ALLEEN het ingebedde veldje, niet de hele pagina ---
+    // De oefenstof-PDF's bevatten per pagina precies één ingebedde afbeelding:
+    // het groene veld-diagram. We halen die bitmap eruit (getOperatorList →
+    // paintImageXObject → page.objs) i.p.v. de pagina met tekst te renderen.
+    const blob = await veldDiagramBlob(page);
     diagramBlobs.push({ pagina: n, blob });
   }
 
