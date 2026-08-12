@@ -1072,6 +1072,7 @@ export function heeftOnboardingHoofdstuk(hfd){
 export function startOnboardingHoofdstuk(hfd){
   if (!heeftOnboardingHoofdstuk(hfd)) return startOnboarding(true);
   if (st.actief) stopTour(true);
+  bouwLagen();                 // HUD/overlay-lagen bestaan niet zonder introscherm
   beginTour('coach', 0, hfd);
 }
 
