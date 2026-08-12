@@ -24,7 +24,7 @@ import { toonThemaInfo } from './teams-leerlijn.js?v=20260811a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260811c');
+  const m = await import('./teams.js?v=20260812b');
   m.renderTeam();
 }
 

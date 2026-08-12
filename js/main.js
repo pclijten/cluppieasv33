@@ -3,20 +3,35 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20260811a';
-import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260811c';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260811a';
-import { initChatbot } from './chatbot.js?v=20260811a';
+import { startTeams, openTeam, renderTeam, verlaatTeamView } from './teams.js?v=20260812b';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260812b';
+import { initChatbot } from './chatbot.js?v=20260812b';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20260811b').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260812b').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
 initAuthUI();
 initGlobaleFoutafhandeling();
+
+/* Opstart-laadscherm: standaard zichtbaar in index.html zodat een coach nooit
+   naar een leeg zwart scherm kijkt terwijl Firebase Auth de sessie herstelt.
+   Duurt dat langer dan 8 s (zwak bereik langs de lijn), dan verschijnt een
+   geduld-melding. Zodra onAuthStateChanged een scherm toont fadet het weg. */
+const opstartGeduldTimer = setTimeout(() => {
+  $('#opstartGeduld')?.classList.add('zichtbaar');
+}, 8000);
+function verbergOpstart(){
+  clearTimeout(opstartGeduldTimer);
+  const o = $('#opstart');
+  if (!o) return;
+  o.classList.add('weg');
+  setTimeout(() => o.remove(), 450);   // na de fade helemaal opruimen
+}
 
 /* Terugknop-afhandeling: koppel de abstracte hooks uit state.js aan de
    echte navigatiefuncties (voorkomt circulaire imports in state.js).
@@ -25,7 +40,7 @@ initGlobaleFoutafhandeling();
    is club.js sowieso al geladen en is dit een instant cache-hit. */
 S._navRerender       = renderTeam;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20260811b').then(m => m.verlaatClubView());
+S._navVerlaatClub    = () => import('./club.js?v=20260812b').then(m => m.verlaatClubView());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
@@ -35,6 +50,7 @@ onAuthStateChanged(auth, async user => {
     $('#login').style.display = 'none';
     $('#uitnodiging').style.display = 'none';
     $('#app').style.display = '';
+    verbergOpstart();
     startTeams();
     registreerLogin();
 
@@ -64,5 +80,6 @@ onAuthStateChanged(auth, async user => {
       $('#login').style.display = '';
       $('#uitnodiging').style.display = 'none';
     }
+    verbergOpstart();
   }
 });
