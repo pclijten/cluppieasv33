@@ -29,7 +29,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260811b')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260811c')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -38,7 +38,7 @@ import {
   modalUitlenen, trekUitleningIn,
 } from './teams-spelers.js?v=20260811a';
 import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260811a';
-import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260811a';
+import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260811c';
 import {
   htmlTeamTrainingen, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
@@ -693,7 +693,7 @@ function htmlMeer(){
   const tegels = [
     ['planning',   'Planning',   'Seizoenskalender'],
     ['documenten', 'Documenten', 'Beleid & formulieren', documentenOngelezen],
-    ...(modAan('evaluaties') ? [['stats', 'Stats', 'Speeltijd & cijfers']] : []),
+    ['stats', 'Stats', modAan('evaluaties') ? 'Speeltijd & cijfers' : 'Speeltijd'],
     ['help',       'Help',       'Handleiding'],
     ['hulpchat',   'Hulpchat',   'Stel je vraag over de app', null, true],
   ];
@@ -713,7 +713,6 @@ export function renderTeam(){
   const v = $('#view-team');
   // Uitgeschakelde module? Val terug op een veilig tabblad (bv. admin zette
   // Stats uit terwijl een coach nog op dat tabblad stond).
-  if (S.teamTab === 'stats' && !modAan('evaluaties')) S.teamTab = 'meer';
   const tab = S.teamTab;
   let inhoud = '';
   if (tab === 'wedstrijden') inhoud = htmlWedstrijden();

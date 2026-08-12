@@ -264,10 +264,11 @@ export function htmlStatsTab(){
       ${seizoenen.map(sz => `<button data-seizoenfilter="${esc(sz)}" class="${S.statsSeizoen===sz?'actief':''}">${esc(sz)}</button>`).join('')}
       <button data-seizoenfilter="alles" class="${S.statsSeizoen==='alles'?'actief':''}">Alle</button>
     </div>` : ''}
+    ${modAan('evaluaties') ? `
     <div class="segment" id="statsModus" style="margin-bottom:14px">
       <button data-statsmodus="spelers" class="${modus==='spelers'?'actief':''}">Spelers</button>
       <button data-statsmodus="evaluatie" class="${modus==='evaluatie'?'actief':''}">📈 Teamevaluatie</button>
-    </div>
-    ${modus==='spelers' ? htmlStats() : htmlTeamEvaluatieDashboard()}`;
+    </div>` : ''}
+    ${(modAan('evaluaties') && modus==='evaluatie') ? htmlTeamEvaluatieDashboard() : htmlStats()}`;
 }
 
