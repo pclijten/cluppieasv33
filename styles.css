@@ -1797,3 +1797,42 @@ body::before{
 /* potlood-knop in de trainingslijst (alleen admin) */
 .training-rij .bewerk-knop{width:34px;height:34px;border-radius:8px;color:var(--ink-2);font-size:15px;background:none;border:none}
 .training-rij .bewerk-knop:active{color:var(--accent)}
+
+
+/* ================================================================
+   Wedstrijdscherm v2 — laadbanner-vrije verbeteringen (aug 2026)
+   ================================================================ */
+
+/* Waarschuwing in dark-theme (voorheen hardcoded lichtgeel) */
+.waarschuwing{background:color-mix(in srgb, var(--warn) 13%, var(--surface));color:var(--warn);border-left:3px solid var(--warn);font-size:13px;padding:9px 12px;margin-bottom:10px;border-radius:var(--radius);display:flex;gap:8px;align-items:flex-start;line-height:1.45}
+
+/* Scorebord v2: cijfers + goal-knoppen op één rij, teamnamen voluit eronder */
+.scorebord.v2{flex-direction:column;gap:6px;padding:12px}
+.scorebord.v2 .sb-rij{display:flex;align-items:center;gap:12px;width:100%}
+.scorebord.v2 .sb-cijfers{flex:1;text-align:center}
+.scorebord.v2 .sb-namen{display:flex;width:100%;gap:8px}
+.scorebord.v2 .sb-namen .sb-team{flex:1;font-size:13.5px;white-space:normal;line-height:1.25}
+.scorebord.v2 .sb-goal{width:44px;height:44px;font-size:19px}
+
+/* Selectie-hint boven het veld */
+.selectie-hint{display:flex;align-items:center;gap:9px;background:color-mix(in srgb, var(--accent) 15%, var(--surface));border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);color:var(--ink);font-size:13px;line-height:1.4;padding:9px 12px;border-radius:var(--radius);margin-bottom:10px;animation:hintIn .25s ease}
+.selectie-hint .hint-shirt{width:28px;height:28px;border-radius:50%;background:#fff;color:var(--pitch-ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'Barlow Condensed';font-weight:700;font-size:15px;box-shadow:0 0 0 3px rgba(226,52,47,.45)}
+.selectie-hint .hint-x{margin-left:auto;color:var(--ink-2);font-size:16px;padding:6px 8px;background:none;border:none;cursor:pointer}
+@keyframes hintIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){.selectie-hint{animation:none}}
+
+/* Leeg kwart: expliciete overneem-keuze */
+.kwart-leeg-actie{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px dashed var(--line-d);border-radius:var(--radius);padding:11px 13px;margin-bottom:10px;font-size:13px;color:var(--ink-2);line-height:1.4}
+.kwart-leeg-actie button{margin-left:auto;flex-shrink:0;background:var(--pitch-ink);color:#fff;font-weight:600;font-size:13px;padding:9px 13px;border-radius:9px;min-height:40px}
+
+/* Knoppenhiërarchie */
+.knop.secundair{background:var(--surface-2);color:var(--ink);box-shadow:none;border:1px solid var(--line-d)}
+.knop.destructief{background:transparent;color:var(--accent);border:1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);box-shadow:none}
+
+/* Grotere tik-vlakken: geplande-wissel ✓/✕ en log-verwijderen */
+.plan-item .pk{width:44px;height:44px;border-radius:11px;font-size:17px}
+.plan-item .pk.weg{margin-left:4px}
+.log .log-item .verwijder{width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+
+/* Banksortering benoemen */
+.bank-kop .n .sorteer{color:rgba(255,255,255,.5);font-style:italic}
