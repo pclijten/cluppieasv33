@@ -17,8 +17,8 @@ import { telGebruik } from './tracker.js?v=20260814d';
 import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260814d';
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
-  openWedstrijd, modalNieuweWedstrijd, renderWedstrijd
-} from './wedstrijd.js?v=20260814d';
+  openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad
+} from './wedstrijd.js?v=20260814e';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -30,24 +30,24 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260814d')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260814e')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn,
-} from './teams-spelers.js?v=20260814d';
+} from './teams-spelers.js?v=20260814e';
 import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260814d';
-import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260814d';
+import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260814e';
 import {
   htmlTeamTrainingen, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20260814d';
+} from './teams-training.js?v=20260814e';
 import { htmlTeamDocumenten } from './teams-documenten.js?v=20260814d';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260814d';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260814d';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260814e';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260814e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
    importeren deze twee nog altijd via './teams.js' — ze wonen nu fysiek in
@@ -434,7 +434,7 @@ export function renderTeams(){
         <h1 class="welkom-groet">Hoi ${esc(voornaamMooi || 'coach')} 👋</h1>
         <div id="welkomExtra">${welkomStripHtml()}</div>
       </div>
-      <button class="uitlog-knop" id="uitloggen" title="Uitloggen"><span>⏻</span></button>
+      <button class="uitlog-knop" id="uitloggen" title="Uitloggen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/></svg></button>
     </div>
 
     <div id="pwaBanner"></div>
@@ -443,7 +443,7 @@ export function renderTeams(){
     <div class="overzicht-blokjes">
       <button class="ov-blok ${aantalOngelezen ? 'ov-actief' : ''}" id="ovTrainingen">
         <div class="ov-getal">${aantalOngelezen || '📄'}</div>
-        <div class="ov-label">${aantalOngelezen ? `nieuwe training${aantalOngelezen>1?'en':''}` : 'trainingen'}</div>
+        <div class="ov-label">${aantalOngelezen ? `nieuwe oefenstof` : 'oefenstof'}</div>
       </button>
       <button class="ov-blok ov-wedstrijden" id="ovWedstrijden">
         <div class="ov-getal">📋</div>
@@ -485,24 +485,30 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260814d').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260814e').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260814d').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260814e').then(m => m.modalNieuwClub());
 
-  // Overzichtsblokjes
+  // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
+  // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
+  // ongewild in het bovenste team belandt.
   const ovT = v.querySelector('#ovTrainingen');
   if (ovT) ovT.onclick = () => {
-    // open het eerste team met een ongelezen training; anders gewoon het eerste team op het training-tabblad
-    let doel = S.teams[0];
-    for (const t of S.teams){
-      if (S.trainingen.some(tr => (tr.teams||[]).includes(t.id) && !S.trainingenGelezen[tr.id])){ doel = t; break; }
+    if (S.teams.length <= 1){
+      const doel = S.teams[0]; if (doel) openTeam(doel.id, 'trainingen');
+      return;
     }
-    if (doel) openTeam(doel.id, 'trainingen');
+    // meerdere teams: kies eerst, met het eerste team met ongelezen oefenstof bovenaan gemarkeerd
+    modalTeamKeuze('trainingen', 'Naar oefenstof');
   };
   const ovW = v.querySelector('#ovWedstrijden');
   if (ovW) ovW.onclick = () => {
-    if (S.teams.length) openTeam(S.teams[0].id, 'wedstrijden');
+    if (S.teams.length <= 1){
+      if (S.teams.length) openTeam(S.teams[0].id, 'wedstrijden');
+      return;
+    }
+    modalTeamKeuze('wedstrijden', 'Naar wedstrijden');
   };
 
   const nogTeEvaluerenEl = v.querySelector('#nogTeEvalueren');
@@ -572,9 +578,33 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260814d').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260814e').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
+}
+
+/* Teamkeuze voor de overzichtstegels (oefenstof / wedstrijden) wanneer een
+   coach meerdere teams heeft. Opent het gekozen team op het juiste tabblad.
+   Bij 'trainingen' tonen we een stipje bij teams met ongelezen oefenstof. */
+function modalTeamKeuze(beginTab, titel){
+  const rijen = S.teams.map(t => {
+    const ongelezen = beginTab === 'trainingen'
+      && S.trainingen.some(tr => (tr.teams||[]).includes(t.id) && !S.trainingenGelezen[tr.id]);
+    return `<button class="lijst-item" data-keuze-team="${t.id}" style="margin-bottom:8px">
+      <div class="team-shirt">${esc(t.format)}<small>v${esc(t.format)}</small></div>
+      <div class="li-tekst"><div class="titel">${esc(t.naam)}${ongelezen ? ' <span class="nieuw-stip" title="Nieuwe oefenstof"></span>' : ''}${t.club ? ' <span class="club-badge licht">'+esc(t.clubNaam||'club')+'</span>' : ''}</div>
+      <div class="meta">${Object.keys(t.leden||{}).length} coach(es)</div></div>
+      <span class="pijl">›</span>
+    </button>`;
+  }).join('');
+  openModal(`
+    <h2>${esc(titel)}</h2>
+    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Je hebt meerdere teams. Kies voor welk team je verder wilt.</p>
+    ${rijen}`);
+  $$('#modalInhoud [data-keuze-team]').forEach(b => b.onclick = () => {
+    sluitModal();
+    openTeam(b.dataset.keuzeTeam, beginTab);
+  });
 }
 
 function modalJoinTeam(){
@@ -1133,7 +1163,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260814d').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260814e').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
@@ -1153,6 +1183,7 @@ function koppelTeamTab(v, tab){
     return;
   }
   if (tab === 'stats'){
+    koppelStatsBlad(v);
     v.querySelectorAll('[data-statsmodus]').forEach(b => b.onclick = () => {
       S.statsSubTab = b.dataset.statsmodus; renderTeam();
     });
@@ -1362,7 +1393,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260814d').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260814e').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {
@@ -1408,6 +1439,12 @@ function koppelTeamTab(v, tab){
       const data = cat ? {categorie: cat, format: catInfo(cat).format} : {categorie: null};
       await updateDoc(doc(db,'teams',S.teamId), data);
       meld(cat ? cat + ' ingesteld' : 'Categorie verwijderd');
+    };
+    v.querySelectorAll('#iWedstrijdvorm [data-vorm]').forEach(b => b.onclick = async () => {
+      const vorm = b.dataset.vorm;
+      if (String(S.team.format) === vorm) return;
+      await updateDoc(doc(db,'teams',S.teamId), {format: vorm});
+      meld('Wedstrijdvorm: ' + vorm + ' tegen ' + vorm);
     };
     v.querySelector('#verlaatTeam').onclick = async () => {
       if (!confirm('Weet je zeker dat je dit team wilt verlaten?')) return;
