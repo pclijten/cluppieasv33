@@ -1452,7 +1452,7 @@ function koppelTeamTab(v, tab){
       if (String(S.team.format) === vorm) return;
       await updateDoc(doc(db,'teams',S.teamId), {format: vorm});
       meld('Wedstrijdvorm: ' + vorm + ' tegen ' + vorm);
-    };
+    });
     v.querySelector('#verlaatTeam').onclick = async () => {
       if (!confirm('Weet je zeker dat je dit team wilt verlaten?')) return;
       await updateDoc(doc(db,'teams',S.teamId), {
