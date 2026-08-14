@@ -169,7 +169,7 @@ export function htmlTeamTrainingen(){
 
   let pdfLijst;
   if (!pdfs.length){
-    pdfLijst = `<div class="kaart leeg">Nog geen trainingen gedeeld.<br>Elke zondag zet je clubadmin hier de oefenstof voor de komende week klaar.</div>`;
+    pdfLijst = `<div class="kaart leeg">Nog geen oefenstof gedeeld.<br>Elke zondag zet je clubadmin hier de oefenstof voor de komende week klaar.</div>`;
   } else {
     // nieuw → oud op uploaddatum; items zonder datum gaan naar 'Eerder'
     const gesorteerd = [...pdfs].sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
@@ -197,7 +197,7 @@ export function htmlTeamTrainingen(){
         <div class="maand-groep">
           <button class="maand-kop" data-pdfmaand="${ym}">
             <span class="maand-naam">${esc(titel)}</span>
-            <span class="maand-tel">${items.length} training${items.length>1?'en':''}${ongelezenInMaand?` · <b style="color:var(--uit)">${ongelezenInMaand} nieuw</b>`:''}</span>
+            <span class="maand-tel">${items.length}× oefenstof${ongelezenInMaand?` · <b style="color:var(--uit)">${ongelezenInMaand} nieuw</b>`:''}</span>
             <span class="maand-pijl ${open?'open':''}">▾</span>
           </button>
           ${open ? `
@@ -210,7 +210,7 @@ export function htmlTeamTrainingen(){
   }
 
   const pdfSectie = `
-    <div class="sectie-kop">📄 Gedeelde trainingen</div>
+    <div class="sectie-kop">📄 Gedeelde oefenstof</div>
     ${pdfLijst}`;
 
   return htmlKompas() + afgelastSectie + presentieSectie + pdfSectie;
@@ -289,6 +289,12 @@ export function htmlInstellingen(){
       <p style="font-size:12.5px;color:var(--ink-2)" id="iCatInfo">${S.team.categorie && catInfo(S.team.categorie)
         ? 'KNVB: ' + esc(catInfo(S.team.categorie).knvb) + '. Nieuwe wedstrijden krijgen automatisch de juiste speeltijd en periodes.'
         : 'Kies de categorie zodat nieuwe wedstrijden automatisch de juiste KNVB-speeltijd en het juiste aantal helften/kwarten krijgen.'}</p>
+
+      <div class="veldlabel" style="margin-top:16px">Wedstrijdvorm</div>
+      <div class="vxv-opties" id="iWedstrijdvorm">
+        ${['6','8','9','11'].map(f => `<button class="vxv-opt ${String(S.team.format)===f?'aan':''}" data-vorm="${f}">${f} tegen ${f}</button>`).join('')}
+      </div>
+      <p class="hint" style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
     <button class="knop gevaar vol" id="verlaatTeam">Team verlaten</button>`;
 }

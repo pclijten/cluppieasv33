@@ -340,7 +340,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260814d').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260814e').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1208,27 +1208,80 @@ export function htmlStats(){
     }
   }
   const toonOpkomst = totTrainingen > 0;
-  return `
-    ${heeftData ? '' : `<div class="kaart leeg" style="margin-bottom:12px">Nog geen gespeelde wedstrijden.<br>Zodra je opstellingen maakt, verschijnt hier automatisch de speeltijd per speler.</div>`}
+
+  // Drie losse bladen i.p.v. één brede tabel die horizontaal moet scrollen op
+  // mobiel: speelminuten, wedstrijdstatistiek en trainingsopkomst. De actieve
+  // keuze staat in S.statsBlad (default 'speel'); koppeling in koppelStatsBlad().
+  const blad = S.statsBlad || 'speel';
+  const bladBalk = `
+    <div class="segment stats-blad" id="statsBlad" style="margin-bottom:14px">
+      <button data-statsblad="speel" class="${blad==='speel'?'actief':''}">⏱ Speelminuten</button>
+      <button data-statsblad="wed" class="${blad==='wed'?'actief':''}">📋 Wedstrijd</button>
+      <button data-statsblad="tr" class="${blad==='tr'?'actief':''}">🏃 Training</button>
+    </div>`;
+
+  const speelBlad = () => `
     <table class="stat-tabel">
-      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th><th>⚽</th><th>C</th><th>K</th><th>🟨</th><th>🟥</th>${toonOpkomst?'<th>Tr.</th>':''}</tr></thead>
+      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th></tr></thead>
       <tbody>${rijen.map(p => {
         const ps = pctSpeeltijd[p.id], pr = pctReserve[p.id];
         return `<tr>
           <td class="naam-cel">${esc(p.naam)}</td>
           <td>${tot.wedstrijden[p.id]||0}</td>
           <td class="pct-cel">${ps!=null?`<span style="font-weight:700;color:${pctKleur(ps)}">${ps}%</span><span class="pct-bar"><span style="width:${ps}%;background:${pctKleur(ps)}"></span></span>`:'—'}</td>
-          <td class="res-cel">${pr!=null?pr+'%':''}</td>
-          <td style="font-weight:700">${tot.goals[p.id]||0}</td>
-          <td>${tot.aanv[p.id] ? tot.aanv[p.id]+'×' : ''}</td>
-          <td>${tot.keeper[p.id]||0}</td>
-          <td>${tot.geel[p.id]||0}</td>
-          <td>${tot.rood[p.id]||0}</td>${toonOpkomst?`<td class="opkomst-cel ${opkomst[p.id]>=80?'goed':opkomst[p.id]>=50?'matig':'laag'}">${opkomst[p.id]}%</td>`:''}</tr>`;
+          <td class="res-cel">${pr!=null?pr+'%':''}</td></tr>`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). De exacte minuten staan in het spelersprofiel.<br>
-      ⚽ doelpunten · <b>C</b> aanvoerdersbeurten · <b>K</b> periodes als keeper · 🟨 gele kaarten · 🟥 rode kaarten${toonOpkomst?' · <b>Tr.</b> opkomst training ('+totTrainingen+' geregistreerd)':''}.</p>`;
+      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). De exacte minuten staan in het spelersprofiel.</p>`;
+
+  const wedBlad = () => `
+    <table class="stat-tabel">
+      <thead><tr><th>Speler</th><th>⚽</th><th>C</th><th>K</th><th>🟨</th><th>🟥</th></tr></thead>
+      <tbody>${rijen.map(p => `<tr>
+        <td class="naam-cel">${esc(p.naam)}</td>
+        <td style="font-weight:700">${tot.goals[p.id]||0}</td>
+        <td>${tot.aanv[p.id] ? tot.aanv[p.id]+'×' : ''}</td>
+        <td>${tot.keeper[p.id]||0}</td>
+        <td>${tot.geel[p.id]||0}</td>
+        <td>${tot.rood[p.id]||0}</td></tr>`).join('')}</tbody>
+    </table>
+    <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
+      ⚽ doelpunten · <b>C</b> aanvoerdersbeurten · <b>K</b> periodes als keeper · 🟨 gele kaarten · 🟥 rode kaarten.</p>`;
+
+  const trBlad = () => toonOpkomst ? `
+    <table class="stat-tabel">
+      <thead><tr><th>Speler</th><th>Aanwezig</th><th>Opkomst</th></tr></thead>
+      <tbody>${rijen.map(p => {
+        const pct = opkomst[p.id] ?? 0;
+        const aanw = Math.round((pct/100) * totTrainingen);
+        return `<tr>
+          <td class="naam-cel">${esc(p.naam)}</td>
+          <td>${aanw} / ${totTrainingen}</td>
+          <td class="opkomst-cel ${pct>=80?'goed':pct>=50?'matig':'laag'}">${pct}%</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
+      <b>Opkomst</b> = % aanwezig van de ${totTrainingen} geregistreerde training${totTrainingen>1?'en':''}.</p>`
+    : `<div class="kaart leeg">Nog geen trainingsopkomst geregistreerd.<br>Zodra je op de Training-tab presentie bijhoudt, verschijnt hier per speler het opkomstpercentage.</div>`;
+
+  const leegWed = `<div class="kaart leeg" style="margin-bottom:12px">Nog geen gespeelde wedstrijden.<br>Zodra je opstellingen maakt, verschijnt hier automatisch de speeltijd per speler.</div>`;
+
+  let inhoud;
+  if (blad === 'speel') inhoud = (heeftData ? '' : leegWed) + speelBlad();
+  else if (blad === 'wed') inhoud = (heeftData ? '' : leegWed) + wedBlad();
+  else inhoud = trBlad();
+
+  return bladBalk + inhoud;
+}
+
+/* Koppelt de drie stats-blad-knoppen (speelminuten / wedstrijd / training).
+   Aangeroepen vanuit teams.js nadat de Stats-tab is getekend. */
+export function koppelStatsBlad(root){
+  (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
+    S.statsBlad = b.dataset.statsblad;
+    import('./teams.js?v=20260814e').then(m => m.renderTeam?.());
+  });
 }
 
 /* ==================== WEERGAVE ==================== */
@@ -1471,7 +1524,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260814d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260814e').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
