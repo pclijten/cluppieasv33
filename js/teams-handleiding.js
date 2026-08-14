@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20260812b';
+import { onboardingHerstartBlok } from './onboarding.js?v=20260812c';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -156,9 +156,9 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
-    <section class="hl-sec" data-zoek="🟨 kaarten & straffen de gele knop naast het scorebord opent het kaartenmenu. kies de speler en het type: 🟨 geel — waarschuwing. een tweede gele in dezelfde wedstrijd geeft automatisch rood . ⏱ tijdstraf — 5 minuten voor pupillen (t/m jo/mo15), 10 minuten voor jo/mo16+ en senioren. 🟥 rood — de speler wordt direct van het veld gehaald. verkeerde kaart? tik erop in het log om de speler te wijzigen of de kaart te verwijderen.">
+    <section class="hl-sec" data-zoek="🟨 kaarten & straffen de gele knop bij de klok opent het kaartenmenu. kies de speler en het type: 🟨 geel — waarschuwing. een tweede gele in dezelfde wedstrijd geeft automatisch rood . ⏱ tijdstraf — 5 minuten voor pupillen (t/m jo/mo15), 10 minuten voor jo/mo16+ en senioren. 🟥 rood — de speler wordt direct van het veld gehaald. verkeerde kaart? tik erop in het log om de speler te wijzigen of de kaart te verwijderen.">
     <h3>🟨 Kaarten & straffen</h3>
-    <p>De gele knop naast het scorebord opent het kaartenmenu. Kies de speler en het type:</p>
+    <p>De gele knop bij de klok opent het kaartenmenu. Kies de speler en het type:</p>
     <ul>
       <li><b>🟨 Geel</b> — waarschuwing. Een tweede gele in dezelfde wedstrijd geeft <b>automatisch rood</b>.</li>
       <li><b>⏱ Tijdstraf</b> — 5 minuten voor pupillen (t/m JO/MO15), 10 minuten voor JO/MO16+ en senioren.</li>
