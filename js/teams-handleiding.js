@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20260814c';
+import { onboardingHerstartBlok } from './onboarding.js?v=20260814d';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -141,9 +141,10 @@ export function htmlHandleiding(){
     <div class="tip"><b>Slim:</b> de naamvergelijking negeert hoofdletters, spaties en het eigen clubvoorvoegsel, zodat dezelfde tegenstander altijd herkend wordt — ook als de schrijfwijze net iets verschilt.</div>
     </section>
 
-    <section class="hl-sec" data-zoek="📅 wissels vooraf plannen onder het wisselvak staat + wissel plannen : kies wie erin, wie eruit en na hoeveel minuten. zodra de klok dat moment passeert, knippert de geplande wissel en trilt je telefoon. tik op ✓ om hem door te voeren.">
+    <section class="hl-sec" data-zoek="📅 wissels vooraf plannen onder het wisselvak staat + wissel plannen : kies wie erin, wie eruit en na hoeveel minuten. zodra de klok dat moment passeert, knippert de geplande wissel en trilt je telefoon. tik op ✓ om hem door te voeren. wie aan de beurt is minst gespeeld: in plaats van een vaste speler kun je bij erin kiezen voor wie aan de beurt is. de app brengt dan op het wisselmoment automatisch de speler met de minste speeltijd van de bank in, zodat de speeltijd eerlijk verdeeld blijft.">
     <h3>📅 Wissels vooraf plannen</h3>
     <p>Onder het wisselvak staat <b>+ Wissel plannen</b>: kies wie erin, wie eruit en na hoeveel minuten. Zodra de klok dat moment passeert, knippert de geplande wissel en trilt je telefoon. Tik op <kbd>✓</kbd> om hem door te voeren.</p>
+    <div class="tip"><b>★ Wie aan de beurt is:</b> in plaats van een vaste speler kies je bij <b>Erin</b> voor <b>“wie aan de beurt is (minst gespeeld)”</b>. De app brengt dan op het wisselmoment automatisch de bankspeler met de minste speeltijd in — zo verdeel je de speeltijd eerlijk zonder vooraf te rekenen.</div>
     </section>
 
     <section class="hl-sec" data-zoek="⚽ doelpunten registreren & corrigeren tik op de ⚽-knop aan jouw kant van het scorebord en kies de speler die scoorde. tegendoelpunt: één tik op de andere ⚽-knop. verkeerd getikt? tik op het doelpunt in het gebeurtenissen-log. je kunt dan de juiste scorer kiezen, de kant omdraaien (voor ↔ tegen) of het doelpunt verwijderen. doelpunten verschijnen in het log en in de seizoenstatistieken (topscorer).">
@@ -212,7 +213,7 @@ export function htmlHandleiding(){
     </section>
 
     <h4 class="hl-hoofdstuk" id="hlh-beoordelen">📈 Beoordelen &amp; evalueren</h4>
-    <section class="hl-sec" data-zoek="📋 spelers beoordelen per speler leg je de ontwikkeling vast. open een speler (tab spelers → tik op de speler) en je vindt daar het ontwikkelprofiel met twee manieren om te beoordelen: ⚡ snel beoordelen — een paar tikken na een wedstrijd of training: een algemeen niveau plus optionele "opvallend"-tags. ideaal om er een gewoonte van te maken. 📋 volledige beoordeling — een periodieke, diepere meting op de vijf ontwikkeldomeinen. hieruit komt het ontwikkelprofiel met balkjes. de vijf domeinen (gebaseerd op het asv'33-jeugdbeleidsplan): te — technisch : balbeheersing, traptechniek, 1v1. ta — tactisch : inzicht, positiespel, keuzes maken. fy — fysiek : snelheid, actiesnelheid, duelkracht. me — mentaal : zelfvertrouwen, spelen onder weerstand. ge — gedrag & beleving : inzet, teamgevoel, plezier. een score loopt van 1 (aandacht) via 3 (prima) tot 5 (uitblinker) . leerpunten (tab leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. vink ze af zodra ze beheerst zijn. de app stelt leerpunten voor die passen bij de leeftijd van het team. historie : een tijdlijn met al je eerdere beoordelingen. tik een item aan om het te bekijken of bij te werken. privacy: beoordelingen en leerpunten zijn coach-only . spelers en ouders zien deze nooit. verwijder je een speler, dan gaan zijn beoordelingen mee weg.">
+    <section class="hl-sec" data-zoek="📋 spelers beoordelen per speler leg je de ontwikkeling vast. open een speler (tab spelers → tik op de speler) en je vindt daar het ontwikkelprofiel met twee manieren om te beoordelen: ⚡ snel beoordelen — een paar tikken na een wedstrijd of training: een algemeen niveau plus optionele "opvallend"-tags. ideaal om er een gewoonte van te maken. 📋 volledige beoordeling — een periodieke, diepere meting op de vijf ontwikkeldomeinen. hieruit komt het ontwikkelprofiel met balkjes. de vijf domeinen (gebaseerd op het asv'33-jeugdbeleidsplan): techniek : balbeheersing, traptechniek, 1v1. tactiek : inzicht, positiespel, keuzes maken. fysiek : snelheid, actiesnelheid, duelkracht. mentaal : zelfvertrouwen, spelen onder weerstand. gedrag & beleving : inzet, teamgevoel, plezier. een score loopt van 1 (aandacht) via 3 (prima) tot 5 (uitblinker) . leerpunten (tab leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. kies een domein (techniek, tactiek, fysiek, mentaal of gedrag) en eventueel een thema uit de leerlijn. vink ze af zodra ze beheerst zijn. de app stelt leerpunten voor die passen bij de leeftijd van het team. historie : een tijdlijn met al je eerdere beoordelingen. tik een item aan om het te bekijken of bij te werken. privacy: beoordelingen en leerpunten zijn coach-only . spelers en ouders zien deze nooit. verwijder je een speler, dan gaan zijn beoordelingen mee weg.">
     <h3>📋 Spelers beoordelen</h3>
     <p>Per speler leg je de ontwikkeling vast. Open een speler (tab <b>Spelers</b> → tik op de speler) en je vindt daar het ontwikkelprofiel met twee manieren om te beoordelen:</p>
     <ul>
@@ -221,15 +222,15 @@ export function htmlHandleiding(){
     </ul>
     <p>De vijf domeinen (gebaseerd op het ASV'33-jeugdbeleidsplan):</p>
     <ul>
-      <li><b>TE — Technisch</b>: balbeheersing, traptechniek, 1v1.</li>
-      <li><b>TA — Tactisch</b>: inzicht, positiespel, keuzes maken.</li>
-      <li><b>FY — Fysiek</b>: snelheid, actiesnelheid, duelkracht.</li>
-      <li><b>ME — Mentaal</b>: zelfvertrouwen, spelen onder weerstand.</li>
-      <li><b>GE — Gedrag &amp; beleving</b>: inzet, teamgevoel, plezier.</li>
+      <li><b>⚽ Techniek</b>: balbeheersing, traptechniek, 1v1.</li>
+      <li><b>🧠 Tactiek</b>: inzicht, positiespel, keuzes maken.</li>
+      <li><b>💪 Fysiek</b>: snelheid, actiesnelheid, duelkracht.</li>
+      <li><b>🔥 Mentaal</b>: zelfvertrouwen, spelen onder weerstand.</li>
+      <li><b>🤝 Gedrag &amp; beleving</b>: inzet, teamgevoel, plezier.</li>
     </ul>
     <p>Een score loopt van <b>1 (Aandacht)</b> via <b>3 (Prima)</b> tot <b>5 (Uitblinker)</b>.</p>
     <ul>
-      <li><b>Leerpunten</b> (tab Leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. Vink ze af zodra ze beheerst zijn. De app stelt leerpunten voor die passen bij de leeftijd van het team.</li>
+      <li><b>Leerpunten</b> (tab Leerlijn in het profiel): concrete, observeerbare ontwikkeldoelen die over meerdere wedstrijden doorlopen. Kies bij het toevoegen een <b>domein</b> (Techniek, Tactiek, Fysiek, Mentaal of Gedrag) en eventueel een thema uit de leerlijn. Vink ze af zodra ze beheerst zijn. De app stelt leerpunten voor die passen bij de leeftijd van het team.</li>
       <li><b>Historie</b>: een tijdlijn met al je eerdere beoordelingen. Tik een item aan om het te bekijken of bij te werken.</li>
     </ul>
     <div class="tip"><b>Privacy:</b> beoordelingen en leerpunten zijn <b>coach-only</b>. Spelers en ouders zien deze nooit. Verwijder je een speler, dan gaan zijn beoordelingen mee weg.</div>
@@ -300,6 +301,16 @@ export function htmlHandleiding(){
     <div class="tip">Deel gegevens uit spelersprofielen niet buiten het technisch kader. Heb je vragen over privacy binnen de club? Stem af met je hoofdcoach of clubbeheerder.</div>
 
     
+    </section>
+
+    <section class="hl-sec" data-zoek="↩︎ navigeren & de terugknop de terugknop van je telefoon gaat binnen de app steeds één stap terug: van een sub-tabblad (planning, stand, documenten, stats, help) terug naar meer, en van de hoofdtabbladen terug naar de teamkeuze. een open venster of de wedstrijd sluit je er ook mee. je springt dus niet meer in één keer helemaal terug naar het teamkeuzescherm.">
+    <h3>↩︎ Navigeren &amp; de terugknop</h3>
+    <p>De <b>terugknop van je telefoon</b> gaat binnen de app steeds <b>één stap terug</b>:</p>
+    <ul>
+      <li>Vanuit een onderdeel onder <b>Meer</b> (Planning, Stand &amp; Poule, Documenten, Stats, Help) terug naar het <b>Meer</b>-menu.</li>
+      <li>Een geopend venster of de wedstrijd sluit je er ook mee.</li>
+      <li>Pas vanaf een hoofdtabblad ga je terug naar de <b>teamkeuze</b> — je springt dus niet meer in één keer helemaal terug.</li>
+    </ul>
     </section>
 
     <p style="font-size:12.5px;color:var(--ink-2);text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--hair)">

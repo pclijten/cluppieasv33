@@ -8,10 +8,10 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260814c';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814c';
-import { htmlStats } from './wedstrijd.js?v=20260814c';
-import { telGebruik } from './tracker.js?v=20260814c';
+} from './state.js?v=20260814d';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814d';
+import { htmlStats } from './wedstrijd.js?v=20260814d';
+import { telGebruik } from './tracker.js?v=20260814d';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */

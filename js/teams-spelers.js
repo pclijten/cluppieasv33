@@ -10,22 +10,22 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
-} from './state.js?v=20260814c';
+} from './state.js?v=20260814d';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK
-} from './config.js?v=20260814c';
-import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814c';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260814c';
-import { telGebruik } from './tracker.js?v=20260814c';
+} from './config.js?v=20260814d';
+import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814d';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260814d';
+import { telGebruik } from './tracker.js?v=20260814d';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260814c');
+  const m = await import('./teams.js?v=20260814d');
   m.renderTeam();
 }
 
@@ -613,8 +613,9 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
     <p style="font-size:11px;color:var(--ink-2);margin:2px 0 12px">🟢 = hoort bij deze leeftijd volgens het jeugdbeleidsplan. Tik ℹ voor achtergrond en oefentips.</p>
 
     <div class="veldlabel">Domein</div>
-    <div class="segment klein-seg" id="mLpDom">${SKILLS.map(d =>
-      `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}">${d.id}</button>`).join('')}</div>
+    <div class="dom-kiezer" id="mLpDom">${SKILLS.map(d =>
+      `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}"><span class="dk-emoji">${d.emoji||''}</span>${esc(d.kort||d.naam)}</button>`).join('')}</div>
+    <p style="font-size:11px;color:var(--ink-2);line-height:1.5;margin:6px 0 12px">Techniek · Tactiek · Fysiek · Mentaal · Gedrag &amp; beleving — de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
 
     <div class="veldgroep"><label>Leerpunt</label>
       <textarea class="invoer" id="mLpTekst" rows="3" placeholder="Bijv. eerder het hoofd omhoog vóór de aanname">${esc(voorlopigeTekst)}</textarea></div>
