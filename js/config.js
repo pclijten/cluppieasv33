@@ -573,3 +573,69 @@ export const TEAM_TAGS = [
   {id:'sterke2e',     emoji:'🔥', label:'Sterke 2e helft'},
   {id:'terugval',     emoji:'📉', label:'Terugval na rust'},
 ];
+
+/* ==================== WISSELREDENEN (facultatief) ====================
+   Optioneel aan te geven bij een directe of geplande wissel. Nooit verplicht.
+   De id wordt bij het wissel-event bewaard; de UI toont label + emoji. */
+export const WISSEL_REDENEN = [
+  {id:'blessure',   emoji:'🩹', label:'Blessure'},
+  {id:'tactisch',   emoji:'🔄', label:'Tactisch'},
+  {id:'gedrag',     emoji:'💬', label:'Gedrag'},
+  {id:'training',   emoji:'📋', label:'Trainingsopkomst'},
+];
+export function wisselReden(id){ return WISSEL_REDENEN.find(r => r.id === id) || null; }
+
+/* ==================== FUNCTIEGEBRUIK — EVENT-CATALOGUS ====================
+   Alle telbare functies, gegroepeerd per categorie. De 'ev'-sleutel is de
+   stabiele event-naam die naar Firestore gaat (nooit hernoemen — dat breekt
+   de historie); 'label' is de weergavenaam in het admin-overzicht.
+   Puur telwerk: er gaan NOOIT speler- of persoonsgegevens mee, alleen tellingen. */
+export const GEBRUIK_CATEGORIEEN = [
+  { id:'wedstrijd', naam:'Wedstrijd', events:[
+    {ev:'wedstrijd_start',      label:'Wedstrijd starten'},
+    {ev:'opstelling_maken',     label:'Opstelling maken'},
+    {ev:'wissel_direct',        label:'Wissel doorgevoerd'},
+    {ev:'wissel_gepland',       label:'Wissel gepland'},
+    {ev:'doelpunt',             label:'Doelpunt geregistreerd'},
+    {ev:'kaart',                label:'Kaart geregistreerd'},
+    {ev:'verslag_ai',           label:'Verslag gegenereerd'},
+    {ev:'speeltijd_correctie',  label:'Speeltijd gecorrigeerd'},
+  ]},
+  { id:'beoordelen', naam:'Beoordelen', events:[
+    {ev:'snel_beoordeling',     label:'Snel beoordelen'},
+    {ev:'snel_ronde',           label:'Snelle ronde'},
+    {ev:'volledige_beoordeling',label:'Volledige beoordeling'},
+    {ev:'team_evaluatie',       label:'Team evalueren'},
+    {ev:'leerpunt_nieuw',       label:'Leerpunt toegevoegd'},
+    {ev:'leerpunt_klaar',       label:'Leerpunt afgevinkt'},
+  ]},
+  { id:'training', naam:'Training', events:[
+    {ev:'presentie',            label:'Presentie invullen'},
+    {ev:'training_upload',      label:'Training uploaden (AI)'},
+    {ev:'training_bewerken',    label:'Training bewerken'},
+    {ev:'afgelasting',          label:'Afgelasting gemeld'},
+  ]},
+  { id:'beheer', naam:'Spelers & beheer', events:[
+    {ev:'speler_nieuw',         label:'Speler toevoegen'},
+    {ev:'speler_bewerken',      label:'Speler bewerken'},
+    {ev:'selectie_kiezen',      label:'Selectie kiezen'},
+    {ev:'uitlenen',             label:'Speler uitlenen'},
+    {ev:'uitlenen_intrek',      label:'Uitlenen ingetrokken'},
+  ]},
+  { id:'overig', naam:'Overig', events:[
+    {ev:'stats_bekeken',        label:'Stats bekeken'},
+    {ev:'chatbot',              label:'Chatbot gebruikt'},
+    {ev:'handleiding',          label:'Handleiding geopend'},
+    {ev:'leerlijn',             label:'Leerlijn geopend'},
+    {ev:'video_open',           label:'Video geopend'},
+    {ev:'document_open',        label:'Document geopend'},
+  ]},
+];
+/* platte map ev → {label, categorie} voor snelle opzoeking in het admin-overzicht */
+export const GEBRUIK_EVENTS = (() => {
+  const m = {};
+  for (const c of GEBRUIK_CATEGORIEEN)
+    for (const e of c.events) m[e.ev] = {label:e.label, cat:c.id, catNaam:c.naam};
+  return m;
+})();
+export function gebruikEventLabel(ev){ return GEBRUIK_EVENTS[ev]?.label || ev; }

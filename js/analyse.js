@@ -1,5 +1,5 @@
 import { S } from './state.js?v=20260811a';
-import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260811a';
+import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260814a';
 
 /* ==================== SPEELTIJD-BEREKENING ====================
    Losse module zonder UI-afhankelijkheden, zodat zowel het wedstrijdscherm
@@ -61,10 +61,11 @@ export function analyseKwart(w, k){
 }
 
 export function analyseWedstrijd(w){
-  const tot = {tijd:{}, keeper:{}, lijn:{}, kwarten:0};
+  const tot = {tijd:{}, keeper:{}, lijn:{}, kwarten:0, matchduur:0};
   for (const nr of periodeNrs(w)){
     const k = w.kwarten?.[nr]; if (!k || !kwartGespeeld(k)) continue;
     tot.kwarten++;
+    tot.matchduur += kwartDuurSec(w, k); // totale speelbare tijd van dit gespeelde kwart
     const a = analyseKwart(w, k);
     for (const [pid, s] of Object.entries(a.tijd)) tot.tijd[pid] = (tot.tijd[pid]||0) + s;
     for (const pid of a.keeper) tot.keeper[pid] = (tot.keeper[pid]||0) + 1;
@@ -74,4 +75,26 @@ export function analyseWedstrijd(w){
     }
   }
   return tot;
+}
+
+/* Speeltijd- en reserve-aggregatie over meerdere wedstrijden, alleen geteld
+   voor wedstrijden waarin de speler in de selectie zat (de eerlijke noemer).
+   Geeft per speler: speeltijd (sec), reserve (sec) en speelbaar (sec).
+   reserve = speelbaar - speeltijd; percentages worden in de UI berekend. */
+export function speeltijdReserve(wedstrijden){
+  const uit = {}; // pid -> {speeltijd, reserve, speelbaar, wedstrijden}
+  for (const w of wedstrijden){
+    const a = analyseWedstrijd(w);
+    if (!a.kwarten || !a.matchduur) continue;
+    const selectie = Array.isArray(w.selectie) ? w.selectie : [];
+    for (const pid of selectie){
+      const gespeeld = a.tijd[pid] || 0;
+      const r = (uit[pid] ||= {speeltijd:0, reserve:0, speelbaar:0, wedstrijden:0});
+      r.speeltijd += gespeeld;
+      r.speelbaar += a.matchduur;
+      r.reserve   += Math.max(0, a.matchduur - gespeeld);
+      r.wedstrijden++;
+    }
+  }
+  return uit;
 }
