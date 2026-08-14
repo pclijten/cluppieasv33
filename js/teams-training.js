@@ -219,14 +219,19 @@ export function htmlTeamTrainingen(){
 /* ---------- Tab: video's ---------- */
 export function htmlTeamVideos(){
   const lijst = S.videos.filter(t => (t.teams||[]).includes(S.teamId));
-  if (!lijst.length) return `<div class="kaart leeg">Nog geen video's.<br>Vraag je clubadmin om YouTube-video's te delen met dit team.</div>`;
+  if (!lijst.length) return `<div class="kaart leeg">Nog geen video's.<br>Vraag je clubadmin om video's te delen met dit team.</div>`;
   return lijst.map(vid => {
-    const id = youtubeId(vid.url);
+    const upload = vid.bron === 'upload';
+    const id = upload ? null : youtubeId(vid.url);
+    const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
+    const thumbInner = id
+      ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
+      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:8px;font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
     return `
-    <div class="video-rij" data-open-video="${esc(youtubeWatch(id) || vid.url)}" style="cursor:pointer">
-      <div class="thumb">${id ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>` : '<span class="play">▶</span>'}</div>
+    <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
+      <div class="thumb">${thumbInner}</div>
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
-        <div class="v-meta">${vid.clubNaam ? esc(vid.clubNaam) : 'YouTube'}</div></div>
+        <div class="v-meta">${upload ? (vid.clubNaam ? esc(vid.clubNaam) + ' · geüpload' : 'Geüpload') : (vid.clubNaam ? esc(vid.clubNaam) : 'YouTube')}</div></div>
       <div class="acties"><button title="Afspelen">▶</button></div>
     </div>`;
   }).join('');

@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260814a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260814b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260814a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260814b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -787,14 +787,17 @@ function htmlClubVideos(teams, videos){
 
   const lijst = zichtbaar.length ? zichtbaar.map(vid => {
     const teamNamen = (vid.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
-    const id = youtubeId(vid.url);
+    const upload = vid.bron === 'upload';
+    const id = upload ? null : youtubeId(vid.url);
+    const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
+    const thumbInner = id
+      ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
+      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:8px;font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
     return `
       <div class="video-rij">
-        <a class="thumb" href="${esc(youtubeWatch(id) || vid.url)}" target="_blank" rel="noopener">
-          ${id ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>` : '<span class="play">▶</span>'}
-        </a>
+        <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener">${thumbInner}</a>
         <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
-          <div class="v-meta">${esc(teamNamen || '—')}</div></div>
+          <div class="v-meta">${esc(teamNamen || '—')}${upload ? ' · geüpload' : ''}</div></div>
         <div class="acties">
           <button data-vbewerk="${vid.id}" title="Teams en titel wijzigen">✏️</button>
           <button data-vshare="${vid.id}" title="Delen naar WhatsApp">📤</button>
@@ -802,10 +805,12 @@ function htmlClubVideos(teams, videos){
         </div>
       </div>`;
   }).join('')
-  : `<div class="kaart leeg">Nog geen video's voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Plak een YouTube-link en koppel hem aan een team uit deze bouw.</div>`;
+  : `<div class="kaart leeg">Nog geen video's voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Plak een YouTube-link of upload een eigen clip en koppel hem aan een team.</div>`;
 
   return `
     <button class="upload-knop" id="videoToevoegen">🎬 YouTube-video toevoegen voor één of meer teams</button>
+    <button class="upload-knop" id="videoUpload" style="margin-top:8px">⬆️ Eigen video uploaden (mp4) voor één of meer teams
+      <input type="file" id="videoFile" accept="video/mp4,video/*" style="display:none"></button>
     ${segment}
     ${lijst}`;
 }
@@ -1144,6 +1149,15 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       S.clubVideoBouw = b.dataset.vbouw; renderClub();
     });
     v.querySelector('#videoToevoegen').onclick = () => modalNieuweVideo(teams, S.clubVideoBouw);
+    const vUpKnop = v.querySelector('#videoUpload');
+    const vUpInput = v.querySelector('#videoFile');
+    if (vUpKnop && vUpInput){
+      vUpKnop.onclick = () => vUpInput.click();
+      vUpInput.onchange = e => {
+        const file = e.target.files[0]; if (!file) return;
+        modalUploadVideo(file, teams, S.clubVideoBouw);
+      };
+    }
     v.querySelectorAll('[data-vbewerk]').forEach(b => b.onclick = () => {
       const vid = videos.find(x => x.id === b.dataset.vbewerk);
       modalBewerkVideo(vid, teams);
@@ -1156,6 +1170,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-vweg]').forEach(b => b.onclick = async () => {
       const vid = videos.find(x => x.id === b.dataset.vweg);
       if (!confirm(`Video "${vid.titel || ''}" verwijderen?`)) return;
+      try { if (vid.path) await deleteObject(sRef(storage, vid.path)); } catch(e){}
       await deleteDoc(doc(db,'videos',vid.id));
       meld('Video verwijderd'); renderClub();
     });
@@ -1886,10 +1901,13 @@ function modalNieuweVideo(teams, voorBouw = null){
 
 function modalBewerkVideo(vid, teams){
   const huidig = new Set(vid.teams || []);
+  const upload = vid.bron === 'upload';
   openModal(`
     <h2>Video aanpassen</h2>
-    <div class="veldgroep"><label>YouTube-link</label>
-      <input class="invoer" id="mVbUrl" value="${esc(vid.url || '')}" autocomplete="off"></div>
+    ${upload
+      ? `<p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">Geüploade video: <b>${esc(vid.bestandsnaam || vid.titel || 'clip.mp4')}</b>${vid.url ? ` · <a href="${esc(vid.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het videobestand zelf blijft ongewijzigd.</p>`
+      : `<div class="veldgroep"><label>YouTube-link</label>
+      <input class="invoer" id="mVbUrl" value="${esc(vid.url || '')}" autocomplete="off"></div>`}
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mVbTitel" value="${esc(vid.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
@@ -1905,17 +1923,76 @@ function modalBewerkVideo(vid, teams){
   $('#mVbAlle').onclick = () => { $$('#mVbTeams input').forEach(c => c.checked = true); sync(); };
   $('#mVbGeen').onclick = () => { $$('#mVbTeams input').forEach(c => c.checked = false); sync(); };
   $('#mVbOk').onclick = async () => {
-    const url = $('#mVbUrl').value.trim();
-    if (!youtubeId(url)) return meld('Plak een geldige YouTube-link');
     const gekozen = $$('#mVbTeams input').filter(c => c.checked).map(c => c.dataset.tid);
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mVbTitel').value.trim() || 'Video';
+    const wijziging = {titel, teams: gekozen};
+    if (!upload){
+      const url = $('#mVbUrl').value.trim();
+      if (!youtubeId(url)) return meld('Plak een geldige YouTube-link');
+      wijziging.url = url;
+    }
     sluitModal();
     try {
-      await updateDoc(doc(db,'videos',vid.id), {url, titel, teams: gekozen});
+      await updateDoc(doc(db,'videos',vid.id), wijziging);
       meld('Video bijgewerkt'); renderClub();
     } catch(e){
       meld('Opslaan mislukt: ' + (e.code || e.message));
+    }
+  };
+}
+
+/* Eigen videobestand (mp4) uploaden naar Storage en delen — zelfde patroon als
+   de document-/training-upload, maar naar clubs/{clubId}/videos/ en met
+   bron:'upload' zodat de weergave 'm inline afspeelt i.p.v. via YouTube. */
+const MAX_VIDEO_MB = 100;
+function modalUploadVideo(file, teams, voorBouw = null){
+  if (file.size > MAX_VIDEO_MB * 1024 * 1024)
+    return meld(`Bestand is te groot (max ${MAX_VIDEO_MB} MB). Comprimeer de clip eerst.`);
+  const voor = voorBouw ? new Set(teams.filter(t => bouwVanCategorie(t.categorie) === voorBouw).map(t => t.id)) : new Set();
+  openModal(`
+    <h2>Video uploaden</h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>
+    <div class="veldgroep"><label>Titel</label>
+      <input class="invoer" id="mVuTitel" value="${esc(file.name.replace(/\.[^.]+$/,''))}" autocomplete="off"></div>
+    <div class="veldgroep"><label>Voor welke teams?</label>
+      <div id="mVuTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p style="font-size:13px;color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
+      <div class="rij" style="margin-top:8px">
+        <button class="knop licht klein" id="mVuAlle">Alle teams</button>
+        <button class="knop licht klein" id="mVuGeen">Geen</button>
+      </div>
+    </div>
+    <button class="knop vol" id="mVuOk">Uploaden en delen</button>`);
+  const sync = () => $$('#mVuTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+  $$('#mVuTeams input').forEach(c => c.onchange = sync);
+  $('#mVuAlle').onclick = () => { $$('#mVuTeams input').forEach(c => c.checked = true); sync(); };
+  $('#mVuGeen').onclick = () => { $$('#mVuTeams input').forEach(c => c.checked = false); sync(); };
+  $('#mVuOk').onclick = async () => {
+    const gekozen = $$('#mVuTeams input').filter(c => c.checked).map(c => c.dataset.tid);
+    if (!gekozen.length) return meld('Kies minstens één team');
+    const titel = $('#mVuTitel').value.trim() || file.name;
+    const knop = $('.upload-knop');
+    if (knop){ knop.classList.add('bezig'); knop.textContent = 'Uploaden...'; }
+    sluitModal();
+    try {
+      const ts = Date.now();
+      const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `clubs/${S.clubId}/videos/${ts}_${veiligeNaam}`;
+      const r = sRef(storage, path);
+      await uploadBytes(r, file, {contentType: file.type || 'video/mp4'});
+      const url = await getDownloadURL(r);
+      await addDoc(collection(db,'videos'), {
+        club: S.clubId, clubNaam: S.club.naam,
+        bron: 'upload', url, path,
+        titel, bestandsnaam: file.name, grootte: file.size,
+        teams: gekozen,
+        gemaakt: serverTimestamp(),
+        door: S.user.displayName || S.user.email || '',
+      });
+      meld('Video geüpload'); renderClub();
+    } catch(e){
+      console.error(e); meld('Upload mislukt — staat Firebase Storage aan?');
+      if (knop){ knop.classList.remove('bezig'); knop.textContent = '⬆️ Eigen video uploaden (mp4) voor één of meer teams'; }
     }
   };
 }
