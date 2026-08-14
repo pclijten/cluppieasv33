@@ -107,7 +107,7 @@ export function disciplinaireTijd(w){
   }
   return uit;
 }
-
+/* Speeltijd- en reserve-aggregatie over meerdere wedstrijden, alleen geteld
    voor wedstrijden waarin de speler in de selectie zat (de eerlijke noemer).
    Geeft per speler: speeltijd (sec), reserve (sec) en speelbaar (sec).
    reserve = speelbaar - speeltijd; percentages worden in de UI berekend. */
