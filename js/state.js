@@ -15,7 +15,7 @@ export const S = {
   user:null, teams:[], team:null, teamId:null,
   spelers:[], wedstrijden:[],
   wedstrijd:null, wedstrijdId:null, kwart:'1',
-  teamTab:'wedstrijden', geselecteerd:null,
+  teamTab:'wedstrijden', _teamTabStack:[], geselecteerd:null,
   clubs:[], club:null, clubId:null, clubTab:'teams', clubTrainBouw:'onder', clubDocCategorie:'alle', clubDashSort:'desc', clubDashPeriode:'dag', clubDashModus:'overzicht', clubEvalModus:'teams', clubTeams:[], clubTrainingen:[], clubDocumenten:[],
   trainingen:[], trainingenGelezen:{}, videos:[], documenten:[], presentie:[],
   beoordelingen:[], _beoordeelProfiel:null, _profielTab:'overzicht',
@@ -239,7 +239,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260814c').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260814d').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
@@ -251,7 +251,14 @@ function stapTerug(){
   }
   if (view === 'wedstrijd'){ S._navTerugWedstrijd?.(); return true; }
   if (view === 'club'){      S._navVerlaatClub?.();    return true; }
-  if (view === 'team'){      S._navVerlaatTeam?.();    return true; }
+  if (view === 'team'){
+    /* Eerst één tabblad terug binnen het team (bv. van Planning → Meer, of van
+       Stats → het tabblad waar je vandaan kwam). Pas als er geen tab-historie
+       meer is, verlaten we het team richting de teamkeuze. */
+    if (S._navTeamTabTerug?.()) return true;
+    S._navVerlaatTeam?.();
+    return true;
+  }
   return false; // hoofdscherm: niets meer
 }
 

@@ -1,4 +1,4 @@
-import { S } from './state.js?v=20260814c';
+import { S } from './state.js?v=20260814d';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)
@@ -402,11 +402,11 @@ export function knvbKalenderVoorTeam(team){
    "Leren voetballen, met plezier als basis en groei als doel."
    De pedagogische laag komt uit §5 (normen & waarden, teamgevoel, inzet, plezier). */
 export const SKILLS = [
-  {id:'TE', naam:'Technisch', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
-  {id:'TA', naam:'Tactisch',  omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
-  {id:'FY', naam:'Fysiek',    omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
-  {id:'ME', naam:'Mentaal',   omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
-  {id:'GE', naam:'Gedrag & beleving', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
+  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
+  {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
+  {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
+  {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
+  {id:'GE', naam:'Gedrag & beleving', kort:'Gedrag', emoji:'🤝', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
 ];
 export function skillDomein(id){ return SKILLS.find(s => s.id === id) || null; }
 /* alias voor compatibiliteit met eerdere code die 'tipsDomein' aanriep */
