@@ -7,10 +7,11 @@ import {
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
 } from './state.js?v=20260811a';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK } from './config.js?v=20260811a';
-import { analyseWedstrijd } from './analyse.js?v=20260811a';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260811a';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260814a';
+import { analyseWedstrijd } from './analyse.js?v=20260814a';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260814a';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260811a';
+import { telGebruik } from './tracker.js?v=20260814a';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -27,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260812c'); }
+async function teamsModule(){ return await import('./teams.js?v=20260814a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -70,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260812c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260814a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -304,7 +305,8 @@ function htmlClubDashboard(teams, dash, gebruik){
         </div>`).join('') : `<p style="font-size:13px;color:var(--ink-2)">Nog geen wedstrijden of presentie geregistreerd.</p>`}
     </div>
 
-    ${htmlClubGebruik(gebruik)}`;
+    ${htmlClubGebruik(gebruik)}
+    ${htmlClubFunctiegebruik(gebruik)}`;
 }
 
 /* ==================== GEBRUIKSSTATISTIEKEN (logins) ====================
@@ -336,7 +338,110 @@ async function clubGebruikOphalen(teams){
   }
   gebruikers.sort((a,b) => (b.aantalLogins||0) - (a.aantalLogins||0));
 
-  return { logins, gebruikers };
+  // Functiegebruik: documenten gebruik/{uid}_{datum} met per-event tellingen,
+  // over hetzelfde venster. Op datum gefilterd, daarna op relevante uid.
+  const gebruikSnap = await getDocs(query(collection(db,'gebruik'), where('datum','>=',vanaf)));
+  const gebruikDocs = gebruikSnap.docs.map(d => d.data()).filter(g => relevantUids.has(g.uid));
+  const naamPerUid = {};
+  gebruikers.forEach(g => { naamPerUid[g.id] = g.naam || g.email || 'Onbekend'; });
+
+  return { logins, gebruikers, gebruikDocs, naamPerUid };
+}
+
+/* Groepeer de functiegebruik-documenten per periode (dag/week/maand), en bereken
+   per event het clubtotaal + de uitsplitsing per gebruiker. Alleen documenten
+   binnen de gekozen periode tellen mee. */
+function gebruikAggregeer(gebruikDocs, naamPerUid, periode){
+  const nu = new Date();
+  let vanafDatum;
+  if (periode === 'dag') vanafDatum = new Date(nu.getTime() - 1*86400000);
+  else if (periode === 'week') vanafDatum = new Date(nu.getTime() - 7*86400000);
+  else vanafDatum = new Date(nu.getFullYear(), nu.getMonth()-1, nu.getDate());
+  const grens = vanafDatum.toISOString().slice(0,10);
+
+  const perEvent = {};       // ev -> totaal
+  const perEventGebr = {};   // ev -> {uid: n}
+  for (const g of gebruikDocs){
+    if (!g.datum || g.datum < grens) continue;
+    const t = g.tellingen || {};
+    for (const [ev, n] of Object.entries(t)){
+      if (typeof n !== 'number') continue;
+      perEvent[ev] = (perEvent[ev]||0) + n;
+      (perEventGebr[ev] ||= {});
+      perEventGebr[ev][g.uid] = (perEventGebr[ev][g.uid]||0) + n;
+    }
+  }
+  return { perEvent, perEventGebr };
+}
+
+function htmlClubFunctiegebruik(gebruik){
+  const periode = S.clubGebruikPeriode || 'week';
+  const { perEvent, perEventGebr } = gebruikAggregeer(gebruik.gebruikDocs || [], gebruik.naamPerUid || {}, periode);
+  const totaalAlles = Object.values(perEvent).reduce((a,b)=>a+b, 0);
+
+  const catBlok = (cat) => {
+    // events van deze categorie met een telling > 0, aflopend
+    const rijen = cat.events
+      .map(e => ({ev:e.ev, label:e.label, n:perEvent[e.ev]||0}))
+      .filter(r => r.n > 0)
+      .sort((a,b) => b.n - a.n);
+    if (!rijen.length) return '';
+    const catTot = rijen.reduce((a,r)=>a+r.n, 0);
+    const maxN = Math.max(1, ...rijen.map(r => r.n));
+    const LIMIET = 5;
+    const zichtbaar = rijen.slice(0, LIMIET);
+    const rest = rijen.length - zichtbaar.length;
+
+    const funcRij = (r) => {
+      const gebr = Object.entries(perEventGebr[r.ev] || {})
+        .map(([uid,n]) => ({naam: gebruik.naamPerUid?.[uid] || 'Onbekend', n}))
+        .sort((a,b) => b.n - a.n);
+      return `
+      <div class="gebruik-func" data-func="${esc(r.ev)}">
+        <div class="gebruik-func-rij">
+          <span class="fnaam">${esc(r.label)}</span>
+          <span class="fbar"><span style="width:${Math.round((r.n/maxN)*100)}%"></span></span>
+          <span class="fn">${r.n}</span>
+          ${gebr.length ? `<span class="fwie" data-gebruik-wie="${esc(r.ev)}">wie</span>` : ''}
+        </div>
+        <div class="gebruik-func-split">
+          ${gebr.map(g => `
+            <div class="gebruik-gebr-rij">
+              <span class="gav">${esc(initialen(g.naam))}</span>
+              <span class="gnaam">${esc(g.naam)}</span>
+              <span class="gn">${g.n}</span>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    };
+
+    return `
+      <div class="gebruik-cat">
+        <div class="gebruik-cat-kop" data-gebruik-cat="${esc(cat.id)}">
+          <span class="cnaam">${esc(cat.naam)}</span>
+          <span class="ctot">${catTot}</span>
+          <span class="cpijl">›</span>
+        </div>
+        <div class="gebruik-cat-inhoud">
+          ${zichtbaar.map(funcRij).join('')}
+          ${rest > 0 ? `<button class="gebruik-toon-alles" data-gebruik-meer="${esc(cat.id)}">+ Toon alle ${rijen.length} functies</button>
+          <div class="gebruik-cat-rest" style="display:none">${rijen.slice(LIMIET).map(funcRij).join('')}</div>` : ''}
+        </div>
+      </div>`;
+  };
+
+  const blokken = GEBRUIK_CATEGORIEEN.map(catBlok).filter(Boolean).join('');
+
+  return `
+    <div class="kaart">
+      <div class="sectie-kop" style="margin-top:0">Functiegebruik</div>
+      <div class="segment" id="gebruikFunctiePeriode" style="margin-bottom:14px">
+        ${[['dag','Dag'],['week','Week'],['maand','Maand']].map(([id,naam]) =>
+          `<button data-functieperiode="${id}" class="${periode===id?'actief':''}">${naam}</button>`).join('')}
+      </div>
+      ${totaalAlles ? blokken : `<p style="font-size:13px;color:var(--ink-2)">Nog geen functiegebruik geregistreerd in deze periode.</p>`}
+      <p style="font-size:11px;color:var(--ink-2);margin-top:8px;line-height:1.5">Alle functies worden geteld; per categorie staan de drukste bovenaan. Tik een categorie open, of "wie" voor de uitsplitsing per coach. Alleen tellingen — geen speler- of persoonsgegevens.</p>
+    </div>`;
 }
 
 /* ISO-weeknummer als sleutel 'YYYY-Www' */
@@ -932,6 +1037,7 @@ function modalClubAflasten(teams){
       ));
       // 2) één centraal historie-record voor de stats
       await addDoc(collection(db,'clubs',S.clubId,'afgelastingen'), data);
+      telGebruik('afgelasting');
       sluitModal();
       meld(`Training afgelast voor ${teams.length} teams`);
       renderClub();
@@ -1094,6 +1200,22 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     });
     v.querySelectorAll('[data-periode]').forEach(b => b.onclick = () => {
       S.clubDashPeriode = b.dataset.periode; renderClub();
+    });
+    v.querySelectorAll('[data-functieperiode]').forEach(b => b.onclick = () => {
+      S.clubGebruikPeriode = b.dataset.functieperiode; renderClub();
+    });
+    v.querySelectorAll('[data-gebruik-cat]').forEach(kop => kop.onclick = () => {
+      kop.closest('.gebruik-cat').classList.toggle('open');
+    });
+    v.querySelectorAll('[data-gebruik-wie]').forEach(t => t.onclick = e => {
+      e.stopPropagation();
+      const func = t.closest('.gebruik-func');
+      const open = func.classList.toggle('open');
+      t.textContent = open ? 'sluit' : 'wie';
+    });
+    v.querySelectorAll('[data-gebruik-meer]').forEach(b => b.onclick = () => {
+      const rest = b.parentElement.querySelector('.gebruik-cat-rest');
+      if (rest){ rest.style.display = 'block'; b.style.display = 'none'; }
     });
   }
   if (tab === 'instel'){
@@ -1490,6 +1612,7 @@ async function startTrainingVerwerking(file, meta){
     let oefeningen;
     try {
       oefeningen = await ai.structureer(paginas);
+      telGebruik('training_upload');
     } catch(e){
       console.error('[training-ai] structureren mislukt', e);
       return toonAlleenPdfKeuze(file, meta, { mapId, pdfPath, pdfUrl }, 'De automatische opmaak lukte niet. Je kunt de training wel gewoon als PDF delen.');
