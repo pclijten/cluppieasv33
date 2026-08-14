@@ -1836,3 +1836,68 @@ body::before{
 
 /* Banksortering benoemen */
 .bank-kop .n .sorteer{color:rgba(255,255,255,.5);font-style:italic}
+
+/* ==================== WISSELREDEN (facultatief) ==================== */
+.reden-rij{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0}
+.reden{display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:12px;font-size:13.5px;
+  font-weight:600;background:var(--surface-2);color:var(--ink-2);border:1.5px solid var(--line-d);min-height:44px}
+.reden.aan{background:var(--accent);color:#fff;border-color:var(--accent)}
+.reden .ic{font-size:15px}
+/* reden-badge in het wisseloverzicht */
+.wissel-reden-badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:8px;background:var(--surface-2);
+  color:var(--ink-2);border:1px solid var(--line-d);white-space:nowrap;flex-shrink:0}
+.wissel-reden-badge.leeg{opacity:.6;border-style:dashed}
+
+/* ==================== STATS: % speeltijd / reserve ==================== */
+.stat-tabel td.pct-cel{white-space:nowrap}
+.stat-tabel .pct-bar{display:block;height:4px;border-radius:2px;background:var(--surface-2);
+  overflow:hidden;max-width:46px;margin:3px auto 0}
+.stat-tabel .pct-bar span{display:block;height:100%;border-radius:2px}
+.stat-tabel td.res-cel{color:var(--ink-2);font-size:12px}
+
+/* ==================== SPELERPROFIEL: speeltijd/reserve-verhouding ==================== */
+.speeltijd-split{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 2px;background:var(--surface-2)}
+.speeltijd-split .veld{background:var(--ok)}
+.speeltijd-split .bank{background:var(--warn)}
+.split-legend{display:flex;gap:14px;font-size:11.5px;color:var(--ink-2);margin-top:6px}
+.split-legend span{display:inline-flex;align-items:center;gap:5px}
+.split-legend .dotje{width:8px;height:8px;border-radius:2px;display:inline-block}
+.stat-box .sub{font-size:11px;color:var(--ink-2);margin-top:2px}
+
+/* ==================== FUNCTIEGEBRUIK (clubdashboard) ==================== */
+.gebruik-cat{border:1px solid var(--line-d);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.gebruik-cat-kop{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surface-2);cursor:pointer}
+.gebruik-cat-kop .cnaam{flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.3px}
+.gebruik-cat-kop .ctot{font-family:'Barlow Condensed';font-weight:700;font-size:18px;color:var(--accent)}
+.gebruik-cat-kop .cpijl{color:var(--ink-2);font-size:14px;transition:transform .2s}
+.gebruik-cat.open .cpijl{transform:rotate(90deg)}
+.gebruik-cat-inhoud{display:none;padding:4px 13px 8px}
+.gebruik-cat.open .gebruik-cat-inhoud{display:block}
+.gebruik-func{border-bottom:1px solid var(--hair)}
+.gebruik-func:last-child{border-bottom:none}
+.gebruik-func-rij{display:flex;align-items:center;gap:10px;padding:7px 0}
+.gebruik-func-rij .fnaam{flex:1;font-size:13px}
+.gebruik-func-rij .fbar{width:70px;height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;flex-shrink:0}
+.gebruik-func-rij .fbar span{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.gebruik-func-rij .fn{width:36px;text-align:right;font-family:'Barlow Condensed';font-weight:700;font-size:15px}
+.gebruik-func-rij .fwie{font-size:11px;color:var(--accent);font-weight:700;cursor:pointer;flex-shrink:0}
+.gebruik-func-split{display:none;padding:2px 0 8px 2px}
+.gebruik-func.open .gebruik-func-split{display:block}
+.gebruik-gebr-rij{display:flex;align-items:center;gap:8px;padding:4px 0 4px 10px;font-size:12px;color:var(--ink-2)}
+.gebruik-gebr-rij .gav{width:22px;height:22px;border-radius:50%;background:var(--surface-2);color:var(--ink);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.gebruik-gebr-rij .gnaam{flex:1}
+.gebruik-gebr-rij .gn{font-family:'Barlow Condensed';font-weight:700;font-size:13px;color:var(--ink)}
+.gebruik-toon-alles{width:100%;margin-top:6px;padding:9px;border:1px dashed var(--line-d);border-radius:10px;
+  background:none;color:var(--ink-2);font-size:12.5px;font-weight:600}
+
+/* ==================== TEAMEVALUATIE — deels invulbaar ==================== */
+.cat-eval-kop{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 4px}
+.cat-eval-status{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2)}
+.cat-eval-status.klaar{color:var(--ok)}
+.te-samenvatting{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line-d);
+  border-radius:12px;padding:11px 13px;margin:8px 0 2px}
+.te-ring{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed';font-weight:700;font-size:15px;color:#fff;background:var(--surface-2)}
+.te-sam-tekst{flex:1;font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.te-sam-tekst b{color:var(--ink);font-weight:700}
