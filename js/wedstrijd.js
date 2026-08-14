@@ -5,16 +5,16 @@ import {
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260814c';
+} from './state.js?v=20260814d';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden
-} from './config.js?v=20260814c';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814c';
-import { telGebruik } from './tracker.js?v=20260814c';
+} from './config.js?v=20260814d';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814d';
+import { telGebruik } from './tracker.js?v=20260814d';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -340,7 +340,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260814c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260814d').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -566,12 +566,36 @@ function tikKlok(){
     if (sec >= p.min*60 && !item.classList.contains('nu')){
       item.classList.add('nu');
       if (navigator.vibrate) navigator.vibrate([180,90,180]);
-      meld(`Geplande wissel: ${spelerNaam(p.in)} erin voor ${spelerNaam(p.uit)}`);
+      const inNaam = p.in === WISSEL_BEURT ? (spelerNaam(beurtSpeler(k)) + ' (aan de beurt)') : spelerNaam(p.in);
+      meld(`Geplande wissel: ${inNaam} erin voor ${spelerNaam(p.uit)}`);
     }
   });
 }
 
-/* ==================== GEPLANDE WISSELS ==================== */
+/* ==================== GEPLANDE WISSELS ====================
+   Sentinel-waarde voor "Wie aan de beurt is": in plaats van een vaste speler
+   kiest de coach dat de app op het wisselmoment automatisch de speler met de
+   minste speeltijd van de bank inbrengt. Zo hoeft hij vooraf niet te weten wie
+   het minst gespeeld heeft — dat rekent de app pas uit als de wissel valt. */
+const WISSEL_BEURT = '__beurt__';
+
+/* Wie is er "aan de beurt": de beschikbare bankspeler met de minste speeltijd
+   over de hele wedstrijd. uitgesloten = spelers die op dit moment al ingepland
+   staan (voorkomt dat dezelfde speler dubbel wordt gekozen). Retourneert een
+   pid of null als er niemand (meer) op de bank staat. */
+function beurtSpeler(k, uitgesloten = new Set()){
+  const l = effectieveLineup(k);
+  const opVeld = new Set(Object.values(l));
+  const aWed = analyseWedstrijd(S.wedstrijd);
+  const bank = (S.wedstrijd.selectie||[])
+    .filter(pid => !opVeld.has(pid) && speler(pid) && !uitgesloten.has(pid))
+    .sort((a,b) => (aWed.tijd[a]||0) - (aWed.tijd[b]||0));
+  return bank[0] || null;
+}
+/* Leesbare naam voor een plan-"in", inclusief de aan-de-beurt-sentinel. */
+function planInNaam(pid){ return pid === WISSEL_BEURT ? 'Wie aan de beurt is' : spelerNaam(pid); }
+function planInNr(pid){ return pid === WISSEL_BEURT ? '★' : spelerNr(pid); }
+
 function modalPlanWissel(){
   const k = huidigKwart();
   const l = effectieveLineup(k);
@@ -586,7 +610,8 @@ function modalPlanWissel(){
   openModal(`
     <h2>Wissel plannen — ${esc(periodeOmschrijving(S.wedstrijd))}</h2>
     <div class="veldgroep"><label>Erin (van de bank)</label>
-      <select class="invoer" id="mPlanIn">${bankSpelers.map(optie).join('')}</select></div>
+      <select class="invoer" id="mPlanIn"><option value="${WISSEL_BEURT}">★ Wie aan de beurt is (minst gespeeld)</option>${bankSpelers.map(optie).join('')}</select>
+      <p style="font-size:11.5px;color:var(--ink-2);margin-top:6px;line-height:1.5">Bij <b>“wie aan de beurt is”</b> kiest de app op het wisselmoment automatisch de speler met de minste speeltijd van de bank.</p></div>
     <div class="veldgroep"><label>Eruit (van het veld)</label>
       <select class="invoer" id="mPlanUit">${veldSpelers.map(optie).join('')}</select></div>
     <div class="veldgroep"><label>Na hoeveel minuten</label>
@@ -622,17 +647,22 @@ function voerPlanUit(i){
   const l = effectieveLineup(k);
   const slot = Object.keys(l).find(s => l[s] === p.uit);
   if (!slot) return meld(`${spelerNaam(p.uit)} staat niet (meer) op het veld`);
-  if (Object.values(l).includes(p.in)) return meld(`${spelerNaam(p.in)} staat al op het veld`);
+  /* "Wie aan de beurt is" pas nu omzetten naar een concrete speler: de
+     minst-gespeelde bankspeler op dit moment. De uitgaande speler tellen we
+     mee als "op het veld" zodat hij niet per ongeluk zichzelf vervangt. */
+  const inPid = p.in === WISSEL_BEURT ? beurtSpeler(k) : p.in;
+  if (!inPid) return meld('Er staat niemand op de bank om in te brengen');
+  if (Object.values(l).includes(inPid)) return meld(`${spelerNaam(inPid)} staat al op het veld`);
   if (kwartLive(k)){
     const sec = Math.round(klokSec(k));
-    const ev = {in: p.in, uit: p.uit, slot, sec};
+    const ev = {in: inPid, uit: p.uit, slot, sec};
     if (p.reden) ev.reden = p.reden;
     k.events.push(ev);
     telGebruik('wissel_direct');
-    meld(`${spelerNaam(p.in)} erin, ${spelerNaam(p.uit)} eruit · ${mmss(sec)}`);
+    meld(`${spelerNaam(inPid)} erin, ${spelerNaam(p.uit)} eruit · ${mmss(sec)}`);
   } else {
-    k.lineup[slot] = p.in;
-    for (const e of k.events) if (e.in === p.uit && e.slot === slot) e.in = p.in;
+    k.lineup[slot] = inPid;
+    for (const e of k.events) if (e.in === p.uit && e.slot === slot) e.in = inPid;
   }
   k.plan.splice(i,1);
   bewaarWedstrijd(); renderWedstrijd();
@@ -1204,6 +1234,12 @@ export function htmlStats(){
 /* ==================== WEERGAVE ==================== */
 export function renderWedstrijd(){
   const w = S.wedstrijd; if (!w) return;
+  /* Scrollpositie vasthouden: elke tik op een speler (of geplande wissel, doelpunt,
+     enz.) tekent het hele wedstrijdscherm opnieuw. Zonder dit sprong de pagina
+     naar boven — hinderlijk als je onderin bij de bank of het log bezig bent.
+     De eerste keer binnenkomen scrollt toon('wedstrijd') zelf al naar boven, dus
+     dit herstelt alleen bij hertekenen binnen hetzelfde scherm. */
+  const bewaardeScroll = window.scrollY;
   w.goals ||= [];
   w.kaarten ||= [];
   const k = huidigKwart();
@@ -1264,8 +1300,10 @@ export function renderWedstrijd(){
         <span>Wijzig opzet</span>
       </button></div>
     <div class="kaart doelbanner" id="doelBanner" style="${w.doel
-      ? 'background:rgba(226,6,19,.08);border-left:3px solid var(--grass)'
-      : 'background:var(--surface-2);border-left:3px dashed var(--line-d)'};font-size:13.5px;color:${w.doel?'var(--ink)':'var(--ink-2)'};padding:9px 12px;margin-bottom:10px;cursor:pointer">${w.doel ? `<b>🎯 Doel:</b> ${esc(w.doel)}` : '🎯 Nog geen wedstrijddoel gezet — tik om er een te kiezen'}</div>
+      ? 'background:rgba(226,52,47,.12);border-left:3px solid var(--accent)'
+      : 'background:rgba(226,52,47,.10);border-left:3px dashed var(--accent)'};font-size:13.5px;color:var(--ink);padding:10px 12px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">${w.doel
+        ? `<span style="font-size:16px">🎯</span><span><b>Doel:</b> ${esc(w.doel)}</span>`
+        : `<span style="font-size:16px">🎯</span><span><b>Wedstrijddoel kiezen</b> — tik hier om een doel voor vandaag te zetten <span style="color:var(--accent);font-weight:700">›</span></span>`}</div>
 ${confroHtml}
     <div class="scorebord v2">
       <div class="sb-rij">
@@ -1338,9 +1376,9 @@ ${confroHtml}
         ${(k.plan||[]).length ? `<div class="plan-kop">Geplande wissels</div>` : ''}
         ${(k.plan||[]).map((p,i) => `
           <div class="plan-item ${klokSec(k) >= p.min*60 ? 'nu' : ''}" data-plan-i="${i}">
-            <span class="nr in">▲${esc(spelerNr(p.in))}</span>
+            <span class="nr in">▲${esc(planInNr(p.in))}</span>
             <span class="nr uit">▼${esc(spelerNr(p.uit))}</span>
-            <span>${esc(spelerNaam(p.in))} voor ${esc(spelerNaam(p.uit))}</span>
+            <span>${esc(planInNaam(p.in))} voor ${esc(spelerNaam(p.uit))}</span>
             <span class="min">${String(p.min).replace('.',',')}'</span>
             <button class="pk ok" data-plan-uitvoer="${i}" title="Wissel nu doorvoeren">✓</button>
             <button class="pk weg" data-plan-weg="${i}" title="Geplande wissel verwijderen">✕</button>
@@ -1433,7 +1471,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260814c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260814d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1521,6 +1559,11 @@ ${confroHtml}
   if (k.klok.running) S.klokInterval = setInterval(tikKlok, 500);
 
   koppelSleep(v);
+
+  /* Scrollpositie terugzetten na het hertekenen, zodat de coach niet steeds
+     omhoog springt bij het selecteren van een speler. Alleen herstellen als er
+     daadwerkelijk iets te herstellen valt (bewaardeScroll > 0). */
+  if (bewaardeScroll > 0) window.scrollTo(0, bewaardeScroll);
 }
 
 /* ==================== WEDSTRIJDINSTELLINGEN & SELECTIE ==================== */
@@ -1656,7 +1699,7 @@ function modalSelectie(){
     for (const kk of Object.values(w.kwarten)){
       for (const [slot, pid] of Object.entries(kk.lineup)) if (!toegestaan.has(pid)) delete kk.lineup[slot];
       kk.events = kk.events.filter(e => (!e.in || toegestaan.has(e.in)) && (!e.uit || toegestaan.has(e.uit)));
-      kk.plan = (kk.plan||[]).filter(p => toegestaan.has(p.in) && toegestaan.has(p.uit));
+      kk.plan = (kk.plan||[]).filter(p => (p.in === WISSEL_BEURT || toegestaan.has(p.in)) && toegestaan.has(p.uit));
     }
     w.kaarten = (w.kaarten||[]).filter(c => toegestaan.has(c.pid));
     if (w.aanvoerder && !toegestaan.has(w.aanvoerder)) w.aanvoerder = null;
