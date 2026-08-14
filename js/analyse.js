@@ -1,5 +1,5 @@
 import { S } from './state.js?v=20260814d';
-import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260814d';
+import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260814e';
 
 /* ==================== SPEELTIJD-BEREKENING ====================
    Losse module zonder UI-afhankelijkheden, zodat zowel het wedstrijdscherm
@@ -77,7 +77,37 @@ export function analyseWedstrijd(w){
   return tot;
 }
 
-/* Speeltijd- en reserve-aggregatie over meerdere wedstrijden, alleen geteld
+/* Disciplinaire banktijd per speler over de hele wedstrijd (in seconden).
+   Een 'uit'-event met disciplinair:true markeert het begin van een strafbeurt op
+   de bank; die loopt tot de speler weer een 'in'-event krijgt of tot het einde
+   van het kwart. Deze tijd wordt in speeltijdReserve() van de PERSOONLIJKE
+   speelbare tijd van díe speler afgetrokken, zodat een strafmoment het eerlijke
+   speelminuten-percentage niet verlaagt. Zonder disciplinaire vlag: 0 — alles
+   telt dan exact zoals voorheen. */
+export function disciplinaireTijd(w){
+  const uit = {}; // pid -> seconden
+  for (const nr of periodeNrs(w)){
+    const k = w.kwarten?.[nr]; if (!k || !kwartGespeeld(k)) continue;
+    const D = kwartDuurSec(w, k);
+    const events = [...(k.events||[])].sort((a,b) => a.sec - b.sec);
+    // per speler bijhouden of hij disciplinair op de bank staat, en sinds wanneer
+    const strafSinds = {}; // pid -> sec waarop de strafbeurt begon
+    for (const e of events){
+      const sec = Math.min(e.sec, D);
+      if (e.uit && e.disciplinair) strafSinds[e.uit] = sec;
+      // komt iemand er (weer) in, dan eindigt zijn eventuele strafbeurt
+      if (e.in && strafSinds[e.in] != null){
+        uit[e.in] = (uit[e.in]||0) + Math.max(0, sec - strafSinds[e.in]);
+        delete strafSinds[e.in];
+      }
+    }
+    // wie aan het eind nog disciplinair op de bank zit: tot einde kwart
+    for (const [pid, sinds] of Object.entries(strafSinds))
+      uit[pid] = (uit[pid]||0) + Math.max(0, D - sinds);
+  }
+  return uit;
+}
+
    voor wedstrijden waarin de speler in de selectie zat (de eerlijke noemer).
    Geeft per speler: speeltijd (sec), reserve (sec) en speelbaar (sec).
    reserve = speelbaar - speeltijd; percentages worden in de UI berekend. */
@@ -87,12 +117,19 @@ export function speeltijdReserve(wedstrijden){
     const a = analyseWedstrijd(w);
     if (!a.kwarten || !a.matchduur) continue;
     const selectie = Array.isArray(w.selectie) ? w.selectie : [];
+    const disc = disciplinaireTijd(w); // pid -> disciplinaire banktijd (sec)
     for (const pid of selectie){
       const gespeeld = a.tijd[pid] || 0;
-      const r = (uit[pid] ||= {speeltijd:0, reserve:0, speelbaar:0, wedstrijden:0});
+      // Disciplinaire banktijd uit de PERSOONLIJKE noemer halen: die tijd was
+      // de speler wel beschikbaar, maar de bank was een straf — dat mag zijn
+      // percentage niet drukken. Nooit onder de al gespeelde tijd zakken.
+      const strafTijd = Math.min(disc[pid] || 0, Math.max(0, a.matchduur - gespeeld));
+      const speelbaar = Math.max(gespeeld, a.matchduur - strafTijd);
+      const r = (uit[pid] ||= {speeltijd:0, reserve:0, speelbaar:0, wedstrijden:0, disciplinair:0});
       r.speeltijd += gespeeld;
-      r.speelbaar += a.matchduur;
-      r.reserve   += Math.max(0, a.matchduur - gespeeld);
+      r.speelbaar += speelbaar;
+      r.reserve   += Math.max(0, speelbaar - gespeeld);
+      r.disciplinair += strafTijd;
       r.wedstrijden++;
     }
   }

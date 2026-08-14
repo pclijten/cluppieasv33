@@ -585,6 +585,30 @@ export const WISSEL_REDENEN = [
 ];
 export function wisselReden(id){ return WISSEL_REDENEN.find(r => r.id === id) || null; }
 
+/* ==================== AFWEZIGHEIDSREDENEN ====================
+   Vaste redenset voor afwezigheid, gedeeld door wedstrijd-selectie én
+   training-presentie zodat het overal gelijk voelt en in de stats telbaar is.
+   Opgeslagen als afwezigRedenen{pid:{type, notitie}}. Oude training-registraties
+   met {type:'blessure'} of {type:'reden',notitie} blijven werken: 'blessure' mapt
+   op 'blessure', en 'reden' tonen we onder 'anders' (zie afwezigRedenLabel). */
+export const AFWEZIG_REDENEN = [
+  {id:'blessure', emoji:'🩹', label:'Blessure'},
+  {id:'ziek',     emoji:'🤒', label:'Ziek'},
+  {id:'school',   emoji:'🎒', label:'School'},
+  {id:'werk',     emoji:'💼', label:'Werk'},
+  {id:'vakantie', emoji:'🏖', label:'Vakantie'},
+  {id:'anders',   emoji:'❓', label:'Anders'},
+];
+/* Normaliseert een opgeslagen reden-record naar een {emoji,label,notitie}-weergave.
+   Vangt ook het oude training-formaat ('reden' met vrije notitie) op. */
+export function afwezigRedenInfo(record){
+  if (!record) return null;
+  let type = record.type;
+  if (type === 'reden') type = 'anders'; // oud training-formaat
+  const r = AFWEZIG_REDENEN.find(x => x.id === type) || AFWEZIG_REDENEN.find(x => x.id === 'anders');
+  return { id:r.id, emoji:r.emoji, label:r.label, notitie: record.notitie || '' };
+}
+
 /* ==================== FUNCTIEGEBRUIK — EVENT-CATALOGUS ====================
    Alle telbare functies, gegroepeerd per categorie. De 'ev'-sleutel is de
    stabiele event-naam die naar Firestore gaat (nooit hernoemen — dat breekt
