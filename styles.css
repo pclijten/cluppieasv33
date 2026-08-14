@@ -1079,6 +1079,21 @@ body{ background:var(--bg); color:var(--ink); }
 .segment.klein-seg{margin-bottom:10px}
 .segment.klein-seg button{padding:7px 4px;font-size:13px}
 
+/* Ontwikkeldomein-kiezer (leerpunt toevoegen) — icoon + leesbaar label i.p.v.
+   de vroegere 2-letter-hokjes (TE/TA/FY/ME/GE), die coaches niet konden raden.
+   Wrapt netjes naar twee rijen op smalle schermen. */
+.dom-kiezer{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:2px}
+.dom-kiezer button{
+  flex:1 1 calc(33.333% - 8px);min-width:96px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:11px 8px;border-radius:12px;
+  background:var(--surface-2);border:1.5px solid var(--line-d);
+  color:var(--ink);font-size:13.5px;font-weight:600;line-height:1;
+  transition:border-color .12s, background .12s;
+}
+.dom-kiezer button .dk-emoji{font-size:16px;line-height:1}
+.dom-kiezer button.actief{background:color-mix(in srgb, var(--accent) 14%, var(--surface));border-color:var(--accent);color:var(--ink)}
+
 /* meest gespeelde positie — suggestie in spelerprofiel bewerken */
 .meest-gespeeld{margin-bottom:12px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line-d);border-radius:10px}
 .mg-titel{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:7px}
