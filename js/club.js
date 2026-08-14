@@ -6,12 +6,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260811a';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260814a';
-import { analyseWedstrijd } from './analyse.js?v=20260814a';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260814a';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260811a';
-import { telGebruik } from './tracker.js?v=20260814a';
+} from './state.js?v=20260814c';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260814c';
+import { analyseWedstrijd } from './analyse.js?v=20260814c';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260814c';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260814c';
+import { telGebruik } from './tracker.js?v=20260814c';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260814b'); }
+async function teamsModule(){ return await import('./teams.js?v=20260814c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260814b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260814c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -104,25 +104,6 @@ async function clubDocumentenOphalen(){
     .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
 }
 
-/* haalt de token uit een geplakte voetbal.nl-link.
-   Accepteert de hele URL (…ical-team?token=XXXX) of een kale token. */
-/* herkent wat er geplakt is en geeft terug wat we moeten opslaan:
-   - een Sportlink-token  → { veld:'icalToken', waarde: token }
-   - een volledige iCal-URL (bv. Google Agenda, of de hele Sportlink-link)
-       → { veld:'icalUrl', waarde: url }
-   geeft null bij onherkenbare invoer. */
-function herkenKoppeling(ruw){
-  const s = ruw.trim();
-  // 1) Sportlink-link met ?token=... → alleen de token bewaren (compact + veilig)
-  const m = s.match(/[?&]token=([A-Za-z0-9]+)/);
-  if (m) return { veld: 'icalToken', waarde: m[1] };
-  // 2) een andere volledige URL (https://...) → als icalUrl bewaren
-  if (/^https?:\/\/.+/i.test(s)) return { veld: 'icalUrl', waarde: s };
-  // 3) een kale Sportlink-token (alleen letters/cijfers, redelijke lengte)
-  if (/^[A-Za-z0-9]{15,}$/.test(s)) return { veld: 'icalToken', waarde: s };
-  return null;
-}
-
 /* afgelast-historie: centrale lijst onder clubs/{clubId}/afgelastingen (nieuw → oud) */
 async function clubAfgelastingenOphalen(){
   const snap = await getDocs(collection(db,'clubs',S.clubId,'afgelastingen'));
@@ -130,9 +111,10 @@ async function clubAfgelastingenOphalen(){
     .sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
 }
 
-/* voetbal.nl-syncstatus per team uit clubs/{clubId}/geheim/{teamId}.
-   We lezen alleen de statusvelden (laatsteSync, laatsteAantal, laatsteFout) en
-   of er een token staat — de token-waarde zelf tonen we nooit. */
+/* Sportlink-syncstatus per team uit clubs/{clubId}/geheim/{teamId}.
+   Het geheim-doc is sinds de Club.Dataservice-koppeling puur een status/cache-
+   store (geen tokens meer): we lezen of het team bij de laatste sync op naam
+   gematcht is, plus de statusvelden. */
 async function clubSyncStatusOphalen(teams){
   const status = {};
   await Promise.all(teams.map(async t => {
@@ -141,16 +123,16 @@ async function clubSyncStatusOphalen(teams){
       if (snap.exists()){
         const d = snap.data();
         status[t.id] = {
-          gekoppeld: !!(d.icalToken || d.icalUrl),
+          gematcht: !!d.gematcht,
           laatsteSync: d.laatsteSync || null,
           laatsteAantal: d.laatsteAantal ?? null,
           laatsteFout: d.laatsteFout || null,
         };
       } else {
-        status[t.id] = { gekoppeld: false };
+        status[t.id] = { gematcht: false };
       }
     } catch(e){
-      status[t.id] = { gekoppeld: false };
+      status[t.id] = { gematcht: false };
     }
   }));
   return status;
@@ -867,41 +849,50 @@ function htmlClubInstel(teams = [], syncStatus = {}){
              d.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
     } catch { return ''; }
   };
-  const tokenRijen = teams.length ? teams.map(t => {
+  const clientId = S.club.sportlinkClientId || '';
+  const gekoppeld = !!clientId;
+
+  // Per-team status: is dit team automatisch op naam gematcht bij de laatste sync?
+  const teamRijen = teams.length ? teams.map(t => {
     const st = syncStatus[t.id] || {};
-    const badge = st.gekoppeld
-      ? `<span class="tok-status gekoppeld">Gekoppeld</span>`
-      : `<span class="tok-status leeg">Geen link</span>`;
-    let onderregel = '';
-    if (st.laatsteFout){
+    let badge, onderregel = '';
+    if (!gekoppeld){
+      badge = `<span class="tok-status leeg">Wacht op koppeling</span>`;
+    } else if (st.laatsteFout){
+      badge = `<span class="tok-status leeg">Fout</span>`;
       onderregel = `<div class="tok-laatste" style="color:var(--uit)">Laatste sync mislukt: ${esc(st.laatsteFout)}</div>`;
-    } else if (st.laatsteSync){
+    } else if (st.gematcht){
+      badge = `<span class="tok-status gekoppeld">Gematcht</span>`;
       const aantal = st.laatsteAantal != null ? `${st.laatsteAantal} wedstrijd${st.laatsteAantal===1?'':'en'}` : '';
       onderregel = `<div class="tok-laatste">Laatste sync: <b>${esc(syncTijd(st.laatsteSync))}</b>${aantal?' · '+aantal:''}</div>`;
+    } else if (st.laatsteSync){
+      badge = `<span class="tok-status leeg">Niet gevonden</span>`;
+      onderregel = `<div class="tok-laatste" style="color:var(--ink-2)">Teamnaam “${esc(t.naam)}” niet in Sportlink gevonden — controleer of de naam overeenkomt.</div>`;
+    } else {
+      badge = `<span class="tok-status leeg">Nog niet gesynct</span>`;
     }
     return `
       <div class="tok-rij">
         <div class="tok-kop"><span class="tok-team">${esc(t.naam)}</span>${badge}</div>
-        <div class="tok-invoer">
-          <input type="${st.gekoppeld?'password':'text'}" data-token-team="${t.id}"
-                 placeholder="Plak hier de voetbal.nl-link"
-                 value="${st.gekoppeld?'••••••••••••••••':''}" autocomplete="off">
-          <button data-token-opslaan="${t.id}">Opslaan</button>
-        </div>
         ${onderregel}
       </div>`;
-  }).join('') : `<p style="font-size:13px;color:var(--ink-2)">Maak eerst teams aan om ze te koppelen.</p>`;
+  }).join('') : `<p style="font-size:13px;color:var(--ink-2)">Maak eerst teams aan.</p>`;
 
   const voetbalBlok = `
-    <div class="sectie-kop">⚽ voetbal.nl-koppeling</div>
+    <div class="sectie-kop">⚽ Sportlink-koppeling</div>
     <div class="kaart">
-      <p class="uitleg" style="font-size:13px;color:var(--ink-2);line-height:1.5;margin-bottom:6px">Plak per team de kalenderlink uit voetbal.nl. De wedstrijden worden dan automatisch in de app gezet, klaar om opstellingen te maken. De link koop je in de voetbal.nl-app (teamkalender) en ziet eruit als <code style="font-size:11px">data.sportlink.com/ical-team?token=…</code></p>
+      <p class="uitleg" style="font-size:13px;color:var(--ink-2);line-height:1.5;margin-bottom:8px">Vul één keer de <b>Client ID</b> van jullie Sportlink Club.Dataservice in. De app haalt daarmee automatisch het volledige programma, de uitslagen en de poulestanden op voor <b>alle</b> teams — teams worden op naam gekoppeld, dus per team hoef je niets meer te doen. De Client ID krijg je bij het afnemen van Club.Dataservice via Sportlink.</p>
+      <div class="tok-invoer">
+        <input type="text" id="clientIdInput"
+               placeholder="Bijv. oEGJY6X0n9"
+               value="${esc(clientId)}" autocomplete="off" spellcheck="false">
+        <button id="clientIdOpslaan">Opslaan</button>
+      </div>
+      ${gekoppeld ? `<p style="font-size:11.5px;color:var(--in);margin:8px 0 0">✓ Gekoppeld met Client ID <code style="font-size:11px">${esc(clientId)}</code></p>` : ''}
     </div>
-    <div class="waarschuwing" style="background:#fff8e6;border:1px solid #f0d894;border-radius:11px;padding:11px 12px;font-size:12.5px;color:#7a5d00;line-height:1.5;margin-bottom:12px">
-      <b>Let op:</b> de kalenderlink is per team persoonlijk en verloopt elk halfseizoen. Vernieuw de link wanneer de sync stopt met werken.
-    </div>
-    <div class="kaart">${tokenRijen}</div>
-    <button class="knop vol" id="syncNu" style="margin-bottom:4px">🔄 Sync nu alle teams</button>
+    <div class="sectie-kop" style="font-size:13px">Teamstatus</div>
+    <div class="kaart">${teamRijen}</div>
+    <button class="knop vol" id="syncNu" style="margin-bottom:4px"${gekoppeld?'':' disabled'}>🔄 Sync nu alle teams</button>
     <p style="font-size:11.5px;color:var(--ink-2);text-align:center;margin:8px 0 4px">De sync draait sowieso elke nacht automatisch.</p>`;
 
   return `
@@ -1117,7 +1108,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260811a');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260814c');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -1242,29 +1233,25 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       try { await navigator.clipboard.writeText($('#clubLink').textContent); meld('Link gekopieerd'); }
       catch { meld('Link: ' + $('#clubLink').textContent); }
     };
-    // voetbal.nl-token per team opslaan
-    v.querySelectorAll('[data-token-opslaan]').forEach(b => b.onclick = async () => {
-      const teamId = b.dataset.tokenOpslaan;
-      const input = v.querySelector(`[data-token-team="${teamId}"]`);
-      const ruw = (input.value || '').trim();
-      if (!ruw || ruw.startsWith('••••')) return meld('Plak eerst een nieuwe link');
-      // herken token of volledige iCal-URL
-      const k = herkenKoppeling(ruw);
-      if (!k) return meld('Geen geldige link of token herkend');
-      b.disabled = true; b.textContent = '...';
-      // schrijf het juiste veld weg en wis het andere (voorkomt dat beide blijven staan)
-      const data = k.veld === 'icalToken'
-        ? { icalToken: k.waarde, icalUrl: deleteField() }
-        : { icalUrl: k.waarde, icalToken: deleteField() };
+    // Sportlink Client ID (clubbreed) opslaan
+    const clientIdBtn = v.querySelector('#clientIdOpslaan');
+    if (clientIdBtn) clientIdBtn.onclick = async () => {
+      const input = v.querySelector('#clientIdInput');
+      const waarde = (input.value || '').trim();
+      if (!waarde) return meld('Vul eerst een Client ID in');
+      // Client ID's zijn korte alfanumerieke codes (bv. oEGJY6X0n9).
+      if (!/^[A-Za-z0-9]{6,}$/.test(waarde)) return meld('Dat lijkt geen geldige Client ID');
+      clientIdBtn.disabled = true; clientIdBtn.textContent = '...';
       try {
-        await setDoc(doc(db,'clubs',S.clubId,'geheim',teamId), data, { merge: true });
-        meld('Koppeling opgeslagen');
+        await updateDoc(doc(db,'clubs',S.clubId), { sportlinkClientId: waarde });
+        S.club.sportlinkClientId = waarde;
+        meld('Client ID opgeslagen — klik op “Sync nu” om op te halen');
         renderClub();
       } catch(e){
-        b.disabled = false; b.textContent = 'Opslaan';
+        clientIdBtn.disabled = false; clientIdBtn.textContent = 'Opslaan';
         meld('Opslaan mislukt: ' + (e.code || e.message));
       }
-    });
+    };
     // handmatige sync nu
     const syncBtn = v.querySelector('#syncNu');
     if (syncBtn) syncBtn.onclick = async () => {
@@ -1610,7 +1597,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260811a');
+    const ai = await import('./training-ai.js?v=20260814c');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -1725,7 +1712,7 @@ function toonPreview(file, meta, ctx){
   $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260811a');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260814c');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -1747,7 +1734,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
   try {
-    const ai = await import('./training-ai.js?v=20260811a');
+    const ai = await import('./training-ai.js?v=20260814c');
     const { paginas } = await ai.leesPdf(file);
     const oefeningen = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');

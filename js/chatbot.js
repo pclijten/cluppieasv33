@@ -19,9 +19,9 @@
    ============================================================================ */
 
 import { functions, httpsCallable } from './firebase.js?v=20260811a';
-import { S, esc } from './state.js?v=20260811a';
-import { telGebruik } from './tracker.js?v=20260814a';
-import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260814b';
+import { S, esc } from './state.js?v=20260814c';
+import { telGebruik } from './tracker.js?v=20260814c';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260814c';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]

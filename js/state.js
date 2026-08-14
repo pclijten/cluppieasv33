@@ -112,6 +112,14 @@ export function openModal(html){
 export function sluitModal(){
   const wasOpen = $('#modalAchter').classList.contains('open');
   $('#modalAchter').classList.remove('open');
+  // Inhoud leegmaken zodat een eventueel <video>/<audio>-element wordt
+  // verwijderd en het geluid direct stopt — ook bij klik op de achtergrond of
+  // de terugknop (voorheen speelde het geluid door tot de volgende openModal).
+  const inhoud = $('#modalInhoud');
+  if (inhoud){
+    inhoud.querySelectorAll('video, audio').forEach(m => { try { m.pause(); } catch {} });
+    inhoud.innerHTML = '';
+  }
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -231,7 +239,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260811a').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260814c').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }

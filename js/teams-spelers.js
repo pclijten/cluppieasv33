@@ -10,22 +10,22 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
-} from './state.js?v=20260811a';
+} from './state.js?v=20260814c';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK
-} from './config.js?v=20260814a';
-import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814a';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260814a';
-import { telGebruik } from './tracker.js?v=20260814a';
+} from './config.js?v=20260814c';
+import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814c';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260814c';
+import { telGebruik } from './tracker.js?v=20260814c';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260814b');
+  const m = await import('./teams.js?v=20260814c');
   m.renderTeam();
 }
 

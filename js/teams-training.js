@@ -8,13 +8,13 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260811a';
-import { telGebruik } from './tracker.js?v=20260814a';
+} from './state.js?v=20260814c';
+import { telGebruik } from './tracker.js?v=20260814c';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK
-} from './config.js?v=20260814a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260814a';
+} from './config.js?v=20260814c';
+import { htmlKompas } from './teams-leerlijn.js?v=20260814c';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
