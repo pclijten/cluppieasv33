@@ -9,7 +9,7 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
 } from './state.js?v=20260814d';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814d';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814e';
 import { htmlStats } from './wedstrijd.js?v=20260814e';
 import { telGebruik } from './tracker.js?v=20260814d';
 

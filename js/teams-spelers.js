@@ -14,10 +14,10 @@ import {
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
-  POSITIE_GROEPEN, SEIZOEN_FALLBACK
-} from './config.js?v=20260814d';
-import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814d';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260814d';
+  POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
+} from './config.js?v=20260814e';
+import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814e';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260814e';
 import { telGebruik } from './tracker.js?v=20260814d';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
@@ -25,7 +25,7 @@ import { telGebruik } from './tracker.js?v=20260814d';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260814g');
+  const m = await import('./teams.js?v=20260814e');
   m.renderTeam();
 }
 
@@ -115,14 +115,15 @@ function spelerStats(pid){
     if (a.lijn[pid]) for (const [naam, n] of Object.entries(a.lijn[pid])) posities[naam] = (posities[naam]||0) + n;
   }
   const totTr = (S.presentie||[]).length;
-  let aanwezig = 0, blessure = 0, metReden = 0, zonderReden = 0;
+  let aanwezig = 0;
+  const afwPerReden = {}; // redenId -> aantal
   for (const sessie of (S.presentie||[])){
     const afw = (sessie.afwezig||[]).includes(pid);
     if (!afw){ aanwezig++; continue; }
-    const reden = (sessie.afwezigRedenen||{})[pid];
-    if (reden?.type === 'blessure') blessure++;
-    else if (reden?.type === 'reden') metReden++;
-    else zonderReden++;
+    const rec = (sessie.afwezigRedenen||{})[pid];
+    const info = rec ? afwezigRedenInfo(rec) : null;
+    const id = info?.id || 'geen';
+    afwPerReden[id] = (afwPerReden[id]||0) + 1;
   }
   const opkomst = totTr ? Math.round((aanwezig/totTr)*100) : null;
   // reserve/speelbaar + percentages over wedstrijden waarin de speler in de selectie zat
@@ -131,8 +132,8 @@ function spelerStats(pid){
   const speelbaar = sr.speelbaar;
   const pctSpeeltijd = speelbaar > 0 ? Math.round((sr.speeltijd/speelbaar)*100) : null;
   const pctReserve   = pctSpeeltijd != null ? 100 - pctSpeeltijd : null;
-  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, blessure, metReden, zonderReden, posities,
-    reserve, speelbaar, pctSpeeltijd, pctReserve};
+  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, afwPerReden, posities,
+    reserve, speelbaar, pctSpeeltijd, pctReserve, disciplinair: sr.disciplinair||0};
 }
 
 /* Meest gespeelde posities voor een speler, aflopend gesorteerd: [{naam, n}, ...] */
@@ -261,11 +262,13 @@ export function htmlProfiel(){
           <span><span class="dotje" style="background:var(--warn)"></span> Reserve · ${uurMin(st.reserve)}</span>
         </div>
       </div>` : ''}
-      ${(st.blessure || st.metReden || st.zonderReden) ? `
+      ${Object.keys(st.afwPerReden||{}).length ? `
       <div class="presentie-uitsplitsing" style="margin:-6px 0 14px">
-        ${st.blessure ? `<span>🩹 ${st.blessure}× geblesseerd</span>` : ''}
-        ${st.metReden ? `<span>📋 ${st.metReden}× met reden</span>` : ''}
-        ${st.zonderReden ? `<span>❔ ${st.zonderReden}× zonder reden</span>` : ''}
+        ${Object.entries(st.afwPerReden).sort((a,b)=>b[1]-a[1]).map(([id,n]) => {
+          if (id === 'geen') return `<span>❔ ${n}× zonder reden</span>`;
+          const r = AFWEZIG_REDENEN.find(x => x.id === id) || {emoji:'❓',label:'Anders'};
+          return `<span>${r.emoji} ${n}× ${esc(r.label.toLowerCase())}</span>`;
+        }).join('')}
       </div>` : ''}
 
       ${evalAan ? `<div class="kaart">
@@ -305,9 +308,9 @@ export function htmlProfiel(){
         ${S.presentie.length ? S.presentie.map(ses => {
           const afw = (ses.afwezig||[]).includes(p.id);
           const reden = (ses.afwezigRedenen||{})[p.id];
+          const info = afw && reden ? afwezigRedenInfo(reden) : null;
           const statusTxt = !afw ? 'Aanwezig'
-            : reden?.type === 'blessure' ? '🩹 Geblesseerd'
-            : reden?.type === 'reden' ? `📋 Met reden${reden.notitie ? ' · '+esc(reden.notitie) : ''}`
+            : info ? `${info.emoji} ${info.label}${info.notitie ? ' · '+esc(info.notitie) : ''}`
             : '❔ Zonder reden';
           return `<div class="presentie-hist-rij"><span>${datumNL(ses.datum)}</span><span class="phr-status ${afw?'afw':'aanw'}">${statusTxt}</span></div>`;
         }).join('') : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd.</p>`}

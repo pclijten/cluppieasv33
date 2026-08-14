@@ -6,7 +6,7 @@
    library (ExcelJS via CDN) nodig heeft die de rest van de app nooit gebruikt. */
 import { db, collection, getDocs, query, where } from './firebase.js?v=20260811a';
 import { S, esc, meld, openModal } from './state.js?v=20260814d';
-import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20260814d';
+import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20260814e';
 
 /* korte kolomkoppen voor de heatmap — TEAM_CATEGORIEEN.naam is te lang voor
    een tabelkop; alleen hier lokaal gebruikt, config.js blijft de brontekst. */

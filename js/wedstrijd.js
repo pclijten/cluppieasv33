@@ -11,9 +11,9 @@ import {
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
-  WISSEL_REDENEN, wisselReden
-} from './config.js?v=20260814d';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814d';
+  WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
+} from './config.js?v=20260814e';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260814e';
 import { telGebruik } from './tracker.js?v=20260814d';
 
 /* ==================== AANMAKEN ==================== */
@@ -340,7 +340,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260814g').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260814e').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1123,21 +1123,44 @@ function modalWisselReden(k, eventIndex){
     <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">${esc(naam)} naar de bank · ${mmss(e.sec)}</p>
     <div class="reden-rij" id="mWrRedenen">${WISSEL_REDENEN.map(r =>
       `<button class="reden ${huidig===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.emoji}</span> ${r.label}</button>`).join('')}</div>
+    <div class="disc-blok ${huidig==='gedrag'?'zicht':''}" id="mWrDisc">
+      <label class="disc-toggle">
+        <input type="checkbox" id="mWrDiscChk" ${e.disciplinair?'checked':''}>
+        <span class="disc-toggle-t">Disciplinaire reservebeurt</span>
+      </label>
+      <div class="disc-uitleg">Deze bankbeurt telt <b>niet mee</b> in het speelminuten-percentage van de speler — zo verlaagt een strafmoment zijn eerlijke gemiddelde niet. Altijd terug te zien in het wedstrijdlog.</div>
+      <input class="disc-notitie ${e.disciplinair?'zicht':''}" id="mWrDiscNotitie" placeholder="Reden (optioneel, alleen voor coaches)" value="${esc(e.discNotitie||'')}">
+    </div>
     <button class="knop vol fluo" id="mWrOk" style="margin-top:16px">Opslaan</button>
     <button class="knop vol licht" id="mWrGeen" style="margin-top:8px">${huidig?'Reden wissen':'Zonder reden'}</button>`);
 
   let gekozen = huidig;
+  const discBlok = $('#mWrDisc'), discChk = $('#mWrDiscChk'), discNot = $('#mWrDiscNotitie');
+  const werkDiscBij = () => {
+    discBlok.classList.toggle('zicht', gekozen === 'gedrag');
+    if (gekozen !== 'gedrag'){ discChk.checked = false; discNot.classList.remove('zicht'); }
+  };
   $$('#mWrRedenen [data-reden]').forEach(b => b.onclick = () => {
     const id = b.dataset.reden;
     gekozen = (gekozen === id) ? null : id;
     $$('#mWrRedenen [data-reden]').forEach(x => x.classList.toggle('aan', x.dataset.reden === gekozen));
+    werkDiscBij();
   });
+  discChk.onchange = () => discNot.classList.toggle('zicht', discChk.checked);
   $('#mWrOk').onclick = () => {
     if (gekozen) e.reden = gekozen; else delete e.reden;
+    // disciplinaire vlag alleen bij reden 'gedrag'
+    if (gekozen === 'gedrag' && discChk.checked){
+      e.disciplinair = true;
+      const n = discNot.value.trim();
+      if (n) e.discNotitie = n; else delete e.discNotitie;
+    } else {
+      delete e.disciplinair; delete e.discNotitie;
+    }
     sluitModal(); bewaarWedstrijd(); renderWedstrijd();
   };
   $('#mWrGeen').onclick = () => {
-    delete e.reden;
+    delete e.reden; delete e.disciplinair; delete e.discNotitie;
     sluitModal(); bewaarWedstrijd(); renderWedstrijd();
   };
 }
@@ -1209,6 +1232,20 @@ export function htmlStats(){
   }
   const toonOpkomst = totTrainingen > 0;
 
+  // Reden-uitsplitsing van afwezigheid per speler (training), voor inzicht onder
+  // de opkomst. Telt per reden-type; oude vrije notities vallen onder 'anders'.
+  const afwezigTelling = {}; // pid -> {redenId: aantal}
+  if (totTrainingen){
+    for (const sessie of presentieLijst){
+      for (const pid of (sessie.afwezig || [])){
+        const rec = (sessie.afwezigRedenen || {})[pid];
+        const info = rec ? afwezigRedenInfo(rec) : null;
+        const id = info?.id || 'anders';
+        (afwezigTelling[pid] ||= {}); afwezigTelling[pid][id] = (afwezigTelling[pid][id]||0) + 1;
+      }
+    }
+  }
+
   // Drie losse bladen i.p.v. één brede tabel die horizontaal moet scrollen op
   // mobiel: speelminuten, wedstrijdstatistiek en trainingsopkomst. De actieve
   // keuze staat in S.statsBlad (default 'speel'); koppeling in koppelStatsBlad().
@@ -1220,26 +1257,37 @@ export function htmlStats(){
       <button data-statsblad="tr" class="${blad==='tr'?'actief':''}">🏃 Training</button>
     </div>`;
 
+  // Naam in de stats-tabel is klikbaar → opent het spelersprofiel (details).
+  // De koppeling zit in koppelStatsBlad(); navigatie via de Spelers-tab zodat
+  // de terugknop netjes terugkeert naar Stats.
+  const naamCel = p => `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button></td>`;
+  // naam-cel met disciplinaire-badge als de speler ≥1 disciplinaire beurt had
+  const naamCelDisc = p => {
+    const dsec = Math.round((sr[p.id]?.disciplinair || 0));
+    const badge = dsec > 0 ? ` <span class="disc-badge" title="Disciplinaire reservebeurt(en) — niet meegeteld in %">disc.</span>` : '';
+    return `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button>${badge}</td>`;
+  };
+
   const speelBlad = () => `
     <table class="stat-tabel">
       <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th></tr></thead>
       <tbody>${rijen.map(p => {
         const ps = pctSpeeltijd[p.id], pr = pctReserve[p.id];
         return `<tr>
-          <td class="naam-cel">${esc(p.naam)}</td>
+          ${naamCelDisc(p)}
           <td>${tot.wedstrijden[p.id]||0}</td>
           <td class="pct-cel">${ps!=null?`<span style="font-weight:700;color:${pctKleur(ps)}">${ps}%</span><span class="pct-bar"><span style="width:${ps}%;background:${pctKleur(ps)}"></span></span>`:'—'}</td>
           <td class="res-cel">${pr!=null?pr+'%':''}</td></tr>`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). De exacte minuten staan in het spelersprofiel.</p>`;
+      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.</p>`;
 
   const wedBlad = () => `
     <table class="stat-tabel">
       <thead><tr><th>Speler</th><th>⚽</th><th>C</th><th>K</th><th>🟨</th><th>🟥</th></tr></thead>
       <tbody>${rijen.map(p => `<tr>
-        <td class="naam-cel">${esc(p.naam)}</td>
+        ${naamCel(p)}
         <td style="font-weight:700">${tot.goals[p.id]||0}</td>
         <td>${tot.aanv[p.id] ? tot.aanv[p.id]+'×' : ''}</td>
         <td>${tot.keeper[p.id]||0}</td>
@@ -1249,20 +1297,27 @@ export function htmlStats(){
     <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
       ⚽ doelpunten · <b>C</b> aanvoerdersbeurten · <b>K</b> periodes als keeper · 🟨 gele kaarten · 🟥 rode kaarten.</p>`;
 
+  const redenLabel = id => (AFWEZIG_REDENEN.find(r => r.id === id) || {emoji:'❓',label:'Anders'});
   const trBlad = () => toonOpkomst ? `
     <table class="stat-tabel">
       <thead><tr><th>Speler</th><th>Aanwezig</th><th>Opkomst</th></tr></thead>
       <tbody>${rijen.map(p => {
         const pct = opkomst[p.id] ?? 0;
         const aanw = Math.round((pct/100) * totTrainingen);
+        const tel = afwezigTelling[p.id] || {};
+        const redenChips = Object.entries(tel).sort((a,b) => b[1]-a[1]).map(([id,n]) => {
+          const r = redenLabel(id);
+          return `<span class="reden-tel-chip">${r.emoji} ${esc(r.label)} <b>${n}×</b></span>`;
+        }).join('');
         return `<tr>
-          <td class="naam-cel">${esc(p.naam)}</td>
+          ${naamCel(p)}
           <td>${aanw} / ${totTrainingen}</td>
-          <td class="opkomst-cel ${pct>=80?'goed':pct>=50?'matig':'laag'}">${pct}%</td></tr>`;
+          <td class="opkomst-cel ${pct>=80?'goed':pct>=50?'matig':'laag'}">${pct}%</td></tr>
+          ${redenChips ? `<tr class="reden-tel-rij"><td colspan="3"><div class="reden-tel">${redenChips}</div></td></tr>` : ''}`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Opkomst</b> = % aanwezig van de ${totTrainingen} geregistreerde training${totTrainingen>1?'en':''}.</p>`
+      <b>Opkomst</b> = % aanwezig van de ${totTrainingen} geregistreerde training${totTrainingen>1?'en':''}. Onder elke speler zie je waarom hij afwezig was.</p>`
     : `<div class="kaart leeg">Nog geen trainingsopkomst geregistreerd.<br>Zodra je op de Training-tab presentie bijhoudt, verschijnt hier per speler het opkomstpercentage.</div>`;
 
   const leegWed = `<div class="kaart leeg" style="margin-bottom:12px">Nog geen gespeelde wedstrijden.<br>Zodra je opstellingen maakt, verschijnt hier automatisch de speeltijd per speler.</div>`;
@@ -1280,7 +1335,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260814g').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260814e').then(m => m.renderTeam?.());
   });
 }
 
@@ -1457,7 +1512,7 @@ ${confroHtml}
               ${e.in ? `<span class="nr in">▲${esc(spelerNr(e.in))}</span>` : ''}
               ${e.uit ? `<span class="nr uit">▼${esc(spelerNr(e.uit))}</span>` : ''}
               <span>${e.in ? esc(spelerNaam(e.in)) : ''}${e.in && e.uit ? ' ↔ ' : ''}${e.uit ? esc(spelerNaam(e.uit)) : ''}</span>
-              ${e.uit ? `<button class="wissel-reden-badge${r?'':' leeg'}" data-reden-ev="${e.i}" title="Wisselreden ${r?'wijzigen':'toevoegen'}">${r ? r.emoji+' '+esc(r.label) : '+ reden'}</button>` : ''}
+              ${e.uit ? `<button class="wissel-reden-badge${r?'':' leeg'}${e.disciplinair?' disc':''}" data-reden-ev="${e.i}" title="Wisselreden ${r?'wijzigen':'toevoegen'}">${r ? r.emoji+' '+esc(r.label)+(e.disciplinair?' ⚑':'') : '+ reden'}</button>` : ''}
               <span class="min">${mmss(e.sec)}</span>
               <button class="verwijder" data-weg-ev="${e.i}" title="Wissel verwijderen">✕</button>
             </div>`;
@@ -1524,7 +1579,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260814g').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260814e').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1735,18 +1790,61 @@ function verbergWijzigOpzet(){
 
 function modalSelectie(){
   const w = S.wedstrijd;
-  const sel = new Set(w.selectie || []);
+  let sel = new Set(w.selectie || []);
+  // afwezig-redenen op de wedstrijd; kopie zodat annuleren niks wijzigt
+  let redenen = JSON.parse(JSON.stringify(w.afwezigRedenen || {}));
+
+  const rijenHtml = () => S.spelers.map(p => {
+    const aanwezig = sel.has(p.id);
+    const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
+    return `
+    <div class="pres-speler ${aanwezig?'aanwezig':'afwezig'}">
+      <button type="button" class="pres-speler-kop" data-seltoggle="${p.id}">
+        <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
+        <span class="pres-naam">${esc(p.naam)}</span>
+        <span class="pres-status">${aanwezig?'Erbij':'Afwezig'}</span>
+      </button>
+      ${!aanwezig ? `
+      <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.emoji} ${r.label}</button>`).join('')}</div>
+      ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ` : ''}
+    </div>`;
+  }).join('');
+
   openModal(`
     <h2>Selectie voor deze wedstrijd</h2>
-    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Vink af wie er vandaag bij is. Afwezige spelers verschijnen niet op de bank.</p>
-    ${S.spelers.map(p => `
-      <label class="speler-rij" style="cursor:pointer">
-        <input type="checkbox" data-sel="${p.id}" ${sel.has(p.id)?'checked':''} style="width:19px;height:19px;accent-color:var(--grass)">
-        <div class="mini-shirt">${esc(p.nummer ?? '·')}</div><div class="n">${esc(p.naam)}</div>
-      </label>`).join('')}
+    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>erbij</b>. Tik wie er <b>niet</b> is en geef eventueel de reden. Afwezige spelers verschijnen niet op de bank.</p>
+    <div id="mSelLijst">${rijenHtml()}</div>
     <button class="knop vol" id="mSelOk" style="margin-top:6px">Klaar</button>`);
+
+  const koppel = () => {
+    $$('#mSelLijst [data-seltoggle]').forEach(b => b.onclick = () => {
+      const id = b.dataset.seltoggle;
+      if (sel.has(id)){ sel.delete(id); }
+      else { sel.add(id); delete redenen[id]; }
+      $('#mSelLijst').innerHTML = rijenHtml(); koppel();
+    });
+    $$('#mSelLijst [data-selreden]').forEach(b => b.onclick = () => {
+      const id = b.dataset.pid, type = b.dataset.selreden;
+      const huidig = redenen[id];
+      if (huidig && afwezigRedenInfo(huidig).id === type) delete redenen[id];
+      else redenen[id] = {type, notitie: huidig?.notitie || ''};
+      $('#mSelLijst').innerHTML = rijenHtml(); koppel();
+    });
+    $$('#mSelLijst .pres-reden-notitie').forEach(inp => inp.oninput = () => {
+      const id = inp.dataset.pid;
+      if (redenen[id]) redenen[id].notitie = inp.value;
+    });
+  };
+  koppel();
+
   $('#mSelOk').onclick = () => {
-    w.selectie = $$('#modalInhoud [data-sel]').filter(c => c.checked).map(c => c.dataset.sel);
+    w.selectie = [...sel];
+    // alleen redenen bewaren van wie ook echt afwezig is
+    const schoon = {};
+    for (const [pid, r] of Object.entries(redenen)) if (!sel.has(pid)) schoon[pid] = r;
+    w.afwezigRedenen = schoon;
     telGebruik('selectie_kiezen');
     const toegestaan = new Set(w.selectie);
     for (const kk of Object.values(w.kwarten)){

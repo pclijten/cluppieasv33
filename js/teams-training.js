@@ -12,9 +12,9 @@ import {
 import { telGebruik } from './tracker.js?v=20260814d';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
-  SEIZOEN_FALLBACK
-} from './config.js?v=20260814d';
-import { htmlKompas } from './teams-leerlijn.js?v=20260814d';
+  SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
+} from './config.js?v=20260814e';
+import { htmlKompas } from './teams-leerlijn.js?v=20260814e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -386,7 +386,7 @@ export function modalPresentie(bestaande = null){
 
   const rijenHtml = () => S.spelers.map(p => {
     const isAfw = afwezig.has(p.id);
-    const reden = redenen[p.id];
+    const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
     return `
     <div class="pres-speler ${isAfw?'afwezig':'aanwezig'}">
       <button type="button" class="pres-speler-kop" data-toggle="${p.id}">
@@ -395,11 +395,9 @@ export function modalPresentie(bestaande = null){
         <span class="pres-status">${isAfw?'Afwezig':'Aanwezig'}</span>
       </button>
       ${isAfw ? `
-      <div class="pres-reden-rij">
-        <button type="button" class="pres-reden-chip ${reden?.type==='blessure'?'actief':''}" data-reden="blessure" data-pid="${p.id}">🩹 Geblesseerd</button>
-        <button type="button" class="pres-reden-chip ${reden?.type==='reden'?'actief':''}" data-reden="reden" data-pid="${p.id}">📋 Met reden</button>
-      </div>
-      ${reden?.type==='reden' ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Bijv. ziek, vakantie, school (optioneel)" value="${esc(reden.notitie||'')}">` : ''}
+      <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.emoji} ${r.label}</button>`).join('')}</div>
+      ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ` : ''}
     </div>`;
   }).join('');
@@ -435,7 +433,7 @@ export function modalPresentie(bestaande = null){
     $$('.pres-reden-chip').forEach(b => b.onclick = () => {
       const id = b.dataset.pid, type = b.dataset.reden;
       const huidig = redenen[id];
-      if (huidig && huidig.type === type) delete redenen[id];
+      if (huidig && afwezigRedenInfo(huidig).id === type) delete redenen[id];
       else redenen[id] = {type, notitie: huidig?.notitie || ''};
       $('#mPresLijst').innerHTML = rijenHtml();
       koppelRijen();
