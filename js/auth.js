@@ -4,6 +4,7 @@ import {
   collection, doc, addDoc, setDoc, getDocs, updateDoc, query, where, serverTimestamp, increment
 } from './firebase.js?v=20260811a';
 import { S, $, meld } from './state.js?v=20260811a';
+import { startTracker } from './tracker.js?v=20260814a';
 
 /* ====================================================================
    AANMELD-FLOW — Google of e-mail+wachtwoord.
@@ -146,6 +147,7 @@ const LS_LOGINLOG = 'opstelling_login_log_datum';
 
 export async function registreerLogin(){
   if (!S.user) return;
+  startTracker(); // idempotent — zet de flush-triggers op, ook als login vandaag al geteld is
   const vandaag = new Date().toISOString().slice(0,10);
   try { if (localStorage.getItem(LS_LOGINLOG) === vandaag) return; } catch(e){}
   const naam = S.user.displayName || (S.user.email ? S.user.email.split('@')[0] : '') || 'Coach';

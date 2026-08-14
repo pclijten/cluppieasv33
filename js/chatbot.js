@@ -20,6 +20,7 @@
 
 import { functions, httpsCallable } from './firebase.js?v=20260811a';
 import { S, esc } from './state.js?v=20260811a';
+import { telGebruik } from './tracker.js?v=20260814a';
 import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260812c';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
@@ -141,6 +142,7 @@ async function verstuur(vraag){
   bezig = true;
   document.getElementById('cbChips').innerHTML = '';
   ik(vraag);
+  telGebruik('chatbot');
   berichten.push({ role: 'user', content: vraag });
   tik(true);
 

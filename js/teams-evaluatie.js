@@ -9,8 +9,9 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
 } from './state.js?v=20260811a';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260811a';
-import { htmlStats } from './wedstrijd.js?v=20260812c';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814a';
+import { htmlStats } from './wedstrijd.js?v=20260814a';
+import { telGebruik } from './tracker.js?v=20260814a';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -29,6 +30,12 @@ export function modalTeamEvaluatie(wedstrijdId){
   const kleurbalk = (catId) => `<div class="kleurbalk" data-cat="${catId}">${NIVEAUS.slice(1).map(n =>
     `<button data-niv="${n.n}" class="kn${n.n} ${scores[catId]===n.n?'gekozen':''}"><span class="lbl">${n.label.toUpperCase()}</span></button>`).join('')}</div>`;
 
+  const catBlok = (c) => `
+    <div class="cat-eval-kop">
+      <div class="veldlabel" style="margin:0">${esc(c.naam)}</div>
+      <div class="cat-eval-status" data-status="${c.id}"></div>
+    </div>${kleurbalk(c.id)}`;
+
   openModal(`
     <h2>${bestaande?'Team-evaluatie bijwerken':'Team evalueren'}</h2>
     <div class="snel-kop">
@@ -36,7 +43,13 @@ export function modalTeamEvaluatie(wedstrijdId){
       <div><div class="nm">${esc(S.team.naam)} – ${esc(w.tegenstander)}</div>
         <div class="pos">${datumNL(w.datum)}${w.thuis!=null?(w.thuis?' · Thuis':' · Uit'):''}</div></div>
     </div>
-    ${TEAM_CATEGORIEEN.map(c => `<div class="veldlabel">${esc(c.naam)}</div>${kleurbalk(c.id)}`).join('')}
+
+    <div class="te-samenvatting">
+      <div class="te-ring" id="mTeRing">—</div>
+      <div class="te-sam-tekst" id="mTeSam">Vul in wat je opviel — categorieën die je overslaat tellen niet mee.</div>
+    </div>
+
+    ${TEAM_CATEGORIEEN.map(catBlok).join('')}
 
     <div class="veldlabel">Opvallend (optioneel)</div>
     <div class="tag-rij" id="mTeTags">${TEAM_TAGS.map(t =>
@@ -49,21 +62,51 @@ export function modalTeamEvaluatie(wedstrijdId){
     <textarea class="invoer" id="mTeAandacht" rows="2" placeholder="Bijv. rustiger opbouwen vanuit de verdediging">${esc(bestaande?.notitieAandacht||'')}</textarea>
 
     <button class="knop vol fluo" id="mTeOk" style="margin-top:12px">${bestaande?'Bijwerken':'Opslaan'}</button>
-    ${bestaande?`<button class="knop vol gevaar" id="mTeWeg" style="margin-top:8px">Verwijderen</button>`:''}`);
+    ${bestaande?`<button class="knop vol gevaar" id="mTeWeg" style="margin-top:8px">Verwijderen</button>`:''}
+    <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.5">💡 Alleen ingevulde categorieën tellen mee in de groeicurve. Na een drukke wedstrijd hoef je niet alles in te vullen.</p>`);
+
+  const werkSamenvattingBij = () => {
+    const ingevuld = Object.keys(scores).length;
+    const vals = Object.values(scores);
+    const gem = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    const ring = $('#mTeRing');
+    if (ring){
+      ring.textContent = ingevuld ? gem.toFixed(1).replace('.',',') : '—';
+      ring.style.background = ingevuld ? niveauKleur(Math.max(1, Math.round(gem))) : 'var(--surface-2)';
+    }
+    const sam = $('#mTeSam');
+    if (sam) sam.innerHTML = ingevuld
+      ? `<b>${ingevuld} van ${TEAM_CATEGORIEEN.length}</b> categorieën ingevuld. De rest mag je overslaan.`
+      : `Vul in wat je opviel — categorieën die je overslaat tellen niet mee.`;
+    for (const c of TEAM_CATEGORIEEN){
+      const el = $(`[data-status="${c.id}"]`);
+      if (el){
+        const aan = scores[c.id] != null;
+        el.textContent = aan ? 'Ingevuld' : 'Overslaan mag';
+        el.classList.toggle('klaar', aan);
+      }
+    }
+    const ok = $('#mTeOk');
+    if (ok) ok.textContent = (bestaande?'Bijwerken':'Opslaan') + ` (${ingevuld} van ${TEAM_CATEGORIEEN.length})`;
+  };
 
   $$('.kleurbalk[data-cat] [data-niv]').forEach(b => b.onclick = () => {
     const wrap = b.closest('.kleurbalk'); const catId = wrap.dataset.cat;
-    scores[catId] = Number(b.dataset.niv);
-    wrap.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', x===b));
+    const al = b.classList.contains('gekozen');
+    wrap.querySelectorAll('[data-niv]').forEach(x => x.classList.remove('gekozen'));
+    if (al){ delete scores[catId]; } // nogmaals tikken = categorie overslaan
+    else { scores[catId] = Number(b.dataset.niv); b.classList.add('gekozen'); }
+    werkSamenvattingBij();
   });
   $$('#mTeTags [data-tag]').forEach(b => b.onclick = () => {
     const id = b.dataset.tag;
     if (gekozenTags.has(id)) gekozenTags.delete(id); else gekozenTags.add(id);
     b.classList.toggle('aan');
   });
+  werkSamenvattingBij();
 
   $('#mTeOk').onclick = async () => {
-    if (Object.keys(scores).length < TEAM_CATEGORIEEN.length) return meld('Vul alle categorieën in');
+    if (!Object.keys(scores).length) return meld('Vul minstens één categorie in');
     const data = {
       wedstrijdId, tegenstander:w.tegenstander, datum:w.datum, scores,
       tags:[...gekozenTags],
@@ -74,6 +117,7 @@ export function modalTeamEvaluatie(wedstrijdId){
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'teamevaluaties',bestaande.id), data);
       else await addDoc(collection(db,'teams',S.teamId,'teamevaluaties'), data);
+      telGebruik('team_evaluatie');
       sluitModal(); meld('Teamevaluatie opgeslagen');
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
   };
@@ -177,8 +221,12 @@ function htmlTeamEvaluatieDashboard(){
     const l = teamEvalLaagsteCategorie(ev); if (!l) continue;
     laagsteTellingen[l.id] = (laagsteTellingen[l.id]||0) + 1;
   }
+  // Alleen signaleren als een categorie én vaak de laagste is (≥2×) én absoluut
+  // laag scoort (gemiddelde < 3 over de laatste 5). Zo wordt een team dat overal
+  // ruim voldoende scoort niet onterecht op zijn relatief-laagste onderdeel afgerekend.
+  const DREMPEL = 3;
   const signalen = Object.entries(laagsteTellingen)
-    .filter(([,n]) => n >= 2)
+    .filter(([catId,n]) => n >= 2 && (catGemiddelde(laatste5, catId) ?? 5) < DREMPEL)
     .sort((a,b) => b[1]-a[1])
     .map(([catId,n]) => ({cat:teamCategorie(catId), n}));
   // groeiers: categorie die het sterkst is gestegen (laatste 5 t.o.v. de 5 daarvoor)

@@ -9,11 +9,12 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
 } from './state.js?v=20260811a';
+import { telGebruik } from './tracker.js?v=20260814a';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK
-} from './config.js?v=20260811a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260811a';
+} from './config.js?v=20260814a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260814a';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -484,6 +485,7 @@ export function modalPresentie(bestaande = null){
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'presentie',bestaande.id), data);
       else if (zelfde) await updateDoc(doc(db,'teams',S.teamId,'presentie',zelfde.id), data);
       else await addDoc(collection(db,'teams',S.teamId,'presentie'), {...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK});
+      telGebruik('presentie');
       sluitModal();
       meld(afwezig.size ? `${afwezig.size} afwezig genoteerd` : 'Iedereen aanwezig genoteerd');
     } catch(e){

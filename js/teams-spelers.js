@@ -15,16 +15,17 @@ import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK
-} from './config.js?v=20260811a';
-import { analyseWedstrijd } from './analyse.js?v=20260811a';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260811a';
+} from './config.js?v=20260814a';
+import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814a';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260814a';
+import { telGebruik } from './tracker.js?v=20260814a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260812c');
+  const m = await import('./teams.js?v=20260814a');
   m.renderTeam();
 }
 
@@ -124,7 +125,14 @@ function spelerStats(pid){
     else zonderReden++;
   }
   const opkomst = totTr ? Math.round((aanwezig/totTr)*100) : null;
-  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, blessure, metReden, zonderReden, posities};
+  // reserve/speelbaar + percentages over wedstrijden waarin de speler in de selectie zat
+  const sr = speeltijdReserve(S.wedstrijden)[pid] || {speeltijd:0, reserve:0, speelbaar:0};
+  const reserve = sr.reserve;
+  const speelbaar = sr.speelbaar;
+  const pctSpeeltijd = speelbaar > 0 ? Math.round((sr.speeltijd/speelbaar)*100) : null;
+  const pctReserve   = pctSpeeltijd != null ? 100 - pctSpeeltijd : null;
+  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, blessure, metReden, zonderReden, posities,
+    reserve, speelbaar, pctSpeeltijd, pctReserve};
 }
 
 /* Meest gespeelde posities voor een speler, aflopend gesorteerd: [{naam, n}, ...] */
@@ -237,10 +245,22 @@ export function htmlProfiel(){
     ${tab === 'overzicht' ? `
       <div class="stat-grid">
         <div class="stat-box"><div class="v">${st.wedstrijden}</div><div class="l">Wedstr.</div></div>
-        <div class="stat-box"><div class="v">${st.tijd ? uurMin(st.tijd) : '—'}</div><div class="l">Speeltijd</div></div>
+        <div class="stat-box"><div class="v">${st.tijd ? uurMin(st.tijd) : '—'}</div><div class="l">Speeltijd</div>${st.pctSpeeltijd!=null?`<div class="sub">${st.pctSpeeltijd}% van speelbaar</div>`:''}</div>
+        <div class="stat-box"><div class="v">${st.reserve ? uurMin(st.reserve) : '—'}</div><div class="l">Reserve</div>${st.pctReserve!=null?`<div class="sub">${st.pctReserve}% van speelbaar</div>`:''}</div>
         <div class="stat-box"><div class="v">${st.goals}</div><div class="l">Goals</div></div>
-        <div class="stat-box"><div class="v">${st.opkomst != null ? st.opkomst+'%' : '—'}</div><div class="l">Training</div></div>
       </div>
+      ${st.pctSpeeltijd != null ? `
+      <div class="kaart" style="margin-top:-2px">
+        <div class="veldlabel" style="margin-top:0">Verhouding speeltijd / bank</div>
+        <div class="speeltijd-split">
+          <div class="veld" style="width:${st.pctSpeeltijd}%"></div>
+          <div class="bank" style="width:${st.pctReserve}%"></div>
+        </div>
+        <div class="split-legend">
+          <span><span class="dotje" style="background:var(--ok)"></span> Op het veld · ${uurMin(st.tijd)}</span>
+          <span><span class="dotje" style="background:var(--warn)"></span> Reserve · ${uurMin(st.reserve)}</span>
+        </div>
+      </div>` : ''}
       ${(st.blessure || st.metReden || st.zonderReden) ? `
       <div class="presentie-uitsplitsing" style="margin:-6px 0 14px">
         ${st.blessure ? `<span>🩹 ${st.blessure}× geblesseerd</span>` : ''}
@@ -390,12 +410,30 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
   const tagRij = () => `<div class="tag-rij" id="mSnTags">${SNEL_TAGS.map(t =>
     `<button class="tag ${gekozenTags.has(t.id)?'aan':''}" data-tag="${t.id}">${t.emoji} ${t.label}</button>`).join('')}</div>`;
 
+  const rondeVoortgang = () => {
+    const r = S._snelRonde; if (!r) return '';
+    const totaal = r.ids.length, positie = r.index + 1, gedaan = r.index, teGaan = totaal - positie;
+    const seg = r.ids.map((id,i) => {
+      const kl = i < gedaan ? (r.overgeslagen && r.overgeslagen.has(id) ? 'oversla' : 'gedaan')
+        : i === r.index ? 'nu' : '';
+      return `<span class="rv-seg ${kl}"></span>`;
+    }).join('');
+    return `<div class="ronde-voortgang">
+      <div class="rv-top">
+        <div class="rv-teller"><b>${positie}</b> / ${totaal} spelers</div>
+        <div class="rv-klaar">${teGaan > 0 ? 'nog '+teGaan+' te gaan' : 'laatste speler'}</div>
+      </div>
+      <div class="rv-track">${seg}</div>
+    </div>`;
+  };
+
   openModal(`
     <h2>Snel beoordelen</h2>
     <div class="snel-kop">
       <div class="mini-shirt">${esc(p.nummer ?? '·')}</div>
       <div><div class="nm">${esc(p.naam)}</div><div class="pos" id="mSnPos"></div></div>
     </div>
+    ${rondeVoortgang()}
 
     <div class="veldlabel">Koppelen aan</div>
     <div class="segment klein-seg" id="mSnBronType">
@@ -458,7 +496,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
-      else await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data);
+      else { await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data); telGebruik('snel_beoordeling'); }
       sluitModal();
       if (S._snelRonde) volgendeSnelRonde(); else { herrenderTeam(); meld(p.naam+' beoordeeld'); }
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
@@ -470,14 +508,18 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     sluitModal(); herrenderTeam();
   };
   const skipBtn = $('#mSnSkip');
-  if (skipBtn) skipBtn.onclick = () => { sluitModal(); volgendeSnelRonde(); };
+  if (skipBtn) skipBtn.onclick = () => {
+    if (S._snelRonde){ (S._snelRonde.overgeslagen ||= new Set()).add(spelerId); }
+    sluitModal(); volgendeSnelRonde();
+  };
 }
 
 /* ---------- Snelle beoordelingsronde (alle spelers achter elkaar) ---------- */
 export function startSnelRonde(){
   if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   if (!S.spelers.length) return meld('Voeg eerst spelers toe');
-  S._snelRonde = {index:0, ids:S.spelers.map(p => p.id)};
+  S._snelRonde = {index:0, ids:S.spelers.map(p => p.id), overgeslagen:new Set()};
+  telGebruik('snel_ronde');
   modalSnelBeoordeling(S._snelRonde.ids[0]);
 }
 function volgendeSnelRonde(){
@@ -534,7 +576,7 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
-      else await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data);
+      else { await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data); telGebruik('volledige_beoordeling'); }
       sluitModal(); herrenderTeam(); meld('Beoordeling opgeslagen');
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
   };
@@ -598,15 +640,19 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
     const lp = [...(p.leerpunten||[]), nieuw];
     try {
       await updateDoc(doc(db,'teams',S.teamId,'spelers',spelerId), {leerpunten: lp});
+      telGebruik('leerpunt_nieuw');
       sluitModal(); herrenderTeam(); meld('Leerpunt toegevoegd');
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
   };
 }
 export async function toggleLeerpunt(lpId){
   const p = speler(S._beoordeelProfiel); if (!p) return;
+  const doel = (p.leerpunten||[]).find(l => l.id === lpId);
+  const wordtKlaar = doel && !doel.klaar;
   const lp = (p.leerpunten||[]).map(l => l.id === lpId
     ? {...l, klaar:!l.klaar, klaarOp: !l.klaar ? vandaagISO() : null} : l);
   await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), {leerpunten: lp});
+  if (wordtKlaar) telGebruik('leerpunt_klaar');
 }
 export async function verwijderLeerpunt(lpId){
   const p = speler(S._beoordeelProfiel); if (!p) return;
@@ -682,8 +728,8 @@ export function modalSpeler(p){
       nummer: nr === '' ? null : Number(nr),
     };
     if (bewerken) data.positie = gekozenPositie || null;
-    if (p) await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), data);
-    else   await addDoc(collection(db,'teams',S.teamId,'spelers'), data);
+    if (p){ await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), data); telGebruik('speler_bewerken'); }
+    else  { await addDoc(collection(db,'teams',S.teamId,'spelers'), data); telGebruik('speler_nieuw'); }
     if (sluiten) sluitModal();
     else { $('#mSpNaam').value=''; $('#mSpNr').value=''; $('#mSpAchter').value=''; $('#mSpNaam').focus(); meld(naam+' toegevoegd'); }
   };
@@ -789,6 +835,7 @@ export async function modalUitlenen(spelerId){
     if (!naarTeam || !dag) return;
     okBtn.disabled = true; okBtn.textContent = 'Bezig…';
     try {
+      telGebruik('uitlenen');
       await addDoc(collection(db,'clubs',clubId,'uitleningen'), {
         spelerId: p.id,
         vanTeam: S.teamId,
@@ -817,6 +864,7 @@ export async function trekUitleningIn(uitleenId){
   if (!confirm('Uitlening intrekken? De speler verdwijnt direct bij het andere team.')) return;
   try {
     await deleteDoc(doc(db,'clubs',clubId,'uitleningen',uitleenId));
+    telGebruik('uitlenen_intrek');
     // Werk de lokale lijsten meteen bij en render, zodat de UI klopt ook als
     // de listener-snapshot voor deze eigen delete (tijdelijk) uitblijft.
     S.uitleningenUit = (S.uitleningenUit||[]).filter(u => u.id !== uitleenId);
