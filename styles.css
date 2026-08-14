@@ -294,6 +294,26 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .stat-tabel td{padding:10px 8px;border-bottom:1px solid var(--hair);text-align:center;font-variant-numeric:tabular-nums}
 .stat-tabel tr:last-child td{border-bottom:none}
 .stat-tabel .naam-cel{font-weight:600}
+.stat-tabel .stats-naam{background:none;border:none;padding:2px 0;margin:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-align:left;display:inline-flex;align-items:center;gap:4px;min-height:32px}
+.stat-tabel .stats-naam::after{content:'›';font-size:16px;color:var(--ink-2);font-weight:700}
+.stat-tabel .stats-naam:active{opacity:.6}
+
+/* Blok B — disciplinaire reserve + reden-inzicht */
+.disc-badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--n1);background:rgba(240,86,91,.14);padding:2px 6px;border-radius:5px;vertical-align:middle}
+.disc-blok{margin-top:12px;padding:12px;border-radius:11px;background:rgba(240,86,91,.08);border:1px solid rgba(240,86,91,.28);display:none}
+.disc-blok.zicht{display:block}
+.disc-toggle{display:flex;align-items:center;gap:10px;cursor:pointer}
+.disc-toggle input{width:20px;height:20px;accent-color:var(--n1);flex-shrink:0}
+.disc-toggle-t{font-weight:700;font-size:14px;color:var(--ink)}
+.disc-uitleg{font-size:12px;color:var(--ink-2);margin-top:7px;line-height:1.5}
+.disc-notitie{width:100%;margin-top:10px;background:var(--surface-2);border:1.5px solid var(--line-d);color:var(--ink);border-radius:9px;padding:9px 11px;font-size:13.5px;font-family:inherit;display:none}
+.disc-notitie.zicht{display:block}
+.disc-notitie::placeholder{color:var(--ink-2)}
+.wissel-reden-badge.disc{background:rgba(240,86,91,.16);color:var(--n1)}
+.reden-tel-rij td{padding-top:0 !important;padding-bottom:8px !important;border-bottom:1px solid var(--hair)}
+.reden-tel{display:flex;flex-wrap:wrap;gap:6px}
+.reden-tel-chip{background:var(--surface-2);border:1px solid var(--line-d);border-radius:8px;padding:4px 9px;font-size:12px;color:var(--ink-2)}
+.reden-tel-chip b{color:var(--ink)}
 .stat-tabel .tijd-cel{font-family:'Barlow Condensed';font-weight:700;font-size:16px}
 .stat-tabel td.bewerkbaar{cursor:pointer}
 .stat-tabel td.bewerkbaar:active{opacity:.7}
