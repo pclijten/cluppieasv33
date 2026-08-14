@@ -10,9 +10,9 @@ import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek
-} from './config.js?v=20260814d';
+} from './config.js?v=20260814e';
 import { kompasTips, startContentListener } from './content.js?v=20260814d';
-import { analyseWedstrijd } from './analyse.js?v=20260814d';
+import { analyseWedstrijd } from './analyse.js?v=20260814e';
 import { telGebruik } from './tracker.js?v=20260814d';
 import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260814d';
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
@@ -30,7 +30,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260814g')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260814e')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -38,7 +38,7 @@ import {
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn,
 } from './teams-spelers.js?v=20260814e';
-import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260814d';
+import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260814e';
 import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260814e';
 import {
   htmlTeamTrainingen, htmlTeamVideos, htmlInstellingen,
@@ -1184,6 +1184,13 @@ function koppelTeamTab(v, tab){
   }
   if (tab === 'stats'){
     koppelStatsBlad(v);
+    // Klik op een spelernaam in de stats-tabel opent het spelersprofiel.
+    // Via zetTeamTab('spelers') zodat de terugknop terugkeert naar Stats.
+    v.querySelectorAll('[data-statsprofiel]').forEach(b => b.onclick = () => {
+      S._beoordeelProfiel = b.dataset.statsprofiel;
+      S._profielTab = 'overzicht';
+      zetTeamTab('spelers');
+    });
     v.querySelectorAll('[data-statsmodus]').forEach(b => b.onclick = () => {
       S.statsSubTab = b.dataset.statsmodus; renderTeam();
     });
@@ -1445,7 +1452,7 @@ function koppelTeamTab(v, tab){
       if (String(S.team.format) === vorm) return;
       await updateDoc(doc(db,'teams',S.teamId), {format: vorm});
       meld('Wedstrijdvorm: ' + vorm + ' tegen ' + vorm);
-    });
+    };
     v.querySelector('#verlaatTeam').onclick = async () => {
       if (!confirm('Weet je zeker dat je dit team wilt verlaten?')) return;
       await updateDoc(doc(db,'teams',S.teamId), {
