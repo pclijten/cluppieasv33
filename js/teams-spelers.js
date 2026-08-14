@@ -25,7 +25,7 @@ import { telGebruik } from './tracker.js?v=20260814d';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260814e');
+  const m = await import('./teams.js?v=20260814f');
   m.renderTeam();
 }
 
