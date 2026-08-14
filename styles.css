@@ -394,6 +394,19 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   display:flex;align-items:center;justify-content:center;
   font-size:17px;font-weight:700;line-height:1;
 }
+/* Eerstvolgende wedstrijd: accentrand + label bovenaan de lijst. */
+.lijst-item.eerstvolgend{
+  position:relative;
+  border-color:rgba(226,52,47,.55);
+  box-shadow:0 2px 6px rgba(16,39,26,.08), 0 8px 26px rgba(226,52,47,.20);
+}
+.lijst-item.eerstvolgend .vlag{
+  position:absolute;top:-9px;left:14px;
+  background:var(--accent);color:#fff;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  padding:2px 8px;border-radius:99px;line-height:1.4;
+}
 
 /* --- Team-shirt: groot, speels gedraaid rugnummer-blok --- */
 .team-shirt{
@@ -685,6 +698,48 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .mini-dom span{width:16px;height:16px;border-radius:4px;font-size:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:rgba(0,0,0,.5)}
 
 /* Maand-groepen in de presentie-historie */
+/* ---------- Stand & Poule (tegel onder Meer) ---------- */
+.subtabs{ display:flex;gap:8px;margin-bottom:14px; }
+.subtab{
+  flex:1;border:none;background:var(--surface,var(--card));color:var(--ink-2);
+  padding:9px;border-radius:10px;font-weight:600;font-size:13.5px;font-family:'Inter';cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+.subtab.actief{ background:var(--accent);color:#fff; }
+.poule-titel{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2);margin:0 0 8px 2px;
+}
+.poule-hint{ font-size:12px;color:var(--ink-2);text-align:center;margin:10px 0 0;line-height:1.5; }
+.stand{ background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden; }
+.stand table{ width:100%;border-collapse:collapse;font-size:13px; }
+.stand th{
+  font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--ink-2);
+  font-weight:700;padding:9px 6px;text-align:center;background:var(--surface-2,rgba(255,255,255,.04));
+}
+.stand th:nth-child(2){ text-align:left; }
+.stand td{ padding:9px 6px;text-align:center;border-top:1px solid var(--line-d,var(--hair)); }
+.stand td:nth-child(2){ text-align:left;font-weight:600; }
+.stand tr.eigen td{ background:rgba(226,52,47,.10); }
+.stand tr.eigen td:nth-child(2){ color:var(--accent); }
+.stand .pos{ color:var(--ink-2);width:22px; }
+.stand .pnt{ font-weight:800;font-family:'Barlow Condensed',sans-serif;font-size:15px; }
+.uitslagrij{
+  display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--card);
+  border-radius:14px;box-shadow:var(--shadow);margin-bottom:8px;font-size:13.5px;
+  border:1.5px solid transparent;
+}
+.uitslagrij.eigen{ border-color:rgba(226,52,47,.45); }
+.uitslagrij .teams{ flex:1;min-width:0; }
+.uitslagrij .u{
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;
+  background:var(--surface-2,rgba(255,255,255,.06));padding:2px 9px;border-radius:8px;flex-shrink:0;
+}
+.datum-kop{
+  font-size:11.5px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;
+  margin:14px 0 8px;font-weight:700;
+}
+
 .maand-groep{ margin-bottom:8px; }
 .maand-kop{
   display:flex;align-items:center;gap:10px;width:100%;text-align:left;
