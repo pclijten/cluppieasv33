@@ -146,10 +146,10 @@ export function htmlTeamTrainingen(){
   const alGeregAfwezig = alGeregistreerd ? (alGeregistreerd.afwezig||[]).length : 0;
 
   const presentieSectie = `
-    <div class="sectie-kop" style="margin-top:0">📋 Presentie training</div>
+    <div class="sectie-kop" style="margin-top:0">${ico('admin-protocol',15)} Presentie training</div>
     ${alGeregistreerd
       ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:13px;margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
-      : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:12px">✓ Wie is er vandaag?</button>`}
+      : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:12px">Wie is er vandaag?</button>`}
     ${presentieLijst}`;
 
   // --- PDF-sectie (ook per maand, zelfde gedrag als presentie) ---
@@ -212,7 +212,7 @@ export function htmlTeamTrainingen(){
   }
 
   const pdfSectie = `
-    <div class="sectie-kop">📄 Gedeelde oefenstof</div>
+    <div class="sectie-kop">${ico('admin-document',15)} Gedeelde oefenstof</div>
     ${pdfLijst}`;
 
   return htmlKompas() + afgelastSectie + presentieSectie + pdfSectie;

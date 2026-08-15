@@ -478,7 +478,7 @@ export function renderTeams(){
     <div class="overzicht-blokjes">
       <button class="ov-blok ${aantalOngelezen ? 'ov-actief' : ''}" id="ovTrainingen">
         <div class="ov-getal">${aantalOngelezen || ico('admin-document',26)}</div>
-        <div class="ov-label">${aantalOngelezen ? `nieuwe oefenstof` : 'oefenstof'}</div>
+        <div class="ov-label">${aantalOngelezen ? `nieuwe training` : 'training'}</div>
       </button>
       <button class="ov-blok ov-wedstrijden" id="ovWedstrijden">
         <div class="ov-getal">${ico('admin-protocol',26)}</div>
