@@ -12,6 +12,8 @@ import {
   kompasIndexVoorWeek
 } from './config.js?v=20260815b';
 import { kompasTips, startContentListener } from './content.js?v=20260815b';
+import { ico } from './icons.js?v=20260815b';
+
 import { analyseWedstrijd } from './analyse.js?v=20260815b';
 import { telGebruik } from './tracker.js?v=20260815b';
 import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260815b';
@@ -475,15 +477,15 @@ export function renderTeams(){
     ${toonOverzicht ? `
     <div class="overzicht-blokjes">
       <button class="ov-blok ${aantalOngelezen ? 'ov-actief' : ''}" id="ovTrainingen">
-        <div class="ov-getal">${aantalOngelezen || '📄'}</div>
+        <div class="ov-getal">${aantalOngelezen || ico('admin-document',26)}</div>
         <div class="ov-label">${aantalOngelezen ? `nieuwe oefenstof` : 'oefenstof'}</div>
       </button>
       <button class="ov-blok ov-wedstrijden" id="ovWedstrijden">
-        <div class="ov-getal">📋</div>
+        <div class="ov-getal">${ico('admin-protocol',26)}</div>
         <div class="ov-label">wedstrijden</div>
       </button>
       <button class="ov-blok ov-berichten" id="ovBerichten">
-        <div class="ov-getal">${ongelezenBerichten() || '📣'}</div>
+        <div class="ov-getal">${ongelezenBerichten() || ico('communication-announcement',26)}</div>
         <div class="ov-label">berichten</div>
       </button>
     </div>` : ''}
@@ -557,7 +559,7 @@ export function renderTeams(){
     bb.innerHTML = htmlBerichtBalk();
     koppelBerichtBalk(bb, herkoppelBalk);
     const getal = v.querySelector('#ovBerichten .ov-getal');
-    if (getal) getal.textContent = ongelezenBerichten() || '📣';
+    if (getal){ const n = ongelezenBerichten(); getal.innerHTML = n ? String(n) : ico('communication-announcement',26); }
   };
   if (bb) koppelBerichtBalk(bb, herkoppelBalk);
 
