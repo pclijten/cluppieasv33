@@ -314,6 +314,16 @@ function normaliseerWedstrijd(w){
 }
 
 export function openWedstrijd(wid){
+  // Vangnet: als teamId (of wid) ontbreekt — bv. na een tijdelijke lege
+  // team-snapshot die de teamstaat leegde terwijl de lijst nog op het scherm
+  // stond — bouw dan géén Firestore-pad met null (dat crasht op path.indexOf).
+  // Val stil terug naar de teamweergave i.p.v. de app te laten omvallen.
+  if (!S.teamId || !wid){
+    console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
+    S.wedstrijdId = null;
+    if (S.teamId) import('./teams.js?v=20260815b').then(m => m.renderTeam?.());
+    return;
+  }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
   stopUnsubs('wedstrijd');
   S.unsub.wedstrijd = onSnapshot(doc(db,'teams',S.teamId,'wedstrijden',wid), snap => {
