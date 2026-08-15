@@ -2235,3 +2235,12 @@ body::before{
 .bericht-ico{ border-radius:var(--r-s) !important; }
 .bericht-titel{ font-family:'Inter',system-ui,sans-serif !important; font-weight:600 !important; }
 .bericht-ico svg{ width:18px; height:18px; }
+
+/* ─── FIX: beoordeel-stip.leeg ving per ongeluk de globale .leeg padding op
+   (padding:34px → uitgerekt ovaal + veel te hoge spelersrij). Hard begrenzen. ─── */
+.beoordeel-stip{ width:14px !important; height:14px !important; padding:0 !important; box-sizing:border-box; align-self:center; }
+.speler-rij{ padding:10px 14px !important; }
+.speler-rij .mini-shirt{ width:34px !important; height:34px !important; font-size:16px !important; }
+
+/* ─── FIX: iconen in sectie-koppen netjes uitlijnen ─── */
+.sectie-kop svg{ vertical-align:-3px; margin-right:2px; color:var(--accent); }
