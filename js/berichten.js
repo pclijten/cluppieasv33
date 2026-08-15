@@ -11,7 +11,8 @@
 
    Weggeklikt wordt lokaal onthouden in localStorage onder 'cluppie_bericht_weg'. */
 
-import { S, esc, datumNL } from './state.js?v=20260815b';
+import { S, esc, datumNL } from './state.js?v=20260815c';
+import { ico } from './icons.js?v=20260815c';
 
 const WEG_KEY = 'cluppie_bericht_weg';
 
@@ -60,7 +61,7 @@ export function htmlBerichtBalk(){
     const rest = restTekst(b.zichtbaarTot);
     return `
     <div class="bericht-balk" data-bericht="${b.id}">
-      <div class="bericht-ico">📣</div>
+      <div class="bericht-ico">${ico('communication-announcement',18)}</div>
       <div class="bericht-tekst">
         <div class="bericht-titel">${esc(b.titel)}</div>
         <div class="bericht-body">${esc(b.body || '')}</div>
