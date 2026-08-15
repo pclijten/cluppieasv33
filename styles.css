@@ -79,6 +79,8 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .segment button{flex:1;padding:9px 4px;border-radius:9px;font-weight:600;font-size:14px;color:var(--ink-2)}
 .segment button.actief{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,39,26,.15)}
 .segment.stats-blad button{font-size:13px;padding:9px 2px;white-space:nowrap}
+.segment.segment-sub{background:var(--surface);border:1px solid var(--line-d)}
+.segment.segment-sub button{font-size:12.5px;padding:8px 4px;color:var(--ink-2)}
 
 /* ---------- Geplande wissels ---------- */
 .plan-lijst{margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:10px}
@@ -118,7 +120,10 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .slot{position:absolute;transform:translate(-50%,-50%);width:64px;display:flex;flex-direction:column;align-items:center;gap:3px}
 .slot .ring{width:46px;height:46px;border-radius:50%;border:2px dashed rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:14px;color:rgba(255,255,255,.75);letter-spacing:.5px}
 .slot.doel ring{border-color:rgba(242,163,60,.8)}
-.chip{display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;-webkit-user-select:none;cursor:pointer}
+.chip{display:flex;flex-direction:column;align-items:center;gap:3px;user-select:none;-webkit-user-select:none;cursor:pointer;position:relative}
+.chip-reden{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:2px solid var(--bg);background:var(--surface-2);color:var(--ink-2);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:2}
+.chip-reden.straf{background:var(--n1);color:#fff}
+.chip.straf-chip .shirt{box-shadow:0 0 0 3px rgba(240,86,91,.35)}
 .chip .shirt{
   width:46px;height:46px;border-radius:50%;
   background:#fff;color:var(--pitch-ink);
@@ -579,6 +584,29 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 }
 .ov-label{ font-size:11.5px;color:var(--ink-2);font-weight:500; }
 
+/* ---------- BERICHTEN (clubadmin → teams) ---------- */
+.bericht-balk{display:flex;gap:11px;align-items:flex-start;background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:14px;padding:13px 14px;margin-bottom:12px}
+.bericht-ico{width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--warn);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+.bericht-tekst{flex:1;min-width:0}
+.bericht-titel{font-weight:700;font-size:14.5px;margin-bottom:2px}
+.bericht-body{font-size:13px;color:var(--ink);line-height:1.5;white-space:pre-wrap}
+.bericht-meta{font-size:11px;color:var(--ink-2);margin-top:5px}
+.bericht-x{background:none;border:none;color:var(--ink-2);font-size:17px;cursor:pointer;padding:2px 4px;flex-shrink:0;line-height:1}
+.arch-item{border:1px solid var(--line-d);border-radius:12px;padding:12px 13px;margin-bottom:9px;background:var(--surface)}
+.arch-item.arch-verlopen{opacity:.55}
+.arch-kop{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.arch-titel{font-weight:700;font-size:14px;flex:1}
+.arch-datum{font-size:11.5px;color:var(--ink-2);margin-bottom:5px}
+.arch-body{font-size:13px;color:var(--ink-2);line-height:1.5;white-space:pre-wrap}
+.arch-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:5px;background:rgba(53,196,122,.16);color:var(--ok);flex-shrink:0}
+.arch-badge.weg{background:var(--surface-2);color:var(--ink-2)}
+/* zichtbaarheidsduur-keuze in de admin-composer */
+.duur-rij{display:flex;flex-wrap:wrap;gap:8px}
+.duur-opt{border:1.5px solid var(--line-d);background:var(--surface-2);color:var(--ink);border-radius:9px;padding:8px 12px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit}
+.duur-opt.aan{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface-2));color:#fff}
+/* admin-lijst: verlopen bericht gedempt */
+.training-rij.verlopen{opacity:.55}
+
 /* ---------- PWA-installbanner ("Zet op beginscherm") ---------- */
 .pwa-banner{
   display:flex;align-items:flex-start;gap:12px;
@@ -666,6 +694,17 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .presentie-uitsplitsing{ display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2); }
 .presentie-hist-rij{ display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair);font-size:13px; }
 .presentie-hist-rij:last-child{ border-bottom:none; }
+.wed-hist-rij{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair)}
+.wed-hist-rij:last-child{border-bottom:none}
+.whr-datum{font-size:12px;color:var(--ink-2);width:70px;flex-shrink:0}
+.whr-mid{flex:1;min-width:0}
+.whr-teg{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whr-reden{font-size:11.5px;color:var(--ink-2);margin-top:2px}
+.whr-status{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;flex-shrink:0}
+.whr-status.vol{background:rgba(53,196,122,.16);color:var(--ok)}
+.whr-status.deel{background:rgba(245,177,61,.16);color:var(--warn)}
+.whr-status.straf{background:rgba(240,86,91,.16);color:var(--n1)}
+.whr-status.leeg{background:var(--surface-2);color:var(--ink-2)}
 .presentie-hist-rij .phr-status.afw{ color:var(--uit);font-weight:600; }
 .presentie-hist-rij .phr-status.aanw{ color:var(--veld);font-weight:600; }
 
