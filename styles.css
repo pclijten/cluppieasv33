@@ -2038,3 +2038,200 @@ body::before{
   font-family:'Barlow Condensed';font-weight:700;font-size:15px;color:#fff;background:var(--surface-2)}
 .te-sam-tekst{flex:1;font-size:12.5px;color:var(--ink-2);line-height:1.4}
 .te-sam-tekst b{color:var(--ink);font-weight:700}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESTYLE 20260815b — modernere, minder "template" uitstraling.
+   Additieve laag: overschrijft kern-componenten. Verwijder dit hele
+   blok om terug te vallen op de vorige stijl. Signature: de kalklijn
+   (dunne witte veldlijn) i.p.v. slagschaduwen + vol-rode vlakken.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --r-s:10px; --r-m:16px; --r-l:22px; --r-pill:999px;
+  --kalk:rgba(255,255,255,.14);
+  --lift:0 8px 30px rgba(0,0,0,.45);
+}
+
+/* — Welkomststrip: van vol-rood vlak → surface met rode gloed + kalklijn — */
+.welkom-kop{
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(226,52,47,.30), transparent 55%),
+    linear-gradient(180deg, var(--surface-2), var(--surface)) !important;
+  border:1px solid var(--hair);
+  border-radius:var(--r-l);
+  overflow:hidden;
+}
+.welkom-kop::after{ /* hoekcirkel — veldlijn */
+  content:"";position:absolute;right:-64px;top:-64px;width:190px;height:190px;
+  border:1.5px solid var(--kalk);border-radius:50%;pointer-events:none;
+}
+.welkom-kop::before{ /* onderlijn — veldlijn */
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1.5px;
+  background:linear-gradient(90deg,transparent,var(--kalk),transparent);pointer-events:none;
+}
+.welkom-datum{ color:var(--ink-2) !important; text-transform:uppercase; letter-spacing:.4px; font-size:12px; }
+.welkom-groet{ color:var(--ink) !important; }
+.groet-naam{ color:var(--accent); }
+.welkom-cruijff{
+  color:var(--ink-2) !important;
+  border-left:1.5px solid var(--kalk); padding-left:11px;
+}
+/* chips in de strip: outline i.p.v. wit-transparant vlak */
+.ws-item{
+  background:rgba(255,255,255,.05) !important; color:var(--ink) !important;
+  border:1px solid var(--hair); font-weight:500;
+}
+.uitlog-knop{ background:rgba(255,255,255,.05) !important; border:1px solid var(--hair) !important; }
+
+/* — Overzichttegels: plat, border i.p.v. schaduw, icoon in accent — */
+.ov-blok{
+  background:var(--surface) !important; border:1px solid var(--hair) !important;
+  box-shadow:none !important; border-radius:var(--r-m) !important;
+  transition:border-color .18s ease, transform .18s ease !important;
+}
+.ov-blok:hover{ border-color:rgba(226,52,47,.5) !important; transform:translateY(-2px) !important; }
+.ov-getal{ color:var(--accent); }
+.ov-getal svg{ stroke:var(--accent); }
+.ov-blok.ov-actief .ov-getal{ color:var(--accent); }
+.ov-label{ color:var(--ink) !important; font-weight:500; }
+
+/* — Teamrijen: rustiger, geen schaduw, hover licht accent op — */
+.lijst-item{
+  background:var(--surface) !important; border:1px solid var(--hair) !important;
+  box-shadow:none !important; border-radius:var(--r-m) !important;
+  transition:border-color .18s ease !important;
+}
+.lijst-item:hover{ border-color:rgba(255,255,255,.18) !important; }
+.li-tekst .titel{ color:var(--ink); }
+.li-tekst .meta{ color:var(--ink-2) !important; font-weight:400; }
+.pijl{
+  background:transparent !important; border:1px solid var(--hair);
+  border-radius:var(--r-s); width:36px;height:36px;color:var(--ink-2) !important;
+  display:flex;align-items:center;justify-content:center;transition:.18s;
+}
+.lijst-item:hover .pijl{ background:var(--accent) !important; border-color:var(--accent); color:#fff !important; }
+
+/* — Team-badge: van gevuld-rood-met-glow → rode outline — */
+.team-shirt{
+  background:transparent !important; color:var(--accent) !important;
+  border:1.5px solid var(--accent); border-radius:12px;
+  box-shadow:none !important;
+}
+.lijst-item:hover .team-shirt{ transform:rotate(-4deg) scale(1.06); }
+
+/* — Club-badge chip: subtieler — */
+.club-badge, .club-badge.licht{
+  background:rgba(226,52,47,.14) !important; color:var(--accent) !important;
+  border:none !important; border-radius:var(--r-pill) !important;
+  font-size:10px; font-weight:600; letter-spacing:.3px;
+}
+
+/* — Sectiekoppen: rustiger, gespatieerd — */
+.sectie-kop{ color:var(--ink-2) !important; letter-spacing:1px; }
+
+/* — Algemene kaarten/knoppen: schaduw → border in de restyle-scope — */
+.kaart{ box-shadow:none !important; border:1px solid var(--hair); border-radius:var(--r-m); }
+
+/* — Proportie-verfijning: dichter bij de goedgekeurde mockup — */
+/* strip iets luchtiger van binnen, kop wat groter/strakker */
+.welkom-kop{ padding:22px 20px 22px !important; margin-bottom:16px !important; }
+.welkom-groet{ font-size:30px !important; letter-spacing:.3px !important; margin-bottom:2px !important; }
+.welkom-strip{ gap:8px !important; margin-top:12px !important; }
+.ws-item{ padding:7px 12px !important; font-size:13px !important; }
+.welkom-cruijff{ margin-top:14px !important; font-size:12.5px !important; }
+
+/* tegels compacter — minder log */
+.overzicht-blokjes{ gap:10px !important; margin-bottom:22px !important; }
+.ov-blok{ padding:16px 8px 14px !important; }
+.ov-getal{ height:30px; display:flex; align-items:center; justify-content:center; margin-bottom:2px; }
+.ov-label{ font-size:12.5px !important; }
+
+/* teamrijen strakker op elkaar, badge fijner */
+.lijst-item{ padding:13px 14px !important; margin-bottom:9px !important; gap:13px !important; }
+.lijst-item .titel{ font-family:'Inter',system-ui,sans-serif; font-weight:600; font-size:15px !important; letter-spacing:-.1px; line-height:1.25; }
+.lijst-item .meta{ font-size:12px !important; }
+.team-shirt{ width:50px !important; height:50px !important; font-size:21px !important; }
+.team-shirt small{ font-size:10px; opacity:.8; }
+
+/* sectiekop ritme */
+.sectie-kop{ margin:22px 2px 12px !important; font-size:13px !important; }
+
+/* ─── RESTYLE: Training-schermen ─── */
+/* maand-koppen: schaduw → border, radius-schaal */
+.maand-kop{
+  background:var(--surface) !important; border:1px solid var(--hair) !important;
+  box-shadow:none !important; border-radius:var(--r-s) !important;
+  transition:border-color .18s ease !important;
+}
+.maand-kop:hover{ border-color:rgba(255,255,255,.16) !important; }
+/* training-rijen (oefenstof PDF's): schaduw → border */
+.training-rij{
+  background:var(--surface) !important; border:1px solid var(--hair) !important;
+  box-shadow:none !important; border-radius:var(--r-s) !important;
+  transition:border-color .18s ease !important;
+}
+.training-rij:hover{ border-color:rgba(255,255,255,.18) !important; }
+.training-rij.ongelezen{ border-color:rgba(226,52,47,.45) !important; }
+.training-rij .t-titel{ color:var(--ink); font-weight:600; }
+.training-rij .t-meta{ color:var(--ink-2) !important; }
+.training-rij .acties button{ background:transparent !important; border:1px solid var(--hair); color:var(--ink-2) !important; border-radius:var(--r-s); }
+/* video-rijen */
+.video-rij{
+  background:var(--surface) !important; border:1px solid var(--hair) !important;
+  box-shadow:none !important; border-radius:var(--r-s) !important;
+  transition:border-color .18s ease !important;
+}
+.video-rij:hover{ border-color:rgba(255,255,255,.18) !important; }
+.video-rij .v-titel{ color:var(--ink); font-weight:600; }
+.video-rij .v-meta{ color:var(--ink-2) !important; }
+.video-rij .acties button{ background:transparent !important; border:1px solid var(--hair); color:var(--ink-2) !important; border-radius:var(--r-s); }
+/* toon-meer knop: subtieler */
+.toon-meer{
+  background:transparent !important; border:1px solid var(--hair) !important;
+  color:var(--ink-2) !important; border-radius:var(--r-s) !important;
+}
+.toon-meer:hover{ border-color:rgba(226,52,47,.4) !important; color:var(--accent) !important; }
+
+/* ─── RESTYLE: Wedstrijd-lijst ─── */
+/* eerstvolgend: rode border zonder glow-schaduw (schaduw → border) */
+.lijst-item.eerstvolgend{
+  border-color:rgba(226,52,47,.55) !important;
+  box-shadow:none !important;
+}
+/* score-badge: donkere surface i.p.v. licht vlak, leesbaar in dark */
+.badge{
+  background:rgba(255,255,255,.06) !important; color:var(--ink) !important;
+  border:1px solid var(--hair); border-radius:var(--r-pill) !important;
+}
+/* "+ Nieuwe wedstrijd" knop: consistent met accent */
+#nieuweWedstrijd.knop.vol{ border-radius:var(--r-m) !important; }
+
+/* ─── RESTYLE: rij-titels consistent in Inter (niet Barlow) op lange namen ─── */
+.training-rij .t-titel,
+.video-rij .v-titel,
+.wed-hist-rij .titel,
+.lid-rij .lid-naam{
+  font-family:'Inter',system-ui,sans-serif !important;
+  font-weight:600 !important; letter-spacing:-.1px;
+}
+
+/* ─── RESTYLE: Wedstrijd opstelling/bank ─── */
+.veld-wrap{ box-shadow:none !important; border:1px solid var(--hair); border-radius:var(--r-l) !important; }
+.bank{ box-shadow:none !important; border:1px solid var(--hair); border-radius:var(--r-m) !important; }
+
+/* ─── RESTYLE: Spelers — TIPS-labels in dark ─── */
+.tips-letter{ background:var(--surface-2) !important; border:1px solid var(--hair); color:var(--ink) !important; }
+
+/* ─── RESTYLE: Evaluatie — tags in radius-schaal, dark ─── */
+.tag{ border-radius:var(--r-pill) !important; border:1px solid var(--hair) !important; background:var(--surface) !important; color:var(--ink) !important; display:inline-flex; align-items:center; gap:6px; }
+.tag.aan{ background:var(--accent) !important; color:#fff !important; border-color:var(--accent) !important; }
+.tag svg{ vertical-align:-2px; }
+.te-ring{ border:1px solid var(--hair); }
+
+/* ─── RESTYLE: Evaluatie/modal — namen consistent in Inter (zoals lijsten) ─── */
+.snel-kop .nm{ font-family:'Inter',system-ui,sans-serif !important; font-weight:600 !important; font-size:15px !important; letter-spacing:-.1px; }
+
+/* ─── RESTYLE: Berichten — balk consistent, titel in Inter ─── */
+.bericht-balk{ border-radius:var(--r-m) !important; }
+.bericht-ico{ border-radius:var(--r-s) !important; }
+.bericht-titel{ font-family:'Inter',system-ui,sans-serif !important; font-weight:600 !important; }
+.bericht-ico svg{ width:18px; height:18px; }
