@@ -8,10 +8,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260815a';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260815a';
-import { htmlStats } from './wedstrijd.js?v=20260815a';
-import { telGebruik } from './tracker.js?v=20260815a';
+} from './state.js?v=20260815b';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260815b';
+import { ico } from './icons.js?v=20260815b';
+
+import { htmlStats } from './wedstrijd.js?v=20260815b';
+import { telGebruik } from './tracker.js?v=20260815b';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -53,7 +55,7 @@ export function modalTeamEvaluatie(wedstrijdId){
 
     <div class="veldlabel">Opvallend (optioneel)</div>
     <div class="tag-rij" id="mTeTags">${TEAM_TAGS.map(t =>
-      `<button class="tag ${gekozenTags.has(t.id)?'aan':''}" data-tag="${t.id}">${t.emoji} ${t.label}</button>`).join('')}</div>
+      `<button class="tag ${gekozenTags.has(t.id)?'aan':''}" data-tag="${t.id}">${t.ico?ico(t.ico,16):t.emoji} ${t.label}</button>`).join('')}</div>
 
     <div class="veldlabel">Wat ging het beste? (optioneel)</div>
     <textarea class="invoer" id="mTeGoed" rows="2" placeholder="Bijv. de druk vooraan zorgde voor balwinst hoog op het veld">${esc(bestaande?.notitieGoed||'')}</textarea>

@@ -1,4 +1,4 @@
-import { S } from './state.js?v=20260815a';
+import { S } from './state.js?v=20260815b';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)
@@ -402,11 +402,11 @@ export function knvbKalenderVoorTeam(team){
    "Leren voetballen, met plezier als basis en groei als doel."
    De pedagogische laag komt uit §5 (normen & waarden, teamgevoel, inzet, plezier). */
 export const SKILLS = [
-  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
-  {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
-  {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
-  {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
-  {id:'GE', naam:'Gedrag & beleving', kort:'Gedrag', emoji:'🤝', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
+  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', ico:'football-ball', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
+  {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', ico:'tag-insight', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
+  {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', ico:'tag-effort', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
+  {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', ico:'tag-strong-second', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
+  {id:'GE', naam:'Gedrag & beleving', kort:'Gedrag', emoji:'🤝', ico:'tag-handshake', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
 ];
 export function skillDomein(id){ return SKILLS.find(s => s.id === id) || null; }
 /* alias voor compatibiliteit met eerdere code die 'tipsDomein' aanriep */
@@ -537,14 +537,14 @@ export function niveauKleur(n){ return NIVEAUS[n]?.kleur || '#EFEFED'; }
 
 /* Snelle 'opvallend'-tags (optioneel aan te tikken na een wedstrijd/training). */
 export const SNEL_TAGS = [
-  {id:'inzet',    emoji:'💪', label:'Goede inzet'},
-  {id:'duel',     emoji:'🎯', label:'Sterk in 1v1'},
-  {id:'team',     emoji:'🤝', label:'Teamspeler'},
-  {id:'snel',     emoji:'⚡', label:'Snel'},
-  {id:'inzicht',  emoji:'🧠', label:'Goed inzicht'},
-  {id:'coach',    emoji:'📣', label:'Coachbaar'},
-  {id:'plezier',  emoji:'😄', label:'Veel plezier'},
-  {id:'leider',   emoji:'👑', label:'Neemt leiding'},
+  {id:'inzet',    emoji:'💪', ico:'tag-effort', label:'Goede inzet'},
+  {id:'duel',     emoji:'🎯', ico:'tag-duel', label:'Sterk in 1v1'},
+  {id:'team',     emoji:'🤝', ico:'tag-handshake', label:'Teamspeler'},
+  {id:'snel',     emoji:'⚡', ico:'tag-speed', label:'Snel'},
+  {id:'inzicht',  emoji:'🧠', ico:'tag-insight', label:'Goed inzicht'},
+  {id:'coach',    emoji:'📣', ico:'tag-megaphone', label:'Coachbaar'},
+  {id:'plezier',  emoji:'😄', ico:'tag-fun', label:'Veel plezier'},
+  {id:'leider',   emoji:'👑', ico:'tag-leader', label:'Neemt leiding'},
 ];
 export function snelTag(id){ return SNEL_TAGS.find(t => t.id === id) || null; }
 
@@ -566,22 +566,22 @@ export function teamCategorie(id){ return TEAM_CATEGORIEEN.find(c => c.id === id
 
 /* Snelle 'opvallend'-tags voor de teamevaluatie (los van de speler-tags hierboven). */
 export const TEAM_TAGS = [
-  {id:'samenwerking', emoji:'🤝', label:'Goede samenwerking'},
-  {id:'geluisterd',   emoji:'📣', label:'Goed geluisterd'},
-  {id:'plezier',      emoji:'😄', label:'Veel plezier'},
-  {id:'afspraken',    emoji:'⚠️', label:'Afspraken niet nagekomen'},
-  {id:'sterke2e',     emoji:'🔥', label:'Sterke 2e helft'},
-  {id:'terugval',     emoji:'📉', label:'Terugval na rust'},
+  {id:'samenwerking', emoji:'🤝', ico:'tag-handshake', label:'Goede samenwerking'},
+  {id:'geluisterd',   emoji:'📣', ico:'tag-megaphone', label:'Goed geluisterd'},
+  {id:'plezier',      emoji:'😄', ico:'tag-fun', label:'Veel plezier'},
+  {id:'afspraken',    emoji:'⚠️', ico:'tag-agreement-warn', label:'Afspraken niet nagekomen'},
+  {id:'sterke2e',     emoji:'🔥', ico:'tag-strong-second', label:'Sterke 2e helft'},
+  {id:'terugval',     emoji:'📉', ico:'tag-decline', label:'Terugval na rust'},
 ];
 
 /* ==================== WISSELREDENEN (facultatief) ====================
    Optioneel aan te geven bij een directe of geplande wissel. Nooit verplicht.
    De id wordt bij het wissel-event bewaard; de UI toont label + emoji. */
 export const WISSEL_REDENEN = [
-  {id:'blessure',   emoji:'🩹', label:'Blessure'},
-  {id:'tactisch',   emoji:'🔄', label:'Tactisch'},
-  {id:'gedrag',     emoji:'💬', label:'Gedrag'},
-  {id:'training',   emoji:'📋', label:'Trainingsopkomst'},
+  {id:'blessure',   emoji:'🩹', ico:'reason-injury', label:'Blessure'},
+  {id:'tactisch',   emoji:'🔄', ico:'football-substitution', label:'Tactisch'},
+  {id:'gedrag',     emoji:'💬', ico:'tag-behavior', label:'Gedrag'},
+  {id:'training',   emoji:'📋', ico:'admin-protocol', label:'Trainingsopkomst'},
 ];
 export function wisselReden(id){ return WISSEL_REDENEN.find(r => r.id === id) || null; }
 
@@ -592,12 +592,12 @@ export function wisselReden(id){ return WISSEL_REDENEN.find(r => r.id === id) ||
    met {type:'blessure'} of {type:'reden',notitie} blijven werken: 'blessure' mapt
    op 'blessure', en 'reden' tonen we onder 'anders' (zie afwezigRedenLabel). */
 export const AFWEZIG_REDENEN = [
-  {id:'blessure', emoji:'🩹', label:'Blessure'},
-  {id:'ziek',     emoji:'🤒', label:'Ziek'},
-  {id:'school',   emoji:'🎒', label:'School'},
-  {id:'werk',     emoji:'💼', label:'Werk'},
-  {id:'vakantie', emoji:'🏖', label:'Vakantie'},
-  {id:'anders',   emoji:'❓', label:'Anders'},
+  {id:'blessure', emoji:'🩹', ico:'reason-injury', label:'Blessure'},
+  {id:'ziek',     emoji:'🤒', ico:'reason-sick', label:'Ziek'},
+  {id:'school',   emoji:'🎒', ico:'reason-school', label:'School'},
+  {id:'werk',     emoji:'💼', ico:'reason-work', label:'Werk'},
+  {id:'vakantie', emoji:'🏖', ico:'reason-holiday', label:'Vakantie'},
+  {id:'anders',   emoji:'❓', ico:'reason-other', label:'Anders'},
 ];
 /* Normaliseert een opgeslagen reden-record naar een {emoji,label,notitie}-weergave.
    Vangt ook het oude training-formaat ('reden' met vrije notitie) op. */

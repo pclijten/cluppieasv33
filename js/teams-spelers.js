@@ -10,23 +10,25 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
-} from './state.js?v=20260815a';
+} from './state.js?v=20260815b';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20260815a';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815a';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260815a';
-import { telGebruik } from './tracker.js?v=20260815a';
+} from './config.js?v=20260815b';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815b';
+import { ico } from './icons.js?v=20260815b';
+
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260815b';
+import { telGebruik } from './tracker.js?v=20260815b';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260815a');
+  const m = await import('./teams.js?v=20260815b');
   m.renderTeam();
 }
 
@@ -305,7 +307,7 @@ export function htmlProfiel(){
         ${Object.entries(st.afwPerReden).sort((a,b)=>b[1]-a[1]).map(([id,n]) => {
           if (id === 'geen') return `<span>❔ ${n}× zonder reden</span>`;
           const r = AFWEZIG_REDENEN.find(x => x.id === id) || {emoji:'❓',label:'Anders'};
-          return `<span>${r.emoji} ${n}× ${esc(r.label.toLowerCase())}</span>`;
+          return `<span>${r.ico?ico(r.ico,15):r.emoji} ${n}× ${esc(r.label.toLowerCase())}</span>`;
         }).join('')}
       </div>` : ''}
 
@@ -470,7 +472,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     `<button data-niv="${n.n}" class="kn${n.n} ${gekozenNiveau===n.n?'gekozen':''}"><span class="lbl">${n.label.toUpperCase()}</span></button>`).join('')}</div>`;
 
   const tagRij = () => `<div class="tag-rij" id="mSnTags">${SNEL_TAGS.map(t =>
-    `<button class="tag ${gekozenTags.has(t.id)?'aan':''}" data-tag="${t.id}">${t.emoji} ${t.label}</button>`).join('')}</div>`;
+    `<button class="tag ${gekozenTags.has(t.id)?'aan':''}" data-tag="${t.id}">${t.ico?ico(t.ico,16):t.emoji} ${t.label}</button>`).join('')}</div>`;
 
   const rondeVoortgang = () => {
     const r = S._snelRonde; if (!r) return '';
@@ -676,7 +678,7 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
 
     <div class="veldlabel">Domein</div>
     <div class="dom-kiezer" id="mLpDom">${SKILLS.map(d =>
-      `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}"><span class="dk-emoji">${d.emoji||''}</span>${esc(d.kort||d.naam)}</button>`).join('')}</div>
+      `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}"><span class="dk-emoji">${d.ico?ico(d.ico,18):(d.emoji||'')}</span>${esc(d.kort||d.naam)}</button>`).join('')}</div>
     <p style="font-size:11px;color:var(--ink-2);line-height:1.5;margin:6px 0 12px">Techniek · Tactiek · Fysiek · Mentaal · Gedrag &amp; beleving — de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
 
     <div class="veldgroep"><label>Leerpunt</label>

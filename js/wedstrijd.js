@@ -5,16 +5,18 @@ import {
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260815a';
+} from './state.js?v=20260815b';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260815a';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815a';
-import { telGebruik } from './tracker.js?v=20260815a';
+} from './config.js?v=20260815b';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815b';
+import { ico } from './icons.js?v=20260815b';
+
+import { telGebruik } from './tracker.js?v=20260815b';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -352,7 +354,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260815a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260815b').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -630,7 +632,7 @@ function modalPlanWissel(){
       <input class="invoer" id="mPlanMin" inputmode="decimal" value="${Math.round(S.wedstrijd.kwartduur/2)}"></div>
     <label style="font-size:11.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;display:block;margin:12px 0 6px">Reden (optioneel)</label>
     <div class="reden-rij" id="mPlanRedenen">${WISSEL_REDENEN.map(r =>
-      `<button class="reden" data-reden="${r.id}"><span class="ic">${r.emoji}</span> ${r.label}</button>`).join('')}</div>
+      `<button class="reden" data-reden="${r.id}"><span class="ic">${r.ico?ico(r.ico,18):r.emoji}</span> ${r.label}</button>`).join('')}</div>
     <button class="knop vol" id="mPlanOk" style="margin-top:14px">Wissel inplannen</button>
     <p style="font-size:12.5px;color:var(--ink-2);margin-top:10px;line-height:1.5">Zodra de kwartklok dit moment passeert, licht de wissel op in het wisselvak. Tik dan op ✓ om hem door te voeren — de echte wisseltijd en reden worden geregistreerd.</p>`);
   let planReden = null;
@@ -1031,7 +1033,7 @@ async function modalVerslag(){
     <textarea class="invoer" id="mVTekst" style="display:none;min-height:280px;font-family:inherit;line-height:1.55;resize:vertical;font-size:13.5px"></textarea>
     <p id="mVHint" style="display:none;font-size:12px;color:var(--ink-2);margin:8px 0 14px">Je kunt de tekst nog aanpassen voordat je hem deelt.</p>
     <div id="mVKnoppen" style="display:none">
-      <button class="knop vol" id="mVDeel">📤 Delen / kopiëren</button>
+      <button class="knop vol" id="mVDeel">${ico('admin-upload',16)} Delen / kopiëren</button>
       <button class="knop licht vol" id="mVFeiten" style="margin-top:8px">📊 Toon kale feiten</button>
     </div>`);
 
@@ -1134,7 +1136,7 @@ function modalWisselReden(k, eventIndex){
     <h2>Reden wissel <span style="font-size:13px;color:var(--ink-2);font-weight:500;text-transform:none;letter-spacing:0">(optioneel)</span></h2>
     <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">${esc(naam)} naar de bank · ${mmss(e.sec)}</p>
     <div class="reden-rij" id="mWrRedenen">${WISSEL_REDENEN.map(r =>
-      `<button class="reden ${huidig===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.emoji}</span> ${r.label}</button>`).join('')}</div>
+      `<button class="reden ${huidig===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.ico?ico(r.ico,18):r.emoji}</span> ${r.label}</button>`).join('')}</div>
     <div class="disc-blok ${huidig==='gedrag'?'zicht':''}" id="mWrDisc">
       <label class="disc-toggle">
         <input type="checkbox" id="mWrDiscChk" ${e.disciplinair?'checked':''}>
@@ -1188,7 +1190,7 @@ function modalStartBankReden(pid){
     <h2>Bankbeurt <span style="font-size:13px;color:var(--ink-2);font-weight:500;text-transform:none;letter-spacing:0">(optioneel)</span></h2>
     <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">${esc(spelerNaam(pid))} start op de bank. Waarom? Dit leg je vóór de wedstrijd vast.</p>
     <div class="reden-rij" id="mSbRedenen">${WISSEL_REDENEN.map(r =>
-      `<button class="reden ${huidig?.reden===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.emoji}</span> ${r.label}</button>`).join('')}</div>
+      `<button class="reden ${huidig?.reden===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.ico?ico(r.ico,18):r.emoji}</span> ${r.label}</button>`).join('')}</div>
     <div class="disc-blok ${huidig?.reden==='gedrag'?'zicht':''}" id="mSbDisc">
       <label class="disc-toggle">
         <input type="checkbox" id="mSbDiscChk" ${huidig?.disciplinair?'checked':''}>
@@ -1401,7 +1403,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260815a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260815b').then(m => m.renderTeam?.());
   });
 }
 
@@ -1613,7 +1615,7 @@ ${confroHtml}
       <p style="font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.5">Tik op een speeltijd om die periode voor een speler handmatig te corrigeren — bijvoorbeeld als een wissel vergeten is door te voeren.</p>
     </details>
 
-    <button class="knop fluo vol" id="wedstrijdKlaar" style="margin-top:16px">💾 Opslaan &amp; terug naar team</button>
+    <button class="knop fluo vol" id="wedstrijdKlaar" style="margin-top:16px">${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
     <button class="knop secundair vol" id="toonVerslag" style="margin-top:10px">📋 Wedstrijdverslag</button>
     ${modAan('evaluaties') ? `<button class="knop secundair vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>` : ''}
     <button class="knop destructief vol" id="wegWedstrijd" style="margin-top:14px">Wedstrijd verwijderen</button>`;
@@ -1644,7 +1646,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260815a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260815b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1872,7 +1874,7 @@ function modalSelectie(){
       </button>
       ${!aanwezig ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.emoji} ${r.label}</button>`).join('')}</div>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ` : ''}
     </div>`;
