@@ -1,5 +1,5 @@
-import { S } from './state.js?v=20260814d';
-import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260814e';
+import { S } from './state.js?v=20260815a';
+import { periodeNrs, slotLijn, slotPositieNaam } from './config.js?v=20260815a';
 
 /* ==================== SPEELTIJD-BEREKENING ====================
    Losse module zonder UI-afhankelijkheden, zodat zowel het wedstrijdscherm
@@ -86,12 +86,22 @@ export function analyseWedstrijd(w){
    telt dan exact zoals voorheen. */
 export function disciplinaireTijd(w){
   const uit = {}; // pid -> seconden
+  const startStraf = w.startBankReden || {}; // vooraf ingestelde bankbeurten
+  let eersteGespeeld = true;
   for (const nr of periodeNrs(w)){
     const k = w.kwarten?.[nr]; if (!k || !kwartGespeeld(k)) continue;
     const D = kwartDuurSec(w, k);
     const events = [...(k.events||[])].sort((a,b) => a.sec - b.sec);
     // per speler bijhouden of hij disciplinair op de bank staat, en sinds wanneer
     const strafSinds = {}; // pid -> sec waarop de strafbeurt begon
+    // Vooraf ingestelde disciplinaire bankbeurt: telt vanaf het begin van het
+    // eerste gespeelde kwart, mits de speler daar niet in de startopstelling staat.
+    if (eersteGespeeld){
+      const inLineup = new Set(Object.values(k.lineup || {}));
+      for (const [pid, rec] of Object.entries(startStraf))
+        if (rec?.disciplinair && !inLineup.has(pid)) strafSinds[pid] = 0;
+      eersteGespeeld = false;
+    }
     for (const e of events){
       const sec = Math.min(e.sec, D);
       if (e.uit && e.disciplinair) strafSinds[e.uit] = sec;

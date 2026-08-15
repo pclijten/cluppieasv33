@@ -5,16 +5,16 @@ import {
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260814d';
+} from './state.js?v=20260815a';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260814e';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260814e';
-import { telGebruik } from './tracker.js?v=20260814d';
+} from './config.js?v=20260815a';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815a';
+import { telGebruik } from './tracker.js?v=20260815a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -317,16 +317,28 @@ export function openWedstrijd(wid){
   S.unsub.wedstrijd = onSnapshot(doc(db,'teams',S.teamId,'wedstrijden',wid), snap => {
     if (!snap.exists()){ sluitWedstrijd(); return; }
     if (snap.metadata.hasPendingWrites) return;
-    if (Date.now() - S.lokaalTot < 1800) return;
     const data = snap.data();
+    // De opzet-wizard-check mag NIET achter de lokaalTot-throttle vallen: anders
+    // mist een nieuwe wedstrijd (net aangemaakt) zijn enige schone snapshot en
+    // verschijnt de wizard nooit. Daarom eerst normaliseren + wizard beslissen,
+    // en pas daarna de throttle voor het overschrijven van de lokale staat.
+    const moetWizard = data.opzetGedaan === false && !S._wizardActief;
+    if (Date.now() - S.lokaalTot < 1800){
+      // In het throttle-venster niet de lokale staat overschrijven, maar de
+      // wizard mag wel: zorg dat S.wedstrijd bestaat zodat de wizard data heeft.
+      if (moetWizard){ S.wedstrijd ||= data; S._wizardActief = true; toonWedstrijdWizard(); }
+      return;
+    }
     const aangevuld = normaliseerWedstrijd(data);
     S.wedstrijd = data;
-    renderWedstrijd();
-    if (aangevuld) bewaarWedstrijd();
+    // Wizard-beslissing vóór renderWedstrijd(), zodat een eventuele render-fout
+    // de wizard niet kan tegenhouden bij een gloednieuwe wedstrijd.
     if (data.opzetGedaan === false && !S._wizardActief){
       S._wizardActief = true;
       toonWedstrijdWizard();
     }
+    renderWedstrijd();
+    if (aangevuld) bewaarWedstrijd();
   }, (err) => {
     console.error(`[Cluppie] Listener "wedstrijd" kon niet lezen (teamId=${S.teamId}, wid=${wid}):`, err.code, err.message);
     if (err.code === 'permission-denied') meld('Geen toegang tot deze wedstrijd — controleer de Firestore-rules');
@@ -340,7 +352,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260814e').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260815a').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1164,6 +1176,60 @@ function modalWisselReden(k, eventIndex){
     sluitModal(); bewaarWedstrijd(); renderWedstrijd();
   };
 }
+
+/* Reden voor een speler die (vooraf) op de bank start. Bij reden 'gedrag' kan de
+   coach een disciplinaire reservebeurt aanvinken; die banktijd telt dan niet mee
+   in het speelminuten-percentage. Opgeslagen op w.startBankReden[pid]. */
+function modalStartBankReden(pid){
+  const w = S.wedstrijd;
+  w.startBankReden ||= {};
+  const huidig = w.startBankReden[pid] || null;
+  openModal(`
+    <h2>Bankbeurt <span style="font-size:13px;color:var(--ink-2);font-weight:500;text-transform:none;letter-spacing:0">(optioneel)</span></h2>
+    <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">${esc(spelerNaam(pid))} start op de bank. Waarom? Dit leg je vóór de wedstrijd vast.</p>
+    <div class="reden-rij" id="mSbRedenen">${WISSEL_REDENEN.map(r =>
+      `<button class="reden ${huidig?.reden===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.emoji}</span> ${r.label}</button>`).join('')}</div>
+    <div class="disc-blok ${huidig?.reden==='gedrag'?'zicht':''}" id="mSbDisc">
+      <label class="disc-toggle">
+        <input type="checkbox" id="mSbDiscChk" ${huidig?.disciplinair?'checked':''}>
+        <span class="disc-toggle-t">Disciplinaire reservebeurt</span>
+      </label>
+      <div class="disc-uitleg">Deze bankbeurt telt <b>niet mee</b> in het speelminuten-percentage. Alleen zichtbaar voor coaches.</div>
+      <input class="disc-notitie ${huidig?.disciplinair?'zicht':''}" id="mSbDiscNotitie" placeholder="Reden (optioneel, alleen voor coaches)" value="${esc(huidig?.notitie||'')}">
+    </div>
+    <button class="knop vol fluo" id="mSbOk" style="margin-top:16px">Opslaan</button>
+    <button class="knop vol licht" id="mSbGeen" style="margin-top:8px">${huidig?'Reden wissen':'Zonder reden'}</button>`);
+
+  let gekozen = huidig?.reden || null;
+  const discBlok = $('#mSbDisc'), discChk = $('#mSbDiscChk'), discNot = $('#mSbDiscNotitie');
+  const werkDiscBij = () => {
+    discBlok.classList.toggle('zicht', gekozen === 'gedrag');
+    if (gekozen !== 'gedrag'){ discChk.checked = false; discNot.classList.remove('zicht'); }
+  };
+  $$('#mSbRedenen [data-reden]').forEach(b => b.onclick = () => {
+    const id = b.dataset.reden;
+    gekozen = (gekozen === id) ? null : id;
+    $$('#mSbRedenen [data-reden]').forEach(x => x.classList.toggle('aan', x.dataset.reden === gekozen));
+    werkDiscBij();
+  });
+  discChk.onchange = () => discNot.classList.toggle('zicht', discChk.checked);
+  $('#mSbOk').onclick = () => {
+    if (!gekozen){ delete w.startBankReden[pid]; }
+    else {
+      const rec = { reden: gekozen };
+      if (gekozen === 'gedrag' && discChk.checked){
+        rec.disciplinair = true;
+        const n = discNot.value.trim(); if (n) rec.notitie = n;
+      }
+      w.startBankReden[pid] = rec;
+    }
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+  };
+  $('#mSbGeen').onclick = () => {
+    delete w.startBankReden[pid];
+    sluitModal(); bewaarWedstrijd(); renderWedstrijd();
+  };
+}
 function verwijderEvent(i){
   huidigKwart().events.splice(i,1);
   bewaarWedstrijd(); renderWedstrijd();
@@ -1335,7 +1401,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260814e').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260815a').then(m => m.renderTeam?.());
   });
 }
 
@@ -1375,8 +1441,11 @@ export function renderWedstrijd(){
   const chipHtml = (pid, bron, slotId='') => {
     const sel = S.geselecteerd?.pid === pid;
     const aanv = w.aanvoerder === pid;
-    return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''}"
+    // Vooraf ingestelde disciplinaire bankbeurt (start op de bank met straf)
+    const straf = bron === 'bank' && (w.startBankReden||{})[pid]?.disciplinair;
+    return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''} ${straf?'straf-chip':''}"
       data-chip="${pid}" data-bron="${bron}" data-chipslot="${slotId}">
+      ${bron === 'bank' ? `<button class="chip-reden ${straf?'straf':''}" data-bankreden="${pid}" title="Reden bankbeurt">⚑</button>` : ''}
       <div class="shirt">${esc(spelerNr(pid))}${aanv ? '<span class="aanvoerder-band">C</span>' : ''}</div>
       <div class="naam">${esc(spelerNaam(pid))}</div>${dotsHtml(pid)}</div>`;
   };
@@ -1458,13 +1527,9 @@ ${confroHtml}
       if (Number(S.kwart) !== 1 || opVeld.size > 0) return '';
       const vorige = laatsteOpstelling(w.format);
       if (!vorige || vorige.bron?.id === S.wedstrijdId) return '';
-      return `<button class="knop vol" id="neemVorigeOver" style="margin-bottom:10px;background:var(--ink);color:#fff">⧉ Opstelling vorige wedstrijd overnemen${vorige.bron.tegenstander ? ' (tegen '+esc(vorige.bron.tegenstander)+')' : ''}</button>`;
+      return `<button class="knop vol" id="neemVorigeOver" style="margin-bottom:10px;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-d)">⧉ Opstelling vorige wedstrijd overnemen${vorige.bron.tegenstander ? ' (tegen '+esc(vorige.bron.tegenstander)+')' : ''}</button>`;
     })()}
 
-    ${S.geselecteerd && speler(S.geselecteerd.pid) ? `
-    <div class="selectie-hint"><span class="hint-shirt">${esc(spelerNr(S.geselecteerd.pid))}</span>
-      <span><b>${esc(spelerNaam(S.geselecteerd.pid))}</b> geselecteerd — tik op een vak, een medespeler (ruilen) of de bank</span>
-      <button class="hint-x" id="hintX" title="Selectie opheffen">✕</button></div>` : ''}
     <div class="veld-wrap"><div class="veld" id="veld">
       <div class="lijn midden"></div><div class="lijn cirkel"></div>
       <div class="lijn zestien-o"></div><div class="lijn vijf-o"></div>
@@ -1579,7 +1644,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260814e').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260815a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1620,7 +1685,8 @@ ${confroHtml}
   };
   v.querySelector('#klokNaarEinde').onclick = klokNaarEinde;
   const ovk = v.querySelector('#overneemVorigKwart'); if (ovk) ovk.onclick = kopieerVorigKwart;
-  const hx = v.querySelector('#hintX'); if (hx) hx.onclick = () => { S.geselecteerd = null; renderWedstrijd(); };
+  // (selectie-hint verwijderd op verzoek — gaf visuele ruis en veroorzaakte
+  // een scroll-sprong doordat de pagina-hoogte veranderde bij het selecteren)
 
   /* Vorige confrontatie: regeltje klapt het paneel open/dicht (lokale UI-stand). */
   const confroRegel = v.querySelector('#confroRegel');
@@ -1669,9 +1735,9 @@ ${confroHtml}
   koppelSleep(v);
 
   /* Scrollpositie terugzetten na het hertekenen, zodat de coach niet steeds
-     omhoog springt bij het selecteren van een speler. Alleen herstellen als er
-     daadwerkelijk iets te herstellen valt (bewaardeScroll > 0). */
-  if (bewaardeScroll > 0) window.scrollTo(0, bewaardeScroll);
+     omhoog springt bij het selecteren van een speler. In een rAF zodat de
+     browser eerst de nieuwe layout heeft berekend voordat we terugscrollen. */
+  if (bewaardeScroll > 0) requestAnimationFrame(() => window.scrollTo(0, bewaardeScroll));
 }
 
 /* ==================== WEDSTRIJDINSTELLINGEN & SELECTIE ==================== */
@@ -1879,6 +1945,11 @@ function koppelSleep(v){
       renderWedstrijd();
     });
   });
+
+  v.querySelectorAll('[data-bankreden]').forEach(b => b.addEventListener('click', ev => {
+    ev.stopPropagation();
+    modalStartBankReden(b.dataset.bankreden);
+  }));
 
   // tik op een leeg veldvak: plaats de geselecteerde speler daar
   veld.querySelectorAll('.slot').forEach(slot => {

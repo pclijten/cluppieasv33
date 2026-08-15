@@ -6,12 +6,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260814d';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260814e';
-import { analyseWedstrijd } from './analyse.js?v=20260814e';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260814e';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260814d';
-import { telGebruik } from './tracker.js?v=20260814d';
+} from './state.js?v=20260815a';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260815a';
+import { analyseWedstrijd } from './analyse.js?v=20260815a';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260815a';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260815a';
+import { telGebruik } from './tracker.js?v=20260815a';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260814e'); }
+async function teamsModule(){ return await import('./teams.js?v=20260815a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260814e').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260815a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -100,6 +100,13 @@ async function clubVideosOphalen(){
 
 async function clubDocumentenOphalen(){
   const snap = await getDocs(query(collection(db,'documenten'), where('club','==',S.clubId)));
+  return snap.docs.map(d => ({id:d.id, ...d.data()}))
+    .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
+}
+
+/* berichten van de club (admin-weergave), nieuw → oud */
+async function clubBerichtenOphalen(){
+  const snap = await getDocs(query(collection(db,'berichten'), where('club','==',S.clubId)));
   return snap.docs.map(d => ({id:d.id, ...d.data()}))
     .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
 }
@@ -544,6 +551,11 @@ async function renderClub(){
   if (tab === 'trainingen') inhoud = htmlClubTrainingen(teams, trainingen);
   if (tab === 'videos')     inhoud = htmlClubVideos(teams, videos);
   if (tab === 'documenten') inhoud = htmlClubDocumenten(teams, documenten);
+  if (tab === 'berichten'){
+    const berichten = await clubBerichtenOphalen();
+    S.clubBerichten = berichten;
+    inhoud = htmlClubBerichten(teams, berichten);
+  }
   let clubEvalData = null;
   if (tab === 'dashboard'){
     const dashModus = S.clubDashModus || 'overzicht';
@@ -582,6 +594,7 @@ async function renderClub(){
     <nav class="onderbalk">
       ${[['teams','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>','Teams'],['trainingen','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>','Training'],['videos','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>','Videos'],['documenten','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>','Documenten'],['dashboard','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>','Dashboard'],
         ...(isBeheerder() ? [['content','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h8M9 15h8M9 7h3"/></svg>','Content']] : []),
+        ...(isBeheerder() ? [['berichten','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 3z"/><path d="M8 9h8M8 12h5"/></svg>','Berichten']] : []),
         ['instel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7.6 1.6 1.6 0 0 0-1.1 1.5V20a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>','Club']]
         .map(([id,ico,naam]) => `<button data-ctab="${id}" class="${tab===id?'actief':''}"><span class="ico">${ico}</span>${naam}</button>`).join('')}
     </nav>`;
@@ -834,6 +847,104 @@ function htmlClubDocumenten(teams, documenten){
       <input type="file" id="documentFile" accept="application/pdf" style="display:none"></button>
     ${segment}
     ${lijst}`;
+}
+
+/* ---------- BERICHTEN (admin) ---------- */
+const BERICHT_DUUR = [
+  {id:'3d',   label:'3 dagen',  ms: 3*86400000},
+  {id:'1w',   label:'1 week',   ms: 7*86400000},
+  {id:'2w',   label:'2 weken',  ms: 14*86400000},
+  {id:'1m',   label:'1 maand',  ms: 30*86400000},
+  {id:'perm', label:"Tot ik 'm verwijder", ms: null},
+];
+
+function htmlClubBerichten(teams, berichten){
+  const nu = Date.now();
+  const lijst = berichten.length ? berichten.map(b => {
+    const teamNamen = (b.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
+    const verlopen = b.zichtbaarTot != null && b.zichtbaarTot < nu;
+    return `
+      <div class="training-rij ${verlopen ? 'verlopen' : ''}">
+        <div class="ico">📣</div>
+        <div class="t"><div class="t-titel">${esc(b.titel)}</div>
+          <div class="t-meta">${esc(teamNamen)} · ${verlopen ? 'verlopen' : (b.zichtbaarTot == null ? 'blijft staan' : 'actief')}</div></div>
+        <div class="acties">
+          <button data-bewerk-bericht="${b.id}" title="Aanpassen">✏️</button>
+          <button data-verwijder-bericht="${b.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+        </div>
+      </div>`;
+  }).join('')
+  : `<div class="kaart leeg">Nog geen berichten.<br>Plaats een bericht voor één of meer teams — coaches zien het als een balk bij het openen van hun team.</div>`;
+
+  return `
+    <button class="upload-knop" id="nieuwBericht">📣 Nieuw bericht voor één of meer teams</button>
+    ${lijst}`;
+}
+
+/* Bericht opstellen of aanpassen. Toewijzing via dezelfde team-picker als
+   trainingen/documenten (teamKeuzePerBouw). */
+function modalNieuwBericht(teams, bestaand = null){
+  const huidig = new Set(bestaand?.teams || []);
+  // bij een bestaand bericht de duur-keuze niet terug-afleiden; default 'perm'
+  // als het bericht al liep, anders 1 week voor een nieuw bericht.
+  const duurStart = bestaand ? 'perm' : '1w';
+  openModal(`
+    <h2>${bestaand ? 'Bericht aanpassen' : 'Nieuw bericht'}</h2>
+    <div class="veldgroep"><label>Titel</label>
+      <input class="invoer" id="mBerTitel" value="${esc(bestaand?.titel || '')}" placeholder="Bijv. Nieuwe veldverdeling" autocomplete="off"></div>
+    <div class="veldgroep"><label>Bericht</label>
+      <textarea class="invoer" id="mBerBody" rows="3" placeholder="Wat moeten de coaches weten?">${esc(bestaand?.body || '')}</textarea></div>
+    <div class="veldgroep"><label>Voor welke teams?</label>
+      <div id="mBerTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:13px;color:var(--ink-2)">Geen teams in deze club.</p>'}</div>
+      <div class="rij" style="margin-top:8px">
+        <button class="knop licht klein" id="mBerAlle">Alle teams</button>
+        <button class="knop licht klein" id="mBerGeen">Geen</button>
+      </div>
+    </div>
+    <div class="veldgroep"><label>Hoe lang zichtbaar?</label>
+      <div class="duur-rij" id="mBerDuur">
+        ${BERICHT_DUUR.map(d => `<button type="button" class="duur-opt ${d.id===duurStart?'aan':''}" data-duur="${d.id}">${esc(d.label)}</button>`).join('')}
+      </div>
+    </div>
+    <button class="knop vol" id="mBerOk">${bestaand ? 'Wijzigingen opslaan' : 'Bericht plaatsen'}</button>`);
+
+  const sync = () => $$('#mBerTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+  $$('#mBerTeams input').forEach(c => c.onchange = sync);
+  $('#mBerAlle').onclick = () => { $$('#mBerTeams input').forEach(c => c.checked = true); sync(); };
+  $('#mBerGeen').onclick = () => { $$('#mBerTeams input').forEach(c => c.checked = false); sync(); };
+  let duur = duurStart;
+  $$('#mBerDuur [data-duur]').forEach(b => b.onclick = () => {
+    duur = b.dataset.duur;
+    $$('#mBerDuur [data-duur]').forEach(x => x.classList.toggle('aan', x.dataset.duur === duur));
+  });
+  $('#mBerOk').onclick = async () => {
+    const gekozen = $$('#mBerTeams input').filter(c => c.checked).map(c => c.dataset.tid);
+    if (!gekozen.length) return meld('Kies minstens één team');
+    const titel = $('#mBerTitel').value.trim();
+    if (!titel) return meld('Geef het bericht een titel');
+    const body = $('#mBerBody').value.trim();
+    const duurDef = BERICHT_DUUR.find(d => d.id === duur) || BERICHT_DUUR[1];
+    const zichtbaarTot = duurDef.ms == null ? null : Date.now() + duurDef.ms;
+    sluitModal();
+    try {
+      if (bestaand){
+        await updateDoc(doc(db,'berichten',bestaand.id), {titel, body, teams: gekozen, zichtbaarTot});
+        meld('Bericht bijgewerkt');
+      } else {
+        await addDoc(collection(db,'berichten'), {
+          club: S.clubId, clubNaam: S.club.naam,
+          titel, body, teams: gekozen,
+          zichtbaarTot,
+          gemaakt: serverTimestamp(),
+          door: S.user.displayName || S.user.email || '',
+        });
+        meld('Bericht geplaatst');
+      }
+      renderClub();
+    } catch(e){
+      console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
+    }
+  };
 }
 
 function htmlClubInstel(teams = [], syncStatus = {}){
@@ -1108,7 +1219,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260814d');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260815a');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -1193,6 +1304,20 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       try { if (d.path) await deleteObject(sRef(storage, d.path)); } catch(e){}
       await deleteDoc(doc(db,'documenten',d.id));
       meld('Document verwijderd'); renderClub();
+    });
+  }
+  if (tab === 'berichten'){
+    const knop = v.querySelector('#nieuwBericht');
+    if (knop) knop.onclick = () => modalNieuwBericht(teams);
+    v.querySelectorAll('[data-bewerk-bericht]').forEach(b => b.onclick = () => {
+      const ber = (S.clubBerichten||[]).find(x => x.id === b.dataset.bewerkBericht);
+      modalNieuwBericht(teams, ber);
+    });
+    v.querySelectorAll('[data-verwijder-bericht]').forEach(b => b.onclick = async () => {
+      const ber = (S.clubBerichten||[]).find(x => x.id === b.dataset.verwijderBericht);
+      if (!confirm(`Bericht "${ber?.titel || ''}" verwijderen?`)) return;
+      await deleteDoc(doc(db,'berichten',b.dataset.verwijderBericht));
+      meld('Bericht verwijderd'); renderClub();
     });
   }
   if (tab === 'dashboard'){
@@ -1597,7 +1722,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260814d');
+    const ai = await import('./training-ai.js?v=20260815a');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -1712,7 +1837,7 @@ function toonPreview(file, meta, ctx){
   $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260814d');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260815a');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -1734,7 +1859,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
   try {
-    const ai = await import('./training-ai.js?v=20260814d');
+    const ai = await import('./training-ai.js?v=20260815a');
     const { paginas } = await ai.leesPdf(file);
     const oefeningen = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');

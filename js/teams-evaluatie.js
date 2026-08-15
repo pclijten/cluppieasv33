@@ -8,10 +8,10 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260814d';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260814e';
-import { htmlStats } from './wedstrijd.js?v=20260814e';
-import { telGebruik } from './tracker.js?v=20260814d';
+} from './state.js?v=20260815a';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260815a';
+import { htmlStats } from './wedstrijd.js?v=20260815a';
+import { telGebruik } from './tracker.js?v=20260815a';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -306,12 +306,22 @@ export function htmlStatsTab(){
   if (!S.statsSeizoen) S.statsSeizoen = S.huidigSeizoen || 'alles';
   const modus = S.statsSubTab || 'spelers';
   const seizoenen = seizoenenLijst();
+  const huidig = S.huidigSeizoen || seizoenen[0];
+  const oudere = seizoenen.filter(sz => sz !== huidig); // eerdere seizoenen
+  // Hoofdtabs tonen alleen het huidige seizoen + "Alle". Oudere seizoenen
+  // verschijnen als tweede rij zodra "Alle" actief is — houdt de kop rustig.
+  const alleActief = S.statsSeizoen === 'alles' || oudere.includes(S.statsSeizoen);
   return `
     ${seizoenen.length ? `
-    <div class="segment" id="statsSeizoen" style="margin-bottom:10px">
-      ${seizoenen.map(sz => `<button data-seizoenfilter="${esc(sz)}" class="${S.statsSeizoen===sz?'actief':''}">${esc(sz)}</button>`).join('')}
-      <button data-seizoenfilter="alles" class="${S.statsSeizoen==='alles'?'actief':''}">Alle</button>
-    </div>` : ''}
+    <div class="segment" id="statsSeizoen" style="margin-bottom:${alleActief && oudere.length ? '8' : '10'}px">
+      ${huidig ? `<button data-seizoenfilter="${esc(huidig)}" class="${S.statsSeizoen===huidig?'actief':''}">${esc(huidig)}</button>` : ''}
+      <button data-seizoenfilter="alles" class="${alleActief?'actief':''}">Alle</button>
+    </div>
+    ${alleActief && oudere.length ? `
+    <div class="segment segment-sub" id="statsSeizoenOud" style="margin-bottom:10px">
+      <button data-seizoenfilter="alles" class="${S.statsSeizoen==='alles'?'actief':''}">Alle seizoenen</button>
+      ${oudere.map(sz => `<button data-seizoenfilter="${esc(sz)}" class="${S.statsSeizoen===sz?'actief':''}">${esc(sz)}</button>`).join('')}
+    </div>` : ''}` : ''}
     ${modAan('evaluaties') ? `
     <div class="segment" id="statsModus" style="margin-bottom:14px">
       <button data-statsmodus="spelers" class="${modus==='spelers'?'actief':''}">Spelers</button>

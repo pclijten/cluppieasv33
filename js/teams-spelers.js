@@ -10,22 +10,23 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
-} from './state.js?v=20260814d';
+} from './state.js?v=20260815a';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
-  POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260814e';
-import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260814e';
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260814e';
-import { telGebruik } from './tracker.js?v=20260814d';
+  POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
+  wisselReden, isToernooi
+} from './config.js?v=20260815a';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260815a';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260815a';
+import { telGebruik } from './tracker.js?v=20260815a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260814e');
+  const m = await import('./teams.js?v=20260815a');
   m.renderTeam();
 }
 
@@ -205,6 +206,43 @@ export function htmlLeenProfiel(){
       Deze gegevens zijn een momentopname van het moment van uitlenen, gedeeld door ${esc(u.vanTeamNaam||'het andere team')}.</p>`;
 }
 
+/* Bepaalt voor één speler in één wedstrijd: speeltijd-label + eventuele
+   wisselreden (inclusief vooraf ingestelde disciplinaire bankbeurt). Gebruikt
+   in het spelersprofiel onder "Wedstrijden". */
+function wisselInfoVoorSpeler(w, pid){
+  const a = analyseWedstrijd(w);
+  const disc = disciplinaireTijd(w)[pid] || 0;
+  const gespeeld = a.tijd?.[pid] || 0;
+  // percentage over de eerlijke (disciplinair-gecorrigeerde) noemer
+  const speelbaar = a.matchduur ? Math.max(gespeeld, a.matchduur - Math.min(disc, Math.max(0, a.matchduur - gespeeld))) : 0;
+  const pct = speelbaar > 0 ? Math.round((gespeeld / speelbaar) * 100) : null;
+
+  // reden verzamelen: vooraf ingestelde bankbeurt of een wissel-event met reden
+  let redenTekst = '';
+  const sb = (w.startBankReden || {})[pid];
+  const wisselEvents = [];
+  for (const nr of Object.keys(w.kwarten || {})){
+    for (const e of (w.kwarten[nr].events || []))
+      if (e.uit === pid && (e.reden || e.disciplinair)) wisselEvents.push(e);
+  }
+  const disciplinair = sb?.disciplinair || wisselEvents.some(e => e.disciplinair);
+  if (sb?.reden){
+    const r = wisselReden(sb.reden);
+    redenTekst = `${r?r.emoji+' '+r.label:''}${sb.disciplinair?' · disciplinaire reservebeurt':' · startte op de bank'}`;
+  } else if (wisselEvents.length){
+    const e = wisselEvents[wisselEvents.length-1];
+    const r = e.reden ? wisselReden(e.reden) : null;
+    redenTekst = `${r?r.emoji+' '+r.label+' gewisseld':'Gewisseld'}${e.disciplinair?' · disciplinaire reservebeurt':''}`;
+  }
+
+  let label, klasse;
+  if (pct == null){ label = '—'; klasse = 'leeg'; }
+  else if (disciplinair){ label = 'Straf'; klasse = 'straf'; }
+  else if (pct >= 90){ label = pct+'%'; klasse = 'vol'; }
+  else { label = pct+'%'; klasse = 'deel'; }
+  return { label, klasse, reden: redenTekst ? esc(redenTekst) : '' };
+}
+
 export function htmlProfiel(){
   const p = speler(S._beoordeelProfiel);
   if (!p) { S._beoordeelProfiel = null; return htmlSpelers(); }
@@ -303,6 +341,27 @@ export function htmlProfiel(){
         ${eigen.length ? eigen.map(b => htmlTijdlijnItem(b)).join('')
           : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen beoordelingen vastgelegd.</p>`}
       </div>` : ''}
+      <div class="kaart">
+        <div class="veldlabel" style="margin-top:0">Wedstrijden</div>
+        ${(() => {
+          const weds = (S.wedstrijden||[])
+            .filter(w => (w.selectie||[]).includes(p.id))
+            .sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
+          if (!weds.length) return `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen wedstrijden.</p>`;
+          return weds.map(w => {
+            const info = wisselInfoVoorSpeler(w, p.id);
+            const teg = w.tegenstander || (isToernooi(w) ? 'Toernooi' : 'Wedstrijd');
+            return `<div class="wed-hist-rij">
+              <span class="whr-datum">${datumNL(w.datum)}</span>
+              <div class="whr-mid">
+                <div class="whr-teg">${esc(teg)}</div>
+                ${info.reden ? `<div class="whr-reden">${info.reden}</div>` : ''}
+              </div>
+              <span class="whr-status ${info.klasse}">${info.label}</span>
+            </div>`;
+          }).join('');
+        })()}
+      </div>
       <div class="kaart">
         <div class="veldlabel" style="margin-top:0">Presentie training</div>
         ${S.presentie.length ? S.presentie.map(ses => {

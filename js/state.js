@@ -17,7 +17,7 @@ export const S = {
   wedstrijd:null, wedstrijdId:null, kwart:'1',
   teamTab:'wedstrijden', _teamTabStack:[], geselecteerd:null,
   clubs:[], club:null, clubId:null, clubTab:'teams', clubTrainBouw:'onder', clubDocCategorie:'alle', clubDashSort:'desc', clubDashPeriode:'dag', clubDashModus:'overzicht', clubEvalModus:'teams', clubTeams:[], clubTrainingen:[], clubDocumenten:[],
-  trainingen:[], trainingenGelezen:{}, videos:[], documenten:[], presentie:[],
+  trainingen:[], trainingenGelezen:{}, videos:[], documenten:[], presentie:[], berichten:[],
   beoordelingen:[], _beoordeelProfiel:null, _profielTab:'overzicht',
   teamEvaluaties:[], statsSubTab:'spelers', huidigSeizoen:null, statsSeizoen:null,
   planning:[], _planningFilter:'alles', _planningDichteMaanden:null, _planningToonEerder:false,
@@ -239,7 +239,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260814d').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260815a').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
