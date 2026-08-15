@@ -695,7 +695,16 @@ export function openTeam(teamId, beginTab = 'trainingen', opties = {}){
     if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}" — controleer de Firestore-rules`);
   };
   S.unsub.team = onSnapshot(doc(db,'teams',teamId), snap => {
-    if (!snap.exists()){ verlaatTeamView(); return; }
+    if (!snap.exists()){
+      // Een lege snapshot kan óók een tijdelijke cache-miss zijn (bij laden of
+      // herverbinden), niet per se een verwijderd team. Alleen als de SERVER
+      // bevestigt dat het document weg is (fromCache === false) verlaten we het
+      // team. Anders wachten we op de server-bevestigde snapshot — zo wordt
+      // teamId niet onterecht geleegd terwijl de wedstrijdlijst nog op het
+      // scherm staat (voorkomt de null-teamId crash in openWedstrijd).
+      if (!snap.metadata.fromCache){ verlaatTeamView(); }
+      return;
+    }
     S.team = {id:snap.id, ...snap.data()};
     if (S.team.club && !S.unsub.uitleningen) startUitleningenListener(teamId);
     if (S.team.club && !S.unsub.seizoen) startSeizoenListener(teamId);
