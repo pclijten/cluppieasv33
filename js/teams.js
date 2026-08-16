@@ -74,11 +74,12 @@ const NAV_ICON = {
   documenten:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>',
   meer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
   poule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  updates:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.1 4.7 4.9.5-3.7 3.3 1.1 4.9L12 14.8l-4.5 2.6 1.1-4.9L4.9 8.7l4.9-.5z"/></svg>',
 };
 
 /* Team-tabs die niet meer rechtstreeks in de onderbalk staan, maar via de
    verzameltegel "Meer" bereikt worden (zie htmlMeer() verderop). */
-const MEER_GROEP = ['planning', 'poule', 'documenten', 'stats', 'help'];
+const MEER_GROEP = ['planning', 'poule', 'documenten', 'stats', 'help', 'updates'];
 
 /* ==================== TAB-GESCHIEDENIS (voor de terugknop) ====================
    De telefoon-terugknop moet binnen een team één tabblad terug gaan (bv. van
@@ -833,15 +834,47 @@ export function verlaatTeamView(){
    Wedstrijden/Spelers/Training/Video's blijven rechtstreeks bereikbaar,
    want dat zijn de onderdelen die een coach tijdens training/wedstrijd
    het vaakst nodig heeft. Zie ook MEER_GROEP hierboven. */
+/* ---------- Tab: Updates (changelog voor coaches) ----------
+   Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
+   Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
+const UPDATES = [
+  { datum:'2026-08-16', titel:'Frisse, moderne look', punten:[
+      'De hele app heeft een strakkere, rustigere uitstraling gekregen.',
+      'Nieuw ASV\'33-tintje op het startscherm: het clublogo en de clubkleuren.',
+      'Overal nieuwe, eigen iconen in plaats van emoji.',
+    ]},
+  { datum:'2026-08-15', titel:'Sneller en stabieler', punten:[
+      'Een storing opgelost waardoor een wedstrijd soms niet opende.',
+      'Kleine verbeteringen aan de spelers- en trainingsschermen.',
+    ]},
+];
+
+function htmlUpdates(){
+  try { localStorage.setItem('cluppie_updates_gezien', UPDATES[0]?.datum || ''); } catch(e){}
+  const maand = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  const datumMooi = (iso) => { const d = new Date(iso); return `${d.getDate()} ${maand[d.getMonth()]} ${d.getFullYear()}`; };
+  return `<div class="updates-lijst">
+    ${UPDATES.map(u => `
+      <div class="kaart update-kaart">
+        <div class="update-datum">${datumMooi(u.datum)}</div>
+        <div class="update-titel">${esc(u.titel)}</div>
+        <ul class="update-punten">${u.punten.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      </div>`).join('')}
+  </div>`;
+}
+
 function htmlMeer(){
   const documentenOngelezen = S.documenten
     .filter(d => (d.teams||[]).includes(S.teamId) && !S.trainingenGelezen[d.id]).length;
+  const laatstGezien = (() => { try { return localStorage.getItem('cluppie_updates_gezien') || ''; } catch(e){ return ''; } })();
+  const updatesOngelezen = UPDATES.filter(u => u.datum > laatstGezien).length;
   const tegels = [
     ['planning',   'Planning',   'Seizoenskalender'],
     ['poule',      'Stand & Poule', 'Poulestand + uitslagen'],
     ['documenten', 'Documenten', 'Beleid & formulieren', documentenOngelezen],
     ['stats', 'Stats', modAan('evaluaties') ? 'Speeltijd & cijfers' : 'Speeltijd'],
     ['help',       'Help',       'Handleiding'],
+    ['updates',    'Updates',    'Wat is er nieuw?', updatesOngelezen],
     ['hulpchat',   'Hulpchat',   'Stel je vraag over de app', null, true],
   ];
   return `<div class="tegel-grid">
@@ -938,6 +971,7 @@ export function renderTeam(){
   if (tab === 'stats')       { inhoud = htmlStatsTab(); telGebruik('stats_bekeken'); }
   if (tab === 'instellingen')inhoud = htmlInstellingen();
   if (tab === 'help')        { inhoud = htmlHandleiding(); telGebruik('handleiding'); }
+  if (tab === 'updates')     { inhoud = htmlUpdates(); telGebruik('updates_bekeken'); }
 
   const teamTrainingen = S.trainingen.filter(t => (t.teams||[]).includes(S.teamId));
   const ongelezen = teamTrainingen.filter(t => !S.trainingenGelezen[t.id]).length;
