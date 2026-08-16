@@ -2278,3 +2278,12 @@ body::before{
 /* club-rij: schild i.p.v. museum-emoji */
 .club-shirt{ background:transparent !important; box-shadow:none !important; display:flex; align-items:center; justify-content:center; }
 .club-schild{ width:46px; height:auto; }
+
+/* ─── Updates (changelog) scherm ─── */
+.updates-lijst{ display:flex; flex-direction:column; gap:10px; }
+.update-kaart{ padding:14px 16px !important; }
+.update-datum{ font-size:11px; color:var(--ink-2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
+.update-titel{ font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; color:var(--ink); text-transform:uppercase; letter-spacing:.3px; margin-bottom:8px; }
+.update-punten{ margin:0; padding-left:18px; }
+.update-punten li{ font-size:13.5px; color:var(--ink); line-height:1.5; margin:3px 0; }
+.update-punten li::marker{ color:var(--accent); }
