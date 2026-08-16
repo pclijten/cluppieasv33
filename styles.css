@@ -2309,3 +2309,35 @@ body::before{
 .dash-inklap.dicht .dash-inklap-inhoud{ display:none; }
 /* de gebundelde statistiek-kop is zelf een kaart-knop; binnenkaarten houden hun eigen marge */
 .dash-inklap-kop.kaart{ display:flex; }
+
+/* ═══ Leerlijn-blok op de Training-tab (kompas + leerlijn samen) ═══
+   Rustige variant van .kompas: geen zwaar rood vlak maar een donker kaartje
+   met rode rand-links, zodat het naast de andere trainings-secties past.
+   De kompas/leerlijn-serie deelt dit blok; .is-leer kleurt de accenten mee. */
+.kompas.leerblok{
+  background:var(--surface); border:1px solid var(--line-d);
+  border-left:3px solid var(--accent);
+  box-shadow:none; padding:14px 15px 12px;
+}
+.kompas.leerblok::after{ display:none; } /* geen groot watermerk-icoon */
+.kompas.leerblok .kompas-label{ color:var(--ink-2); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.kompas.leerblok .kompas-bron{
+  color:var(--ink-2); background:rgba(255,255,255,.06);
+  display:inline-flex; align-items:center; gap:6px; font-size:10px; padding:2px 7px;
+}
+.kompas.leerblok .kompas-tekst{ color:var(--ink); font-size:14px; line-height:1.5; min-height:58px; font-weight:500; }
+.kompas.leerblok .kompas-tekst .ll-titel{ font-weight:700; }
+.kompas.leerblok .kompas-tekst .ll-info-ico{ opacity:.5; font-size:11px; margin-left:2px; }
+/* domein-badge in de bron-tag (kleur wordt inline gezet vanuit SKILLS.kleur) */
+.kompas.leerblok .ll-dombadge{
+  width:20px; height:15px; border-radius:4px; display:inline-flex;
+  align-items:center; justify-content:center; color:#fff;
+  font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:9px; letter-spacing:.2px;
+}
+/* dots: rode accentkleur i.p.v. wit, plus scheidingsstreepje kompas↔leerlijn */
+.kompas.leerblok .kompas-dots span{ background:rgba(255,255,255,.16); }
+.kompas.leerblok .kompas-dots span.actief{ background:var(--accent); width:14px; border-radius:3px; }
+.kompas.leerblok .kompas-dots .ll-sep{ width:1px; height:10px; border-radius:0; background:rgba(255,255,255,.2); margin:0 3px; align-self:center; }
+/* nav-knoppen: neutraal op donkere achtergrond */
+.kompas.leerblok .kompas-nav button{ background:rgba(255,255,255,.05); border:1px solid var(--line-d); color:var(--ink-2); }
+.kompas.leerblok .kompas-nav button:active{ background:rgba(255,255,255,.1); }
