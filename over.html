@@ -57,6 +57,7 @@
   .topbar .wrap{display:flex;align-items:center;justify-content:space-between;padding:14px 24px}
   .brand{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed';font-weight:700;font-size:20px;letter-spacing:.4px;text-transform:uppercase;color:var(--fluo)}
   .brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);transform:rotate(45deg)}
+  .brand-schild{width:26px;height:26px;object-fit:contain;vertical-align:middle}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
     border-radius:11px;padding:11px 20px;font-weight:600;font-size:14.5px;
@@ -154,6 +155,8 @@
     flex:0 0 auto;
   }
   .overzicht-blok h3{font-family:'Barlow Condensed';font-size:18px;text-transform:uppercase;letter-spacing:.3px}
+  .functie .f-icoon svg{width:22px;height:22px}
+  .overzicht-blok .ov-icoon svg{width:20px;height:20px}
   .overzicht-blok ul{list-style:none}
   .overzicht-blok li{
     display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink-2);
@@ -277,7 +280,7 @@
 
 <div class="topbar">
   <div class="wrap">
-    <div class="brand"><span class="dot"></span> Cluppie</div>
+    <div class="brand"><img src="icons/asv-schild.png" alt="ASV'33" class="brand-schild"> Cluppie</div>
     <a href="index.html" class="btn btn-primary cta-login">Inloggen</a>
   </div>
 </div>
@@ -396,47 +399,47 @@
     </div>
     <div class="functies-grid">
       <div class="functie reveal">
-        <div class="f-icoon">⚽</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="3.4" width="17.6" height="17.2" rx="2.4"/><path d="M3.2 12h17.6"/><circle cx="8" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="16.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="16.6" r="1.5" fill="currentColor" stroke="none"/></svg></div>
         <h3>Opstelling &amp; wedstrijdvoering</h3>
         <p>Per kwart of helft een opstelling maken, wissels slepen en automatisch de speeltijd zien.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">✓</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><path d="M9 12l2 2 4.5-4.5"/></svg></div>
         <h3>Teambeoordeling na wedstrijden</h3>
         <p>In enkele tikken een teamevaluatie invullen, verdeeld over de leercurve-thema's van ASV'33.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">↗</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg></div>
         <h3>Inzicht in groei</h3>
         <p>Groeicurves en trends laten zien hoe een team zich ontwikkelt — over wedstrijden en seizoenen heen.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">◎</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.2l4.2 3-1.6 4.9H9.4L7.8 10.2z"/><path d="M12 7.2 9.5 5M12 7.2 14.5 5M16.2 10.2l2.6-.6M14.6 15.1l1.7 2.1M9.4 15.1l-1.7 2.1M7.8 10.2l-2.6-.6"/></svg></div>
         <h3>Aandachtspunten per team</h3>
         <p>Op basis van evaluaties automatisch passende trainingsthema's voorgesteld krijgen.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">▤</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg></div>
         <h3>Trainingsplanning</h3>
         <p>Trainingen en aanwezigheid bijhouden, gekoppeld aan de ontwikkeldoelen van het team.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">◈</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2.2"/></svg></div>
         <h3>ASV-kompas</h3>
         <p>Elke week een tip uit het jeugdbeleidsplan, passend bij team en moment in het seizoen.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">▦</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="4.4" width="17.2" height="15.2" rx="2.4"/><path d="M3.4 9.4h17.2"/><path d="M9.6 9.4v10.2"/><path d="M14.6 12.6l1.6 1.6 2.6-2.8"/></svg></div>
         <h3>Overzicht voor coördinatoren</h3>
         <p>Een clubbreed beeld van alle teams — gericht sturen in plaats van achteraf ontdekken.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">☺</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></div>
         <h3>Spelersprofielen</h3>
         <p>Per speler een doorlopend beeld van speeltijd, ontwikkeling en aanwezigheid.</p>
       </div>
       <div class="functie reveal">
-        <div class="f-icoon">⇄</div>
+        <div class="f-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><circle cx="9.6" cy="10.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="14.4" cy="10.4" r="1.5" fill="currentColor" stroke="none"/></svg></div>
         <h3>Eén plek voor communicatie</h3>
         <p>Geen losse appjes en Excel-bestanden meer — iedereen kijkt naar dezelfde, actuele informatie.</p>
       </div>
@@ -456,7 +459,7 @@
     <div class="overzicht-grid">
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">⚽</div><h3>Op de wedstrijddag</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="3.4" width="17.6" height="17.2" rx="2.4"/><path d="M3.2 12h17.6"/><circle cx="8" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="16.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="16.6" r="1.5" fill="currentColor" stroke="none"/></svg></div><h3>Op de wedstrijddag</h3></div>
         <ul>
           <li>Opstelling maken door spelers te slepen of te tikken, per kwart of helft</li>
           <li>Wissels automatisch gelogd met tijdstip zodra de klok loopt</li>
@@ -471,7 +474,7 @@
       </div>
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">📈</div><h3>Beoordelen &amp; evalueren</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><path d="M9 12l2 2 4.5-4.5"/></svg></div><h3>Beoordelen &amp; evalueren</h3></div>
         <ul>
           <li>Spelersbeoordeling op vijf ontwikkeldomeinen: technisch, tactisch, fysiek, mentaal, gedrag</li>
           <li>Snelle beoordeling in een paar tikken, of een volledige periodieke meting</li>
@@ -485,7 +488,7 @@
       </div>
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">📅</div><h3>Trainen &amp; plannen</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg></div><h3>Trainen &amp; plannen</h3></div>
         <ul>
           <li>Trainingen delen als PDF per team, met melding bij iets nieuws</li>
           <li>Video's delen via YouTube-links, gekoppeld aan het team</li>
@@ -496,19 +499,20 @@
       </div>
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">🏛</div><h3>Club &amp; team beheren</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 8.4h8.2"/><path d="M17 8.4h3.6"/><path d="M3.4 15.6h3.6"/><path d="M12.4 15.6h8.2"/><circle cx="14.4" cy="8.4" r="2.4"/><circle cx="9.6" cy="15.6" r="2.4"/></svg></div><h3>Club &amp; team beheren</h3></div>
         <ul>
           <li>PDF-import van teamindelingen: teams en spelers automatisch uitgelezen</li>
           <li>Coaches uitnodigen en beheren per team, met persoonlijke links</li>
           <li>Documenten (KNVB, beleid, overig) centraal uploaden en delen per team</li>
           <li>Club-brede evaluatieheatmap met Excel-export voor de technische commissie</li>
           <li>Spelers tijdelijk uitlenen aan een ander team binnen de club</li>
+          <li>Berichten naar coaches sturen, met een melding in de app tot ze gelezen zijn</li>
           <li>Seizoensbeheer en club-breed afgelasten van speeldagen</li>
         </ul>
       </div>
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">◎</div><h3>Altijd beschikbaar</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.6H6l1.5-2.4V11a4.5 4.5 0 0 1 9 0v3.2z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/></svg></div><h3>Altijd beschikbaar</h3></div>
         <ul>
           <li>Werkt offline door langs de lijn en synchroniseert automatisch bij verbinding</li>
           <li>Toe te voegen aan het beginscherm — voelt als een echte app, geen browser nodig</li>
@@ -518,7 +522,7 @@
       </div>
 
       <div class="overzicht-blok reveal">
-        <div class="ov-kop"><div class="ov-icoon">🔒</div><h3>Privacy</h3></div>
+        <div class="ov-kop"><div class="ov-icoon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></div><h3>Privacy</h3></div>
         <ul>
           <li>Standaard alleen voornamen zichtbaar in de app</li>
           <li>Achternamen blijven binnen het eigen team, alleen zichtbaar voor de coaches</li>
