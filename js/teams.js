@@ -5,22 +5,22 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, teamCode, clubAfkorting, speler, isBeheerder,
   openModal, sluitModal, toon, stopUnsubs, bewaakTerug, modAan
-} from './state.js?v=20260815c';
+} from './state.js?v=20260816a';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek
-} from './config.js?v=20260815c';
-import { kompasTips, startContentListener } from './content.js?v=20260815c';
-import { ico } from './icons.js?v=20260815c';
+} from './config.js?v=20260816a';
+import { kompasTips, startContentListener } from './content.js?v=20260816a';
+import { ico } from './icons.js?v=20260816a';
 
-import { analyseWedstrijd } from './analyse.js?v=20260815c';
-import { telGebruik } from './tracker.js?v=20260815c';
-import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260815c';
+import { analyseWedstrijd } from './analyse.js?v=20260816a';
+import { telGebruik } from './tracker.js?v=20260816a';
+import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260816a';
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad
-} from './wedstrijd.js?v=20260815c';
+} from './wedstrijd.js?v=20260816a';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -32,25 +32,25 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260815c')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260816a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn,
-} from './teams-spelers.js?v=20260815c';
-import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260815c';
-import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260815c';
+} from './teams-spelers.js?v=20260816a';
+import { htmlKompas, toonThemaInfo, toonKompasInfo } from './teams-leerlijn.js?v=20260816a';
+import { modalTeamEvaluatie, htmlStatsTab } from './teams-evaluatie.js?v=20260816a';
 import {
   htmlTeamTrainingen, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20260815c';
-import { htmlTeamDocumenten } from './teams-documenten.js?v=20260815c';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260815c';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260815c';
-import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260815c';
+} from './teams-training.js?v=20260816a';
+import { htmlTeamDocumenten } from './teams-documenten.js?v=20260816a';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260816a';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260816a';
+import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260816a';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
    importeren deze twee nog altijd via './teams.js' — ze wonen nu fysiek in
@@ -527,10 +527,10 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260815c').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260816a').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260815c').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260816a').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -633,7 +633,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260815c').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260816a').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -846,6 +846,60 @@ const UPDATES = [
   { datum:'2026-08-15', titel:'Sneller en stabieler', punten:[
       'Een storing opgelost waardoor een wedstrijd soms niet opende.',
       'Kleine verbeteringen aan de spelers- en trainingsschermen.',
+    ]},
+  { datum:'2026-08-14', titel:'AI-wedstrijdverslag & wisselreden', punten:[
+      'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen gaan nooit naar de AI \u2014 dat gebeurt volledig privacyproof (AVG).',
+      'Bij een wissel kun je nu een reden aangeven (Blessure, Tactisch, Gedrag, Trainingsopkomst), zichtbaar en aanpasbaar in het logboek.',
+      'Speeltijd wordt in de teamstatistieken getoond als percentage gespeeld en reserve, zodat je in \u00e9\u00e9n oogopslag ziet of iedereen eerlijk aan bod komt.',
+    ]},
+  { datum:'2026-08-12', titel:'Overzichtelijker wedstrijdscherm', punten:[
+      'Het scorebord is opgeschoond: doelknoppen en stand op \u00e9\u00e9n rij, teamnamen leesbaar eronder.',
+      'Bij geplande wissels kun je kiezen voor "volgende in rotatie", zodat de speler met de minste speeltijd vooraan staat.',
+      'De app start nu met een net laadscherm in plaats van een zwart scherm.',
+    ]},
+  { datum:'2026-08-05', titel:'Stand & Poule', punten:[
+      'Nieuw tabblad onder Meer: de actuele poulestand \u00e9n de uitslagen van \u00e1lle teams in je poule.',
+      'Wordt automatisch bijgewerkt via de nachtelijke sync. Je eigen team staat gemarkeerd.',
+    ]},
+  { datum:'2026-08-02', titel:'Video\'s uploaden & slimmere oefenstof', punten:[
+      'Naast YouTube-links kun je nu ook eigen videoclips (MP4) rechtstreeks in de app zetten.',
+      'Upload je een oefenstof-PDF, dan haalt de app de veldtekeningen eruit en zet de oefeningen om in een prettig scrollbaar schema voor langs het veld.',
+    ]},
+  { datum:'2026-08-01', titel:'Hulpchat: je vraagbaak in de app', punten:[
+      'Een ingebouwde assistent die je vragen over de app beantwoordt.',
+      'Weet je even niet waar iets staat of hoe iets werkt? Tik op Hulpchat en je krijgt meteen uitleg.',
+    ]},
+  { datum:'2026-07-27', titel:'Rondleiding voor nieuwe coaches', punten:[
+      'Een interactieve rondleiding die je stap voor stap door alle schermen leidt \u2014 van je team openen tot een wedstrijd draaien.',
+      'Later opnieuw te starten via Help.',
+    ]},
+  { datum:'2026-07-15', titel:'Teamevaluatie & dashboard', punten:[
+      'Beoordeel je team na een wedstrijd op meerdere categorie\u00ebn.',
+      'Een dashboard laat de groeicurve, aandachtspunten en een trainingsadvies zien.',
+      'Op het startscherm verschijnt een herinnering voor wedstrijden die nog ge\u00ebvalueerd moeten worden.',
+    ]},
+  { datum:'2026-07-06', titel:'Wedstrijd-opzet in stappen', punten:[
+      'Bij een nieuwe wedstrijd loop je vier korte stappen door: aanvoerder, aantal spelers, speelwijze en wedstrijddoel.',
+      'Geen tijd? Overslaan kan altijd, en later aanpassen via "Wijzig opzet".',
+    ]},
+  { datum:'2026-07-04', titel:'Seizoenen & ASV-kompas', punten:[
+      'Alle wedstrijden, trainingen en beoordelingen worden nu per seizoen bewaard, zodat de historie netjes gescheiden blijft.',
+      'Bovenaan de Training-tab verschijnt wekelijks een ASV-kompas-tip uit het jeugdbeleidsplan.',
+      'Bij de leercurve-thema\'s en wedstrijddoelen kun je doortikken naar achtergrond en concrete oefentips.',
+    ]},
+  { datum:'2026-06-28', titel:'Seizoensplanning', punten:[
+      'Het tabblad Planning toont de hele seizoenskalender per maand: offici\u00eble KNVB-speeldagen, je eigen wedstrijden en zelf toegevoegde dagen (toernooi, vriendschappelijk, vrij).',
+      'Met filters per soort dag.',
+      'Op het veld werk je nu met tikken in plaats van slepen, zodat je makkelijk kunt scrollen tijdens de wedstrijd.',
+    ]},
+  { datum:'2026-06-20', titel:'Cluppie op je beginscherm', punten:[
+      'De app heet voortaan Cluppie en kun je op je telefoon-beginscherm zetten \u2014 open hem met \u00e9\u00e9n tik, ook zonder browser.',
+      'Wedstrijden worden automatisch ingeladen vanuit de KNVB-kalender (thuis/uit, datum, tegenstander).',
+    ]},
+  { datum:'2026-06-12', titel:'De eerste versie', punten:[
+      'Zet je spelers op het veld, start de wedstrijdklok per kwart of helft, en wissel tijdens het spel \u2014 elke wissel wordt automatisch met tijdstip gelogd.',
+      'Registreer doelpunten en kaarten volgens de KNVB-regels; de bank staat op volgorde van minste speeltijd, zodat je ziet wie aan de beurt is.',
+      'Houd spelers en trainingsopkomst bij, bekijk oefenstof en video\'s, en nodig als beheerder coaches uit via een persoonlijke link.',
     ]},
 ];
 
@@ -1270,14 +1324,14 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260815c').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260816a').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
     v.querySelectorAll('[data-open-document]').forEach(r => r.onclick = async () => {
       const id = r.dataset.openDocument;
       const d = S.documenten.find(x => x.id === id);
-      const { openPdfViewer } = await import('./pdf-viewer.js?v=20260815c');
+      const { openPdfViewer } = await import('./pdf-viewer.js?v=20260816a');
       openPdfViewer({
         url: r.dataset.url,
         titel: d?.titel || d?.bestandsnaam || 'Document',
@@ -1369,13 +1423,13 @@ function koppelTeamTab(v, tab){
 
       const openOrigineel = async () => {
         telGebruik('document_open');
-        const { openPdfViewer } = await import('./pdf-viewer.js?v=20260815c');
+        const { openPdfViewer } = await import('./pdf-viewer.js?v=20260816a');
         openPdfViewer({ url: r.dataset.url, titel, meta });
       };
 
       // AI-gestructureerde training → scrolbare weergave; anders de PDF-viewer.
       if (Array.isArray(t?.oefeningen) && t.oefeningen.length){
-        const { openTrainingWeergave } = await import('./training-weergave.js?v=20260815c');
+        const { openTrainingWeergave } = await import('./training-weergave.js?v=20260816a');
         openTrainingWeergave({
           titel, meta,
           oefeningen: t.oefeningen,
@@ -1507,7 +1561,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260815c').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260816a').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {
