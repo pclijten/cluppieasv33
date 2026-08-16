@@ -9,33 +9,97 @@
    CONTENTBEHEER in het clubdashboard. Structurele data (thema/vanaf/domein)
    blijft in config.js staan; dat verandert niet via het contentbeheer-tabblad. */
 import { S, $, esc, openModal, modAan } from './state.js?v=20260816a';
-import { skillDomein, leercurveThema, isoWeek, kompasIndexVoorWeek } from './config.js?v=20260816a';
+import { skillDomein, leercurveThema, isoWeek, kompasIndexVoorWeek,
+         LEERCURVE, leercurveRelevant } from './config.js?v=20260817a';
 import { contentVoorThema, kompasTips } from './content.js?v=20260816a';
 
-/* ---------- ASV-kompas-banner (Training-tab) ---------- */
-export function htmlKompas(){
-  // Admin kan de wekelijkse ASV-kompas-tip per team uitzetten. Staat los van de
-  // leerlijn-module, zodat het beleidsplan standaard bij elke coach terugkomt.
-  if (!modAan('kompas')) return '';
-  const tips = kompasTips();
-  if (!tips.length){
-    // Nog geen content geladen/gepubliceerd (bv. gloednieuw testproject vóór
-    // het indrukken van "Seed content naar Firestore" in het admin-tabblad).
-    return `<div class="kompas"><div class="kompas-tekst">🧭 ASV-kompas — nog geen tips beschikbaar.</div></div>`;
+/* ---------- Leerlijn-blok: ASV-kompas + leerlijn (Training-tab) ----------
+   Eén rustig blok waarin de coach met de pijltjes door twee series bladert:
+   eerst de wekelijkse ASV-kompas-tips (§3.1/§3.4), daarna de leercurve-thema's
+   (§3.3) die bij de leeftijd van dit team horen. Het label + icoon bovenin
+   bewegen mee, en bij een leerlijn-item toont de bron-tag de domein-badge.
+   Beide series staan los per team uit te zetten: kompas via de 'kompas'-module,
+   de leerlijn-thema's via de 'leerlijn'-module. Staat álles uit → geen blok.
+   Het startpunt wisselt per keer dat de tab geopend wordt (kompasItems()), zodat
+   een coach niet steeds hetzelfde item als eerste ziet — onbewust leren. */
+
+/* De gecombineerde reeks items voor het huidige team. Eén bron van waarheid,
+   zodat de HTML én de blader-handler (teams.js) exact dezelfde volgorde delen. */
+export function kompasItems(){
+  const uit = [];
+  if (modAan('kompas')){
+    for (const t of kompasTips()) uit.push({ soort:'kompas', titel:t.titel, tag:(t.tags||[])[0]||'' });
   }
-  const idx = S._kompasIdx ?? kompasIndexVoorWeek(tips.length);
-  const t = tips[idx] || tips[0];
+  if (modAan('leerlijn')){
+    const cat = S.team?.categorie || '';
+    for (const th of LEERCURVE){
+      if (leercurveRelevant(th, cat)){
+        const inhoud = contentVoorThema(th.thema);
+        uit.push({ soort:'leer', thema:th.thema, domein:th.domein,
+                   tekst:(inhoud?.achtergrond || '').trim() });
+      }
+    }
+  }
+  return uit;
+}
+
+/* Willekeurig startpunt binnen de reeks, zodat elke tab-open een ander item
+   toont. Wordt door teams.js in S._kompasIdx gezet bij het openen van de tab. */
+export function kompasStartIndex(aantal){
+  if (!aantal) return 0;
+  return Math.floor(Math.random() * aantal);
+}
+
+/* Eerste zin uit een achtergrondtekst — kort genoeg voor het blok, de volledige
+   tekst blijft beschikbaar via het info-blad (tik op de tekst). */
+function eersteZin(tekst){
+  const t = (tekst||'').trim();
+  if (!t) return '';
+  const m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
+  return (m ? m[0] : t).trim();
+}
+
+export function htmlKompas(){
+  const items = kompasItems();
+  if (!items.length) return '';
+  // Eerste render van de tab: nog geen index? Kies eenmalig een willekeurig
+  // startpunt en bewaar het, zodat bladeren daarna vanaf dat punt verdergaat.
+  if (S._kompasIdx == null) S._kompasIdx = kompasStartIndex(items.length);
+  const idx = ((S._kompasIdx ?? 0) % items.length + items.length) % items.length;
+  const it = items[idx];
+
+  // waar gaat kompas over in leerlijn? (voor het scheidingsstreepje in de dots)
+  const grens = items.findIndex(x => x.soort === 'leer');
+
+  let label, bron, tekst;
+  if (it.soort === 'kompas'){
+    label = `🧭 ASV-kompas · week ${isoWeek()}`;
+    bron  = esc(it.tag || '');
+    tekst = `${esc(it.titel)} <span class="ll-info-ico">ℹ️</span>`;
+  } else {
+    const d = skillDomein(it.domein);
+    label = `📈 Leerlijn · ${esc(S.team?.categorie || '')}`;
+    bron  = `<span class="ll-dombadge" style="background:${d?.kleur||'var(--accent)'}">${esc(it.domein)}</span>${esc(d?.naam || '')}`;
+    const zin = eersteZin(it.tekst);
+    tekst = `<span class="ll-titel">${esc(it.thema)}.</span> ${esc(zin)} <span class="ll-info-ico">ℹ️</span>`;
+  }
+
+  const dots = items.map((_,i) => {
+    const sep = (grens > 0 && i === grens) ? '<span class="ll-sep"></span>' : '';
+    return `${sep}<span class="${i===idx?'actief':''}"></span>`;
+  }).join('');
+
   return `
-    <div class="kompas">
+    <div class="kompas leerblok ${it.soort==='leer'?'is-leer':''}">
       <div class="kompas-top">
-        <span class="kompas-label">🧭 ASV-kompas · week ${isoWeek()}</span>
-        <span class="kompas-bron">${esc((t.tags||[])[0] || '')}</span>
+        <span class="kompas-label">${label}</span>
+        <span class="kompas-bron">${bron}</span>
       </div>
-      <div class="kompas-tekst" data-kompas-info style="cursor:pointer">${esc(t.titel)} <span style="opacity:.55;font-size:11px">ℹ️</span></div>
-      <div class="kompas-dots">${tips.map((_,i) => `<span class="${i===idx?'actief':''}"></span>`).join('')}</div>
+      <div class="kompas-tekst" data-kompas-info style="cursor:pointer">${tekst}</div>
+      <div class="kompas-dots">${dots}</div>
       <div class="kompas-nav">
-        <button data-kompas="vorige" title="Vorige tip">‹</button>
-        <button data-kompas="volgende" title="Volgende tip">›</button>
+        <button data-kompas="vorige" title="Vorige">‹</button>
+        <button data-kompas="volgende" title="Volgende">›</button>
       </div>
     </div>`;
 }

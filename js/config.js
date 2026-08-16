@@ -402,11 +402,11 @@ export function knvbKalenderVoorTeam(team){
    "Leren voetballen, met plezier als basis en groei als doel."
    De pedagogische laag komt uit §5 (normen & waarden, teamgevoel, inzet, plezier). */
 export const SKILLS = [
-  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', ico:'football-ball', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
-  {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', ico:'tag-insight', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
-  {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', ico:'tag-effort', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
-  {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', ico:'tag-strong-second', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
-  {id:'GE', naam:'Gedrag & beleving', kort:'Gedrag', emoji:'🤝', ico:'tag-handshake', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
+  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', ico:'football-ball', kleur:'#3b82f6', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
+  {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', ico:'tag-insight', kleur:'#a855f7', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
+  {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', ico:'tag-effort', kleur:'#f59e0b', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
+  {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', ico:'tag-strong-second', kleur:'#10b981', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
+  {id:'GE', naam:'Gedrag & beleving', kort:'Gedrag', emoji:'🤝', ico:'tag-handshake', kleur:'#ef4444', omschrijving:'Inzet, teamgevoel, normen & waarden, plezier'},
 ];
 export function skillDomein(id){ return SKILLS.find(s => s.id === id) || null; }
 /* alias voor compatibiliteit met eerdere code die 'tipsDomein' aanriep */

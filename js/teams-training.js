@@ -15,8 +15,8 @@ import { ico } from './icons.js?v=20260816a';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260816a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260816a';
+} from './config.js?v=20260817a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260817a';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
