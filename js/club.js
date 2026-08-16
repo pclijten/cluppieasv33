@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260816a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260816b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260816a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260816b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -255,16 +255,22 @@ function htmlClubDashboard(teams, dash, gebruik){
       <div class="ov-blok ov-wedstrijden"><div class="ov-getal">${wedstrijdenWeek}</div><div class="ov-label">wedstr. 7 dgn</div></div>
     </div>
 
-    <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">⚠️ Aandacht nodig</div>
-      ${signalen.length ? `
-        <div class="caf-historie">
-          ${signalen.slice(0,8).map(s => `
-            <div class="caf-rij">
-              <span class="caf-rij-datum" style="${s.ernstig?'color:var(--uit)':''}">${esc(s.team)}</span>
-              <span class="caf-rij-reden">${esc(s.reden)}</span>
-            </div>`).join('')}
-        </div>` : `<p style="font-size:13px;color:var(--ink-2)">✅ Alle teams zijn actief en up-to-date.</p>`}
+    <div class="kaart dash-inklap ${(S.clubAandachtOpen ?? true) ? 'open' : 'dicht'}">
+      <button class="dash-inklap-kop" data-dash-inklap="aandacht">
+        <span class="dash-inklap-titel ${signalen.length?'waarschuwing':''}">⚠️ Aandacht nodig</span>
+        ${signalen.length ? `<span class="dash-badge">${signalen.length}</span>` : `<span class="dash-badge ok">✓</span>`}
+        <span class="dash-inklap-pijl">›</span>
+      </button>
+      <div class="dash-inklap-inhoud">
+        ${signalen.length ? `
+          <div class="caf-historie">
+            ${signalen.slice(0,8).map(s => `
+              <div class="caf-rij">
+                <span class="caf-rij-datum" style="${s.ernstig?'color:var(--uit)':''}">${esc(s.team)}</span>
+                <span class="caf-rij-reden">${esc(s.reden)}</span>
+              </div>`).join('')}
+          </div>` : `<p style="font-size:13px;color:var(--ink-2)">✅ Alle teams zijn actief en up-to-date.</p>`}
+      </div>
     </div>
 
     <div class="kaart">
@@ -294,8 +300,16 @@ function htmlClubDashboard(teams, dash, gebruik){
         </div>`).join('') : `<p style="font-size:13px;color:var(--ink-2)">Nog geen wedstrijden of presentie geregistreerd.</p>`}
     </div>
 
-    ${htmlClubGebruik(gebruik)}
-    ${htmlClubFunctiegebruik(gebruik)}`;
+    <div class="dash-inklap ${S.clubStatsOpen ? 'open' : 'dicht'}" style="margin-bottom:12px">
+      <button class="dash-inklap-kop kaart" data-dash-inklap="stats" style="margin-bottom:0;width:100%">
+        <span class="dash-inklap-titel" style="color:var(--ink-2)">📊 Gebruiksstatistieken</span>
+        <span class="dash-inklap-pijl">›</span>
+      </button>
+      <div class="dash-inklap-inhoud" style="margin-top:12px">
+        ${htmlClubGebruik(gebruik)}
+        ${htmlClubFunctiegebruik(gebruik)}
+      </div>
+    </div>`;
 }
 
 /* ==================== GEBRUIKSSTATISTIEKEN (logins) ====================
@@ -530,17 +544,30 @@ function htmlClubGebruik(gebruik){
 async function renderClub(){
   if (!S.club) return;
   const v = $('#view-club');
+  const tab = S.clubTab;
+
+  // Teams zijn altijd nodig (voor de onderbalk en elke tab). De rest halen we
+  // alleen op als de open tab hem echt toont — en parallel i.p.v. serieel, zodat
+  // het dashboard niet eerst op trainingen/video's/documenten hoeft te wachten.
   const teams = await clubTeamsOphalen();
   S.clubTeams = teams;
-  const trainingen = await clubTrainingenOphalen();
-  S.clubTrainingen = trainingen;
-  const videos = await clubVideosOphalen();
-  S.clubVideos = videos;
-  const documenten = await clubDocumentenOphalen();
-  S.clubDocumenten = documenten;
-  const afgelastingen = await clubAfgelastingenOphalen();
+
+  const wilTrainingen = tab === 'trainingen';
+  const wilVideos     = tab === 'videos';
+  const wilDocumenten = tab === 'documenten';
+  const wilAfgelast   = tab === 'teams';
+
+  const [trainingen, videos, documenten, afgelastingen] = await Promise.all([
+    wilTrainingen ? clubTrainingenOphalen()  : Promise.resolve(S.clubTrainingen  || []),
+    wilVideos     ? clubVideosOphalen()       : Promise.resolve(S.clubVideos      || []),
+    wilDocumenten ? clubDocumentenOphalen()   : Promise.resolve(S.clubDocumenten  || []),
+    wilAfgelast   ? clubAfgelastingenOphalen(): Promise.resolve(S.clubAfgelastingen || []),
+  ]);
+  S.clubTrainingen  = trainingen;
+  S.clubVideos      = videos;
+  S.clubDocumenten  = documenten;
   S.clubAfgelastingen = afgelastingen;
-  const tab = S.clubTab;
+
   // syncstatus per team ophalen (alleen nodig op de instel-tab, om reads te sparen)
   let syncStatus = {};
   if (tab === 'instel'){
@@ -568,8 +595,10 @@ async function renderClub(){
       clubEvalData = await clubEvaluatiesOphalen(teams);
       inhoud = segment + htmlClubEvaluaties(clubEvalData);
     } else {
-      const dash = await clubDashboardOphalen(teams);
-      const gebruik = await clubGebruikOphalen(teams);
+      const [dash, gebruik] = await Promise.all([
+        clubDashboardOphalen(teams),
+        clubGebruikOphalen(teams),
+      ]);
       inhoud = segment + htmlClubDashboard(teams, dash, gebruik);
     }
   }
@@ -1347,6 +1376,15 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-gebruik-meer]').forEach(b => b.onclick = () => {
       const rest = b.parentElement.querySelector('.gebruik-cat-rest');
       if (rest){ rest.style.display = 'block'; b.style.display = 'none'; }
+    });
+    // inklapbare dashboard-secties (aandacht, statistieken) — puur CSS-toggle,
+    // stand onthouden zodat een re-render (periode wisselen) hem niet dichtklapt
+    v.querySelectorAll('[data-dash-inklap]').forEach(kop => kop.onclick = () => {
+      const blok = kop.closest('.dash-inklap');
+      const open = blok.classList.toggle('open');
+      blok.classList.toggle('dicht', !open);
+      if (kop.dataset.dashInklap === 'aandacht') S.clubAandachtOpen = open;
+      if (kop.dataset.dashInklap === 'stats')    S.clubStatsOpen = open;
     });
   }
   if (tab === 'instel'){
