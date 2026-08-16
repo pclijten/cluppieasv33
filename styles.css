@@ -2256,3 +2256,33 @@ body::before{
     radial-gradient(120% 80% at 50% 0%, rgba(226,52,47,.22), transparent 60%),
     var(--bg) !important;
 }
+
+/* ============================================================
+   UPDATES / CHANGELOG (tab "Updates" onder Meer) — 20260816a
+   Toont de releasegeschiedenis per maand. Dark-theme tokens.
+   ============================================================ */
+.updates-wrap{ padding-bottom:24px }
+.upd-intro{ font-size:13px; color:var(--ink-2); line-height:1.5; margin:4px 2px 18px }
+
+.upd-maand{ display:flex; align-items:center; gap:10px; margin:22px 2px 12px }
+.upd-maand:first-of-type{ margin-top:6px }
+.upd-datum{ font-family:'Barlow Condensed'; font-weight:700; font-size:19px; letter-spacing:.4px; text-transform:uppercase; color:var(--ink); flex-shrink:0 }
+.upd-tag{ font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; background:var(--accent); color:#fff; padding:3px 9px; border-radius:99px; flex-shrink:0 }
+.upd-lijn{ flex:1; height:1px; background:var(--line-d) }
+
+.upd-item{ position:relative; background:var(--surface); border:1px solid var(--line-d); border-radius:14px; padding:13px 14px 13px 15px; margin-bottom:9px; overflow:hidden }
+.upd-item::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--accent); opacity:.85 }
+.upd-item.nieuw .upd-badge{ position:absolute; top:11px; right:12px; font-size:9px; font-weight:800; letter-spacing:.5px; color:#fff; background:var(--ok); padding:2px 7px; border-radius:99px }
+
+.upd-kopregel{ display:flex; align-items:center; gap:9px; margin-bottom:6px }
+.upd-ico{ width:30px; height:30px; flex-shrink:0; border-radius:9px; background:color-mix(in srgb, var(--accent) 15%, var(--surface)); color:var(--accent); display:flex; align-items:center; justify-content:center }
+.upd-ico svg{ width:18px; height:18px }
+.upd-titel{ font-family:'Inter'; font-weight:600; font-size:14.5px; letter-spacing:-.1px; margin:0; flex:1; color:var(--ink) }
+.upd-cat{ font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--ink-2); background:var(--surface-2); padding:3px 8px; border-radius:99px; flex-shrink:0 }
+.upd-tekst{ margin:0; font-size:12.8px; line-height:1.5; color:var(--ink-2) }
+
+/* Op smalle schermen de categorie-tag onder de titel laten zakken indien nodig */
+@media (max-width:360px){
+  .upd-kopregel{ flex-wrap:wrap }
+  .upd-cat{ order:3 }
+}
