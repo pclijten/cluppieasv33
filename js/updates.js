@@ -23,7 +23,9 @@ import { ico } from './icons.js?v=20260816a';
    - tekst:     coach-uitleg, 1–3 zinnen */
 const RELEASES = [
   { maand: 'Augustus 2026', tag: 'Nieuwste', items: [
-    ['admin-edit', 'Nieuwe look & eigen iconen', 'DESIGN', true,
+    ['admin-edit', 'Overzichtelijker & sneller clubdashboard', 'DESIGN', true,
+      'Het clubdashboard is opgeruimd: "Aandacht nodig" is nu inklapbaar met een teller, en de gebruiksstatistieken (app-gebruik, actiefste coaches, functiegebruik) zitten gebundeld onder rrn uitklapbare sectie onderaan. Zo blijft het overzicht bovenaan rustig. Daarnaast opent het dashboard merkbaar sneller, doordat het alleen nog de gegevens ophaalt die het betreffende tabblad echt nodig heeft.'],
+     ['admin-edit', 'Nieuwe look & eigen iconen', 'DESIGN', true,
       'De hele app heeft een frissere, rustigere uitstraling gekregen: strakkere kaarten, een eigen icoonset in plaats van emoji, en duidelijkere koppen. De domeinkiezer (Techniek, Tactiek, Fysiek, Mentaal, Gedrag) heeft nu icoon + label in plaats van losse letters.'],
     ['football-match', 'AI-wedstrijdverslag', 'WEDSTRIJD', true,
       'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen worden nooit naar het AI-model gestuurd — dat gebeurt volledig privacyproof (AVG); de namen worden pas bij jou in beeld weer ingevuld.'],
