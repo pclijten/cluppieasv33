@@ -41,6 +41,15 @@
     if (mc) mc.setAttribute('content', t === 'licht' ? '#f4f6f8' : '#0e1116');
   } catch(e){ document.documentElement.setAttribute('data-thema','donker'); }
 })();
+/* Lettergrootte-gate (vóór paint): zet --fs op <html> uit de persoonlijke
+   voorkeur, zodat tekst niet naspringt bij opstart. Alleen 0.9/1/1.15 toegestaan. */
+(function(){
+  try{
+    var g = localStorage.getItem('cluppieLettergrootte');   // '0.9'|'1'|'1.15'|null
+    var fs = (g === '0.9' || g === '1.15') ? g : '1';
+    document.documentElement.style.setProperty('--fs', fs);
+  } catch(e){}
+})();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0e1116">
