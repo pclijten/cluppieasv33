@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260817a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260817b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260817a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260817b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1048,6 +1048,27 @@ function htmlClubInstel(teams = [], syncStatus = {}){
       <p style="font-size:12px;color:var(--ink-2);line-height:1.5;margin-top:10px">Nieuwe wedstrijden, trainingen, beoordelingen en teamevaluaties van alle teams tellen vanaf dat moment mee voor het nieuwe seizoen. Oude data blijft bewaard en is terug te zien via het seizoenfilter in de statistieken (⏱).</p>
       <button class="knop licht vol" id="migreerSeizoen" style="margin-top:10px">🗂️ Migreer bestaande data naar dit seizoen</button>
     </div>
+    ${(() => {
+      const modus = S.club.themaModus || 'coachKiest';
+      const opt = (waarde, titel, sub) => `
+        <button class="thema-optie ${modus===waarde?'gekozen':''}" data-thema-modus="${waarde}">
+          <span class="tk-radio"></span>
+          <span class="tk-body">
+            <span class="tk-titel">${titel}</span>
+            <span class="tk-sub">${sub}</span>
+          </span>
+        </button>`;
+      return `
+      <div class="kaart">
+        <div class="sectie-kop" style="margin-top:0">🎨 Weergave &amp; thema</div>
+        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">Bepaal het thema voor de hele club. Een geforceerde stand overschrijft de persoonlijke voorkeur van elke coach.</p>
+        <div class="thema-modus" id="clubThemaModus">
+          ${opt('donker','🌙 Alleen donker','Iedereen zit vast op donker. Coaches zien geen keuze.')}
+          ${opt('licht','☀️ Alleen licht','Iedereen zit vast op licht. Coaches zien geen keuze.')}
+          ${opt('coachKiest','⚙️ Coach mag kiezen','Elke coach kiest zelf, opgeslagen op zijn eigen toestel.')}
+        </div>
+      </div>`;
+    })()}
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Club-uitnodiging</div>
       <p style="font-size:13.5px;color:var(--ink-2)">Stuur deze link naar mede-admins. Zij worden dan ook beheerder van de club.</p>
@@ -1392,6 +1413,32 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     if (nieuwSeizoenBtn) nieuwSeizoenBtn.onclick = () => modalNieuwSeizoen();
     const migreerBtn = v.querySelector('#migreerSeizoen');
     if (migreerBtn) migreerBtn.onclick = () => migreerSeizoenData(teams);
+    // Clubbreed thema: 'donker'|'licht' forceren, of 'coachKiest' vrijlaten.
+    // Wegschrijven naar het clubdocument; de seizoen-listener bij elke coach
+    // pikt de wijziging live op en past het thema toe (clubdwang overschrijft
+    // de persoonlijke voorkeur). De admin ziet direct het resultaat via de
+    // eigen listener → renderClub.
+    v.querySelectorAll('#clubThemaModus [data-thema-modus]').forEach(b => b.onclick = async () => {
+      const modus = b.dataset.themaModus;
+      if (S.club.themaModus === modus || (!S.club.themaModus && modus === 'coachKiest')){
+        // al actief — alleen visueel bevestigen
+        v.querySelectorAll('#clubThemaModus [data-thema-modus]').forEach(x =>
+          x.classList.toggle('gekozen', x === b));
+        return;
+      }
+      v.querySelectorAll('#clubThemaModus [data-thema-modus]').forEach(x =>
+        x.classList.toggle('gekozen', x === b));
+      try {
+        await updateDoc(doc(db,'clubs',S.clubId), { themaModus: modus });
+        S.club.themaModus = modus;
+        const naam = modus === 'donker' ? 'Alleen donker'
+                   : modus === 'licht'  ? 'Alleen licht'
+                   : 'Coach mag kiezen';
+        meld('Thema voor de hele club: ' + naam);
+      } catch(e){
+        meld('Opslaan mislukt: ' + (e.code || e.message));
+      }
+    });
     v.querySelector('#kopieerClubLink').onclick = async () => {
       try { await navigator.clipboard.writeText($('#clubLink').textContent); meld('Link gekopieerd'); }
       catch { meld('Link: ' + $('#clubLink').textContent); }
