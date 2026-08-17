@@ -28,11 +28,14 @@
   try{
     var dwang = localStorage.getItem('cluppieThemaDwang');      // 'donker'|'licht'|'' (leeg = coach kiest)
     var eigen = localStorage.getItem('cluppieThemaEigen');      // 'donker'|'licht'|null
+    var deflt = localStorage.getItem('cluppieThemaDefault');    // 'licht'|'' (leeg = systeem)
     var t;
     if (dwang === 'donker' || dwang === 'licht'){
       t = dwang;                                                 // clubdwang wint altijd
     } else if (eigen === 'donker' || eigen === 'licht'){
       t = eigen;                                                 // persoonlijke voorkeur
+    } else if (deflt === 'licht'){
+      t = 'licht';                                               // club-default 'standaard licht'
     } else {
       t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'licht' : 'donker';
     }
