@@ -531,29 +531,29 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   background:rgba(255,255,255,.10);
 }
 .welkom-tekst{ position:relative;z-index:1; }
-.welkom-datum{ color:rgba(255,255,255,.82);font-size:12.5px;font-weight:600;margin-bottom:2px; }
+.welkom-datum{ color:var(--ink-2);font-size:12.5px;font-weight:600;margin-bottom:2px; }
 .welkom-groet{
-  color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  color:var(--ink);font-family:'Barlow Condensed',sans-serif;font-weight:700;
   font-size:27px;line-height:1.05;text-transform:uppercase;letter-spacing:.4px;margin:0;
 }
 .welkom-strip{ display:flex;flex-wrap:wrap;gap:6px;margin-top:9px; }
 .ws-item{
-  background:rgba(255,255,255,.16);color:#fff;font-size:12.5px;font-weight:600;
+  background:var(--op-vlak-2);color:var(--ink);font-size:12.5px;font-weight:600;
   padding:4px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:4px;
   white-space:nowrap;
 }
 .welkom-cruijff{
-  color:rgba(255,255,255,.88);font-size:12px;font-style:italic;line-height:1.4;
+  color:var(--ink-2);font-size:12px;font-style:italic;line-height:1.4;
   margin-top:8px;max-width:280px;
 }
 .welkom-cruijff span{ opacity:.75;font-style:normal;font-weight:600; }
-.welkom-kop .terug{ color:rgba(255,255,255,.7);position:relative;z-index:1; }
+.welkom-kop .terug{ color:var(--ink-2);position:relative;z-index:1; }
 .uitlog-knop{
   position:relative;z-index:1;flex-shrink:0;
   width:42px;height:42px;border-radius:12px;
-  background:rgba(255,255,255,.12);
-  border:1.5px solid rgba(255,255,255,.25);
-  color:#fff;font-size:19px;line-height:1;
+  background:var(--op-vlak-2);
+  border:1.5px solid var(--line-d);
+  color:var(--ink-2);font-size:19px;line-height:1;
   display:flex;align-items:center;justify-content:center;
   transition:background .15s ease, transform .12s ease;
 }
@@ -978,6 +978,9 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
   --line:rgba(255,255,255,.82);
   --radius:14px;
+  --balk-bg:rgba(14,17,22,.93);      /* onderbalk, per thema */
+  --scorebord-bg:#181d24;            /* scorebord/klok/bank: donker in BEIDE thema's */
+  --hover-rand:rgba(255,255,255,.18);
 
   /* beoordeling: 5-niveau kleurenschaal (iets opgehelderd voor donkere bg) */
   --n1:#F0565B; --n2:#F59C4A; --n3:#F2C94C; --n4:#7DCB6A; --n5:#35C47A;
@@ -1018,6 +1021,9 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   --shadow:0 1px 2px rgba(15,22,32,.06), 0 6px 18px rgba(15,22,32,.08);
   --line:rgba(15,22,32,.55);
   --radius:14px;
+  --balk-bg:rgba(252,253,254,.94);   /* onderbalk licht */
+  --scorebord-bg:#161b21;            /* scorebord/klok/bank blijven donker, ook in licht */
+  --hover-rand:rgba(15,22,32,.20);
 
   --n1:#E5484D; --n2:#E8892B; --n3:#D9A81E; --n4:#5FA845; --n5:#1F9E5E;
 }
@@ -1029,21 +1035,21 @@ body{ background:var(--bg); color:var(--ink); }
 .terug{ background:var(--surface); color:#cbd2da; box-shadow:none; border:1px solid var(--line-d); }
 
 /* ---- Knoppen ---- */
-.knop{ background:var(--surface-2); color:#fff; box-shadow:none; }
+.knop{ background:var(--surface-2); color:var(--ink); box-shadow:none; }
 .knop.licht{ background:var(--surface-2); color:var(--ink); }
 .knop.fluo{ background:var(--accent); color:#fff; box-shadow:0 8px 22px rgba(226,52,47,.32); }
 .knop.gevaar{ background:var(--surface-2); color:var(--warn); }
 
 /* ---- Kaarten / lijst-items ---- */
 .kaart{ background:var(--surface); border:1px solid var(--line-d);
-  box-shadow:0 6px 18px rgba(0,0,0,.3); }
+  box-shadow:var(--shadow); }
 .lijst-item{ background:var(--surface); border:1px solid var(--line-d);
-  box-shadow:0 6px 18px rgba(0,0,0,.3); }
+  box-shadow:var(--shadow); }
 .lijst-item:hover{ border-color:color-mix(in srgb,var(--accent) 55%, transparent);
   box-shadow:0 8px 26px rgba(226,52,47,.18); }
 .lijst-item .titel{ color:var(--ink); }
 .lijst-item .pijl{ background:var(--accent); color:#fff; }
-.tegel{ background:var(--surface); border:1px solid var(--line-d); box-shadow:0 6px 18px rgba(0,0,0,.3); }
+.tegel{ background:var(--surface); border:1px solid var(--line-d); box-shadow:var(--shadow); }
 .tegel .ico{ background:color-mix(in srgb,var(--accent) 16%, var(--surface)); color:var(--accent); }
 .leeg{ color:var(--ink-2); } .leeg b{ color:var(--ink); }
 
@@ -1071,15 +1077,15 @@ body{ background:var(--bg); color:var(--ink); }
 
 /* ---- Shirts in lijsten ---- */
 .team-shirt{ background:var(--accent); box-shadow:0 3px 8px rgba(226,52,47,.3); }
-.club-shirt{ background:var(--surface-2); color:#fff; }
+.club-shirt{ background:var(--surface-2); color:var(--ink); }
 
 /* ---- Scorebord / klok / bank (waren al donker, nu consistent) ---- */
-.scorebord{ background:var(--surface); border:1px solid var(--line-d); }
-.scorebord .sb-cijfers{ color:#fff; }
-.klok{ background:var(--surface); border:1px solid var(--line-d); }
-.klok .tijd{ color:#fff; }
+.scorebord{ background:var(--scorebord-bg); border:1px solid var(--line-d); }
+.scorebord .sb-cijfers{ color:var(--fluo); }
+.klok{ background:var(--scorebord-bg); border:1px solid var(--line-d); }
+.klok .tijd{ color:var(--fluo); }
 .klok .acties button.primair{ background:var(--accent); }
-.bank{ background:var(--surface); border:1px solid var(--line-d); }
+.bank{ background:var(--scorebord-bg); border:1px solid var(--line-d); }
 
 /* ---- Speler/training/video/lid-rijen ---- */
 .speler-rij,.training-rij,.video-rij,.lid-rij{ background:var(--surface); border:1px solid var(--line-d); box-shadow:none; }
@@ -1138,7 +1144,7 @@ body{ background:var(--bg); color:var(--ink); }
 
 /* ---- Handleiding ---- */
 .hl{ color:var(--ink); }
-.hl b{ color:#fff; }
+.hl b{ color:var(--ink); }
 .hl .tip{ background:color-mix(in srgb,var(--warn) 12%, var(--surface)); border-left-color:var(--warn); }
 .hl .tip b{ color:var(--warn); }
 .hl kbd{ background:var(--surface-2); border-color:var(--line-d); color:var(--ink); }
@@ -1151,7 +1157,7 @@ body{ background:var(--bg); color:var(--ink); }
 /* ==================================================================
    ONDERBALK — strakke SVG-iconen (laatste layout)
 ================================================================== */
-.onderbalk{ background:rgba(14,17,22,.93); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+.onderbalk{ background:var(--balk-bg); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
   border-top:1px solid var(--line-d); padding:9px 4px calc(12px + env(safe-area-inset-bottom)); }
 .onderbalk button{ color:var(--ink-2); gap:3px; }
 .onderbalk button.actief{ color:var(--accent); }
@@ -1238,7 +1244,7 @@ body{ background:var(--bg); color:var(--ink); }
 
 /* snel-kop in modal */
 .snel-kop{display:flex;align-items:center;gap:11px;margin-bottom:6px}
-.snel-kop .mini-shirt{width:38px;height:38px;border-radius:50%;background:var(--surface-2);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:18px;flex-shrink:0}
+.snel-kop .mini-shirt{width:38px;height:38px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:18px;flex-shrink:0}
 .snel-kop .nm{font-weight:700;font-size:17px}
 .snel-kop .pos{font-size:12px;color:var(--ink-2)}
 
@@ -1258,7 +1264,7 @@ body{ background:var(--bg); color:var(--ink); }
 
 /* TIPS balken */
 .tips-rij{display:flex;align-items:center;gap:10px;margin-bottom:11px}
-.tips-letter{width:32px;height:30px;border-radius:8px;background:var(--surface-2);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:13px;letter-spacing:.5px;flex-shrink:0}
+.tips-letter{width:32px;height:30px;border-radius:8px;background:var(--surface-2);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:13px;letter-spacing:.5px;flex-shrink:0}
 .tips-naam{font-size:12px;font-weight:600;width:84px;flex-shrink:0}
 .tips-track{flex:1;height:10px;background:var(--surface-2);border-radius:6px;overflow:hidden;display:flex;gap:2px}
 .tips-seg{flex:1;border-radius:2px}
@@ -1589,12 +1595,12 @@ body::before{
 .ob-b-emoji{ font-size:22px; line-height:1; flex-shrink:0; }
 .ob-b-titel{ font-family:'Barlow Condensed',sans-serif; font-weight:700;
   font-size:20px; letter-spacing:.3px; text-transform:uppercase;
-  color:#ffffff; line-height:1.05; flex:1; }
+  color:var(--ink); line-height:1.05; flex:1; }
 .ob-b-stap{ font-size:11px; font-weight:700;
   background:rgba(245,177,61,.14);
   border:1px solid rgba(245,177,61,.35);
   color:#f5b13d; padding:2px 8px; border-radius:99px; flex-shrink:0; }
-.ob-b-tekst{ font-size:14.5px; line-height:1.6; color:#f2f5f9; }
+.ob-b-tekst{ font-size:14.5px; line-height:1.6; color:var(--ink); }
 .ob-b-tekst b{ color:var(--ink); }
 .ob-b-tekst .ob-kbd{ display:inline-block; padding:1px 7px; border-radius:6px;
   background:var(--surface-2, #1f262f); border:1px solid var(--line-d);
@@ -1602,7 +1608,7 @@ body::before{
 .ob-b-opdr{ margin-top:10px; padding:9px 11px; border-radius:11px;
   background:color-mix(in srgb, var(--accent) 18%, var(--surface-2, #1f262f));
   border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  font-size:13.5px; font-weight:600; color:#ffffff; display:flex;
+  font-size:13.5px; font-weight:600; color:var(--ink); display:flex;
   align-items:center; gap:8px; }
 .ob-b-opdr .ob-pijltje{ color:var(--accent); font-size:15px; }
 
@@ -1829,8 +1835,8 @@ body::before{
 .cb-msg{ max-width:86%; padding:10px 13px; border-radius:14px; font-size:14px;
   line-height:1.55; }
 .cb-msg.bot{ align-self:flex-start; background:var(--surface-2, #1f262f);
-  color:#f2f5f9; border-bottom-left-radius:4px; }
-.cb-msg.bot b{ color:#fff; }
+  color:var(--ink); border-bottom-left-radius:4px; }
+.cb-msg.bot b{ color:var(--ink); }
 .cb-msg.ik{ align-self:flex-end; background:var(--accent); color:#fff;
   border-bottom-right-radius:4px; }
 
@@ -2082,7 +2088,7 @@ body::before{
 .te-samenvatting{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line-d);
   border-radius:12px;padding:11px 13px;margin:8px 0 2px}
 .te-ring{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  font-family:'Barlow Condensed';font-weight:700;font-size:15px;color:#fff;background:var(--surface-2)}
+  font-family:'Barlow Condensed';font-weight:700;font-size:15px;color:var(--ink);background:var(--surface-2)}
 .te-sam-tekst{flex:1;font-size:12.5px;color:var(--ink-2);line-height:1.4}
 .te-sam-tekst b{color:var(--ink);font-weight:700}
 
@@ -2152,7 +2158,7 @@ body::before{
   box-shadow:none !important; border-radius:var(--r-m) !important;
   transition:border-color .18s ease !important;
 }
-.lijst-item:hover{ border-color:rgba(255,255,255,.18) !important; }
+.lijst-item:hover{ border-color:var(--hover-rand) !important; }
 .li-tekst .titel{ color:var(--ink); }
 .li-tekst .meta{ color:var(--ink-2) !important; font-weight:400; }
 .pijl{
@@ -2214,14 +2220,14 @@ body::before{
   box-shadow:none !important; border-radius:var(--r-s) !important;
   transition:border-color .18s ease !important;
 }
-.maand-kop:hover{ border-color:rgba(255,255,255,.16) !important; }
+.maand-kop:hover{ border-color:var(--hover-rand) !important; }
 /* training-rijen (oefenstof PDF's): schaduw → border */
 .training-rij{
   background:var(--surface) !important; border:1px solid var(--hair) !important;
   box-shadow:none !important; border-radius:var(--r-s) !important;
   transition:border-color .18s ease !important;
 }
-.training-rij:hover{ border-color:rgba(255,255,255,.18) !important; }
+.training-rij:hover{ border-color:var(--hover-rand) !important; }
 .training-rij.ongelezen{ border-color:rgba(226,52,47,.45) !important; }
 .training-rij .t-titel{ color:var(--ink); font-weight:600; }
 .training-rij .t-meta{ color:var(--ink-2) !important; }
@@ -2232,7 +2238,7 @@ body::before{
   box-shadow:none !important; border-radius:var(--r-s) !important;
   transition:border-color .18s ease !important;
 }
-.video-rij:hover{ border-color:rgba(255,255,255,.18) !important; }
+.video-rij:hover{ border-color:var(--hover-rand) !important; }
 .video-rij .v-titel{ color:var(--ink); font-weight:600; }
 .video-rij .v-meta{ color:var(--ink-2) !important; }
 .video-rij .acties button{ background:transparent !important; border:1px solid var(--hair); color:var(--ink-2) !important; border-radius:var(--r-s); }
