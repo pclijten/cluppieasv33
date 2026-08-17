@@ -20,7 +20,7 @@ import {
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260817a';
 import { ico } from './icons.js?v=20260816a';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260817a';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260817f';
 import { telGebruik } from './tracker.js?v=20260816a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260816a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260817d');
+  const m = await import('./teams.js?v=20260817f');
   m.renderTeam();
 }
 
@@ -76,20 +76,20 @@ export function htmlSpelers(){
       const actief = (S.uitleningenIn||[]).filter(u => u.van <= nu && nu <= u.tot);
       if (!actief.length) return '';
       return `
-        <div class="sectie-kop" style="margin:18px 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2)">⇄ Geleend (tijdelijk)</div>
+        <div class="sectie-kop" style="margin:18px 0 10px;font-size:calc(12px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2)">⇄ Geleend (tijdelijk)</div>
         ${actief.map(u => {
           const s = u.snapshot || {};
           const nm = s.voorletter ? `${s.naam} ${s.voorletter}.` : (s.naam||'Speler');
           return `
           <button class="speler-rij" data-open-leen="${u.id}">
             <div class="mini-shirt" style="background:var(--ink-2)">${esc(s.nummer ?? '·')}</div>
-            <div class="n">${esc(nm)}<div style="font-size:11px;color:var(--ink-2);font-weight:400">van ${esc(u.vanTeamNaam||'ander team')} · t/m ${datumNL(u.tot)}</div></div>
+            <div class="n">${esc(nm)}<div style="font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400">van ${esc(u.vanTeamNaam||'ander team')} · t/m ${datumNL(u.tot)}</div></div>
             <span class="pijl">›</span>
           </button>`;
         }).join('')}`;
     })()}
 
-    <p style="font-size:12px;color:var(--ink-2);margin-top:12px;line-height:1.5">
+    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">
       Het gekleurde stipje toont de laatste snelle beoordeling. Tik op een speler voor het volledige profiel met statistieken, leerlijn en historie.</p>`;
 }
 
@@ -201,10 +201,10 @@ export function htmlLeenProfiel(){
           ${tipsBalk(sc[d.id] || 0)}
           <div class="tips-score">${sc[d.id] || '—'}</div>
         </div>`).join('')
-      : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">De uitlenende coach heeft (nog) geen volledige beoordeling gedeeld.</p>`}
+      : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">De uitlenende coach heeft (nog) geen volledige beoordeling gedeeld.</p>`}
     </div>
 
-    <p style="font-size:12px;color:var(--ink-2);margin-top:12px;line-height:1.5">
+    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">
       Deze gegevens zijn een momentopname van het moment van uitlenen, gedeeld door ${esc(u.vanTeamNaam||'het andere team')}.</p>`;
 }
 
@@ -320,7 +320,7 @@ export function htmlProfiel(){
             ${tipsBalk(vol.scores?.[d.id] || 0)}
             <div class="tips-score">${vol.scores?.[d.id] || '—'}</div>
           </div>`).join('')
-        : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen volledige beoordeling. Maak er één om het ontwikkelprofiel te zien.</p>`}
+        : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen volledige beoordeling. Maak er één om het ontwikkelprofiel te zien.</p>`}
       </div>
 
       <div class="fab-rij">
@@ -341,7 +341,7 @@ export function htmlProfiel(){
       ${evalAan ? `<div class="kaart">
         <div class="veldlabel" style="margin-top:0">Tijdlijn</div>
         ${eigen.length ? eigen.map(b => htmlTijdlijnItem(b)).join('')
-          : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen beoordelingen vastgelegd.</p>`}
+          : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen beoordelingen vastgelegd.</p>`}
       </div>` : ''}
       <div class="kaart">
         <div class="veldlabel" style="margin-top:0">Wedstrijden</div>
@@ -349,7 +349,7 @@ export function htmlProfiel(){
           const weds = (S.wedstrijden||[])
             .filter(w => (w.selectie||[]).includes(p.id))
             .sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
-          if (!weds.length) return `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen wedstrijden.</p>`;
+          if (!weds.length) return `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen wedstrijden.</p>`;
           return weds.map(w => {
             const info = wisselInfoVoorSpeler(w, p.id);
             const teg = w.tegenstander || (isToernooi(w) ? 'Toernooi' : 'Wedstrijd');
@@ -374,7 +374,7 @@ export function htmlProfiel(){
             : info ? `${info.emoji} ${info.label}${info.notitie ? ' · '+esc(info.notitie) : ''}`
             : '❔ Zonder reden';
           return `<div class="presentie-hist-rij"><span>${datumNL(ses.datum)}</span><span class="phr-status ${afw?'afw':'aanw'}">${statusTxt}</span></div>`;
-        }).join('') : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd.</p>`}
+        }).join('') : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd.</p>`}
       </div>` : ''}`;
 }
 
@@ -393,15 +393,15 @@ function htmlLeerlijn(p){
             <div class="lp-domein">${d ? esc(d.naam) : 'Algemeen'}</div>
             <div class="t">${esc(l.tekst)}</div>
             <div class="d">${l.klaar ? 'Afgerond op '+datumNL(l.klaarOp||l.sinds)+' 🎉' : 'Sinds '+datumNL(l.sinds)}</div>
-            ${thema ? `<div style="font-size:11px;color:var(--accent);font-weight:700;margin-top:3px;cursor:pointer" data-thema-info="${esc(thema.thema)}">ℹ️ Achtergrond &amp; tips bekijken</div>` : ''}
+            ${thema ? `<div style="font-size:calc(11px * var(--fs));color:var(--accent);font-weight:700;margin-top:3px;cursor:pointer" data-thema-info="${esc(thema.thema)}">ℹ️ Achtergrond &amp; tips bekijken</div>` : ''}
           </div>
           <button class="lp-weg" data-lp-weg="${l.id}" title="Verwijderen">🗑</button>
         </div>`;
       }).join('')
-      : `<p style="font-size:13px;color:var(--ink-2);padding:6px 0 10px">Nog geen leerpunten. Voeg een concreet, observeerbaar ontwikkeldoel toe.</p>`}
+      : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0 10px">Nog geen leerpunten. Voeg een concreet, observeerbaar ontwikkeldoel toe.</p>`}
       <button class="knop licht klein" style="width:100%;margin-top:6px" data-lp-nieuw="${p.id}">+ Leerpunt toevoegen</button>
     </div>
-    <p style="font-size:12px;color:var(--ink-2);line-height:1.5">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>`;
+    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>`;
 }
 
 function htmlTijdlijnItem(b){
@@ -465,7 +465,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     return lijst.length
       ? `<select class="invoer" id="mSnBron">${lijst.map(o =>
           `<option value="${o.id}" ${o.id===bronId?'selected':''}>${esc(o.label)} · ${datumNL(o.datum)}</option>`).join('')}</select>`
-      : `<p style="font-size:12.5px;color:var(--ink-2);padding:4px 0">Geen ${bronType==='wedstrijd'?'wedstrijden':'trainingen'} gevonden — kies "Los".</p>`;
+      : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);padding:4px 0">Geen ${bronType==='wedstrijd'?'wedstrijden':'trainingen'} gevonden — kies "Los".</p>`;
   };
 
   const kleurbalk = () => `<div class="kleurbalk" id="mSnNiveau">${NIVEAUS.slice(1).map(n =>
@@ -605,7 +605,7 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   const domeinKaart = (d) => `
     <div class="kaart">
       <div class="veldlabel" style="margin-top:0">${d.id} · ${d.naam}</div>
-      <p style="font-size:11.5px;color:var(--ink-2);margin:-2px 0 4px">${esc(d.omschrijving)}</p>
+      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin:-2px 0 4px">${esc(d.omschrijving)}</p>
       <div class="kleurbalk dom" data-dom="${d.id}">${NIVEAUS.slice(1).map(n =>
         `<button data-niv="${n.n}" class="kn${n.n} ${scores[d.id]===n.n?'gekozen':''}"><span class="lbl">${n.kort}</span></button>`).join('')}</div>
       <textarea class="invoer" data-not="${d.id}" rows="2" placeholder="Toelichting ${d.naam.toLowerCase()}...">${esc(notities[d.id]||'')}</textarea>
@@ -613,13 +613,13 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
 
   openModal(`
     <h2>Volledige beoordeling</h2>
-    <p style="font-size:13px;color:var(--ink-2);margin-bottom:10px">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</p>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</p>
     <div class="veldgroep"><label>Moment</label>
       <input class="invoer" id="mVbMoment" value="${esc(moment)}" placeholder="Bijv. Kwartaalmeting Q3"></div>
     ${SKILLS.map(domeinKaart).join('')}
     <button class="knop vol fluo" id="mVbOk" style="margin-top:6px">${bestaande?'Bijwerken':'Beoordeling opslaan'}</button>
     ${bestaande?`<button class="knop vol gevaar" id="mVbWeg" style="margin-top:8px">Verwijderen</button>`:''}
-    <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler — die lopen door over meerdere beoordelingen.</p>`);
+    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler — die lopen door over meerdere beoordelingen.</p>`);
 
   $$('.kleurbalk.dom').forEach(balk => {
     const dom = balk.dataset.dom;
@@ -664,22 +664,22 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
 
   openModal(`
     <h2>Leerpunt toevoegen</h2>
-    <p style="font-size:13px;color:var(--ink-2);margin-bottom:10px">Formuleer een concreet, observeerbaar doel voor ${esc(p.naam)}. Kies een thema uit de leerlijn of schrijf je eigen leerpunt.</p>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">Formuleer een concreet, observeerbaar doel voor ${esc(p.naam)}. Kies een thema uit de leerlijn of schrijf je eigen leerpunt.</p>
 
     <div class="veldlabel">Uit de leerlijn${cat?` · ${esc(cat)}`:''}</div>
     <div class="leercurve-keuze" id="mLpCurve">
       ${themas.map(t => {
         const d = skillDomein(t.domein);
         return `<button class="lc-thema ${t.rel?'rel':''}" data-thema="${esc(t.thema)}" data-dom="${t.domein}" title="${esc(d?.naam||'')}${t.rel?'':' · vanaf O'+t.vanaf}">
-          <span class="lc-dot" style="background:${t.rel?'var(--n5)':'var(--line-d)'}"></span>${esc(t.thema)}<span data-thema-info="${esc(t.thema)}" title="Achtergrond en tips" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.15);font-size:10px;font-weight:700;margin-left:1px">ℹ</span></button>`;
+          <span class="lc-dot" style="background:${t.rel?'var(--n5)':'var(--line-d)'}"></span>${esc(t.thema)}<span data-thema-info="${esc(t.thema)}" title="Achtergrond en tips" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.15);font-size:calc(10px * var(--fs));font-weight:700;margin-left:1px">ℹ</span></button>`;
       }).join('')}
     </div>
-    <p style="font-size:11px;color:var(--ink-2);margin:2px 0 12px">🟢 = hoort bij deze leeftijd volgens het jeugdbeleidsplan. Tik ℹ voor achtergrond en oefentips.</p>
+    <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin:2px 0 12px">🟢 = hoort bij deze leeftijd volgens het jeugdbeleidsplan. Tik ℹ voor achtergrond en oefentips.</p>
 
     <div class="veldlabel">Domein</div>
     <div class="dom-kiezer" id="mLpDom">${SKILLS.map(d =>
       `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}"><span class="dk-emoji">${d.ico?ico(d.ico,18):(d.emoji||'')}</span>${esc(d.kort||d.naam)}</button>`).join('')}</div>
-    <p style="font-size:11px;color:var(--ink-2);line-height:1.5;margin:6px 0 12px">Techniek · Tactiek · Fysiek · Mentaal · Gedrag &amp; beleving — de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
+    <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);line-height:1.5;margin:6px 0 12px">Techniek · Tactiek · Fysiek · Mentaal · Gedrag &amp; beleving — de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
 
     <div class="veldgroep"><label>Leerpunt</label>
       <textarea class="invoer" id="mLpTekst" rows="3" placeholder="Bijv. eerder het hoofd omhoog vóór de aanname">${esc(voorlopigeTekst)}</textarea></div>

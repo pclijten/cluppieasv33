@@ -115,14 +115,14 @@ function htmlThemaInfoBlad(t, metTerug){
   return `
     ${metTerug ? `<button class="knop licht vol" id="mThemaTerug" style="margin-bottom:14px">← Terug naar leerpunt</button>` : ''}
     <h2>${esc(t.thema)}</h2>
-    <p style="font-size:11.5px;color:var(--ink-2);margin-bottom:14px">Leercurve-thema · vanaf <b>O${t.vanaf}</b> · domein <b>${esc(d?.naam || t.domein)}</b></p>
+    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Leercurve-thema · vanaf <b>O${t.vanaf}</b> · domein <b>${esc(d?.naam || t.domein)}</b></p>
     <div class="sectie-kop" style="margin-top:0">Achtergrond</div>
-    <p style="font-size:13.5px;line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst — voeg toe via het contentbeheer-tabblad.</i>'}</p>
+    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst — voeg toe via het contentbeheer-tabblad.</i>'}</p>
     <div class="sectie-kop">Tips om dit te verbeteren</div>
     ${(t.tips||[]).map((tip,i) => `
       <div style="display:flex;gap:10px;padding:9px 0;${i===0?'border-top:none':'border-top:1px solid var(--line-d)'}">
-        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
-        <div style="font-size:13px;line-height:1.5">${esc(tip)}</div>
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:calc(11px * var(--fs));font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
+        <div style="font-size:calc(13px * var(--fs));line-height:1.5">${esc(tip)}</div>
       </div>`).join('')}
     <div class="badge" style="margin-top:14px">Jeugdbeleidsplan §3.1 · §3.2 · §3.3</div>`;
 }
@@ -130,15 +130,15 @@ function htmlKompasInfoBlad(t){
   const bron = (t.tags||[])[0] || '';
   return `
     <h2>Achtergrond</h2>
-    <p style="font-size:11.5px;color:var(--ink-2);margin-bottom:6px">ASV-kompas · ${esc(bron)}</p>
-    <p style="font-size:13.5px;line-height:1.6;font-style:italic;margin-bottom:14px">"${esc(t.titel)}"</p>
+    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-bottom:6px">ASV-kompas · ${esc(bron)}</p>
+    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6;font-style:italic;margin-bottom:14px">"${esc(t.titel)}"</p>
     <div class="sectie-kop" style="margin-top:0">Waarom dit werkt</div>
-    <p style="font-size:13.5px;line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst.</i>'}</p>
+    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst.</i>'}</p>
     <div class="sectie-kop">Concreet</div>
     ${(t.tips||[]).map((tip,i) => `
       <div style="display:flex;gap:10px;padding:9px 0;${i===0?'border-top:none':'border-top:1px solid var(--line-d)'}">
-        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
-        <div style="font-size:13px;line-height:1.5">${esc(tip)}</div>
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:calc(11px * var(--fs));font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
+        <div style="font-size:calc(13px * var(--fs));line-height:1.5">${esc(tip)}</div>
       </div>`).join('')}
     <div class="badge" style="margin-top:14px">Jeugdbeleidsplan ${esc(bron)}</div>`;
 }

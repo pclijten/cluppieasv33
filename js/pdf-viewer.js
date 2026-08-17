@@ -156,7 +156,7 @@ export async function openPdfViewer({ url, titel, meta }){
       };
     }
   } catch (err){
-    stage.innerHTML = `<div class="pdfv-laad">⚠️ Kon de PDF niet laden.<br><span style="font-size:11.5px;opacity:.7">Open 'm evt. rechtstreeks via de link.</span></div>`;
+    stage.innerHTML = `<div class="pdfv-laad">⚠️ Kon de PDF niet laden.<br><span style="font-size:calc(11.5px * var(--fs));opacity:.7">Open 'm evt. rechtstreeks via de link.</span></div>`;
     meld('PDF laden mislukt');
     console.error('PDF-viewer fout:', err);
   }

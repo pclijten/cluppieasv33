@@ -16,7 +16,7 @@ import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260817a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260817a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260817f';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
@@ -149,7 +149,7 @@ export function htmlTeamTrainingen(){
   const presentieSectie = `
     <div class="sectie-kop" style="margin-top:0">${ico('admin-protocol',15)} Presentie training</div>
     ${alGeregistreerd
-      ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:13px;margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
+      ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
       : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:12px">Wie is er vandaag?</button>`}
     ${presentieLijst}`;
 
@@ -229,7 +229,7 @@ export function htmlTeamVideos(){
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
       ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:8px;font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
+      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
     return `
     <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
       <div class="thumb">${thumbInner}</div>
@@ -253,7 +253,7 @@ export function htmlInstellingen(){
         <div class="lid-naam">${esc(naam)}${jij?'<span class="jij">(jij)</span>':''}</div>
         ${jij ? '' : `<button class="lid-weg" data-lid-weg="${uid}" data-lid-naam="${esc(naam)}" title="Coach verwijderen">🗑</button>`}
       </div>`;
-  }).join('') : '<p style="font-size:14px">—</p>';
+  }).join('') : '<p style="font-size:calc(14px * var(--fs))">—</p>';
 
   return `
     <div class="kaart">
@@ -262,13 +262,13 @@ export function htmlInstellingen(){
       <label class="lid-rij" style="cursor:pointer;margin-bottom:10px">
         <input type="checkbox" id="iCodeVolgtNaam" checked style="width:19px;height:19px;accent-color:var(--grass)">
         <div class="lid-naam" style="font-weight:500">Code aanpassen aan de nieuwe naam
-          <span style="display:block;font-size:11.5px;color:var(--ink-2);font-weight:400">Bijv. ASVJO10-2 — let op: oude uitnodigingslinks werken dan niet meer</span></div>
+          <span style="display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);font-weight:400">Bijv. ASVJO10-2 — let op: oude uitnodigingslinks werken dan niet meer</span></div>
       </label>
       <button class="knop vol" id="iNaamOk">Naam opslaan</button>
     </div>
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Teamcode voor coaches</div>
-      <p style="font-size:13.5px;color:var(--ink-2)">Deel deze code of een uitnodigingslink met collega-coaches. Zij loggen in met e-mail of Google en zitten direct in dit team.</p>
+      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2)">Deel deze code of een uitnodigingslink met collega-coaches. Zij loggen in met e-mail of Google en zitten direct in dit team.</p>
       <div class="teamcode">${esc(S.team.code)}</div>
       <div class="rij">
         <button class="knop licht vol" id="deelCode">Code kopiëren</button>
@@ -278,7 +278,7 @@ export function htmlInstellingen(){
     </div>
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Coaches (${ledenIds.length})</div>
-      <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Staat er iemand dubbel of verkeerd in de lijst? Verwijder die met 🗑.</p>
+      <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Staat er iemand dubbel of verkeerd in de lijst? Verwijder die met 🗑.</p>
       ${ledenHtml}
       <button class="knop licht vol" id="wijzigMijnNaam" style="margin-top:10px">✏️ Mijn weergavenaam wijzigen</button>
     </div>
@@ -289,7 +289,7 @@ export function htmlInstellingen(){
         <optgroup label="Jongens">${Object.keys(CATEGORIEEN).map(c => `<option value="${c}" ${S.team.categorie===c?'selected':''}>${c}</option>`).join('')}</optgroup>
         <optgroup label="Meiden">${Object.keys(CATEGORIEEN_MEIDEN).map(c => `<option value="${c}" ${S.team.categorie===c?'selected':''}>${c}</option>`).join('')}</optgroup>
       </select>
-      <p style="font-size:12.5px;color:var(--ink-2)" id="iCatInfo">${S.team.categorie && catInfo(S.team.categorie)
+      <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)" id="iCatInfo">${S.team.categorie && catInfo(S.team.categorie)
         ? 'KNVB: ' + esc(catInfo(S.team.categorie).knvb) + '. Nieuwe wedstrijden krijgen automatisch de juiste speeltijd en periodes.'
         : 'Kies de categorie zodat nieuwe wedstrijden automatisch de juiste KNVB-speeltijd en het juiste aantal helften/kwarten krijgen.'}</p>
 
@@ -297,14 +297,14 @@ export function htmlInstellingen(){
       <div class="vxv-opties" id="iWedstrijdvorm">
         ${['6','8','9','11'].map(f => `<button class="vxv-opt ${String(S.team.format)===f?'aan':''}" data-vorm="${f}">${f} tegen ${f}</button>`).join('')}
       </div>
-      <p class="hint" style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
+      <p class="hint" style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
     ${(() => {
       const magThema = coachMagKiezen();          // thema alleen bij coachKiest
       const v = eigenVoorkeur();
       const g = huidigeLettergrootte();
       const themaBlok = magThema ? `
-        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
+        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
         <div class="segment" id="themaKeuze" style="margin-bottom:16px">
           <button data-thema-kies="donker" class="${v==='donker'?'actief':''}">Donker</button>
           <button data-thema-kies="licht" class="${v==='licht'?'actief':''}">Licht</button>
@@ -313,7 +313,7 @@ export function htmlInstellingen(){
       <div class="kaart">
         <div class="sectie-kop" style="margin-top:0">Weergave</div>
         ${themaBlok}
-        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Lettergrootte op dit toestel. Handig als je langs de lijn snel iets wilt lezen.</p>
+        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Lettergrootte op dit toestel. Handig als je langs de lijn snel iets wilt lezen.</p>
         <div class="segment" id="grootteKeuze">
           <button data-grootte="0.9" class="${g==='0.9'?'actief':''}">Klein</button>
           <button data-grootte="1" class="${g==='1'?'actief':''}">Normaal</button>
@@ -329,11 +329,11 @@ export function htmlInstellingen(){
 export function modalWijzigCode(){
   openModal(`
     <h2>Teamcode wijzigen</h2>
-    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:6px">De code is wat coaches invullen om aan te sluiten. Houd 'm herkenbaar (bijv. <b>ASVJO11-1</b>) of juist moeilijk te raden.</p>
-    <p style="font-size:12px;color:var(--ink-2);margin-bottom:12px">Let op: bestaande uitnodigingslinks met de oude code werken daarna niet meer.</p>
+    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:6px">De code is wat coaches invullen om aan te sluiten. Houd 'm herkenbaar (bijv. <b>ASVJO11-1</b>) of juist moeilijk te raden.</p>
+    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:12px">Let op: bestaande uitnodigingslinks met de oude code werken daarna niet meer.</p>
     <div class="veldgroep"><label>Nieuwe code</label>
       <input class="invoer" id="mWcCode" value="${esc(S.team.code)}" maxlength="20"
-        style="text-transform:uppercase;font-family:'Barlow Condensed';font-size:20px;letter-spacing:1px"></div>
+        style="text-transform:uppercase;font-family:'Barlow Condensed';font-size:calc(20px * var(--fs));letter-spacing:1px"></div>
     <button class="knop vol" id="mWcOk">Code opslaan</button>`);
   $('#mWcOk').onclick = async () => {
     const nieuw = $('#mWcCode').value.trim().toUpperCase().replace(/[^A-Z0-9-]+/g,'');
@@ -362,7 +362,7 @@ export function modalMijnNaam(){
   const aantalTeams = S.teams.length;
   openModal(`
     <h2>Mijn weergavenaam</h2>
-    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Zo verschijn je in de coachlijst. ${aantalTeams > 1 ? `De naam wordt aangepast in al je <b>${aantalTeams}</b> teams.` : ''}</p>
+    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Zo verschijn je in de coachlijst. ${aantalTeams > 1 ? `De naam wordt aangepast in al je <b>${aantalTeams}</b> teams.` : ''}</p>
     <div class="veldgroep"><label>Je naam</label>
       <input class="invoer" id="mMnNaam" value="${esc(huidige)}" placeholder="Bijv. Paul Lijten" autocomplete="name"></div>
     <button class="knop vol" id="mMnOk">Opslaan</button>`);
@@ -438,9 +438,9 @@ export function modalPresentie(bestaande = null){
       </div>
       <input class="invoer" type="date" id="mPresDatumInput" value="${datum}" style="display:none;margin-top:8px">
     </div>` : ''}
-    <p style="font-size:13px;color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
-    <p style="font-size:12px;color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
-    <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is.</p>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
+    <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is.</p>
     <div class="pres-lijst" id="mPresLijst">${rijenHtml()}</div>
     <div class="rij" style="margin-top:14px">
       ${bestaande ? '<button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button>' : ''}
@@ -543,7 +543,7 @@ export function modalEigenDag(){
   const vandaag = new Date().toISOString().slice(0,10);
   openModal(`
     <h2>Eigen dag toevoegen</h2>
-    <p style="font-size:13.5px;color:var(--ink-2);margin-bottom:12px">Voeg een eigen datum toe aan de planning — bijvoorbeeld een toernooi, teamuitje of trainingskamp.</p>
+    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Voeg een eigen datum toe aan de planning — bijvoorbeeld een toernooi, teamuitje of trainingskamp.</p>
     <div class="veldgroep"><label>Datum</label>
       <input class="invoer" id="mEdDatum" type="date" value="${vandaag}"></div>
     <div class="veldgroep"><label>Omschrijving</label>
@@ -576,7 +576,7 @@ export function modalPlanDag(it){
   const typeOpties = [['wd','Wedstrijddag'],['beker','Beker'],['inhaal','Inhaal'],['vrij','Vrij'],['eigen','Eigen dag']];
   openModal(`
     <h2>${datumNL(it.datum)}</h2>
-    <p style="font-size:13px;color:var(--ink-2);margin-bottom:12px">${isEigen ? 'Eigen dag bewerken of verwijderen.' : 'KNVB-speeldag aanpassen of verbergen voor dit team. De originele kalender blijft bewaard.'}</p>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">${isEigen ? 'Eigen dag bewerken of verwijderen.' : 'KNVB-speeldag aanpassen of verbergen voor dit team. De originele kalender blijft bewaard.'}</p>
     <div class="veldgroep"><label>Type</label>
       <select class="invoer" id="mPdType">${typeOpties.map(([v,l]) => `<option value="${v}" ${it.type===v?'selected':''}>${l}</option>`).join('')}</select></div>
     <div class="veldgroep"><label>Omschrijving</label>

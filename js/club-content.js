@@ -27,7 +27,7 @@ export function htmlClubContent(lijst){
   const groepen = ['leercurve', 'kompas', 'gouden-regel'];
   return `
     <div class="kaart" style="margin-bottom:14px">
-      <p style="font-size:13px;color:var(--ink-2);line-height:1.5;margin-bottom:10px">
+      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:10px">
         Teksten uit het jeugdbeleidsplan — leerlijn-uitleg, ASV-kompas-tips en gouden
         regels. Wijzigingen zijn direct zichtbaar voor alle coaches, zonder dat er
         iets geüpload hoeft te worden. Status <b>concept</b> houdt een tekst verborgen
@@ -45,8 +45,8 @@ export function htmlClubContent(lijst){
           ${items.map(c => `
             <div class="lijst-item" data-content-open="${c.id}" style="cursor:pointer">
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600;font-size:13.5px">${esc(c.titel || '(geen titel)')}</div>
-                <div style="font-size:11.5px;color:var(--ink-2)">
+                <div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(c.titel || '(geen titel)')}</div>
+                <div style="font-size:calc(11.5px * var(--fs));color:var(--ink-2)">
                   #${c.volgorde ?? '·'} · ${c.status === 'gepubliceerd' ? '✅ gepubliceerd' : '📝 concept'}
                   ${(c.tags||[]).length ? ' · ' + c.tags.map(esc).join(', ') : ''}
                 </div>

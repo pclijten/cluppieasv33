@@ -12,7 +12,7 @@ import {
 import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260817a';
 import { ico } from './icons.js?v=20260816a';
 
-import { htmlStats } from './wedstrijd.js?v=20260817d';
+import { htmlStats } from './wedstrijd.js?v=20260817f';
 import { telGebruik } from './tracker.js?v=20260816a';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
@@ -65,7 +65,7 @@ export function modalTeamEvaluatie(wedstrijdId){
 
     <button class="knop vol fluo" id="mTeOk" style="margin-top:12px">${bestaande?'Bijwerken':'Opslaan'}</button>
     ${bestaande?`<button class="knop vol gevaar" id="mTeWeg" style="margin-top:8px">Verwijderen</button>`:''}
-    <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.5">💡 Alleen ingevulde categorieën tellen mee in de groeicurve. Na een drukke wedstrijd hoef je niet alles in te vullen.</p>`);
+    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">💡 Alleen ingevulde categorieën tellen mee in de groeicurve. Na een drukke wedstrijd hoef je niet alles in te vullen.</p>`);
 
   const werkSamenvattingBij = () => {
     const ingevuld = Object.keys(scores).length;
@@ -241,15 +241,15 @@ function htmlTeamEvaluatieDashboard(){
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">📈 Groeicurve</div>
       <div style="margin:4px 0 2px">
-        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:30px">${gemLaatste.toFixed(1).replace('.',',')}</span><span style="font-size:13px;color:var(--ink-2)"> / 5</span>
-        <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px">Laatste wedstrijd (${esc(laatste.tegenstander)}, ${datumNL(laatste.datum)})${verschil!=null?` · <span style="color:${verschil>=0?'var(--ok)':'var(--warn)'};font-weight:700">${verschil>=0?'↑':'↓'} ${Math.abs(verschil).toFixed(1).replace('.',',')} t.o.v. vorige</span>`:''}</div>
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:30px">${gemLaatste.toFixed(1).replace('.',',')}</span><span style="font-size:calc(13px * var(--fs));color:var(--ink-2)"> / 5</span>
+        <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:8px">Laatste wedstrijd (${esc(laatste.tegenstander)}, ${datumNL(laatste.datum)})${verschil!=null?` · <span style="color:${verschil>=0?'var(--ok)':'var(--warn)'};font-weight:700">${verschil>=0?'↑':'↓'} ${Math.abs(verschil).toFixed(1).replace('.',',')} t.o.v. vorige</span>`:''}</div>
       </div>
       ${punten.length > 1 ? `
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px">
         <polyline points="${lijnPad}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="${laatstePunt.x}" cy="${laatstePunt.y}" r="4.5" fill="var(--accent)"/>
         <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--line-d)" stroke-width="1"/>
-      </svg>` : `<p style="font-size:12.5px;color:var(--ink-2)">Nog minstens 2 evaluaties nodig voor een lijn.</p>`}
+      </svg>` : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog minstens 2 evaluaties nodig voor een lijn.</p>`}
     </div>
 
     ${htmlTeamEvalHistorie(evals)}
@@ -258,12 +258,12 @@ function htmlTeamEvaluatieDashboard(){
       <div class="sectie-kop" style="margin-top:0">Categorieën · laatste ${Math.min(5,evals.length)} wedstrijden</div>
       ${catRijen.map(c => `
         <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--hair)">
-          <span style="flex:1;font-size:13px;font-weight:600">${esc(c.naam)}</span>
+          <span style="flex:1;font-size:calc(13px * var(--fs));font-weight:600">${esc(c.naam)}</span>
           <span style="width:80px;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;flex-shrink:0">
             <span style="display:block;height:100%;border-radius:4px;width:${c.nu?Math.round((c.nu/5)*100):0}%;background:${c.kleur}"></span>
           </span>
-          <span style="width:34px;text-align:right;font-family:'Barlow Condensed';font-weight:700;font-size:15px">${c.nu?c.nu.toFixed(1).replace('.',','):'—'}</span>
-          <span style="width:16px;text-align:center;font-size:12px;color:${c.trend==='↘'?'var(--warn)':'var(--ink-2)'}">${c.trend}</span>
+          <span style="width:34px;text-align:right;font-family:'Barlow Condensed';font-weight:700;font-size:calc(15px * var(--fs))">${c.nu?c.nu.toFixed(1).replace('.',','):'—'}</span>
+          <span style="width:16px;text-align:center;font-size:calc(12px * var(--fs));color:${c.trend==='↘'?'var(--warn)':'var(--ink-2)'}">${c.trend}</span>
         </div>`).join('')}
     </div>
 
@@ -272,26 +272,26 @@ function htmlTeamEvaluatieDashboard(){
       ${signalen.length ? signalen.map(s => `
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair)">
           <div style="width:9px;height:9px;border-radius:50%;background:var(--warn);flex-shrink:0;margin-top:5px"></div>
-          <div><div style="font-weight:600;font-size:13.5px">${esc(s.cat.naam)}</div>
-            <div style="font-size:12px;color:var(--ink-2);margin-top:1px">Laagst scorende onderdeel in ${s.n} van de laatste ${laatste4.length} wedstrijden.</div></div>
+          <div><div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(s.cat.naam)}</div>
+            <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px">Laagst scorende onderdeel in ${s.n} van de laatste ${laatste4.length} wedstrijden.</div></div>
         </div>`).join('') : ''}
       ${groeiers.length && groeiers[0].nu ? `
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;${signalen.length?'':''}">
           <div style="width:9px;height:9px;border-radius:50%;background:var(--ok);flex-shrink:0;margin-top:5px"></div>
-          <div><div style="font-weight:600;font-size:13.5px">${esc(groeiers[0].naam)}</div>
-            <div style="font-size:12px;color:var(--ink-2);margin-top:1px">Positieve trend de laatste wedstrijden.</div></div>
+          <div><div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(groeiers[0].naam)}</div>
+            <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px">Positieve trend de laatste wedstrijden.</div></div>
         </div>` : ''}
-      ${(!signalen.length && !groeiers.length) ? `<p style="font-size:12.5px;color:var(--ink-2)">Nog geen duidelijk patroon — na een paar evaluaties verschijnen hier terugkerende punten.</p>` : ''}
+      ${(!signalen.length && !groeiers.length) ? `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog geen duidelijk patroon — na een paar evaluaties verschijnen hier terugkerende punten.</p>` : ''}
     </div>
 
     ${adviesCat ? `
     <div class="kaart" ${adviesCat.leercurve?`data-thema-info="${esc(adviesCat.leercurve)}" style="background:linear-gradient(150deg,var(--accent),var(--grass-2));border:none;cursor:pointer"`:`style="background:linear-gradient(150deg,var(--accent),var(--grass-2));border:none"`}>
-      <div style="color:rgba(255,255,255,.85);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">💡 Voorgesteld trainingsthema</div>
-      <div style="color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:19px;text-transform:uppercase;margin-bottom:4px">${esc(adviesCat.leercurve || adviesCat.naam)}${adviesCat.leercurve?' <span style="font-size:14px;opacity:.85">›</span>':''}</div>
-      <div style="color:rgba(255,255,255,.9);font-size:12.5px;line-height:1.5">${adviesCat.leercurve
+      <div style="color:rgba(255,255,255,.85);font-size:calc(11px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">💡 Voorgesteld trainingsthema</div>
+      <div style="color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:calc(19px * var(--fs));text-transform:uppercase;margin-bottom:4px">${esc(adviesCat.leercurve || adviesCat.naam)}${adviesCat.leercurve?' <span style="font-size:calc(14px * var(--fs));opacity:.85">›</span>':''}</div>
+      <div style="color:rgba(255,255,255,.9);font-size:calc(12.5px * var(--fs));line-height:1.5">${adviesCat.leercurve
         ? `Leercurve-thema uit het jeugdbeleidsplan (§3.3) — sluit direct aan op "${esc(adviesCat.naam)}", het onderdeel dat nu aandacht vraagt.`
         : `"${esc(adviesCat.naam)}" vraagt nu de meeste aandacht — geen apart leercurve-thema, wel een mooi gespreksonderwerp voor de volgende training.`}</div>
-      ${adviesCat.leercurve?`<div style="color:rgba(255,255,255,.75);font-size:11px;margin-top:8px;font-weight:600">Tik voor achtergrond en oefentips →</div>`:''}
+      ${adviesCat.leercurve?`<div style="color:rgba(255,255,255,.75);font-size:calc(11px * var(--fs));margin-top:8px;font-weight:600">Tik voor achtergrond en oefentips →</div>`:''}
     </div>` : ''}`;
 }
 

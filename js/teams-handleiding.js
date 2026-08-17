@@ -313,7 +313,7 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
-    <p style="font-size:12.5px;color:var(--ink-2);text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--hair)">
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid var(--hair)">
       Vragen of ideeën? Geef ze door aan je hoofdcoach.<br>Veel succes langs de lijn! ⚽
     </p>
   </div>`;

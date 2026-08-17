@@ -181,7 +181,7 @@ function htmlClubEvalTeams(teamsData){
             <div class="sig-sub">Vaakst de zwakste categorie bij <b>${s.n} van de ${metData.length}</b> teams.</div>
             <div class="sig-teams">${s.teams.map(t=>`<span>${esc(t)}</span>`).join('')}</div>
           </div>
-        </div>`).join('') : `<p style="font-size:12.5px;color:var(--ink-2)">Geen duidelijk clubbreed patroon deze periode.</p>`}
+        </div>`).join('') : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Geen duidelijk clubbreed patroon deze periode.</p>`}
     </div>`;
 }
 
@@ -232,8 +232,8 @@ export function koppelClubEvaluaties(v, teamsData, herRender){
   v.querySelectorAll('[data-heatcel]').forEach(el => el.onclick = () => {
     openModal(`
       <h2>${esc(el.dataset.catnaam)}</h2>
-      <p style="font-size:13px;color:var(--ink-2);margin-bottom:14px">${esc(el.dataset.team)} · gemiddelde laatste ${esc(el.dataset.n)} wedstrijden</p>
-      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:38px;color:${kleurVoorGemiddelde(parseFloat(el.dataset.v))}">${parseFloat(el.dataset.v).toFixed(1).replace('.',',')}<span style="font-size:14px;color:var(--ink-2);font-weight:500"> / 5</span></div>`);
+      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px">${esc(el.dataset.team)} · gemiddelde laatste ${esc(el.dataset.n)} wedstrijden</p>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:38px;color:${kleurVoorGemiddelde(parseFloat(el.dataset.v))}">${parseFloat(el.dataset.v).toFixed(1).replace('.',',')}<span style="font-size:calc(14px * var(--fs));color:var(--ink-2);font-weight:500"> / 5</span></div>`);
   });
   v.querySelectorAll('[data-domeintoggle]').forEach(kop => kop.onclick = () => {
     const i = kop.dataset.domeintoggle;
