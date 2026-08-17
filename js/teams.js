@@ -844,8 +844,9 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
-  { datum:'2026-08-17', titel:'Kies je eigen weergave: licht of donker', punten:[
+  { datum:'2026-08-17', titel:'Kies je eigen weergave: licht/ donker of groot of klein lettertype', punten:[
       'De app heeft er een licht thema bij. Handig als je op een fel verlicht veld of in de zon op je scherm kijkt.',
+      'Heb je iets minder goede ogen? Dan pas je de lettertype aan'
       'Coaches stellen dit zelf in via Meer \u2192 Instellingen \u2192 Weergave. Je keuze wordt op je eigen toestel onthouden.',
       'Clubbeheerders kiezen onder Club \u2192 instellingen of coaches zelf mogen kiezen, of stellen \u00e9\u00e9n vaste weergave in voor de hele club.',
       'Het scorebord, de klok en de bank blijven altijd donker \u2014 witte cijfers op een donkere achtergrond lezen langs de lijn nu eenmaal het beste.',
