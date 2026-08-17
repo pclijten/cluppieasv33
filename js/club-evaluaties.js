@@ -5,7 +5,7 @@
    Losse module (i.p.v. in club.js) omdat de Excel-export een eigen lui geladen
    library (ExcelJS via CDN) nodig heeft die de rest van de app nooit gebruikt. */
 import { db, collection, getDocs, query, where } from './firebase.js?v=20260811a';
-import { S, esc, meld, openModal } from './state.js?v=20260816a';
+import { S, esc, meld, openModal } from './state.js?v=20260817h';
 import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20260817a';
 
 /* korte kolomkoppen voor de heatmap — TEAM_CATEGORIEEN.naam is te lang voor

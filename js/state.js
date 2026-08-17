@@ -103,10 +103,35 @@ export function clubAfkorting(clubnaam){
   return af.slice(0,6);
 }
 
-/* ---------- Modal ---------- */
-export function openModal(html){
-  $('#modalInhoud').innerHTML = '<div class="sluitbalk"></div>' + html;
-  $('#modalAchter').classList.add('open');
+/* ---------- Modal ----------
+   Twee vormen, gestuurd via opties.vorm:
+   - 'scherm' (default): full-screen overlay met vaste kopbalk (titel + kruisje).
+       De titel wordt uit de eerste <h2> van de html gehaald; die <h2> wordt
+       dan uit de body verwijderd zodat hij niet dubbel verschijnt. Zo hoeven
+       de ~61 bestaande aanroepen niet aangepast te worden.
+   - 'dialoog': compacte, gecentreerde dialoog voor korte ja/nee-bevestigingen.
+       Geen kopbalk/kruisje — de dialoog heeft z'n eigen knoppen. */
+export function openModal(html, opties){
+  const vorm = (opties && opties.vorm) || 'scherm';
+  const achter = $('#modalAchter');
+  const inhoud = $('#modalInhoud');
+  achter.setAttribute('data-vorm', vorm);
+
+  if (vorm === 'dialoog'){
+    inhoud.innerHTML = html;
+  } else {
+    // titel uit eerste <h2> lichten voor de vaste kopbalk
+    let titel = '';
+    const body = html.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/, (m, t) => { titel = t; return ''; });
+    const kruis = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg>';
+    inhoud.innerHTML =
+      '<div class="modal-kop"><h2>' + titel + '</h2>' +
+      '<button type="button" class="modal-sluit" id="modalSluitBtn" aria-label="Sluiten">' + kruis + '</button></div>' +
+      '<div class="modal-body">' + body + '</div>';
+    const btn = $('#modalSluitBtn');
+    if (btn) btn.onclick = () => sluitModal();
+  }
+  achter.classList.add('open');
   bewaakTerug();
 }
 export function sluitModal(){

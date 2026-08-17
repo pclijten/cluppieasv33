@@ -5,7 +5,7 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, teamCode, clubAfkorting, speler, isBeheerder,
   openModal, sluitModal, toon, stopUnsubs, bewaakTerug, modAan
-} from './state.js?v=20260816a';
+} from './state.js?v=20260817h';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
@@ -20,7 +20,7 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202608
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad
-} from './wedstrijd.js?v=20260817f';
+} from './wedstrijd.js?v=20260817h';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -32,7 +32,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260817f')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260817h')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -846,7 +846,7 @@ export function verlaatTeamView(){
 const UPDATES = [
   { datum:'2026-08-17', titel:'Kies je eigen weergave: licht/ donker of groot of klein lettertype', punten:[
       'De app heeft er een licht thema bij. Handig als je op een fel verlicht veld of in de zon op je scherm kijkt.',
-      'Heb je iets minder goede ogen? Dan pas je de lettertype aan'
+      'Heb je iets minder goede ogen? Dan pas je het lettertype aan.',
       'Coaches stellen dit zelf in via Meer \u2192 Instellingen \u2192 Weergave. Je keuze wordt op je eigen toestel onthouden.',
       'Clubbeheerders kiezen onder Club \u2192 instellingen of coaches zelf mogen kiezen, of stellen \u00e9\u00e9n vaste weergave in voor de hele club.',
       'Het scorebord, de klok en de bank blijven altijd donker \u2014 witte cijfers op een donkere achtergrond lezen langs de lijn nu eenmaal het beste.',

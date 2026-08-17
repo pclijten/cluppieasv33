@@ -10,7 +10,7 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan
-} from './state.js?v=20260816a';
+} from './state.js?v=20260817h';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260816a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260817f');
+  const m = await import('./teams.js?v=20260817h');
   m.renderTeam();
 }
 

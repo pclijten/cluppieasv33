@@ -8,11 +8,11 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260816a';
+} from './state.js?v=20260817h';
 import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260817a';
 import { ico } from './icons.js?v=20260816a';
 
-import { htmlStats } from './wedstrijd.js?v=20260817f';
+import { htmlStats } from './wedstrijd.js?v=20260817h';
 import { telGebruik } from './tracker.js?v=20260816a';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)

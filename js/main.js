@@ -1,10 +1,10 @@
 import { auth, onAuthStateChanged } from './firebase.js?v=20260811a';
-import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260816a';
+import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260817h';
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20260816a';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260817f';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260817f';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260817h';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260817h';
 import { initChatbot } from './chatbot.js?v=20260817d';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
