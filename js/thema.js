@@ -81,6 +81,34 @@ export function eigenVoorkeur(){
   return (e === 'donker' || e === 'licht') ? e : systeemThema();
 }
 
+/* ── Lettergrootte ──────────────────────────────────────────────────
+   Puur persoonlijk (geen clubdwang), per toestel. Eén schaalfactor --fs
+   op <html>; alle app-tekst hangt via calc(Npx * var(--fs)) hieraan.
+   Toegestane standen: 0.9 (klein) · 1 (normaal) · 1.15 (groot).
+   De pre-paint gate in index.html zet --fs al vóór paint; deze functies
+   wijzigen en onthouden de keuze. */
+const K_GROOTTE = 'cluppieLettergrootte';
+const GROOTTES = ['0.9', '1', '1.15'];
+
+/* huidige stand (voor de segmented control); default '1' */
+export function huidigeLettergrootte(){
+  const g = localStorage.getItem(K_GROOTTE);
+  return GROOTTES.includes(g) ? g : '1';
+}
+
+/* zet en onthoud de lettergrootte; past direct toe op <html> */
+export function zetLettergrootte(schaal){
+  const s = String(schaal);
+  if (!GROOTTES.includes(s)) return;
+  try { localStorage.setItem(K_GROOTTE, s); } catch(e){}
+  HTML.style.setProperty('--fs', s);
+}
+
+/* pas de opgeslagen lettergrootte toe (voor het geval de gate niet liep) */
+export function pasLettergrootteToe(){
+  HTML.style.setProperty('--fs', huidigeLettergrootte());
+}
+
 /* volg live systeemwissels zolang de coach nog niks koos en er geen dwang is */
 if (window.matchMedia){
   const mq = window.matchMedia('(prefers-color-scheme: light)');

@@ -51,7 +51,7 @@ import { htmlTeamDocumenten } from './teams-documenten.js?v=20260816a';
 import { htmlHandleiding } from './teams-handleiding.js?v=20260817d';
 import { koppelOnboardingHerstart } from './onboarding.js?v=20260817d';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260816a';
-import { zetClubModus, kiesEigenThema } from './thema.js?v=20260817d';
+import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260817e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
    importeren deze twee nog altijd via './teams.js' — ze wonen nu fysiek in
@@ -1638,6 +1638,11 @@ function koppelTeamTab(v, tab){
     v.querySelectorAll('#themaKeuze [data-thema-kies]').forEach(b => b.onclick = () => {
       kiesEigenThema(b.dataset.themaKies);
       v.querySelectorAll('#themaKeuze [data-thema-kies]').forEach(x =>
+        x.classList.toggle('actief', x === b));
+    });
+    v.querySelectorAll('#grootteKeuze [data-grootte]').forEach(b => b.onclick = () => {
+      zetLettergrootte(b.dataset.grootte);
+      v.querySelectorAll('#grootteKeuze [data-grootte]').forEach(x =>
         x.classList.toggle('actief', x === b));
     });
     v.querySelector('#verlaatTeam').onclick = async () => {

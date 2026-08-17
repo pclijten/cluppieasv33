@@ -23,6 +23,8 @@ import { ico } from './icons.js?v=20260816a';
    - tekst:     coach-uitleg, 1–3 zinnen */
 const RELEASES = [
   { maand: 'Augustus 2026', tag: 'Nieuwste', items: [
+    ['instel', 'Lettergrootte zelf instellen', 'DESIGN', true,
+      'Vind je de tekst te klein (of juist te groot)? Onder Meer \u2192 Instellingen \u2192 Weergave kies je nu zelf Klein, Normaal of Groot. De keuze geldt op je eigen toestel en wordt onthouden \u2014 handig als je langs de lijn snel iets wilt kunnen lezen.'],
     ['admin-edit', 'Overzichtelijker & sneller clubdashboard', 'DESIGN', true,
       'Het clubdashboard is opgeruimd: "Aandacht nodig" is nu inklapbaar met een teller, en de gebruiksstatistieken (app-gebruik, actiefste coaches, functiegebruik) zitten gebundeld onder rrn uitklapbare sectie onderaan. Zo blijft het overzicht bovenaan rustig. Daarnaast opent het dashboard merkbaar sneller, doordat het alleen nog de gegevens ophaalt die het betreffende tabblad echt nodig heeft.'],
      ['admin-edit', 'Nieuwe look & eigen iconen', 'DESIGN', true,

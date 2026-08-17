@@ -17,7 +17,7 @@ import {
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260817a';
 import { htmlKompas } from './teams-leerlijn.js?v=20260817a';
-import { coachMagKiezen, eigenVoorkeur } from './thema.js?v=20260817d';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -300,15 +300,24 @@ export function htmlInstellingen(){
       <p class="hint" style="font-size:12px;color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
     ${(() => {
-      if (!coachMagKiezen()) return '';   // clubdwang: geen keuze tonen
+      const magThema = coachMagKiezen();          // thema alleen bij coachKiest
       const v = eigenVoorkeur();
+      const g = huidigeLettergrootte();
+      const themaBlok = magThema ? `
+        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
+        <div class="segment" id="themaKeuze" style="margin-bottom:16px">
+          <button data-thema-kies="donker" class="${v==='donker'?'actief':''}">Donker</button>
+          <button data-thema-kies="licht" class="${v==='licht'?'actief':''}">Licht</button>
+        </div>` : '';
       return `
       <div class="kaart">
         <div class="sectie-kop" style="margin-top:0">Weergave</div>
-        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
-        <div class="segment" id="themaKeuze">
-          <button data-thema-kies="donker" class="${v==='donker'?'actief':''}">Donker</button>
-          <button data-thema-kies="licht" class="${v==='licht'?'actief':''}">Licht</button>
+        ${themaBlok}
+        <p style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Lettergrootte op dit toestel. Handig als je langs de lijn snel iets wilt lezen.</p>
+        <div class="segment" id="grootteKeuze">
+          <button data-grootte="0.9" class="${g==='0.9'?'actief':''}">Klein</button>
+          <button data-grootte="1" class="${g==='1'?'actief':''}">Normaal</button>
+          <button data-grootte="1.15" class="${g==='1.15'?'actief':''}">Groot</button>
         </div>
       </div>`;
     })()}
