@@ -32,7 +32,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260817h')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260817i')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -756,11 +756,15 @@ export function openTeam(teamId, beginTab = 'trainingen', opties = {}){
   // teams/{id}/poule/{stand,uitslagen}). Los van wedstrijden: dit is de aparte
   // "Stand & Poule"-tegel onder Meer, met óók de uitslagen van de andere teams.
   S.unsub.poule = onSnapshot(collection(db,'teams',teamId,'poule'), snap => {
-    S.pouleStand = null; S.pouleUitslagen = null;
+    S.pouleStand = null; S.pouleUitslagen = null; S.pouleProgramma = null;
     snap.docs.forEach(d => {
       if (d.id === 'stand') S.pouleStand = d.data();
       else if (d.id === 'uitslagen') S.pouleUitslagen = d.data();
+      else if (d.id === 'programma') S.pouleProgramma = d.data();
     });
+    // Nieuw team/poule geladen → speelronde-index resetten zodat htmlPoule
+    // opnieuw op de eerstvolgende ronde opent.
+    S._pouleRondeIdx = null;
     if (!S.wedstrijdId && S.teamTab === 'poule') renderTeam();
   }, luisterfout('poule'));
   // Eigen listener voor beoordelingen — los van de wedstrijd-listener, zodat
@@ -844,6 +848,11 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
+  { datum:'2026-08-17', titel:'Poule-programma per speelronde', punten:[
+      'Het tabblad Stand & Poule heeft nu naast de Stand een tweede tabje: Programma.',
+      'Daar zie je alle wedstrijden binnen je poule \u2014 ook die van de andere teams, en ook de nog te spelen wedstrijden.',
+      'Blader met de pijltjes ‹ / › per speelronde. Gespeelde wedstrijden tonen de uitslag, komende de aftraptijd. Je eigen team staat gemarkeerd.',
+    ]},
   { datum:'2026-08-17', titel:'Kies je eigen weergave: licht/ donker of groot of klein lettertype', punten:[
       'De app heeft er een licht thema bij. Handig als je op een fel verlicht veld of in de zon op je scherm kijkt.',
       'Heb je iets minder goede ogen? Dan pas je het lettertype aan.',
@@ -937,7 +946,7 @@ function htmlMeer(){
   const updatesOngelezen = UPDATES.filter(u => u.datum > laatstGezien).length;
   const tegels = [
     ['planning',   'Planning',   'Seizoenskalender'],
-    ['poule',      'Stand & Poule', 'Poulestand + uitslagen'],
+    ['poule',      'Stand & Poule', 'Poulestand + programma'],
     ['documenten', 'Documenten', 'Beleid & formulieren', documentenOngelezen],
     ['stats', 'Stats', modAan('evaluaties') ? 'Speeltijd & cijfers' : 'Speeltijd'],
     ['help',       'Help',       'Handleiding'],
@@ -956,18 +965,60 @@ function htmlMeer(){
 }
 
 /* ---------- Tab: Stand & Poule ----------
-   Toont de poulestand en alle uitslagen binnen de poule (ook van de overige
-   teams). Data komt uit teams/{id}/poule/{stand,uitslagen}, gevuld door de
-   nachtelijke Sportlink-sync. Twee subtabs: Stand / Uitslagen poule. */
+   Toont de poulestand en het volledige poule-programma (ook van de overige
+   teams). Data komt uit teams/{id}/poule/{stand,programma}, gevuld door de
+   nachtelijke Sportlink-sync. Twee subtabs: Stand / Programma.
+
+   Het programma bladert per speelronde (= per datum): gespeelde wedstrijden
+   tonen de uitslag, komende wedstrijden de aftraptijd. Standaard opent de
+   eerstvolgende ronde die nog niet (helemaal) gespeeld is. */
+
+/* Bouwt de per-datum gegroepeerde speelronden uit de programmaregels.
+   Valt terug op het oude uitslagen-document zolang de sync nog geen
+   programma-doc heeft geschreven (dan zonder toekomstige wedstrijden). */
+function pouleRonden(){
+  const prog = S.pouleProgramma;
+  let rijen = (prog && Array.isArray(prog.rijen)) ? prog.rijen : null;
+  if (!rijen){
+    // Fallback: oude uitslagen (alleen gespeeld) — voorkomt lege tab vóór eerste
+    // programma-sync.
+    const u = S.pouleUitslagen;
+    rijen = (u && Array.isArray(u.rijen)) ? u.rijen.filter(r => r.uitslag) : [];
+  }
+  const perDatum = new Map();
+  for (const r of rijen){
+    if (!r.datum) continue;
+    if (!perDatum.has(r.datum)) perDatum.set(r.datum, []);
+    perDatum.get(r.datum).push(r);
+  }
+  // Chronologisch, binnen een dag op tijd.
+  const ronden = [...perDatum.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([datum, items]) => ({
+      datum,
+      items: items.sort((x, y) => (x.tijd || '').localeCompare(y.tijd || '')),
+    }));
+  return ronden;
+}
+
+/* Eerstvolgende ronde-index: de eerste ronde met minstens één nog te spelen
+   wedstrijd; anders de laatste (alles gespeeld → toon meest recente). */
+function pouleStartRonde(ronden){
+  const vandaag = new Date().toISOString().slice(0, 10);
+  for (let i = 0; i < ronden.length; i++){
+    if (ronden[i].datum >= vandaag) return i;
+  }
+  return Math.max(0, ronden.length - 1);
+}
+
 function htmlPoule(){
   const sub = S._pouleTab || 'stand';
   const stand = S.pouleStand;
-  const uitslagen = S.pouleUitslagen;
 
   const subtabs = `
     <div class="subtabs">
       <button class="subtab ${sub==='stand'?'actief':''}" data-pouletab="stand">Stand</button>
-      <button class="subtab ${sub==='uitslagen'?'actief':''}" data-pouletab="uitslagen">Uitslagen poule</button>
+      <button class="subtab ${sub==='programma'?'actief':''}" data-pouletab="programma">Programma</button>
     </div>`;
 
   // --- Stand ---
@@ -997,27 +1048,49 @@ function htmlPoule(){
     standHtml = `<div class="kaart leeg">Nog geen poulestand beschikbaar.<br>De stand verschijnt zodra de competitie-indeling bekend is en de sync heeft gedraaid.</div>`;
   }
 
-  // --- Uitslagen poule (per datum gegroepeerd) ---
-  let uitslagenHtml;
-  const urijen = (uitslagen && Array.isArray(uitslagen.rijen)) ? uitslagen.rijen.filter(r => r.uitslag) : [];
-  if (urijen.length){
-    const perDatum = new Map();
-    for (const r of urijen){
-      if (!perDatum.has(r.datum)) perDatum.set(r.datum, []);
-      perDatum.get(r.datum).push(r);
+  // --- Programma (per speelronde, met ‹ / › navigatie) ---
+  let progHtml;
+  const ronden = pouleRonden();
+  if (ronden.length){
+    // Index vasthouden in state; clampen; standaard op eerstvolgende ronde.
+    if (S._pouleRondeIdx == null || S._pouleRondeIdx < 0 || S._pouleRondeIdx >= ronden.length){
+      S._pouleRondeIdx = pouleStartRonde(ronden);
     }
-    uitslagenHtml = [...perDatum.entries()].map(([datum, items]) => `
-      <div class="datum-kop">${esc(datumNL(datum))}</div>
-      ${items.map(r => `
-        <div class="uitslagrij ${(r.eigenErin)?'eigen':''}">
-          <span class="teams">${esc(r.thuis)} – ${esc(r.uit)}</span>
-          <span class="u">${esc(r.uitslag)}</span>
-        </div>`).join('')}`).join('');
+    const idx = S._pouleRondeIdx;
+    const ronde = ronden[idx];
+    const eersteWeek = idx === 0;
+    const laatsteWeek = idx === ronden.length - 1;
+
+    const regels = ronde.items.map(r => {
+      const heeftUitslag = !!r.uitslag;
+      const rechts = heeftUitslag
+        ? `<span class="u">${esc(r.uitslag)}</span>`
+        : `<span class="u komt">nog te spelen</span>`;
+      const tijd = (!heeftUitslag && r.tijd)
+        ? `<span class="tijd">Aftrap ${esc(r.tijd)}</span>` : '';
+      return `
+        <div class="wregel ${(r.eigenErin)?'eigen':''}">
+          <span class="teams"><b>${esc(r.thuis)}</b> – ${esc(r.uit)}${tijd}</span>
+          ${rechts}
+        </div>`;
+    }).join('');
+
+    progHtml = `
+      <div class="weekbalk">
+        <button class="weekpijl" data-pouleronde="prev" ${eersteWeek?'disabled':''} aria-label="Vorige speelronde">‹</button>
+        <div class="weeklabel">
+          <div class="wk">Speelronde ${idx + 1}</div>
+          <div class="wsub">${esc(datumNL(ronde.datum))}</div>
+        </div>
+        <button class="weekpijl" data-pouleronde="next" ${laatsteWeek?'disabled':''} aria-label="Volgende speelronde">›</button>
+      </div>
+      ${regels}
+      <p class="poule-hint">Alle wedstrijden binnen de poule. Blader per speelronde. Ververst automatisch met de nachtelijke sync.</p>`;
   } else {
-    uitslagenHtml = `<div class="kaart leeg">Nog geen uitslagen in de poule.<br>Zodra er gespeeld is, verschijnen hier ook de uitslagen van de andere teams.</div>`;
+    progHtml = `<div class="kaart leeg">Nog geen programma beschikbaar.<br>Zodra de competitie-indeling bekend is en de sync heeft gedraaid, verschijnt hier het volledige poule-programma — ook van de andere teams.</div>`;
   }
 
-  return subtabs + (sub==='stand' ? standHtml : uitslagenHtml);
+  return subtabs + (sub==='stand' ? standHtml : progHtml);
 }
 
 export function renderTeam(){
@@ -1532,7 +1605,14 @@ function koppelTeamTab(v, tab){
   }
   if (tab === 'poule'){
     v.querySelectorAll('[data-pouletab]').forEach(b => b.onclick = () => {
+      // Bij (terug)wisselen naar Programma: op de eerstvolgende ronde openen.
+      if (b.dataset.pouletab === 'programma') S._pouleRondeIdx = null;
       S._pouleTab = b.dataset.pouletab; renderTeam();
+    });
+    v.querySelectorAll('[data-pouleronde]').forEach(b => b.onclick = () => {
+      const stap = b.dataset.pouleronde === 'next' ? 1 : -1;
+      S._pouleRondeIdx = (S._pouleRondeIdx || 0) + stap;
+      renderTeam();
     });
   }
   if (tab === 'spelers' && S._leenProfiel){
