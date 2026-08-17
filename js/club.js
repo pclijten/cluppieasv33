@@ -1065,7 +1065,8 @@ function htmlClubInstel(teams = [], syncStatus = {}){
         <div class="thema-modus" id="clubThemaModus">
           ${opt('donker','🌙 Alleen donker','Iedereen zit vast op donker. Coaches zien geen keuze.')}
           ${opt('licht','☀️ Alleen licht','Iedereen zit vast op licht. Coaches zien geen keuze.')}
-          ${opt('coachKiest','⚙️ Coach mag kiezen','Elke coach kiest zelf, opgeslagen op zijn eigen toestel.')}
+          ${opt('lichtDefault','☀️ Standaard licht','Nieuwe coaches beginnen in het licht, maar kunnen zelf naar donker wisselen. Wie al bewust donker koos, houdt dat.')}
+          ${opt('coachKiest','⚙️ Coach mag kiezen','Elke coach kiest zelf, opgeslagen op zijn eigen toestel. Zonder keuze volgt de app het toestel.')}
         </div>
       </div>`;
     })()}
@@ -1433,6 +1434,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
         S.club.themaModus = modus;
         const naam = modus === 'donker' ? 'Alleen donker'
                    : modus === 'licht'  ? 'Alleen licht'
+                   : modus === 'lichtDefault' ? 'Standaard licht'
                    : 'Coach mag kiezen';
         meld('Thema voor de hele club: ' + naam);
       } catch(e){

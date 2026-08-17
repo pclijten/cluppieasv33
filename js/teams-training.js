@@ -17,7 +17,7 @@ import {
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260817a';
 import { htmlKompas } from './teams-leerlijn.js?v=20260817f';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817e';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817g';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de

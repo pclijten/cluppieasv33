@@ -11,7 +11,7 @@ import { initChatbot } from './chatbot.js?v=20260817d';
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20260817f').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260817g').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -41,7 +41,7 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20260817f').then(m => m.verlaatClubView());
+S._navVerlaatClub    = () => import('./club.js?v=20260817g').then(m => m.verlaatClubView());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 

@@ -16,28 +16,32 @@
 ================================================================== */
 
 const HTML = document.documentElement;
-const K_DWANG = 'cluppieThemaDwang';   // gecachete clubdwang: 'donker'|'licht'|'' (leeg=coachKiest)
+const K_DWANG = 'cluppieThemaDwang';   // gecachete clubdwang: 'donker'|'licht'|'' (leeg=coach kiest vrij)
 const K_EIGEN = 'cluppieThemaEigen';   // persoonlijke keuze: 'donker'|'licht'
+const K_DEFAULT = 'cluppieThemaDefault'; // default bij vrije keuze: 'licht'|'' (leeg=systeem)
 
 /* huidige clubmodus, in het geheugen gehouden zodat de coach-toggle weet
    of hij zichtbaar mag zijn */
-let clubModus = null;   // 'donker' | 'licht' | 'coachKiest' | null (nog onbekend)
+let clubModus = null;   // 'donker' | 'licht' | 'lichtDefault' | 'coachKiest' | null (nog onbekend)
 
 function systeemThema(){
   return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'licht' : 'donker';
 }
 
-/* het thema dat NU getoond moet worden, gegeven club + eigen voorkeur */
+/* het thema dat NU getoond moet worden, gegeven club + eigen voorkeur.
+   Bij 'lichtDefault' is de club-default licht (i.p.v. systeem), maar een
+   eigen keuze van de coach wint nog steeds. */
 export function effectiefThema(){
   if (clubModus === 'donker' || clubModus === 'licht') return clubModus;   // dwang wint
   const eigen = localStorage.getItem(K_EIGEN);
-  if (eigen === 'donker' || eigen === 'licht') return eigen;
+  if (eigen === 'donker' || eigen === 'licht') return eigen;               // bewuste keuze wint
+  if (clubModus === 'lichtDefault') return 'licht';                        // zachte default: licht
   return systeemThema();
 }
 
 /* mag de coach zelf kiezen? (bepaalt of de toggle in instellingen verschijnt) */
 export function coachMagKiezen(){
-  return clubModus === 'coachKiest' || clubModus === null;
+  return clubModus === 'coachKiest' || clubModus === 'lichtDefault' || clubModus === null;
 }
 
 /* pas het thema toe op <html> + de PWA theme-color-metatag */
@@ -55,6 +59,8 @@ export function pasThemaToe(){
   try {
     localStorage.setItem(K_DWANG,
       (clubModus === 'donker' || clubModus === 'licht') ? clubModus : '');
+    localStorage.setItem(K_DEFAULT,
+      clubModus === 'lichtDefault' ? 'licht' : '');
   } catch(e){}
   return t;
 }
@@ -63,7 +69,7 @@ export function pasThemaToe(){
    themaModus kan ontbreken bij oude clubs → dan 'coachKiest' (coach kiest,
    default donker via systeem/voorkeur). */
 export function zetClubModus(modus){
-  clubModus = (modus === 'donker' || modus === 'licht' || modus === 'coachKiest')
+  clubModus = (modus === 'donker' || modus === 'licht' || modus === 'lichtDefault' || modus === 'coachKiest')
     ? modus : 'coachKiest';
   pasThemaToe();
 }
