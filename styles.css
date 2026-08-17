@@ -714,7 +714,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .heat-tabel td{text-align:center;padding:0}
 .heat-tabel td.teamnaam{text-align:left;font-size:12.5px;font-weight:600;padding-right:8px;white-space:nowrap}
 .heat-tabel td.teamnaam .n{font-size:10.5px;color:var(--ink-2);font-weight:500;display:block;margin-top:1px}
-.heat-cel{width:100%;aspect-ratio:1/1;min-width:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:12px;color:rgba(0,0,0,.55);cursor:pointer;border:1px solid rgba(255,255,255,.06)}
+.heat-cel{width:100%;aspect-ratio:1/1;min-width:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:12px;color:rgba(0,0,0,.55);cursor:pointer;border:1px solid var(--op-vlak)}
 .heat-cel.leeg{background:var(--surface-2);color:var(--ink-2);opacity:.5;cursor:default}
 .heat-trend{width:26px;text-align:center;font-size:13px;color:var(--ink-2)}
 .heat-trend.op{color:var(--ok)}
@@ -800,7 +800,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   box-shadow:0 1px 2px rgba(16,39,26,.05);
   transition:background .15s ease;
 }
-.maand-kop:hover{ background:rgba(255,255,255,.05); }
+.maand-kop:hover{ background:var(--op-vlak); }
 .maand-kop:hover .maand-naam{ color:var(--ink); }
 .maand-kop:hover .maand-tel, .maand-kop:hover .maand-pijl{ color:var(--ink-2); }
 .maand-naam{ font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.3px;color:var(--ink); }
@@ -991,16 +991,16 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
    ze leesbaar blijven; veld terug naar helder gras. --pitch-ink en
    --fluo blijven donker/wit want het scorebord blijft altijd donker. */
 [data-thema="licht"]{
-  --bg:#f4f6f8;
+  --bg:#e9edf2;                 /* iets dieper zodat witte kaarten loskomen */
   --surface:#ffffff;
   --surface-2:#eef1f4;
-  --line-d:rgba(15,22,32,.08);
+  --line-d:rgba(15,22,32,.13);  /* duidelijkere kaartrand */
 
   --paper:#f4f6f8;
   --card:#ffffff;
   --ink:#1a1f26;
   --ink-2:#5a6572;
-  --hair:rgba(15,22,32,.10);
+  --hair:rgba(15,22,32,.14);
   --pitch-ink:#161b21;      /* scorebord/klok blijven donker, óók in licht */
   --op-vlak:rgba(15,22,32,.05);
   --op-vlak-2:rgba(15,22,32,.09);
@@ -1614,8 +1614,8 @@ body::before{
 
 /* Wist-je-dat-kaart (verdieping) */
 .ob-b-wist{ margin-top:9px; padding:9px 11px; border-radius:11px;
-  background:rgba(255,255,255,.05); border:1px dashed rgba(255,255,255,.2);
-  font-size:13px; line-height:1.55; color:#d3d9e0; }
+  background:var(--op-vlak); border:1px dashed var(--hover-rand);
+  font-size:13px; line-height:1.55; color:var(--ink-2); }
 .ob-b-wist b{ color:var(--ink); }
 
 /* Voetregel met navigatie */
@@ -1627,8 +1627,8 @@ body::before{
 .ob-knop.prim{ background:var(--accent); color:#fff;
   box-shadow:0 8px 22px rgba(226,52,47,.32); }
 .ob-knop.prim:active{ transform:translateY(1px); }
-.ob-knop.sec{ background:var(--surface-2, #1f262f); color:#cdd4dc;
-  border:1px solid rgba(255,255,255,.18); }
+.ob-knop.sec{ background:var(--surface-2); color:var(--ink);
+  border:1px solid var(--line-d); }
 .ob-knop.mini{ padding:7px 10px; font-size:12.5px; }
 .ob-knop:disabled{ opacity:.4; cursor:default; }
 .ob-knop.wacht{ opacity:.55; }
@@ -1849,14 +1849,14 @@ body::before{
 
 .cb-chips{ display:flex; flex-wrap:wrap; gap:7px; padding:2px 16px 10px; }
 .cb-chip{ font-size:12.5px; font-weight:600; padding:8px 12px; border-radius:99px;
-  background:var(--surface-2, #1f262f); border:1px solid rgba(255,255,255,.14);
+  background:var(--surface-2); border:1px solid var(--line-d);
   color:var(--ink, #f5f6f8); }
 .cb-chip:active{ background:color-mix(in srgb, var(--accent) 20%, var(--surface-2)); }
 
 .cb-invoer{ display:flex; gap:8px; padding:10px 14px 14px;
   border-top:1px solid var(--line-d, rgba(255,255,255,.08)); }
 .cb-invoer input{ flex:1; background:var(--surface-2, #1f262f);
-  border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:12px 13px;
+  border:1px solid var(--line-d); border-radius:12px; padding:12px 13px;
   font-size:15px; color:var(--ink, #f5f6f8); }
 .cb-invoer input:focus{ outline:none; border-color:var(--accent); }
 .cb-stuur{ width:46px; border-radius:12px; background:var(--accent); color:#fff;
@@ -2135,10 +2135,10 @@ body::before{
 }
 /* chips in de strip: outline i.p.v. wit-transparant vlak */
 .ws-item{
-  background:rgba(255,255,255,.05) !important; color:var(--ink) !important;
+  background:var(--op-vlak) !important; color:var(--ink) !important;
   border:1px solid var(--hair); font-weight:500;
 }
-.uitlog-knop{ background:rgba(255,255,255,.05) !important; border:1px solid var(--hair) !important; }
+.uitlog-knop{ background:var(--op-vlak) !important; border:1px solid var(--hair) !important; }
 
 /* — Overzichttegels: plat, border i.p.v. schaduw, icoon in accent — */
 .ov-blok{
@@ -2257,7 +2257,7 @@ body::before{
 }
 /* score-badge: donkere surface i.p.v. licht vlak, leesbaar in dark */
 .badge{
-  background:rgba(255,255,255,.06) !important; color:var(--ink) !important;
+  background:var(--op-vlak) !important; color:var(--ink) !important;
   border:1px solid var(--hair); border-radius:var(--r-pill) !important;
 }
 /* "+ Nieuwe wedstrijd" knop: consistent met accent */
@@ -2380,7 +2380,7 @@ body::before{
 .kompas.leerblok::after{ display:none; } /* geen groot watermerk-icoon */
 .kompas.leerblok .kompas-label{ color:var(--ink-2); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
 .kompas.leerblok .kompas-bron{
-  color:var(--ink-2); background:rgba(255,255,255,.06);
+  color:var(--ink-2); background:var(--op-vlak);
   display:inline-flex; align-items:center; gap:6px; font-size:10px; padding:2px 7px;
 }
 .kompas.leerblok .kompas-tekst{ color:var(--ink); font-size:14px; line-height:1.5; min-height:58px; font-weight:500; }
@@ -2393,12 +2393,12 @@ body::before{
   font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:9px; letter-spacing:.2px;
 }
 /* dots: rode accentkleur i.p.v. wit, plus scheidingsstreepje kompas↔leerlijn */
-.kompas.leerblok .kompas-dots span{ background:rgba(255,255,255,.16); }
+.kompas.leerblok .kompas-dots span{ background:var(--hover-rand); }
 .kompas.leerblok .kompas-dots span.actief{ background:var(--accent); width:14px; border-radius:3px; }
-.kompas.leerblok .kompas-dots .ll-sep{ width:1px; height:10px; border-radius:0; background:rgba(255,255,255,.2); margin:0 3px; align-self:center; }
+.kompas.leerblok .kompas-dots .ll-sep{ width:1px; height:10px; border-radius:0; background:var(--hover-rand); margin:0 3px; align-self:center; }
 /* nav-knoppen: neutraal op donkere achtergrond */
-.kompas.leerblok .kompas-nav button{ background:rgba(255,255,255,.05); border:1px solid var(--line-d); color:var(--ink-2); }
-.kompas.leerblok .kompas-nav button:active{ background:rgba(255,255,255,.1); }
+.kompas.leerblok .kompas-nav button{ background:var(--op-vlak); border:1px solid var(--line-d); color:var(--ink-2); }
+.kompas.leerblok .kompas-nav button:active{ background:var(--op-vlak-2); }
 
 /* ══════════════════════════════════════════════════════════════════
    THEMA-KEUZE — admin driestandenkaart (Club → instellingen) en de
