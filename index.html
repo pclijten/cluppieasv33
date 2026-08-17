@@ -17,6 +17,31 @@
   } catch(e){ /* localStorage geblokkeerd o.i.d. — dan gewoon het inlogscherm tonen */ }
 })();
 </script>
+<script>
+/* Thema-gate (vóór paint, tegen flash): zet data-thema op <html> op basis van
+   de laatst bekende clubdwang of persoonlijke voorkeur. De echte bron is het
+   clubdocument (themaModus), maar dat is bij eerste paint nog niet geladen —
+   daarom cachen we de laatst toegepaste stand in localStorage. thema.js
+   corrigeert later zodra het clubdocument binnen is. Zonder keuze: donker,
+   tenzij het systeem expliciet licht vraagt. */
+(function(){
+  try{
+    var dwang = localStorage.getItem('cluppieThemaDwang');      // 'donker'|'licht'|'' (leeg = coach kiest)
+    var eigen = localStorage.getItem('cluppieThemaEigen');      // 'donker'|'licht'|null
+    var t;
+    if (dwang === 'donker' || dwang === 'licht'){
+      t = dwang;                                                 // clubdwang wint altijd
+    } else if (eigen === 'donker' || eigen === 'licht'){
+      t = eigen;                                                 // persoonlijke voorkeur
+    } else {
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'licht' : 'donker';
+    }
+    document.documentElement.setAttribute('data-thema', t);
+    var mc = document.querySelector('meta[name="theme-color"]');
+    if (mc) mc.setAttribute('content', t === 'licht' ? '#f4f6f8' : '#0e1116');
+  } catch(e){ document.documentElement.setAttribute('data-thema','donker'); }
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0e1116">
 <title>Cluppie — Coach je team</title>
@@ -104,6 +129,6 @@
 <div class="wo-achter" id="woAchter"><div class="wo-paneel" id="woPaneel"></div></div>
 <div class="melding" id="melding"></div>
 
-<script type="module" src="js/main.js?v=20260817a"></script>
+<script type="module" src="js/main.js?v=20260817b"></script>
 </body>
 </html>

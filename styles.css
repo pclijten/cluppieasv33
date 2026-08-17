@@ -1,23 +1,14 @@
-:root{
-  --grass:#E20613;        /* ASV-rood — hoofdkleur (knoppen, koppen, accenten) */
-  --grass-2:#C40510;      /* iets dieper rood voor verlopen/hover */
-  --pitch-ink:#1D1E1E;    /* ASV-zwart — scorebord, donkere vlakken */
-  --line:rgba(255,255,255,.82);
-  --paper:#F2F2F0;
-  --card:#FFFFFF;
-  --ink:#1D1E1E;          /* tekst: clubzwart */
-  --ink-2:#6E6E6C;        /* gedempte tekst, neutraal grijs */
-  --hair:#E2E2DE;
-  --fluo:#FFFFFF;         /* accent op donkere vlakken (cijfers, klok, login-titel) */
-  --accent:#E20613;       /* accent op lichte vlakken (badges, pijlen, knoppen) */
-  --veld:#2E7D46;         /* het voetbalveld blijft groen */
-  --veld-2:#28713F;
-  --in:#3FB950;
-  --uit:#E5484D;
-  --keeper:#F2A33C;
-  --radius:14px;
+/* ── VERVALLEN: de oorspronkelijke lichte huisstijl. Volledig vervangen
+   door het thema-systeem verderop ([data-thema=donker|licht]). Bewaard als
+   referentie, maar geneutraliseerd (selector nooit actief) zodat er geen
+   lichte waarden meer naar het default-thema lekken. ── */
+:root:not(*){
+  --grass:#E20613; --grass-2:#C40510; --pitch-ink:#1D1E1E;
+  --line:rgba(255,255,255,.82); --paper:#F2F2F0; --card:#FFFFFF;
+  --ink:#1D1E1E; --ink-2:#6E6E6C; --hair:#E2E2DE; --fluo:#FFFFFF;
+  --accent:#E20613; --veld:#2E7D46; --veld-2:#28713F;
+  --in:#3FB950; --uit:#E5484D; --keeper:#F2A33C; --radius:14px;
   --shadow:0 1px 2px rgba(29,30,30,.08), 0 4px 14px rgba(29,30,30,.07);
-  /* beoordeling: 5-niveau kleurenschaal */
   --n1:#E5484D; --n2:#F2913C; --n3:#F2C94C; --n4:#7DCB6A; --n5:#2EA043;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -51,7 +42,7 @@ input,select{font:inherit;color:inherit}
 .knop.licht{background:var(--card);color:var(--ink)}
 .knop.fluo{background:var(--accent);color:#fff}
 .knop.klein{padding:7px 12px;font-size:13px;border-radius:9px}
-.knop.gevaar{background:#fff;color:var(--uit)}
+.knop.gevaar{background:var(--surface);color:var(--uit)}
 .knop:disabled{opacity:.45;cursor:default}
 
 /* ---------- Kaarten / lijsten ---------- */
@@ -73,7 +64,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .rij>*{flex:1}
 
 /* ---------- Segment (formaat, kwarten) ---------- */
-.segment{display:flex;background:#E3E8E0;border-radius:11px;padding:3px;gap:3px}
+.segment{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;gap:3px}
 .segment.wrap{flex-wrap:wrap}
 .segment.wrap button{flex:1 1 30%;min-width:80px}
 .segment button{flex:1;padding:9px 4px;border-radius:9px;font-weight:600;font-size:14px;color:var(--ink-2)}
@@ -153,7 +144,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .scorebord .sb-cijfers{font-family:'Barlow Condensed';font-weight:700;font-size:34px;letter-spacing:2px;color:var(--fluo);line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .scorebord .sb-goal{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.1);font-size:17px;flex-shrink:0}
 .goal-kies{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:8px 0 4px}
-.goal-kies .chip .naam{color:var(--ink);background:#E3E8E0}
+.goal-kies .chip .naam{color:var(--ink);background:var(--surface-2)}
 .log .goal-bal{font-size:18px;min-width:30px;text-align:center}
 
 /* ---------- Aanvoerdersband ---------- */
@@ -179,7 +170,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .hl ul li{padding:6px 0 6px 26px;position:relative}
 .hl ul li::before{content:'→';position:absolute;left:4px;top:6px;color:var(--grass);font-weight:700}
 .hl b{color:var(--pitch-ink)}
-.hl .tip{background:#FFF3CD;border-left:3px solid #F5C400;padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13.5px}
+.hl .tip{background:color-mix(in srgb,var(--warn) 15%,var(--surface));border-left:3px solid var(--warn);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13.5px}
 .hl .tip b{color:#8B6F00}
 .hl kbd{display:inline-block;background:var(--card);border:1px solid var(--hair);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12.5px;font-weight:600;font-family:inherit;color:var(--ink)}
 
@@ -233,13 +224,13 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .preview-team-kop{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .preview-team-kop input[type="checkbox"]{width:18px;height:18px;accent-color:var(--grass)}
 .preview-team-kop .naam{font-weight:600;font-size:15px;flex:1}
-.preview-team-kop .meta{font-size:11.5px;font-weight:600;color:var(--ink-2);background:#E3E8E0;padding:2px 8px;border-radius:99px}
+.preview-team-kop .meta{font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--surface-2);padding:2px 8px;border-radius:99px}
 .preview-spelers{display:flex;flex-wrap:wrap;gap:5px}
-.preview-spelers .speler{display:inline-flex;align-items:center;gap:4px;background:#F0F4ED;padding:4px 8px 4px 10px;border-radius:99px;font-size:13px}
+.preview-spelers .speler{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);padding:4px 8px 4px 10px;border-radius:99px;font-size:13px}
 .preview-spelers .speler input{border:none;background:transparent;font:inherit;width:auto;padding:0;color:var(--ink);font-size:13px;min-width:50px}
-.preview-spelers .speler input:focus{outline:none;background:#fff}
+.preview-spelers .speler input:focus{outline:none;background:var(--surface)}
 .preview-spelers .speler button{width:18px;height:18px;border-radius:50%;background:var(--hair);color:var(--ink-2);font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center}
-.preview-spelers .dubbel input{color:var(--uit);font-weight:600;background:#FFE5E5}
+.preview-spelers .dubbel input{color:var(--uit);font-weight:600;background:color-mix(in srgb,var(--uit) 14%,var(--surface))}
 .preview-spelers .toevoeg{background:rgba(226,6,19,.08);color:var(--grass);font-weight:600;cursor:pointer;border:1px dashed var(--grass)}
 .link-rij{background:var(--card);border-radius:11px;padding:11px 13px;margin-bottom:8px;box-shadow:var(--shadow)}
 .link-rij-kop{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -378,7 +369,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .code-invoer{text-transform:uppercase;text-align:center;font-family:'Barlow Condensed';font-size:20px;letter-spacing:2px}
 
 /* ---------- Klein spul ---------- */
-.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:#E3E8E0;color:var(--ink-2);letter-spacing:.3px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);letter-spacing:.3px}
 .teamcode{font-family:'Barlow Condensed';font-weight:700;font-size:30px;letter-spacing:6px;text-align:center;background:var(--pitch-ink);color:var(--fluo);border-radius:12px;padding:12px;margin:8px 0}
 .melding{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--pitch-ink);color:#fff;font-size:13.5px;font-weight:500;padding:10px 18px;border-radius:99px;box-shadow:var(--shadow);z-index:99;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%}
 .melding.zichtbaar{opacity:1}
@@ -869,7 +860,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .plan-badge.wedstrijd{background:#E20613;font-size:13px;padding:3px 7px}
 .plan-badge.beker{background:#7C4DBC}
 .plan-badge.inhaal{background:var(--keeper)}
-.plan-badge.vrij{background:#fff;color:var(--ink-2);border:1px solid var(--hair)}
+.plan-badge.vrij{background:var(--surface);color:var(--ink-2);border:1px solid var(--hair)}
 .plan-bewerk{flex:0 0 auto;color:var(--ink-2);font-size:14px}
 
 /* ==================== TRAINING AFGELAST ==================== */
@@ -899,8 +890,8 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 
 /* --- afgelast-blok op het clubscherm (teams-tab): knop, stats, historie --- */
 .club-afgelast-blok{
-  background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
+  background:var(--surface);border:1px solid var(--line-d);border-radius:14px;padding:14px;margin-bottom:14px;
+  box-shadow:var(--shadow);
 }
 .club-afgelast-blok .caf-aflast{margin-bottom:0}
 .club-afgelast-blok .caf-actief{
@@ -932,22 +923,31 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .tok-kop{display:flex;align-items:center;gap:8px}
 .tok-team{font-weight:700;font-size:15px;flex:1}
 .tok-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.3px}
-.tok-status.gekoppeld{background:rgba(29,138,63,.12);color:#1d8a3f}
+.tok-status.gekoppeld{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
 .tok-status.leeg{background:rgba(110,110,108,.12);color:var(--ink-2)}
 .tok-invoer{display:flex;gap:7px}
-.tok-invoer input{flex:1;min-width:0;border:1.5px solid #e3e3e0;border-radius:10px;padding:10px 11px;font-size:13px;font-family:'Inter';background:#fafafa}
-.tok-invoer input:focus{outline:none;border-color:var(--grass);background:#fff}
+.tok-invoer input{flex:1;min-width:0;border:1.5px solid var(--hair);border-radius:10px;padding:10px 11px;font-size:13px;font-family:'Inter';background:#fafafa}
+.tok-invoer input:focus{outline:none;border-color:var(--grass);background:var(--surface)}
 .tok-invoer button{border:none;border-radius:10px;padding:0 15px;font-weight:700;font-size:13px;background:var(--grass);color:#fff;white-space:nowrap}
 .tok-invoer button:disabled{opacity:.6}
 .tok-laatste{font-size:11px;color:var(--ink-2)}
-.tok-laatste b{color:#1d8a3f;font-weight:600}
+.tok-laatste b{color:var(--ok);font-weight:600}
 
 /* ==================================================================
    DARK THEME — "Pitch × Scoreboard" laatste layout
    Donkere bankapp-stijl met ASV'33-rood als identiteit,
    amber voor afwezig/let-op, groen voor aanwezig/goed.
 ================================================================== */
-:root{
+/* ══════════════════════════════════════════════════════════════════
+   THEMA-SYSTEEM — donker (default) en licht.
+   Beide thema's zetten dezelfde token-set; [data-thema] op <html>
+   bepaalt welke actief is. Zonder attribuut = donker (fallback).
+   De losse componenten gebruiken deze tokens, dus ze kantelen mee.
+   Blijvend-donkere vlakken (scorebord, klok, pdf-viewer, melding)
+   gebruiken --pitch-ink, dat in BEIDE thema's donker blijft.
+================================================================== */
+:root,
+[data-thema="donker"]{
   --bg:#0e1116;
   --surface:#181d24;
   --surface-2:#1f262f;
@@ -959,6 +959,8 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   --ink-2:#8b95a1;          /* gedempte tekst */
   --hair:rgba(255,255,255,.08);
   --pitch-ink:#1f262f;      /* donkere vlakken iets lichter dan bg voor contrast */
+  --op-vlak:rgba(255,255,255,.06);   /* subtiele oplichting op een thema-kaart */
+  --op-vlak-2:rgba(255,255,255,.1);
 
   --accent:#e2342f;         /* ASV'33 rood — identiteit */
   --grass:#e2342f;
@@ -974,9 +976,50 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
   --fluo:#ffffff;
 
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  --line:rgba(255,255,255,.82);
+  --radius:14px;
 
   /* beoordeling: 5-niveau kleurenschaal (iets opgehelderd voor donkere bg) */
   --n1:#F0565B; --n2:#F59C4A; --n3:#F2C94C; --n4:#7DCB6A; --n5:#35C47A;
+}
+
+/* ── LICHT thema ── afgeleide waarden, goedgekeurd in de mockups.
+   Rood iets dieper voor contrast op wit; groen/amber donkerder zodat
+   ze leesbaar blijven; veld terug naar helder gras. --pitch-ink en
+   --fluo blijven donker/wit want het scorebord blijft altijd donker. */
+[data-thema="licht"]{
+  --bg:#f4f6f8;
+  --surface:#ffffff;
+  --surface-2:#eef1f4;
+  --line-d:rgba(15,22,32,.08);
+
+  --paper:#f4f6f8;
+  --card:#ffffff;
+  --ink:#1a1f26;
+  --ink-2:#5a6572;
+  --hair:rgba(15,22,32,.10);
+  --pitch-ink:#161b21;      /* scorebord/klok blijven donker, óók in licht */
+  --op-vlak:rgba(15,22,32,.05);
+  --op-vlak-2:rgba(15,22,32,.09);
+
+  --accent:#d42822;
+  --grass:#d42822;
+  --grass-2:#a81c17;
+
+  --ok:#1f9e5e;
+  --warn:#c9781a;
+  --uit:#c9781a;
+  --in:#1f9e5e;
+  --veld:#2e7d46;           /* helder gras in licht */
+  --veld-2:#28713f;
+  --keeper:#d98a1f;
+  --fluo:#ffffff;           /* cijfers op donker scorebord blijven wit */
+
+  --shadow:0 1px 2px rgba(15,22,32,.06), 0 6px 18px rgba(15,22,32,.08);
+  --line:rgba(15,22,32,.55);
+  --radius:14px;
+
+  --n1:#E5484D; --n2:#E8892B; --n3:#D9A81E; --n4:#5FA845; --n5:#1F9E5E;
 }
 
 body{ background:var(--bg); color:var(--ink); }
@@ -1471,10 +1514,14 @@ body::before{
    ob-bubbel   : de coachmark met uitleg + knoppen
    ob-hud      : voortgangsbalk + AI-coach-knop, altijd bovenaan
    ob-vier     : confetti-canvas bij afronden */
-:root{
+:root,
+[data-thema="donker"]{
   --ob-z: 4000;               /* boven onderbalk(20) en modal(±1000), onder melding */
   --ob-waas: rgba(10,13,18,.5);
   --ob-ring: var(--accent, #e2342f);
+}
+[data-thema="licht"]{
+  --ob-waas: rgba(20,26,34,.42);   /* iets lichtere waas op wit thema */
 }
 
 /* ---------- Spotlight-overlay ----------
@@ -2045,10 +2092,15 @@ body::before{
    blok om terug te vallen op de vorige stijl. Signature: de kalklijn
    (dunne witte veldlijn) i.p.v. slagschaduwen + vol-rode vlakken.
    ═══════════════════════════════════════════════════════════════════ */
-:root{
+:root,
+[data-thema="donker"]{
   --r-s:10px; --r-m:16px; --r-l:22px; --r-pill:999px;
   --kalk:rgba(255,255,255,.14);
   --lift:0 8px 30px rgba(0,0,0,.45);
+}
+[data-thema="licht"]{
+  --kalk:rgba(15,22,32,.12);       /* kalklijn wordt donker op wit */
+  --lift:0 8px 30px rgba(15,22,32,.14);
 }
 
 /* — Welkomststrip: van vol-rood vlak → surface met rode gloed + kalklijn — */
@@ -2341,3 +2393,28 @@ body::before{
 /* nav-knoppen: neutraal op donkere achtergrond */
 .kompas.leerblok .kompas-nav button{ background:rgba(255,255,255,.05); border:1px solid var(--line-d); color:var(--ink-2); }
 .kompas.leerblok .kompas-nav button:active{ background:rgba(255,255,255,.1); }
+
+/* ══════════════════════════════════════════════════════════════════
+   THEMA-KEUZE — admin driestandenkaart (Club → instellingen) en de
+   coach-toggle (team → instellingen) hergebruikt .segment.
+   Werkt in beide thema's via tokens.
+================================================================== */
+.thema-modus{ display:flex; flex-direction:column; gap:9px; }
+.thema-optie{
+  display:flex; align-items:flex-start; gap:12px; width:100%; text-align:left;
+  background:var(--surface-2); border:1.5px solid var(--line-d);
+  border-radius:13px; padding:13px 14px; cursor:pointer;
+  transition:border-color .15s ease; font-family:'Inter',sans-serif;
+}
+.thema-optie.gekozen{ border-color:var(--accent); }
+.thema-optie .tk-radio{
+  flex:none; width:20px; height:20px; border-radius:50%;
+  border:2px solid var(--line-d); margin-top:1px; position:relative;
+}
+.thema-optie.gekozen .tk-radio{ border-color:var(--accent); }
+.thema-optie.gekozen .tk-radio::after{
+  content:""; position:absolute; inset:3px; border-radius:50%; background:var(--accent);
+}
+.thema-optie .tk-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.thema-optie .tk-titel{ font-weight:600; font-size:14.5px; color:var(--ink); }
+.thema-optie .tk-sub{ font-size:12px; color:var(--ink-2); line-height:1.4; }
