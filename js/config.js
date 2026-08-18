@@ -597,6 +597,7 @@ export const AFWEZIG_REDENEN = [
   {id:'school',   emoji:'🎒', ico:'reason-school', label:'School'},
   {id:'werk',     emoji:'💼', ico:'reason-work', label:'Werk'},
   {id:'vakantie', emoji:'🏖', ico:'reason-holiday', label:'Vakantie'},
+  {id:'nietAfgemeld', emoji:'🚫', ico:'reason-noshow', label:'Niet afgemeld'},
   {id:'anders',   emoji:'❓', ico:'reason-other', label:'Anders'},
 ];
 /* Normaliseert een opgeslagen reden-record naar een {emoji,label,notitie}-weergave.

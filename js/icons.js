@@ -137,6 +137,7 @@ const PATHS = {
   'reason-school': '<path d="M12 5 3.5 9 12 13l8.5-4L12 5Z"/><path d="M7 11v4.5c0 1.2 2.2 2.5 5 2.5s5-1.3 5-2.5V11"/><path d="M20.5 9v4"/>',
   'reason-work': '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V6a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 6v1.5"/><path d="M3.5 12.5h17"/>',
   'reason-holiday': '<path d="M12 12V4.5"/><path d="M12 4.5c2.5 0 4.5 1.8 4.5 4H7.5c0-2.2 2-4 4.5-4Z"/><path d="M6 20c1.5-1.2 3-1.2 4.5 0 1.5 1.2 3 1.2 4.5 0 1.5-1.2 3-1.2 4.5 0"/><path d="M12 12l4 3.5"/>',
+  'reason-noshow': '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
   'reason-other': '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.6a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.1-2.6 3.9"/><circle cx="12" cy="17.4" r="0.6" fill="currentColor" stroke="none"/>',
   // — tag (beoordeling) —
   'tag-leader': '<path d="M4 8.5 8 12l4-6 4 6 4-3.5-1.6 9H5.6L4 8.5Z"/><path d="M5.6 18h12.8"/>',
