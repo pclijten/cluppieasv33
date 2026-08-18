@@ -97,20 +97,24 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .veld-wrap{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
 
 /* ---- Speelwijze per kwart: balk boven het veld + bottom-sheet kiezer ---- */
-.veld-formatiebalk{display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:var(--surface);border:1px solid var(--line-d);border-bottom:none;
-  border-radius:16px 16px 0 0;padding:9px 12px}
-.veld-formatiebalk .vf-links{display:flex;align-items:center;gap:8px;min-width:0}
-.veld-formatiebalk .vf-badge{font-family:'Barlow Condensed';font-weight:700;
-  font-size:calc(12.5px * var(--fs));letter-spacing:.5px;color:#fff;background:var(--accent);
-  padding:2px 9px;border-radius:99px;flex-shrink:0;white-space:nowrap}
-.veld-formatiebalk .vf-formatie{font-family:'Barlow Condensed';font-weight:700;
-  font-size:calc(18px * var(--fs));color:var(--ink);letter-spacing:.5px;white-space:nowrap}
-.veld-formatiebalk .vf-wijzig{display:flex;align-items:center;gap:5px;background:var(--surface-2);
-  border:1px solid var(--line-d);color:var(--ink);border-radius:9px;padding:6px 11px;
-  font-size:calc(12.5px * var(--fs));font-weight:600;cursor:pointer;flex-shrink:0}
-.veld-formatiebalk .vf-wijzig svg{width:15px;height:15px;flex-shrink:0}
-.veld-wrap.veld-onder-balk{border-radius:0 0 16px 16px}
+/* Zwevende overlay ín het veld: kwart-badge + formatie linksboven,
+   knop 'Speelwijze' rechtsboven. Donker glas-effect zodat ze leesbaar
+   blijven op het groen, zonder een aparte (witte) balk boven het veld. */
+.veld-overlay{position:absolute;top:10px;left:10px;right:10px;z-index:3;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}
+.veld-overlay>*{pointer-events:auto}
+.vo-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(14,17,22,.62);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:5px 6px 5px 5px}
+.vo-badge .k{font-family:'Barlow Condensed';font-weight:700;font-size:calc(12.5px * var(--fs));
+  letter-spacing:.4px;color:#fff;background:var(--accent);border-radius:99px;padding:2px 9px;line-height:1.35;white-space:nowrap}
+.vo-badge .f{font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));
+  letter-spacing:.5px;color:#fff;padding-right:6px;white-space:nowrap}
+.vo-knop{display:inline-flex;align-items:center;gap:6px;background:rgba(14,17,22,.62);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:99px;padding:7px 12px;
+  font-size:calc(12.5px * var(--fs));font-weight:600;cursor:pointer;white-space:nowrap}
+.vo-knop svg{width:15px;height:15px;flex-shrink:0}
 
 .kf-achter{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;
   justify-content:center;z-index:60;opacity:0;transition:opacity .2s}
