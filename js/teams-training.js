@@ -8,16 +8,16 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260818b';
-import { telGebruik } from './tracker.js?v=20260818b';
-import { ico } from './icons.js?v=20260818b';
+} from './state.js?v=20260818c';
+import { telGebruik } from './tracker.js?v=20260818c';
+import { ico } from './icons.js?v=20260818c';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260818b';
-import { htmlKompas } from './teams-leerlijn.js?v=20260818b';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818b';
+} from './config.js?v=20260818c';
+import { htmlKompas } from './teams-leerlijn.js?v=20260818c';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818c';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de

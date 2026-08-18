@@ -264,7 +264,7 @@ export function bewaakTerug(){
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260818b').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260818c').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
