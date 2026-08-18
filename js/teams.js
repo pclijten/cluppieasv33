@@ -850,7 +850,7 @@ export function verlaatTeamView(){
 const UPDATES = [
   { datum:'2026-08-17', titel:'Speelwijze per kwart of helft', punten:[
       'Je kunt nu per kwart (of helft) een eigen speelwijze kiezen \u2014 bijvoorbeeld 1e kwart 1-3-3 en 2e kwart 2-3-2 \u2014 zonder dat de andere periodes meeveranderen.',
-      'Boven het veld staat een balk met de speelwijze van het kwart dat je bekijkt. Tik daar op de knop \u2018Speelwijze\u2019 (of op de onderstreepte formatie onder de titel) om \u2019m aan te passen.',
+      'Linksboven in het veld zie je welk kwart en welke speelwijze je bekijkt. Tik rechtsboven in het veld op de knop \u2018Speelwijze\u2019 (of op de onderstreepte formatie onder de titel) om \u2019m aan te passen.',
       'Wijzig je de speelwijze, dan blijven de opgestelde spelers zoveel mogelijk op hun plek: verdedigers bij de verdediging, middenvelders op het middenveld, aanvallers voorin.',
       'De startformatie die je bij \u2018Wijzig opzet\u2019 kiest, geldt als beginwaarde voor nog lege kwarten.',
     ]},

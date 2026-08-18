@@ -1595,20 +1595,20 @@ ${confroHtml}
       return `<button class="knop vol" id="neemVorigeOver" style="margin-bottom:10px;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-d)">⧉ Opstelling vorige wedstrijd overnemen${vorige.bron.tegenstander ? ' (tegen '+esc(vorige.bron.tegenstander)+')' : ''}</button>`;
     })()}
 
-    <div class="veld-formatiebalk">
-      <div class="vf-links">
-        <span class="vf-badge">${esc(periodeLabel(w, S.kwart))}</span>
-        <span class="vf-formatie">${esc(kFormatie)}</span>
+    <div class="veld-wrap"><div class="veld" id="veld">
+      <div class="veld-overlay">
+        <span class="vo-badge">
+          <span class="k">${esc(periodeLabel(w, S.kwart))}</span>
+          <span class="f">${esc(kFormatie)}</span>
+        </span>
+        <button class="vo-knop" id="kwartFormatieKnop" title="Speelwijze van ${esc(periodeOmschrijving(w))} aanpassen">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M4 7h11M4 12h16M4 17h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="18" cy="7" r="2.4" fill="#fff"/><circle cx="9" cy="17" r="2.4" fill="#fff"/>
+          </svg>
+          <span>Speelwijze</span>
+        </button>
       </div>
-      <button class="vf-wijzig" id="kwartFormatieKnop" title="Speelwijze van ${esc(periodeOmschrijving(w))} aanpassen">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M4 7h11M4 12h16M4 17h8" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="18" cy="7" r="2.4" fill="var(--accent)"/><circle cx="9" cy="17" r="2.4" fill="var(--accent)"/>
-        </svg>
-        <span>Speelwijze</span>
-      </button>
-    </div>
-    <div class="veld-wrap veld-onder-balk"><div class="veld" id="veld">
       <div class="lijn midden"></div><div class="lijn cirkel"></div>
       <div class="lijn zestien-o"></div><div class="lijn vijf-o"></div>
       <div class="lijn zestien-b"></div><div class="lijn vijf-b"></div>
