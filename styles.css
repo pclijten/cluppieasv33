@@ -2519,3 +2519,103 @@ body::before{
 .thema-optie .tk-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
 .thema-optie .tk-titel{ font-weight:600; font-size:calc(14.5px * var(--fs)); color:var(--ink); }
 .thema-optie .tk-sub{ font-size:calc(12px * var(--fs)); color:var(--ink-2); line-height:1.4; }
+
+/* ==================== TEAM-HUB (tegel-startscherm, v20260818b) ====================
+   Het startscherm van een team dat de onderbalk vervangt. Rustige tegel-grid
+   conform de goedgekeurde mockup (18 aug): secties Oefenstof / Presentie /
+   Wedstrijden / Spelers / Meer, met subtiele badges. Alles op thema-variabelen
+   zodat licht én donker automatisch kloppen. */
+.hub-kop{ margin-bottom:0 !important; }
+
+/* teamnaam + dropdown (teamkeuze bij meerdere teams) */
+.hub-teamrij{ position:relative; padding:16px 2px 2px; }
+.hub-teamnaam{
+  display:inline-flex; align-items:center; gap:9px;
+  font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:calc(30px * var(--fs)); letter-spacing:.4px; text-transform:uppercase;
+  color:var(--accent); background:none; border:none; padding:0; line-height:1;
+}
+.hub-teamnaam svg{ width:calc(17px * var(--fs)); height:calc(17px * var(--fs)); transition:transform .15s ease; }
+.hub-teamnaam.open svg{ transform:rotate(180deg); }
+.hub-teamsub{ margin-left:10px; font-size:calc(12px * var(--fs)); color:var(--ink-2); font-weight:500; }
+.hub-teamkeuze{
+  position:absolute; top:100%; left:0; z-index:30; margin-top:6px;
+  background:var(--card); border:1px solid var(--hair); border-radius:14px;
+  box-shadow:var(--shadow); overflow:hidden; min-width:230px; display:none;
+}
+.hub-teamkeuze.open{ display:block; }
+.hub-teamkeuze button{
+  display:flex; align-items:center; gap:10px; width:100%; padding:13px 15px;
+  background:none; border:none; border-bottom:1px solid var(--hair);
+  color:var(--ink); font-weight:600; font-size:calc(14px * var(--fs));
+  text-align:left; cursor:pointer;
+}
+.hub-teamkeuze button:last-child{ border-bottom:none; }
+.hub-teamkeuze button.actief{ color:var(--accent); }
+.hub-teamkeuze button .sub{ margin-left:auto; font-size:calc(11px * var(--fs)); color:var(--ink-2); font-weight:500; }
+
+/* secties + tegel-grid */
+.hub-sectie{ margin-top:22px; }
+.hub-sectie-kop{
+  font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:calc(19px * var(--fs)); letter-spacing:.5px; text-transform:uppercase;
+  color:var(--ink); margin-bottom:11px;
+}
+.hub-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.hub-tegel{
+  position:relative; background:var(--surface-2); border:1px solid var(--hair);
+  border-radius:16px; aspect-ratio:1/1; padding:8px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; cursor:pointer; color:var(--ink-2);
+  transition:transform .1s ease, filter .1s ease;
+}
+.hub-tegel:active{ transform:scale(.96); }
+.hub-tegel svg{ width:calc(38px * var(--fs)); height:calc(38px * var(--fs)); }
+.hub-tnaam{
+  font-family:'Barlow Condensed',sans-serif; font-weight:700;
+  font-size:calc(15.5px * var(--fs)); letter-spacing:.4px; text-transform:uppercase;
+  color:var(--ink); line-height:1.05;
+}
+.hub-badge{
+  position:absolute; top:8px; right:8px; min-width:18px; height:18px; padding:0 5px;
+  border-radius:20px; background:var(--accent); color:#fff;
+  font-size:calc(10.5px * var(--fs)); font-weight:700; line-height:18px;
+}
+.hub-dot{ position:absolute; top:9px; right:9px; width:8px; height:8px; border-radius:50%; background:var(--accent); }
+.hub-updates-link{
+  display:block; width:100%; margin:20px 0 6px; padding:10px;
+  background:none; border:none; color:var(--ink-2); cursor:pointer;
+  font-size:calc(12.5px * var(--fs)); font-weight:600; text-align:center;
+}
+
+/* ---------- Presentie wedstrijd: kiezer + tellerregel ---------- */
+.pw-kiezer{
+  display:flex; align-items:center; gap:11px; width:100%;
+  background:var(--card); border:1px solid var(--hair); border-left:3px solid var(--accent);
+  border-radius:13px; padding:12px 14px; box-shadow:var(--shadow);
+  cursor:pointer; text-align:left; margin-bottom:10px;
+}
+.pw-ico{ flex-shrink:0; color:var(--accent); display:flex; }
+.pw-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; line-height:1.3; }
+.pw-t{ font-weight:700; font-size:calc(14px * var(--fs)); color:var(--ink); }
+.pw-m{ font-size:calc(11.5px * var(--fs)); color:var(--ink-2); font-weight:500; }
+.pw-pijl{ width:17px; height:17px; color:var(--ink-2); flex-shrink:0; }
+.pw-tel{ font-size:calc(12px * var(--fs)); color:var(--ink-2); font-weight:600; margin-bottom:10px; }
+
+/* ---------- Leerlijn-overzicht: spelerblokken met leerpunt-chips ---------- */
+.lp-blok{
+  display:block; width:100%; background:var(--card); border:1px solid var(--hair);
+  border-radius:13px; padding:12px 14px; margin-bottom:10px; cursor:pointer;
+  text-align:left; box-shadow:var(--shadow); color:var(--ink);
+}
+.lp-kop{ display:flex; align-items:center; gap:10px; }
+.lp-naam{ font-weight:700; font-size:calc(14.5px * var(--fs)); flex:1; }
+.lp-tel{ font-size:calc(11px * var(--fs)); color:var(--ink-2); font-weight:600; }
+.lp-wrap{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.lp-chip{
+  font-size:calc(11.5px * var(--fs)); font-weight:600; line-height:1.35;
+  background:var(--surface-2); border:1px solid var(--hair); border-radius:20px;
+  padding:4px 11px; color:var(--ink);
+}
+.lp-chip.klaar{ opacity:.45; text-decoration:line-through; }
+.lp-dom{ color:var(--accent); font-weight:700; margin-right:5px; }
