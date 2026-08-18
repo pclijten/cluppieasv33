@@ -10,13 +10,13 @@ import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
 } from './state.js?v=20260817h';
 import { telGebruik } from './tracker.js?v=20260816a';
-import { ico } from './icons.js?v=20260816a';
+import { ico } from './icons.js?v=20260818a';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260817a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260817f';
+} from './config.js?v=20260818a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260818a';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817g';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------

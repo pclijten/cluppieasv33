@@ -7,9 +7,9 @@ import {
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
 } from './state.js?v=20260817h';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260817a';
-import { analyseWedstrijd } from './analyse.js?v=20260817b';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260817f';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260818a';
+import { analyseWedstrijd } from './analyse.js?v=20260818a';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260818a';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260817f';
 import { telGebruik } from './tracker.js?v=20260816a';
 
@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260817j'); }
+async function teamsModule(){ return await import('./teams.js?v=20260818a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -71,7 +71,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260817j').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260818a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -530,14 +530,16 @@ function htmlClubGebruik(gebruik){
 
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Meest actieve gebruikers</div>
-      ${gebruik.gebruikers.length ? gebruik.gebruikers.slice(0,10).map(g => `
+      ${gebruik.gebruikers.length ? `${(S.clubAlleGebruikersOpen ? gebruik.gebruikers : gebruik.gebruikers.slice(0,10)).map(g => `
         <div class="lid-rij">
           <div class="lid-avatar">${esc(initialen(g.naam || g.email || '?'))}</div>
           <div class="lid-naam">${esc(g.naam || g.email || 'Onbekend')}
             <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);font-weight:500;margin-top:1px">${g.email?esc(g.email)+' · ':''}laatst: ${dashTijdKort(g.laatsteLogin)}</div>
           </div>
           <div style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(18px * var(--fs));color:var(--accent);flex-shrink:0">${g.aantalLogins||0}</div>
-        </div>`).join('') : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen logins geregistreerd.</p>`}
+        </div>`).join('')}
+      ${gebruik.gebruikers.length > 10 ? `<button class="knop licht vol" id="btnAlleGebruikers" style="margin-top:10px;font-size:calc(13px * var(--fs))">${S.clubAlleGebruikersOpen ? 'Toon minder' : `Alle ${gebruik.gebruikers.length} gebruikers tonen`}</button>` : ''}`
+      : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen logins geregistreerd.</p>`}
     </div>`;
 }
 
@@ -1408,6 +1410,8 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       if (kop.dataset.dashInklap === 'aandacht') S.clubAandachtOpen = open;
       if (kop.dataset.dashInklap === 'stats')    S.clubStatsOpen = open;
     });
+    const btnAlleGebr = v.querySelector('#btnAlleGebruikers');
+    if (btnAlleGebr) btnAlleGebr.onclick = () => { S.clubAlleGebruikersOpen = !S.clubAlleGebruikersOpen; renderClub(); };
   }
   if (tab === 'instel'){
     const nieuwSeizoenBtn = v.querySelector('#btnNieuwSeizoen');

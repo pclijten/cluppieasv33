@@ -16,11 +16,11 @@ import {
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20260817a';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260817b';
-import { ico } from './icons.js?v=20260816a';
+} from './config.js?v=20260818a';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260818a';
+import { ico } from './icons.js?v=20260818a';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260817f';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260818a';
 import { telGebruik } from './tracker.js?v=20260816a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260816a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260817j');
+  const m = await import('./teams.js?v=20260818a');
   m.renderTeam();
 }
 
