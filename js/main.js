@@ -3,8 +3,8 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20260816a';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260817i';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260817h';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260817j';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260817i';
 import { initChatbot } from './chatbot.js?v=20260817d';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —

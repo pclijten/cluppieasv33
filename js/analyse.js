@@ -33,8 +33,9 @@ export function analyseKwart(w, k){
   if (!kwartGespeeld(k)) return res;
   const D = kwartDuurSec(w, k);
   const aan = {};
+  const kFormatie = (k && k.formatie) || w.formatie;
   const telLijn = (pid, slot) => {
-    const naam = slotPositieNaam(w.format, w.formatie, slot) || slotLijn(slot);
+    const naam = slotPositieNaam(w.format, kFormatie, slot) || slotLijn(slot);
     (res.lijn[pid] ||= {}); res.lijn[pid][naam] = (res.lijn[pid][naam]||0) + 1;
   };
   for (const [slot, pid] of Object.entries(k.lineup||{})){

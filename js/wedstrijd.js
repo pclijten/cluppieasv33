@@ -13,13 +13,54 @@ import {
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260817a';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260817a';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260817b';
 import { ico } from './icons.js?v=20260816a';
 
 import { telGebruik } from './tracker.js?v=20260816a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
+
+/* Formatie die dit specifieke kwart hanteert. Valt terug op de
+   wedstrijd-brede startformatie (w.formatie) zolang het kwart zelf
+   nog geen eigen formatie heeft — zo blijven oude wedstrijden en
+   nog-lege kwarten gewoon werken. */
+function kwartFormatie(w, k){
+  const f = k && k.formatie;
+  return (f && FORMATIES[w.format] && FORMATIES[w.format][f]) ? f : w.formatie;
+}
+
+/* Herplaats de opstelling van één kwart naar een nieuwe formatie en houd
+   spelers zoveel mogelijk op hun plek: per linie (K/V/M/A) op slotvolgorde
+   overzetten. Spelers uit een krimpende linie schuiven door naar een vrije
+   plek in een andere linie; blijft er niets vrij, dan gaan ze naar de bank.
+   Events die verwijzen naar een slot dat in de nieuwe formatie niet meer
+   bestaat, laten we vallen (net als bij een format-wijziging). */
+function herplaatsKwart(w, k, nieuweFormatie){
+  const oudeSlots   = bouwSlots(w.format, kwartFormatie(w, k));
+  const nieuweSlots = bouwSlots(w.format, nieuweFormatie);
+  const perLinie = {K:[], V:[], M:[], A:[]};
+  for (const sl of oudeSlots){
+    const pid = k.lineup[sl.id];
+    if (pid) (perLinie[sl.lijn] ||= []).push(pid);
+  }
+  const nieuw = {};
+  const teller = {K:0, V:0, M:0, A:0};
+  for (const sl of nieuweSlots){
+    const rij = perLinie[sl.lijn] || [];
+    if (teller[sl.lijn] < rij.length) nieuw[sl.id] = rij[teller[sl.lijn]++];
+  }
+  const overschot = [];
+  for (const l of ['K','V','M','A'])
+    for (let i = teller[l]; i < (perLinie[l]||[]).length; i++) overschot.push(perLinie[l][i]);
+  for (const sl of nieuweSlots)
+    if (!nieuw[sl.id] && overschot.length) nieuw[sl.id] = overschot.shift();
+  k.lineup = nieuw;
+  const geldig = new Set(nieuweSlots.map(sl => sl.id));
+  k.events = (k.events || []).filter(e => geldig.has(e.slot));
+  k.formatie = nieuweFormatie;
+}
+
 
 /* startopstelling van de laatste gespeelde wedstrijd met hetzelfde format */
 function laatsteOpstelling(format){
@@ -306,6 +347,15 @@ function normaliseerWedstrijd(w){
     for (let i = 1; i <= w.periodes; i++) kwarten[i] = leegKwart();
     w.kwarten = kwarten; veranderd = true;
   }
+  /* Per-kwart formatie: bestaande wedstrijden hebben alleen w.formatie.
+     We zetten die als startwaarde op elk kwart, zodat elk kwart voortaan
+     zijn eigen speelwijze kan onthouden. Ongeldige waarden corrigeren we. */
+  for (const kk of Object.values(w.kwarten)){
+    if (!kk || typeof kk !== 'object') continue;
+    if (!kk.formatie || !FORMATIES[w.format][kk.formatie]){
+      kk.formatie = w.formatie; veranderd = true;
+    }
+  }
   if (!Array.isArray(w.goals)){ w.goals = []; veranderd = true; }
   if (!Array.isArray(w.kaarten)){ w.kaarten = []; veranderd = true; }
   if (!Array.isArray(w.selectie) || !w.selectie.length){ w.selectie = S.spelers.map(p => p.id); veranderd = true; }
@@ -321,7 +371,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260817i').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260817j').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -364,7 +414,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260817i').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260817j').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1250,7 +1300,9 @@ function kopieerVorigKwart(){
   const nr = Number(S.kwart);
   if (nr === 1) return;
   const vorig = S.wedstrijd.kwarten[nr-1];
-  huidigKwart().lineup = effectieveLineup(vorig);
+  const k = huidigKwart();
+  k.lineup = effectieveLineup(vorig);
+  k.formatie = kwartFormatie(S.wedstrijd, vorig);
   bewaarWedstrijd(); renderWedstrijd();
   meld('Eindopstelling ' + periodeOmschrijving(S.wedstrijd, String(nr-1)) + ' overgenomen — pas aan waar nodig');
 }
@@ -1413,7 +1465,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260817i').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260817j').then(m => m.renderTeam?.());
   });
 }
 
@@ -1429,7 +1481,8 @@ export function renderWedstrijd(){
   w.goals ||= [];
   w.kaarten ||= [];
   const k = huidigKwart();
-  const slots = bouwSlots(w.format, w.formatie);
+  const kFormatie = kwartFormatie(w, k);
+  const slots = bouwSlots(w.format, kFormatie);
   const lineup = effectieveLineup(k);
   const opVeld = new Set(Object.values(lineup));
   const aKwart = analyseKwart(w, k);
@@ -1480,7 +1533,7 @@ export function renderWedstrijd(){
       <h1>${isToernooi(w)
         ? '🏆 '+esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam))}
-      <span class="sub">${datumNL(w.datum)} · ${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden · ' : ''}<span id="subFormatieKlik" style="text-decoration:underline dotted;cursor:pointer">${esc(w.formatie)}</span></span></h1>
+      <span class="sub">${datumNL(w.datum)} · ${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden · ' : ''}<span id="subFormatieKlik" style="text-decoration:underline dotted;cursor:pointer">${esc(kFormatie)}</span></span></h1>
       <button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 3L20 6.5V11C20 15.5 16.9 19.7 12 21C7.1 19.7 4 15.5 4 11V6.5L12 3Z" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
@@ -1542,7 +1595,20 @@ ${confroHtml}
       return `<button class="knop vol" id="neemVorigeOver" style="margin-bottom:10px;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-d)">⧉ Opstelling vorige wedstrijd overnemen${vorige.bron.tegenstander ? ' (tegen '+esc(vorige.bron.tegenstander)+')' : ''}</button>`;
     })()}
 
-    <div class="veld-wrap"><div class="veld" id="veld">
+    <div class="veld-formatiebalk">
+      <div class="vf-links">
+        <span class="vf-badge">${esc(periodeLabel(w, S.kwart))}</span>
+        <span class="vf-formatie">${esc(kFormatie)}</span>
+      </div>
+      <button class="vf-wijzig" id="kwartFormatieKnop" title="Speelwijze van ${esc(periodeOmschrijving(w))} aanpassen">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M4 7h11M4 12h16M4 17h8" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="18" cy="7" r="2.4" fill="var(--accent)"/><circle cx="9" cy="17" r="2.4" fill="var(--accent)"/>
+        </svg>
+        <span>Speelwijze</span>
+      </button>
+    </div>
+    <div class="veld-wrap veld-onder-balk"><div class="veld" id="veld">
       <div class="lijn midden"></div><div class="lijn cirkel"></div>
       <div class="lijn zestien-o"></div><div class="lijn vijf-o"></div>
       <div class="lijn zestien-b"></div><div class="lijn vijf-b"></div>
@@ -1634,7 +1700,8 @@ ${confroHtml}
   v.querySelector('#naarTeam').onclick = () => history.back();
   v.querySelector('#wInstellingen').onclick = () => toonWijzigOpzet();
   v.querySelector('#doelBanner').onclick = () => toonWijzigOpzet('doel');
-  v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonWijzigOpzet('speelwijze'); };
+  v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonKwartFormatie(); };
+  { const kfk = v.querySelector('#kwartFormatieKnop'); if (kfk) kfk.onclick = toonKwartFormatie; }
   v.querySelectorAll('[data-kwart]').forEach(b => b.onclick = () => {
     /* Alleen van tab wisselen — geen automatische kopie meer; het lege kwart
        toont zelf een expliciete overneem-knop (kwart-leeg-actie). */
@@ -1656,7 +1723,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260817i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260817j').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1858,6 +1925,54 @@ function toonWijzigOpzet(sectie){
     const anker = {basis:'woSecBasis', speelwijze:'woSecSpeelwijze', doel:'woSecDoel'}[sectie];
     if (anker) requestAnimationFrame(() => $(`#${anker}`)?.scrollIntoView({block:'start'}));
   }
+}
+
+/* Kwart-formatie kiezer (bottom-sheet). Wijzigt ALLEEN de speelwijze van het
+   actieve kwart; andere kwarten blijven ongemoeid. Spelers schuiven zoveel
+   mogelijk mee naar hun plek (zie herplaatsKwart). Bereikbaar via de knop in
+   de balk boven het veld én via de onderstreepte formatie onder de titel. */
+function toonKwartFormatie(){
+  const w = S.wedstrijd; if (!w) return;
+  const k = huidigKwart();
+  const huidig = kwartFormatie(w, k);
+  let gekozen = huidig;
+  const kwartTekst = periodeOmschrijving(w);
+
+  const el = document.createElement('div');
+  el.className = 'kf-achter';
+  el.innerHTML = `
+    <div class="kf-sheet">
+      <div class="kf-greep"></div>
+      <h2>Speelwijze ${esc(periodeLabel(w, S.kwart))}</h2>
+      <p class="kf-sub">Alleen de speelwijze van <b>${esc(kwartTekst)}</b> verandert. Andere ${esc((w.periodes||4)===2?'helften':'kwarten')} blijven staan. Opgestelde spelers schuiven zoveel mogelijk mee naar hun plek.</p>
+      <div class="kf-grid">${Object.keys(FORMATIES[w.format]).map(f =>
+        `<button data-f="${esc(f)}" class="${f===huidig?'actief':''}">${esc(f)}</button>`).join('')}</div>
+      <div class="kf-acties">
+        <button class="kf-annuleer" id="kfAnnuleer">Annuleren</button>
+        <button class="kf-ok" id="kfOk">Toepassen op dit ${esc((w.periodes||4)===2?'helft':'kwart')}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('open'));
+
+  const sluit = () => { el.classList.remove('open'); setTimeout(() => el.remove(), 220); };
+  el.querySelectorAll('.kf-grid button').forEach(b => b.onclick = () => {
+    el.querySelectorAll('.kf-grid button').forEach(x => x.classList.remove('actief'));
+    b.classList.add('actief'); gekozen = b.dataset.f;
+  });
+  el.querySelector('#kfAnnuleer').onclick = sluit;
+  el.onclick = (e) => { if (e.target === el) sluit(); };
+  el.querySelector('#kfOk').onclick = () => {
+    if (gekozen !== huidig && FORMATIES[w.format][gekozen]){
+      herplaatsKwart(w, k, gekozen);
+      bewaarWedstrijd();
+      sluit();
+      renderWedstrijd();
+      meld(`Speelwijze ${periodeOmschrijving(w)} → ${gekozen}`);
+    } else {
+      sluit();
+    }
+  };
 }
 
 function verbergWijzigOpzet(){

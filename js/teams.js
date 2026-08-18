@@ -14,13 +14,13 @@ import {
 import { kompasTips, startContentListener } from './content.js?v=20260816a';
 import { ico } from './icons.js?v=20260816a';
 
-import { analyseWedstrijd } from './analyse.js?v=20260817a';
+import { analyseWedstrijd } from './analyse.js?v=20260817b';
 import { telGebruik } from './tracker.js?v=20260816a';
 import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260816a';
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad
-} from './wedstrijd.js?v=20260817h';
+} from './wedstrijd.js?v=20260817i';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -32,7 +32,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260817i')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260817j')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -848,6 +848,12 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
+  { datum:'2026-08-17', titel:'Speelwijze per kwart of helft', punten:[
+      'Je kunt nu per kwart (of helft) een eigen speelwijze kiezen \u2014 bijvoorbeeld 1e kwart 1-3-3 en 2e kwart 2-3-2 \u2014 zonder dat de andere periodes meeveranderen.',
+      'Boven het veld staat een balk met de speelwijze van het kwart dat je bekijkt. Tik daar op de knop \u2018Speelwijze\u2019 (of op de onderstreepte formatie onder de titel) om \u2019m aan te passen.',
+      'Wijzig je de speelwijze, dan blijven de opgestelde spelers zoveel mogelijk op hun plek: verdedigers bij de verdediging, middenvelders op het middenveld, aanvallers voorin.',
+      'De startformatie die je bij \u2018Wijzig opzet\u2019 kiest, geldt als beginwaarde voor nog lege kwarten.',
+    ]},
   { datum:'2026-08-17', titel:'Poule-programma per speelronde', punten:[
       'Het tabblad Stand & Poule heeft nu naast de Stand een tweede tabje: Programma.',
       'Daar zie je alle wedstrijden binnen je poule \u2014 ook die van de andere teams, en ook de nog te spelen wedstrijden.',
