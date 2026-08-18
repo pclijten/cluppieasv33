@@ -2619,3 +2619,46 @@ body::before{
 }
 .lp-chip.klaar{ opacity:.45; text-decoration:line-through; }
 .lp-dom{ color:var(--accent); font-weight:700; margin-right:5px; }
+
+/* ==================== UI-FIXES (v20260818d) ====================
+   1) Modal: vh-fallback voor oudere Android-WebViews zonder dvh-ondersteuning
+      (anders klapt de modal naar auto-hoogte en oogt hij "niet volledig scherm").
+   2) Reden-chips (presentie/selectie): laten omlopen i.p.v. afvallen.
+   3) Team-evaluatie: onmiskenbare markering van de gekozen tegel, in licht én
+      donker thema (dubbele ring + vinkje; overige tegels dimmen).
+   4) Meldingen (GOAL!, opgeslagen, …): onderaan i.p.v. over de kop, en altijd
+      hoge-contrast donker vlak met witte tekst. */
+
+/* 1 — modal volledig scherm, ook zonder dvh */
+.modal{ height:100vh; max-height:100vh; height:100dvh; max-height:100dvh; }
+.modal-achter[data-vorm="dialoog"] .modal{ height:auto; max-height:86vh; max-height:86dvh; }
+
+/* 2 — reden-chips netjes laten omlopen */
+.pres-reden-rij{ flex-wrap:wrap; }
+
+/* 3 — gekozen niveau overduidelijk markeren */
+.kleurbalk button.gekozen{
+  border-color:transparent;
+  transform:scale(1.06);
+  box-shadow:0 0 0 3px var(--paper), 0 0 0 6px var(--ink);
+  z-index:1;
+}
+.kleurbalk button.gekozen::after{
+  content:'✓';
+  position:absolute; top:1px; right:5px;
+  font-size:calc(13px * var(--fs)); font-weight:800; line-height:1;
+}
+/* zodra er in een categorie gekozen is: de rest dimmen (progressive enhancement) */
+.kleurbalk:has(.gekozen) button:not(.gekozen){ opacity:.4; }
+.kleurbalk:has(.gekozen) button:not(.gekozen):active{ opacity:1; }
+
+/* 4 — meldingen: onderin, altijd leesbaar */
+.melding{
+  top:auto !important;
+  bottom:calc(20px + env(safe-area-inset-bottom));
+  background:#1d232b !important;
+  color:#fff !important;
+  border:none !important;
+  font-weight:600;
+  box-shadow:0 8px 26px rgba(0,0,0,.35);
+}
