@@ -8,16 +8,16 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260817h';
-import { telGebruik } from './tracker.js?v=20260816a';
-import { ico } from './icons.js?v=20260818a';
+} from './state.js?v=20260818b';
+import { telGebruik } from './tracker.js?v=20260818b';
+import { ico } from './icons.js?v=20260818b';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260818a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260818a';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260817g';
+} from './config.js?v=20260818b';
+import { htmlKompas } from './teams-leerlijn.js?v=20260818b';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818b';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -62,8 +62,19 @@ function afgelastBannerHtml(a){
 export { afgelastGeldig };
 
 
-export function htmlTeamTrainingen(){
-  const pdfs = S.trainingen.filter(t => (t.teams||[]).includes(S.teamId));
+/* Maandnaam-hulpje, gedeeld door de presentie- en oefenstof-lijsten. */
+function maandNaam(ym){
+  const [j,m] = ym.split('-');
+  const d = new Date(parseInt(j), parseInt(m)-1, 1);
+  const s = d.toLocaleDateString('nl-NL', {month:'long', year:'numeric'});
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
+
+/* ---------- Tab: Presentie training ----------
+   Eigen tabblad sinds de hub-navigatie (voorheen een sectie bovenaan de
+   Training-tab). Zelfde gedrag: "Wie is er vandaag?"-knop, lijst per maand
+   in-/uitklapbaar, plus de afgelast-banner als die geldt. */
+export function htmlPresentieTraining(){
   const vandaag = new Date().toISOString().slice(0,10);
   const alGeregistreerd = S.presentie.find(p => p.datum === vandaag);
 
@@ -71,20 +82,14 @@ export function htmlTeamTrainingen(){
   const afg = afgelastGeldig();
   const afgelastSectie = afg ? afgelastBannerHtml(afg) : '';
 
-  // welke maanden zijn opengeklapt? standaard alles dicht; openTeam reset dit
-  // bij elke teamopening. Hier alleen een vangnet als de sets nog niet bestaan.
+  // welke maanden zijn opengeklapt? standaard alles dicht; zetTeamTab reset dit
+  // bij elk bezoek aan dit tabblad. Hier alleen een vangnet als de sets nog niet bestaan.
   if (!S._presentieOpen){
     S._presentieOpen = new Set();                       // 'YYYY-MM' van opengeklapte maanden
     S._presentieToonAlles = new Set();                  // maanden waar alle items getoond worden
   }
   const TOON_PER_MAAND = 4;   // standaard aantal per maand voordat "toon meer" verschijnt
 
-  const maandNaam = (ym) => {
-    const [j,m] = ym.split('-');
-    const d = new Date(parseInt(j), parseInt(m)-1, 1);
-    const s = d.toLocaleDateString('nl-NL', {month:'long', year:'numeric'});
-    return s.charAt(0).toUpperCase()+s.slice(1);
-  };
   const rijHtml = (p) => {
     const afw = (p.afwezig || []);
     const aanwezig = Math.max(0, S.spelers.length - afw.length);
@@ -146,14 +151,26 @@ export function htmlTeamTrainingen(){
   const alGeregAanwezig = alGeregistreerd ? Math.max(0, S.spelers.length - (alGeregistreerd.afwezig||[]).length) : 0;
   const alGeregAfwezig = alGeregistreerd ? (alGeregistreerd.afwezig||[]).length : 0;
 
-  const presentieSectie = `
-    <div class="sectie-kop" style="margin-top:0">${ico('admin-protocol',15)} Presentie training</div>
+  return `${afgelastSectie}
     ${alGeregistreerd
       ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
       : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:12px">Wie is er vandaag?</button>`}
     ${presentieLijst}`;
+}
 
-  // --- PDF-sectie (ook per maand, zelfde gedrag als presentie) ---
+/* ---------- Tab: Oefenstof ----------
+   Het ASV-kompas + de gedeelde oefenstof-PDF's. De presentie-sectie die hier
+   vroeger tussen stond woont nu op zijn eigen tabblad (htmlPresentieTraining
+   hierboven, tegel Presentie → Training op de hub). */
+export function htmlTeamTrainingen(){
+  const pdfs = S.trainingen.filter(t => (t.teams||[]).includes(S.teamId));
+
+  // afgelasting: banner ook hier tonen — een coach die oefenstof komt kijken
+  // moet net zo goed zien dat de training niet doorgaat
+  const afg = afgelastGeldig();
+  const afgelastSectie = afg ? afgelastBannerHtml(afg) : '';
+
+  // --- PDF-sectie (per maand, zelfde gedrag als de presentie-lijst) ---
   // huidige maand staat standaard open; gebruiker kan maanden dicht/open klappen.
   if (!S._pdfDicht){ S._pdfDicht = new Set(); S._pdfToonAlles = new Set(); }
 
@@ -216,7 +233,7 @@ export function htmlTeamTrainingen(){
     <div class="sectie-kop">${ico('admin-document',15)} Gedeelde oefenstof</div>
     ${pdfLijst}`;
 
-  return htmlKompas() + afgelastSectie + presentieSectie + pdfSectie;
+  return htmlKompas() + afgelastSectie + pdfSectie;
 }
 
 /* ---------- Tab: video's ---------- */
