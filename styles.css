@@ -2581,6 +2581,7 @@ body::before{
   border-radius:20px; background:var(--accent); color:#fff;
   font-size:calc(10.5px * var(--fs)); font-weight:700; line-height:18px;
 }
+.hub-badge.warn{ background:var(--keeper); color:#1a1200; }
 .hub-dot{ position:absolute; top:9px; right:9px; width:8px; height:8px; border-radius:50%; background:var(--accent); }
 .hub-updates-link{
   display:block; width:100%; margin:20px 0 6px; padding:10px;
@@ -2702,3 +2703,6 @@ body::before{
 .nav-vlag{font-size:calc(9.5px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 6px;border-radius:5px}
 .nav-vlag.hoog{background:rgba(229,72,77,.15);color:var(--uit)}
 .nav-vlag.norm{background:rgba(63,185,80,.14);color:var(--in)}
+
+/* Club-hub kop: de subtitel (teams · clubcode) onder de clubnaam op eigen regel */
+.welkom-kop .sub{display:block;font-family:'Inter';font-size:calc(12.5px * var(--fs));font-weight:500;text-transform:none;letter-spacing:0;opacity:.9;margin-top:3px}
