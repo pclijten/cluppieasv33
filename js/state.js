@@ -16,7 +16,7 @@ export const S = {
   spelers:[], wedstrijden:[],
   wedstrijd:null, wedstrijdId:null, kwart:'1',
   teamTab:'wedstrijden', _teamTabStack:[], geselecteerd:null,
-  clubs:[], club:null, clubId:null, clubTab:'teams', clubTrainBouw:'onder', clubDocCategorie:'alle', clubDashSort:'desc', clubDashPeriode:'dag', clubDashModus:'overzicht', clubEvalModus:'teams', clubTeams:[], clubTrainingen:[], clubDocumenten:[],
+  clubs:[], club:null, clubId:null, clubTab:'hub', clubTrainBouw:'onder', clubDocCategorie:'alle', clubDashSort:'desc', clubDashPeriode:'dag', clubDashModus:'overzicht', clubEvalModus:'teams', clubTeams:[], clubTrainingen:[], clubDocumenten:[],
   trainingen:[], trainingenGelezen:{}, videos:[], documenten:[], presentie:[], berichten:[],
   beoordelingen:[], _beoordeelProfiel:null, _profielTab:'overzicht',
   teamEvaluaties:[], statsSubTab:'spelers', huidigSeizoen:null, statsSeizoen:null,
@@ -264,13 +264,13 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20260819b').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20260819c').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260819b').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260819c').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
@@ -282,7 +282,13 @@ function stapTerug(){
     return true;
   }
   if (view === 'wedstrijd'){ _navTerug('team:' + (S.teamTab || 'hub')); S._navTerugWedstrijd?.(); return true; }
-  if (view === 'club'){      _navTerug('teams'); S._navVerlaatClub?.();    return true; }
+  if (view === 'club'){
+    /* Stap eerst één niveau omhoog binnen de club-hub (dash-scherm → inzicht →
+       hub). Alleen vanaf de hub zelf verlaten we de club richting teams.
+       _navClubTerug logt zijn eigen terug-stap. */
+    if (S.clubTab && S.clubTab !== 'hub'){ S._navClubTerug?.(); return true; }
+    _navTerug('teams'); S._navVerlaatClub?.(); return true;
+  }
   if (view === 'team'){
     /* Eerst één tabblad terug binnen het team (bv. van Planning → Meer, of van
        Stats → het tabblad waar je vandaan kwam). Pas als er geen tab-historie
