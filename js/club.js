@@ -6,12 +6,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260818e';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260818e';
-import { analyseWedstrijd } from './analyse.js?v=20260818e';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260818e';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260818e';
-import { telGebruik } from './tracker.js?v=20260818e';
+} from './state.js?v=20260819b';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260819b';
+import { analyseWedstrijd } from './analyse.js?v=20260819b';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260819b';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260819b';
+import { telGebruik, telNav } from './tracker.js?v=20260819b';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -28,7 +28,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260819a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260819b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -66,12 +66,13 @@ export function openClub(clubId){
     if (err.code === 'permission-denied') meld('Geen toegang tot deze club — controleer de Firestore-rules');
   });
   toon('club');
+  telNav('club:teams', 'open');
 }
 
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260819a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260819b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -309,6 +310,16 @@ function htmlClubDashboard(teams, dash, gebruik){
         ${htmlClubGebruik(gebruik)}
         ${htmlClubFunctiegebruik(gebruik)}
       </div>
+    </div>
+
+    <div class="dash-inklap ${S.clubNavOpen ? 'open' : 'dicht'}" style="margin-bottom:12px">
+      <button class="dash-inklap-kop kaart" data-dash-inklap="nav" style="margin-bottom:0;width:100%">
+        <span class="dash-inklap-titel" style="color:var(--ink-2)">🧭 Navigatie-inzicht</span>
+        <span class="dash-inklap-pijl">›</span>
+      </button>
+      <div class="dash-inklap-inhoud" style="margin-top:12px">
+        ${htmlClubNavigatie(gebruik)}
+      </div>
     </div>`;
 }
 
@@ -348,7 +359,16 @@ async function clubGebruikOphalen(teams){
   const naamPerUid = {};
   gebruikers.forEach(g => { naamPerUid[g.id] = g.naam || g.email || 'Onbekend'; });
 
-  return { logins, gebruikers, gebruikDocs, naamPerUid };
+  // Navigatiepaden: documenten navpaden/{uid}_{sessieId} met geordende stappen.
+  // Zelfde datum-venster; daarna op relevante uid. Faalt zacht — een dashboard
+  // zonder navpad-data toont gewoon een lege staat i.p.v. te breken.
+  let navpaden = [];
+  try {
+    const navSnap = await getDocs(query(collection(db,'navpaden'), where('datum','>=',vanaf)));
+    navpaden = navSnap.docs.map(d => d.data()).filter(n => relevantUids.has(n.uid));
+  } catch(e){ console.warn('[club] navpaden ophalen mislukt:', e?.code || e?.message); }
+
+  return { logins, gebruikers, gebruikDocs, naamPerUid, navpaden };
 }
 
 /* Groepeer de functiegebruik-documenten per periode (dag/week/maand), en bereken
@@ -444,6 +464,220 @@ function htmlClubFunctiegebruik(gebruik){
       </div>
       ${totaalAlles ? blokken : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen functiegebruik geregistreerd in deze periode.</p>`}
       <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Alle functies worden geteld; per categorie staan de drukste bovenaan. Tik een categorie open, of "wie" voor de uitsplitsing per coach. Alleen tellingen — geen speler- of persoonsgegevens.</p>
+    </div>`;
+}
+
+/* ==================== NAVIGATIE-INZICHT (klikgedrag) ====================
+   Aggregeert de navpaden/{uid}_{sid}-documenten tot drie weergaves:
+   1. Top-routes    — vaakst voorkomende schermvolgordes per sessie
+   2. Overgangsmatrix — van elk scherm: waar men daarna heen ging (+ terug-kolom)
+   3. Uitstappunten  — vanaf welk scherm men de sessie beëindigde
+   Werkt uitsluitend op schermnaam + aanleiding — geen persoonsdata. */
+
+/* Leesbare labels voor de fijnmazige schermnamen. */
+const NAV_LABELS = {
+  'teams':'Teams', 'team:hub':'Team · hub', 'team:spelers':'Spelers',
+  'team:trainingen':'Trainingen', 'team:presentietraining':'Presentie',
+  'team:planning':'Planning', 'team:poule':'Poule', 'team:stats':'Stats',
+  'team:instellingen':'Instellingen', 'spelerprofiel':'Spelerprofiel',
+  'wedstrijd:opstelling':'Wedstrijd · opstelling',
+  'club:teams':'Club · teams', 'club:content':'Club · content',
+};
+function navLabel(s){
+  if (NAV_LABELS[s]) return NAV_LABELS[s];
+  if (/^wedstrijd:kwart/.test(s)) return 'Wedstrijd · ' + s.replace('wedstrijd:','');
+  return s;
+}
+/* Grove groep voor kleurcodering (teams/team/wedstrijd/club/overig). */
+function navGroep(s){
+  if (s === 'teams') return 'teams';
+  if (s.startsWith('team:')) return 'team';
+  if (s.startsWith('wedstrijd:')) return 'wedstrijd';
+  if (s.startsWith('club:')) return 'club';
+  return 'overig';
+}
+
+/* Kernaggregatie: loop één keer door alle sessies en bouw tegelijk de
+   route-tellingen, de overgangsmatrix (incl. terug) en de uitstap-tellingen. */
+function navAggregeer(navpaden){
+  const routes = new Map();        // pad-signatuur → {aantal, stappen}
+  const matrix = new Map();        // van → Map(naar → n), plus van → {_terug, _sluit}
+  const bezoek = new Map();        // scherm → hoe vaak bezocht
+  const exit   = new Map();        // scherm → hoe vaak laatste stap van sessie
+  const exitMidden = new Map();    // scherm → aantal keer dat exit "middenin" was (na vooruit, niet na taak-af)
+  let sessies = 0, totStappen = 0, terugStappen = 0;
+
+  for (const doc of navpaden){
+    const stappen = Array.isArray(doc.stappen) ? doc.stappen : [];
+    if (!stappen.length) continue;
+    sessies++;
+    totStappen += stappen.length;
+
+    // route-signatuur: alleen de schermnamen (compact, max 6 voor leesbaarheid)
+    const namen = stappen.map(s => s.s);
+    const sig = namen.slice(0, 8).join(' → ');
+    const r = routes.get(sig) || { aantal:0, stappen: namen.slice(0,8) };
+    r.aantal++; routes.set(sig, r);
+
+    for (let i = 0; i < stappen.length; i++){
+      const st = stappen[i];
+      bezoek.set(st.s, (bezoek.get(st.s)||0) + 1);
+      if (st.h === 'terug') terugStappen++;
+
+      if (i < stappen.length - 1){
+        const van = st.s, naar = stappen[i+1].s, hoe = stappen[i+1].h;
+        const rij = matrix.get(van) || new Map();
+        if (hoe === 'terug'){ rij.set('_terug', (rij.get('_terug')||0) + 1); }
+        else { rij.set(naar, (rij.get(naar)||0) + 1); }
+        matrix.set(van, rij);
+      } else {
+        // laatste stap = uitstappunt
+        exit.set(st.s, (exit.get(st.s)||0) + 1);
+        // "middenin" = de sessie eindigde direct na een vooruit-stap die geen
+        // natuurlijk eindpunt is (ruwe heuristiek: eindigde op een profiel- of
+        // bewerk-scherm i.p.v. op een overzicht/kwart).
+        const rij2 = matrix.get(st.s);
+        // exit telt als 'sluit' in de matrix-rij van dat scherm
+        const rijS = matrix.get(st.s) || new Map();
+        rijS.set('_sluit', (rijS.get('_sluit')||0) + 1);
+        matrix.set(st.s, rijS);
+      }
+    }
+  }
+
+  // routes aflopend op aantal
+  const topRoutes = [...routes.entries()]
+    .map(([sig, r]) => ({sig, ...r}))
+    .sort((a,b) => b.aantal - a.aantal)
+    .slice(0, 6);
+
+  return { sessies, totStappen, terugStappen, topRoutes, matrix, bezoek, exit };
+}
+
+function htmlClubNavigatie(gebruik){
+  const navpaden = gebruik.navpaden || [];
+  const A = navAggregeer(navpaden);
+  const modus = S.clubNavModus || 'routes';
+
+  if (!A.sessies){
+    return `
+      <div class="kaart">
+        <div class="sectie-kop" style="margin-top:0">Navigatie-inzicht</div>
+        <p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen navigatiedata verzameld. Zodra coaches door de app bewegen, verschijnen hier de meest gelopen routes, de overgangen tussen schermen en de uitstappunten.</p>
+      </div>`;
+  }
+
+  const gemStappen = A.sessies ? (A.totStappen / A.sessies) : 0;
+  const terugPct = A.totStappen ? Math.round((A.terugStappen / A.totStappen) * 100) : 0;
+
+  // --- kpi-rijtje ---
+  const kpis = `
+    <div class="nav-kpis">
+      <div class="nav-kpi"><div class="n">${A.sessies}</div><div class="l">sessies</div></div>
+      <div class="nav-kpi"><div class="n">${gemStappen.toFixed(1)}</div><div class="l">schermen/sessie</div></div>
+      <div class="nav-kpi"><div class="n" style="color:${terugPct>=25?'var(--keeper)':'var(--ink)'}">${terugPct}%</div><div class="l">"moest terug"</div></div>
+    </div>`;
+
+  const segment = `
+    <div class="segment" id="clubNavModus" style="margin-bottom:14px">
+      ${[['routes','Top-routes'],['matrix','Overgangen'],['exit','Uitstappunten']].map(([id,naam]) =>
+        `<button data-navmodus="${id}" class="${modus===id?'actief':''}">${naam}</button>`).join('')}
+    </div>`;
+
+  let inhoud = '';
+
+  if (modus === 'routes'){
+    const maxAantal = Math.max(1, ...A.topRoutes.map(r => r.aantal));
+    inhoud = A.topRoutes.map((r, idx) => {
+      const nodes = r.stappen.map((s,i) => {
+        const g = navGroep(s);
+        return `${i>0?'<span class="nav-pijl">→</span>':''}<span class="nav-node ${g}">${esc(navLabel(s))}</span>`;
+      }).join('');
+      const pct = Math.round((r.aantal / A.sessies) * 100);
+      return `
+        <div class="nav-route">
+          <div class="nav-route-kop">
+            <span class="nav-route-rang ${idx===0?'top':''}">${idx+1}</span>
+            <span class="nav-route-stat">${pct}% · ${r.aantal}×</span>
+          </div>
+          <div class="nav-flow">${nodes}</div>
+          <div class="nav-balk"><i style="width:${Math.round((r.aantal/maxAantal)*100)}%"></i></div>
+        </div>`;
+    }).join('');
+    inhoud += `<p class="nav-duiding">Elke rij is een veelvoorkomende schermvolgorde binnen één sessie. Percentage = aandeel van alle sessies dat zo begon.</p>`;
+  }
+
+  else if (modus === 'matrix'){
+    // kolommen: de drukst bezochte schermen (max 6) + terug + sluit
+    const drukste = [...A.bezoek.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6).map(([s])=>s);
+    const rijen = drukste;   // symmetrisch: rijen = kolommen (de drukste schermen)
+    const kleurCel = (v, max) => {
+      if (!v) return 'background:var(--surface-2);color:var(--ink-2)';
+      const t = v/max;
+      const bg = t<.2?'#3a1a1c':t<.4?'#6e2225':t<.6?'#a82c30':'var(--accent)';
+      return `background:${bg};color:${t>=.4?'#fff':'#e6b0b2'}`;
+    };
+    // maxima per context voor kleurschaal
+    let maxVooruit = 1, maxTerug = 1;
+    for (const van of rijen){
+      const rij = A.matrix.get(van); if (!rij) continue;
+      for (const naar of drukste) if (naar!==van) maxVooruit = Math.max(maxVooruit, rij.get(naar)||0);
+      maxTerug = Math.max(maxTerug, rij.get('_terug')||0);
+    }
+    const kop = `<tr><th class="nav-hoek">van ↓ / naar →</th>${drukste.map(s=>`<th>${esc(navLabel(s))}</th>`).join('')}<th style="color:var(--keeper)">↩ terug</th><th>⨯ sluit</th></tr>`;
+    const body = rijen.map(van => {
+      const rij = A.matrix.get(van) || new Map();
+      const totVan = [...rij.values()].reduce((a,b)=>a+b,0) || 1;
+      const cellen = drukste.map(naar => {
+        if (naar === van) return `<td><div class="nav-cel" style="background:var(--surface-2);color:var(--ink-2)">—</div></td>`;
+        const v = rij.get(naar)||0; const pct = Math.round((v/totVan)*100);
+        return `<td><div class="nav-cel" style="${kleurCel(v,maxVooruit)}">${v?pct+'%':'·'}</div></td>`;
+      }).join('');
+      const vT = rij.get('_terug')||0, pctT = Math.round((vT/totVan)*100);
+      const tT = vT? (vT/maxTerug):0;
+      const bgT = !vT?'background:var(--surface-2);color:var(--ink-2)':`background:${tT<.34?'#4a3a1a':tT<.67?'#8a6420':'var(--keeper)'};color:${tT>=.34?'#1a1200':'#e0c07d'}`;
+      const vS = rij.get('_sluit')||0, pctS = Math.round((vS/totVan)*100);
+      return `<tr><th>${esc(navLabel(van))}</th>${cellen}<td><div class="nav-cel" style="${bgT}">${vT?pctT+'%':'·'}</div></td><td><div class="nav-cel" style="font-style:italic;color:var(--ink-2)">${vS?pctS+'%':'·'}</div></td></tr>`;
+    }).join('');
+    inhoud = `<div class="nav-matrix-scroll"><table class="nav-matrix">${kop}${body}</table></div>
+      <p class="nav-duiding">Lees per rij: vanaf dat scherm, waar ging men daarna heen. De gele <b style="color:var(--keeper)">↩ terug</b>-kolom toont het aandeel dat via de terugknop ging — daar kún je nergens rechtstreeks heen. Rood = veel vooruit-verkeer.</p>`;
+  }
+
+  else { // exit
+    const totExit = [...A.exit.values()].reduce((a,b)=>a+b,0) || 1;
+    const rijen = [...A.exit.entries()]
+      .map(([s,n]) => ({s, n, bezoek: A.bezoek.get(s)||n}))
+      .map(r => ({...r, pct: Math.round((r.n / r.bezoek) * 100)}))
+      .sort((a,b) => b.n - a.n)
+      .slice(0, 8);
+    const maxN = Math.max(1, ...rijen.map(r => r.n));
+    inhoud = rijen.map(r => {
+      // natuurlijke eindpunten (taak af) vs. mogelijke knelpunten
+      const natuurlijk = /kwart|poule|stats|opstelling/.test(r.s);
+      const knelpunt = /spelerprofiel|bewerk/.test(r.s);
+      const vlag = knelpunt ? '<span class="nav-vlag hoog">mogelijk knelpunt</span>'
+                 : natuurlijk ? '<span class="nav-vlag norm">verwacht einde</span>'
+                 : '';
+      return `
+        <div class="nav-exit">
+          <div class="nav-exit-naam">${esc(navLabel(r.s))} ${vlag}</div>
+          <div class="nav-exit-stat">
+            <span class="nav-exit-pct">${r.pct}%</span>
+            <span class="nav-exit-cnt">${r.n}× laatste stap</span>
+          </div>
+          <div class="nav-balk"><i style="width:${Math.round((r.n/maxN)*100)}%;${knelpunt?'background:linear-gradient(90deg,var(--uit),#a82c30)':''}"></i></div>
+        </div>`;
+    }).join('');
+    inhoud += `<p class="nav-duiding">Percentage = aandeel van de bezoeken aan dat scherm dat eindigde in het sluiten van de app. Hoog op een taak-af-scherm (kwart, poule) is normaal; hoog middenin een flow (spelerprofiel) is een aandachtspunt.</p>`;
+  }
+
+  return `
+    <div class="kaart">
+      <div class="sectie-kop" style="margin-top:0">Navigatie-inzicht</div>
+      ${kpis}
+      ${segment}
+      ${inhoud}
+      <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Toont hoe coaches door de app bewegen — alleen schermnaam, tijd en aanleiding (tab/tegel/terug). Geen speler- of persoonsgegevens.</p>
     </div>`;
 }
 
@@ -630,7 +864,7 @@ async function renderClub(){
         .map(([id,ico,naam]) => `<button data-ctab="${id}" class="${tab===id?'actief':''}"><span class="ico">${ico}</span>${naam}</button>`).join('')}
     </nav>`;
   v.querySelector('#naarTeams').onclick = () => history.back();
-  v.querySelectorAll('[data-ctab]').forEach(b => b.onclick = () => { S.clubTab = b.dataset.ctab; renderClub(); });
+  v.querySelectorAll('[data-ctab]').forEach(b => b.onclick = () => { S.clubTab = b.dataset.ctab; telNav('club:' + b.dataset.ctab, 'tab'); renderClub(); });
   v.querySelectorAll('[data-dashmodus]').forEach(b => b.onclick = () => { S.clubDashModus = b.dataset.dashmodus; renderClub(); });
   if (tab === 'content' && contentLijst){
     koppelClubContent(v);
@@ -1272,7 +1506,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260818e');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819b');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -1409,7 +1643,9 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       blok.classList.toggle('dicht', !open);
       if (kop.dataset.dashInklap === 'aandacht') S.clubAandachtOpen = open;
       if (kop.dataset.dashInklap === 'stats')    S.clubStatsOpen = open;
+      if (kop.dataset.dashInklap === 'nav')      S.clubNavOpen = open;
     });
+    v.querySelectorAll('[data-navmodus]').forEach(b => b.onclick = () => { S.clubNavModus = b.dataset.navmodus; renderClub(); });
     const btnAlleGebr = v.querySelector('#btnAlleGebruikers');
     if (btnAlleGebr) btnAlleGebr.onclick = () => { S.clubAlleGebruikersOpen = !S.clubAlleGebruikersOpen; renderClub(); };
   }
@@ -1813,7 +2049,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260818e');
+    const ai = await import('./training-ai.js?v=20260819b');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -1928,7 +2164,7 @@ function toonPreview(file, meta, ctx){
   $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260818e');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819b');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -1950,7 +2186,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
   try {
-    const ai = await import('./training-ai.js?v=20260818e');
+    const ai = await import('./training-ai.js?v=20260819b');
     const { paginas } = await ai.leesPdf(file);
     const oefeningen = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');
