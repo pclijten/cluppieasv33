@@ -2662,3 +2662,43 @@ body::before{
   font-weight:600;
   box-shadow:0 8px 26px rgba(0,0,0,.35);
 }
+
+/* ==================== NAVIGATIE-INZICHT (clubdashboard) ==================== */
+.nav-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.nav-kpi{background:var(--surface-2);border-radius:11px;padding:10px 12px;text-align:center}
+.nav-kpi .n{font-family:'Barlow Condensed';font-weight:700;font-size:calc(24px * var(--fs));line-height:1;color:var(--ink)}
+.nav-kpi .l{font-size:calc(10.5px * var(--fs));color:var(--ink-2);margin-top:3px;text-transform:uppercase;letter-spacing:.3px}
+
+.nav-route{background:var(--surface-2);border-radius:11px;padding:11px 12px;margin-bottom:8px}
+.nav-route-kop{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.nav-route-rang{font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs));width:22px;height:22px;border-radius:6px;background:var(--card);color:var(--ink-2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-route-rang.top{background:var(--accent);color:#fff}
+.nav-route-stat{margin-left:auto;font-size:calc(12px * var(--fs));font-weight:700;color:var(--ink-2)}
+.nav-flow{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.nav-node{display:inline-flex;align-items:center;padding:5px 9px;border-radius:8px;font-size:calc(11.5px * var(--fs));font-weight:600;white-space:nowrap;border:1px solid transparent}
+.nav-node.teams{background:rgba(127,168,230,.14);color:#5c86c4;border-color:rgba(127,168,230,.3)}
+.nav-node.team{background:rgba(125,203,106,.14);color:#4f9a3d;border-color:rgba(125,203,106,.3)}
+.nav-node.wedstrijd{background:rgba(226,6,19,.12);color:var(--accent);border-color:rgba(226,6,19,.3)}
+.nav-node.club{background:rgba(242,163,60,.16);color:#c47f18;border-color:rgba(242,163,60,.35)}
+.nav-node.overig{background:rgba(198,154,224,.16);color:#9a5cc4;border-color:rgba(198,154,224,.32)}
+.nav-pijl{color:var(--ink-2);font-size:calc(13px * var(--fs));flex-shrink:0}
+.nav-balk{height:4px;border-radius:2px;background:var(--card);margin-top:9px;overflow:hidden}
+.nav-balk i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.nav-duiding{font-size:calc(11.5px * var(--fs));color:var(--ink-2);line-height:1.55;margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:10px}
+
+.nav-matrix-scroll{overflow-x:auto;border-radius:11px;border:1px solid var(--hair)}
+.nav-matrix{border-collapse:collapse;width:100%;min-width:520px;font-size:calc(11px * var(--fs))}
+.nav-matrix th{padding:8px 6px;font-weight:600;color:var(--ink-2);font-size:calc(10px * var(--fs));text-transform:uppercase;letter-spacing:.2px;white-space:nowrap;background:var(--surface-2);text-align:center}
+.nav-matrix tbody th{text-align:right;padding:7px 10px;color:var(--ink);font-size:calc(10.5px * var(--fs));border-right:1px solid var(--hair);white-space:nowrap}
+.nav-matrix .nav-hoek{text-align:right}
+.nav-matrix td{padding:2px;text-align:center}
+.nav-cel{height:34px;display:flex;align-items:center;justify-content:center;font-weight:600;border-radius:6px;font-variant-numeric:tabular-nums}
+
+.nav-exit{background:var(--surface-2);border-radius:11px;padding:11px 12px;margin-bottom:8px}
+.nav-exit-naam{font-weight:600;font-size:calc(13px * var(--fs));color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.nav-exit-stat{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+.nav-exit-pct{font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs));line-height:1;color:var(--ink)}
+.nav-exit-cnt{font-size:calc(11px * var(--fs));color:var(--ink-2)}
+.nav-vlag{font-size:calc(9.5px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 6px;border-radius:5px}
+.nav-vlag.hoog{background:rgba(229,72,77,.15);color:var(--uit)}
+.nav-vlag.norm{background:rgba(63,185,80,.14);color:var(--in)}
