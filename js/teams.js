@@ -32,7 +32,7 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260818e')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260819a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -46,7 +46,7 @@ import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20260818e';
+} from './teams-training.js?v=20260819a';
 import { htmlTeamDocumenten } from './teams-documenten.js?v=20260818e';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
@@ -1712,6 +1712,8 @@ function koppelTeamTab(v, tab){
     });
     const pv = v.querySelector('#presentieVandaag');
     if (pv) pv.onclick = () => modalPresentie();
+    const pad = v.querySelector('#presentieAndereDatum');
+    if (pad) pad.onclick = () => modalPresentie(null, {startAnder:true});
     v.querySelectorAll('[data-presentie]').forEach(r => r.onclick = () => {
       const p = S.presentie.find(x => x.id === r.dataset.presentie);
       if (p) modalPresentie(p);
