@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260819c'); }
+async function teamsModule(){ return await import('./teams.js?v=20260819d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260819c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260819d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -940,8 +940,11 @@ async function renderClub(){
 
   v.innerHTML = `${kop}${inhoud}`;
 
-  // terug-knop: één niveau omhoog volgens het huidige niveau
-  v.querySelector('#clubTerug').onclick = () => clubTerugEen();
+  // terug-knop: één niveau omhoog volgens het huidige niveau; staat de coach al
+  // op de hub, dan verlaat hij de club (terug naar de teamkeuze). clubTerugEen()
+  // geeft false op de hub — dan pakken we de uitgang zelf op, net als de
+  // Android-terugknop / veeg-terug dat doet (zie stapTerug in state.js).
+  v.querySelector('#clubTerug').onclick = () => { if (!clubTerugEen()) verlaatClubView(); };
 
   // hub-tegels koppelen
   v.querySelectorAll('[data-club-open]').forEach(b => b.onclick = () => {
@@ -2116,6 +2119,25 @@ function modalNieuweTraining(file, teams, voorBouw = null){
   };
 }
 
+/* Schrijf inhoud in de training-modal met dezelfde vaste kopbalk + scrolbare
+   body als openModal(). De losse schermen hieronder (verwerken, preview,
+   alleen-PDF) vulden voorheen .modal rechtstreeks — maar .modal is een flex-
+   kolom met overflow:hidden en verwacht een .modal-body die zelf scrolt. Zonder
+   die wrapper liep de preview (diagrammen + oefeningtekst) buiten beeld en kon
+   je niet scrollen. Deze helper zet de body altijd goed neer en geeft ook op
+   deze schermen een sluitkruis. */
+function zetTrainingModalInhoud(titel, bodyHtml){
+  const mod = $('.modal'); if (!mod) return null;
+  const kruis = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></svg>';
+  mod.innerHTML =
+    '<div class="modal-kop"><h2>' + esc(titel) + '</h2>' +
+    '<button type="button" class="modal-sluit" aria-label="Sluiten">' + kruis + '</button></div>' +
+    '<div class="modal-body">' + bodyHtml + '</div>';
+  const sl = mod.querySelector('.modal-sluit');
+  if (sl) sl.onclick = () => sluitModal();
+  return mod.querySelector('.modal-body');
+}
+
 /* ---------- AI-verwerking van een training-PDF ----------
    Draait binnen dezelfde modal: upload PDF + diagrammen naar Storage, laat de
    AI de tekst structureren, bereken de overeenkomst-score, en toon een preview
@@ -2129,13 +2151,12 @@ async function startTrainingVerwerking(file, meta){
   const pdfPath = `clubs/${S.clubId}/trainingen/${mapId}/${veiligeNaam}`;
 
   const toonVerwerk = (stapjesHtml) => {
-    mod.innerHTML = `
+    zetTrainingModalInhoud('Training omzetten', `
       <div class="tr-verwerk">
         <div class="tr-spin"></div>
-        <h2>Training omzetten</h2>
         <p>De app leest de PDF en maakt er een makkelijk leesbare weergave van voor je coaches.</p>
         <div class="tr-stapjes">${stapjesHtml}</div>
-      </div>`;
+      </div>`);
   };
   const stap = (klaar, actief, rest) =>
     klaar.map(t=>`<div class="klaar">${t}</div>`).join('') +
@@ -2143,7 +2164,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260819c');
+    const ai = await import('./training-ai.js?v=20260819d');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -2202,8 +2223,10 @@ function toonPreview(file, meta, ctx){
     </div>`;
 
   const oefHtml = oefeningen.map((o,i)=>{
-    const paginaKey = (o.diagramPagina != null) ? o.diagramPagina : (i+1);
-    const url = (diagramUrls||{})[paginaKey] || (diagramUrls||{})[String(paginaKey)] || (diagramUrls||{})[i+1];
+    // Zie training-weergave.js: index leidend (doorlopend genummerd), diagramPagina als terugval.
+    const D = diagramUrls || {};
+    const url = D[i+1] || D[String(i+1)] ||
+      (o.diagramPagina != null ? (D[o.diagramPagina] || D[String(o.diagramPagina)]) : null);
     const diagram = url ? `<figure class="trw-diagram"><img src="${esc(url)}" alt=""></figure>` : '';
     const blokken = (o.blokken||[]).map(b=>{
       const kop = b.kop?`<h3>${esc(b.kop)}</h3>`:'';
@@ -2224,13 +2247,12 @@ function toonPreview(file, meta, ctx){
       <button class="knop grijs" id="trPdfOnly">Alleen als PDF</button>
     </div>`;
 
-  mod.innerHTML = `
-    <h2>Controleer</h2>
+  zetTrainingModalInhoud('Controleer', `
     ${scoreKaart}
     <div style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.45">Zo zien je coaches de training straks.${goed?' Klopt de opmaak? Deel hem.':''}</div>
     ${acties}
     ${oefHtml}
-    ${acties}`;
+    ${acties}`);
 
   const deel = async () => {
     const b = $('#trDeel'); if (b){ b.disabled = true; b.textContent = 'Delen…'; }
@@ -2278,14 +2300,22 @@ function toonPreview(file, meta, ctx){
 /* Alleen de AI opnieuw draaien (PDF + diagrammen bestaan al in Storage). */
 async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
-  mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
+  zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20260819c');
-    const { paginas } = await ai.leesPdf(file);
+    const ai = await import('./training-ai.js?v=20260819d');
+    // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
+    // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
+    // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden
+    // (diagram{n}.png onder ctx.mapId), dus de oude plaatjes worden vervangen.
+    const { paginas, diagramBlobs } = await ai.leesPdf(file);
+    let diagramUrls = ctx.diagramUrls;
+    try {
+      if (ctx.mapId) diagramUrls = await ai.uploadDiagrammen(S.clubId, ctx.mapId, diagramBlobs);
+    } catch(e){ console.warn('[training-ai] diagrammen opnieuw opslaan faalde, oude blijven staan:', e); }
     const oefeningen = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');
     const score = ai.berekenScore(origineleTekst, oefeningen);
-    toonPreview(file, meta, { ...ctx, oefeningen, score });
+    toonPreview(file, meta, { ...ctx, diagramUrls, oefeningen, score });
   } catch(e){
     console.error('[training-ai] opnieuw mislukt', e);
     toonAlleenPdfKeuze(file, meta, ctx, 'Opnieuw genereren lukte niet. Je kunt de training als PDF delen.');
@@ -2314,14 +2344,13 @@ async function deelAlleenPdf(file, meta, ctx){
 /* Fallback-scherm als de AI helemaal niet lukte: alleen-PDF aanbieden. */
 function toonAlleenPdfKeuze(file, meta, ctx, boodschap){
   const mod = $('.modal'); if (!mod) return;
-  mod.innerHTML = `
-    <h2>Training delen</h2>
+  zetTrainingModalInhoud('Training delen', `
     <div class="tr-score fout" style="margin-top:4px">
       <div class="tr-score-kop"><span class="tr-badge fout-b">!</span><b>Automatische opmaak niet gelukt</b></div>
       <p class="tr-score-uitleg">${esc(boodschap||'')}</p>
     </div>
     <div class="tr-preview-acties"><button class="knop vol" id="trPdfOnly">Als PDF delen</button></div>
-    <div class="tr-preview-acties2"><button class="knop grijs" id="trOpnieuw2">🔄 Opnieuw proberen</button></div>`;
+    <div class="tr-preview-acties2"><button class="knop grijs" id="trOpnieuw2">🔄 Opnieuw proberen</button></div>`);
   $('#trPdfOnly').onclick = () => deelAlleenPdf(file, meta, ctx);
   $('#trOpnieuw2').onclick = () => startTrainingHerstructureer(file, meta, ctx);
 }

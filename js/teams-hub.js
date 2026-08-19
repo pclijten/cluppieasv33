@@ -91,8 +91,8 @@ export function htmlHub(){
       tegel('videos',           'Video\u2019s', 'training-video'),
     ]],
     ['Presentie', [
-      tegel('presentietraining','Training',     'football-whistle'),
-      tegel('preswedstrijd',    'Wedstrijd',    'football-ball'),
+      tegel('presentietraining','Training',     'training-cones'),
+      tegel('preswedstrijd',    'Wedstrijd',    'football-whistle'),
       tegel('stats',            'Stats',        'stats-bars'),
     ]],
     ['Wedstrijden', [

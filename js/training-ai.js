@@ -34,16 +34,27 @@ import { laadPdfJs } from './pdf-viewer.js?v=20260819c';
      2. als dat niet lukt: de pagina renderen en het beeldgebied uitknippen
         (positie bepaald uit de transformatie-matrix);
      3. lukt niets → null + een console-waarschuwing (faalt niet stil). */
-async function veldDiagramBlob(page){
+/* Haalt ALLE veld-diagrammen uit één PDF-pagina en geeft een array PNG-blobs
+   terug (leeg als er geen zijn). Zo ziet de coach alleen de veldjes, niet de
+   PDF-tekst. Sommige pagina's bevatten meerdere oefeningen met elk een eigen
+   veld (bv. Schiettechniek + Partijvorm op één pagina) — die willen we allemaal.
+
+   Aanpak: verzamel alle geschilderde afbeeldingen met hun positie en oppervlak,
+   gooi te kleine weg (logo/avatar-icoontjes), sorteer op leesvolgorde (van boven
+   naar beneden) en extraheer elk veldje. Extractie per afbeelding gaat via twee
+   strategieën, want in de browser is de ingebedde bitmap niet altijd direct
+   beschikbaar:
+     1. de ingebedde afbeelding-bitmap rechtstreeks uitlezen (page.objs);
+     2. lukt dat niet: de pagina renderen en het beeldgebied uitknippen
+        (positie uit de transformatie-matrix). */
+async function veldDiagramBlobs(page){
   const OPS = window.pdfjsLib.OPS;
   const vp = page.getViewport({ scale: 1 });
   let ops;
   try { ops = await page.getOperatorList(); }
-  catch(e){ console.warn('[training-ai] getOperatorList faalde:', e); return null; }
+  catch(e){ console.warn('[training-ai] getOperatorList faalde:', e); return []; }
 
-  // Vind de eerste geschilderde afbeelding + de transformatie-matrix ervoor,
-  // zodat we zowel de naam (voor strategie 1) als de positie (strategie 2) hebben.
-  let naam = null, rect = null;
+  const kandidaten = [];
   let ctm = [1,0,0,1,0,0];
   const stack = [];
   for (let i = 0; i < ops.fnArray.length; i++){
@@ -56,17 +67,34 @@ async function veldDiagramBlob(page){
       ctm = [A*a+C*b, B*a+D*b, A*c+C*d, B*c+D*d, A*e+C*f+E, B*e+D*f+F];
     }
     else if (fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintJpegXObject){
-      naam = args[0];
       const x0 = ctm[4], y0 = ctm[5];
       const x1 = ctm[0]+ctm[2]+ctm[4], y1 = ctm[1]+ctm[3]+ctm[5];
       const bx = Math.min(x0,x1), bw = Math.abs(x1-x0), bh = Math.abs(y1-y0);
       const topY = vp.height - (Math.min(y0,y1) + bh);
-      rect = { x: bx, y: topY, w: bw, h: bh };
-      break;
+      kandidaten.push({ naam: args[0], rect: { x: bx, y: topY, w: bw, h: bh }, opp: bw * bh });
     }
   }
-  if (!naam && !rect){ console.warn('[training-ai] geen afbeelding op pagina gevonden'); return null; }
+  if (!kandidaten.length){ console.warn('[training-ai] geen afbeelding op pagina gevonden'); return []; }
 
+  // Kleine afbeeldingen (logo/avatar) wegfilteren. Drempel relatief t.o.v. de
+  // grootste afbeelding op de pagina: velden zijn fors, iconen zijn nietig.
+  const maxOpp = Math.max(...kandidaten.map(k => k.opp));
+  const drempel = Math.max(2500, maxOpp * 0.15);   // absoluut vangnet + relatief
+  const velden = kandidaten
+    .filter(k => k.opp >= drempel)
+    .sort((a, b) => a.rect.y - b.rect.y);            // leesvolgorde: boven → onder
+
+  const blobs = [];
+  for (const v of velden){
+    const blob = await extraheerAfbeelding(page, vp, v.naam, v.rect);
+    if (blob) blobs.push(blob);
+  }
+  if (!blobs.length) console.warn('[training-ai] kon geen diagram maken voor deze pagina');
+  return blobs;
+}
+
+/* Extraheert één afbeelding (bitmap of bijgesneden render) tot een PNG-blob. */
+async function extraheerAfbeelding(page, vp, naam, rect){
   // --- Strategie 1: ingebedde bitmap rechtstreeks ---
   if (naam){
     try {
@@ -104,7 +132,6 @@ async function veldDiagramBlob(page){
     } catch(e){ console.warn('[training-ai] bijsnijden faalde:', e); }
   }
 
-  console.warn('[training-ai] kon geen diagram maken voor deze pagina');
   return null;
 }
 
@@ -140,6 +167,7 @@ export async function leesPdf(file){
 
   const paginas = [];
   const diagramBlobs = [];
+  let volgnr = 0;   // doorlopende teller over alle pagina's heen
 
   for (let n = 1; n <= pdfDoc.numPages; n++){
     const page = await pdfDoc.getPage(n);
@@ -151,27 +179,34 @@ export async function leesPdf(file){
       .trim();
     paginas.push({ pagina: n, tekst });
 
-    // --- diagram: ALLEEN het ingebedde veldje, niet de hele pagina ---
-    // De oefenstof-PDF's bevatten per pagina precies één ingebedde afbeelding:
-    // het groene veld-diagram. We halen die bitmap eruit (getOperatorList →
-    // paintImageXObject → page.objs) i.p.v. de pagina met tekst te renderen.
-    const blob = await veldDiagramBlob(page);
-    diagramBlobs.push({ pagina: n, blob });
+    // --- diagrammen: ALLE ingebedde veldjes op deze pagina, in leesvolgorde ---
+    // Eén pagina kan meerdere oefeningen met elk een eigen veld bevatten. We
+    // nummeren de diagrammen dóór (volgnr) zodat oefening N ↔ diagram N klopt,
+    // ook als een eerdere pagina meerdere velden had. De pagina bewaren we mee
+    // voor terugvalkoppeling.
+    const blobs = await veldDiagramBlobs(page);
+    for (const blob of blobs){
+      volgnr++;
+      diagramBlobs.push({ volgnr, pagina: n, blob });
+    }
+    // Ook pagina's zonder diagram tellen niet mee — de weergave koppelt op
+    // volgnr/index, niet op paginanummer.
   }
 
   return { paginas, diagramBlobs, bytes, aantalPaginas: pdfDoc.numPages };
 }
 
 /* Uploadt de diagram-PNG's naar Storage onder een vaste map per training.
-   Geeft een map { pagina: downloadURL } terug. */
+   Sleutel = doorlopend volgnummer (1,2,3,…) zodat oefening N ↔ diagram N.
+   Geeft een map { volgnr: downloadURL } terug. */
 export async function uploadDiagrammen(clubId, mapId, diagramBlobs){
   const urls = {};
-  for (const { pagina, blob } of diagramBlobs){
+  for (const { volgnr, blob } of diagramBlobs){
     if (!blob) continue;
-    const path = `clubs/${clubId}/trainingen/${mapId}/diagram${pagina}.png`;
+    const path = `clubs/${clubId}/trainingen/${mapId}/diagram${volgnr}.png`;
     const r = sRef(storage, path);
     await uploadBytes(r, blob, { contentType: 'image/png' });
-    urls[pagina] = await getDownloadURL(r);
+    urls[volgnr] = await getDownloadURL(r);
   }
   return urls;
 }

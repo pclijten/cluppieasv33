@@ -49,11 +49,13 @@ function blokHtml(blok){
 }
 
 function oefHtml(idx, oef, diagramUrls){
-  // Koppel diagram aan oefening: gebruik diagramPagina als de AI die gaf,
-  // val anders terug op de oefening-index (oefening N ↔ pagina N). Zo werkt het
-  // ook als het AI-veld ontbreekt of als string binnenkomt.
-  const paginaKey = (oef.diagramPagina != null) ? oef.diagramPagina : idx;
-  const url = (diagramUrls || {})[paginaKey] || (diagramUrls || {})[String(paginaKey)] || (diagramUrls || {})[idx];
+  // Koppel diagram aan oefening. Nieuwe trainingen: diagrammen zijn doorlopend
+  // genummerd (diagram1,2,3…) zodat oefening N ↔ diagram N — dus de index is
+  // leidend. Oudere trainingen waren per pagina genummerd; als de index niets
+  // oplevert, vallen we terug op diagramPagina (indien meegegeven door de AI).
+  const D = diagramUrls || {};
+  const url = D[idx] || D[String(idx)] ||
+    (oef.diagramPagina != null ? (D[oef.diagramPagina] || D[String(oef.diagramPagina)]) : null);
   const diagram = url
     ? `<figure class="trw-diagram"><img src="${esc(url)}" alt="" loading="lazy"></figure>`
     : '';
