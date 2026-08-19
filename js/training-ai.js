@@ -160,6 +160,61 @@ function bitmapNaarBlob(img){
   return new Promise(res => canvas.toBlob(res, 'image/png', 0.92));
 }
 
+/* Zet de losse tekstfragmenten van pdf.js om naar tekst MET regels, zodat de
+   opmaak (koppen op eigen regel, "- " opsommingen) bewaard blijft voor de AI.
+
+   Werkwijze: elk fragment heeft een transform-matrix; transform[5] is de
+   Y-positie op de pagina en transform[4] de X. We groeperen fragmenten met
+   (vrijwel) dezelfde Y op één regel — de regelhoogte schatten we uit de
+   letterhoogte, zodat het ook klopt bij grotere/kleinere lettertypes. Binnen
+   een regel sorteren we op X (links → rechts). pdf.js geeft in v3 ook 'hasEOL'
+   mee; dat gebruiken we als extra hint voor een regeleinde. */
+function regelsUitTekstItems(items){
+  const frags = items
+    .filter(it => it.str != null)
+    .map(it => ({
+      str: it.str,
+      x: it.transform ? it.transform[4] : 0,
+      y: it.transform ? it.transform[5] : 0,
+      h: it.height || (it.transform ? Math.abs(it.transform[3]) : 10),
+      eol: !!it.hasEOL,
+    }));
+  if (!frags.length) return '';
+
+  // Sorteer van boven naar beneden (grote Y eerst in PDF-coördinaten), dan links→rechts.
+  frags.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+
+  const regels = [];
+  let huidig = [];
+  let vorigeY = null;
+  const drempel = () => {
+    // halve regelhoogte als grens; minstens 2px zodat kleine ronding niet splitst
+    const h = huidig.length ? huidig[huidig.length - 1].h : 10;
+    return Math.max(2, h * 0.5);
+  };
+
+  for (const f of frags){
+    if (vorigeY === null){ huidig.push(f); vorigeY = f.y; continue; }
+    const nieuweRegel = Math.abs(f.y - vorigeY) > drempel();
+    if (nieuweRegel){
+      regels.push(huidig);
+      huidig = [f];
+    } else {
+      huidig.push(f);
+      // een expliciete EOL sluit de regel na dit fragment af
+      if (f.eol){ regels.push(huidig); huidig = []; }
+    }
+    vorigeY = f.y;
+  }
+  if (huidig.length) regels.push(huidig);
+
+  return regels
+    .map(r => r.sort((a, b) => a.x - b.x).map(f => f.str).join(' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
 export async function leesPdf(file){
   await laadPdfJs();
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -173,10 +228,15 @@ export async function leesPdf(file){
     const page = await pdfDoc.getPage(n);
 
     // --- tekst ---
+    // Belangrijk: we bouwen de tekst REGEL VOOR REGEL op i.p.v. alle fragmenten
+    // met een spatie aan elkaar te plakken. Anders smelt de PDF-opmaak samen tot
+    // één lange regel en verliest de AI het onderscheid tussen koppen en
+    // opsommingen (de "- " aan het begin van een regel verdwijnt in de brij).
+    // pdf.js geeft per fragment een transform-matrix; index 5 is de Y-positie.
+    // Fragmenten met (vrijwel) dezelfde Y horen op dezelfde regel; zakt de Y,
+    // dan begint een nieuwe regel. Zo blijven bullets en kopjes op eigen regels.
     const content = await page.getTextContent();
-    const tekst = content.items.map(it => it.str).join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const tekst = regelsUitTekstItems(content.items);
     paginas.push({ pagina: n, tekst });
 
     // --- diagrammen: ALLE ingebedde veldjes op deze pagina, in leesvolgorde ---
