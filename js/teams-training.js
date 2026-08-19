@@ -154,7 +154,8 @@ export function htmlPresentieTraining(){
   return `${afgelastSectie}
     ${alGeregistreerd
       ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
-      : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:12px">Wie is er vandaag?</button>`}
+      : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>`}
+    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:12px">${ico('planning-calendar',18)} Andere datum invullen</button>
     ${presentieLijst}`;
 }
 
@@ -413,13 +414,14 @@ export function modalMijnNaam(){
    aangevinkt worden: geblesseerd of "met reden" (+ vrije notitie). Geen van
    beide aangevinkt = "zonder reden". */
 
-export function modalPresentie(bestaande = null){
+export function modalPresentie(bestaande = null, opties = {}){
   if (!S.spelers.length) return meld('Voeg eerst spelers toe onder het tabblad Spelers');
   const vandaag = new Date().toISOString().slice(0,10);
   let datum = bestaande ? bestaande.datum : vandaag;
   let afwezig = new Set(bestaande ? (bestaande.afwezig || []) : []);
   let redenen = bestaande ? JSON.parse(JSON.stringify(bestaande.afwezigRedenen || {})) : {};
   const kanDatumWijzigen = !bestaande;
+  const startAnder = kanDatumWijzigen && !!opties.startAnder;
 
   const datLeesbaar = (d) => {
     const s = new Date(d+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
@@ -450,10 +452,10 @@ export function modalPresentie(bestaande = null){
     <div class="veldgroep" style="margin-bottom:10px">
       <label>Datum</label>
       <div class="segment" id="mPresDatumSeg">
-        <button type="button" data-d="vandaag" class="actief">Vandaag</button>
-        <button type="button" data-d="ander">Andere dag</button>
+        <button type="button" data-d="vandaag" class="${startAnder?'':'actief'}">Vandaag</button>
+        <button type="button" data-d="ander" class="${startAnder?'actief':''}">Andere dag</button>
       </div>
-      <input class="invoer" type="date" id="mPresDatumInput" value="${datum}" style="display:none;margin-top:8px">
+      <input class="invoer" type="date" id="mPresDatumInput" value="${datum}" style="${startAnder?'':'display:none;'}margin-top:8px">
     </div>` : ''}
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
     <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
@@ -518,6 +520,11 @@ export function modalPresentie(bestaande = null){
       }
     });
     input.onchange = () => { if (input.value) zetDatum(input.value); };
+    // Geopend via de knop "Andere datum invullen": meteen de datumkiezer tonen.
+    if (startAnder){
+      input.value = datum;
+      if (input.showPicker){ try { input.showPicker(); } catch(e){} }
+    }
   }
 
   $('#mPresOk').onclick = async () => {
