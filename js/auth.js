@@ -3,8 +3,8 @@ import {
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
   collection, doc, addDoc, setDoc, getDocs, updateDoc, query, where, serverTimestamp, increment
 } from './firebase.js?v=20260811a';
-import { S, $, meld } from './state.js?v=20260819b';
-import { startTracker } from './tracker.js?v=20260819b';
+import { S, $, meld } from './state.js?v=20260819c';
+import { startTracker } from './tracker.js?v=20260819c';
 
 /* ====================================================================
    AANMELD-FLOW — Google of e-mail+wachtwoord.

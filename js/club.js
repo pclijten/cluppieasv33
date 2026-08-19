@@ -6,12 +6,13 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260819b';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260819b';
-import { analyseWedstrijd } from './analyse.js?v=20260819b';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260819b';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260819b';
-import { telGebruik, telNav } from './tracker.js?v=20260819b';
+} from './state.js?v=20260819c';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260819c';
+import { analyseWedstrijd } from './analyse.js?v=20260819c';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260819c';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260819c';
+import { telGebruik, telNav } from './tracker.js?v=20260819c';
+import { ico } from './icons.js?v=20260818e';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -28,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260819b'); }
+async function teamsModule(){ return await import('./teams.js?v=20260819c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -54,7 +55,7 @@ export function modalNieuwClub(){
 }
 
 export function openClub(clubId){
-  S.clubId = clubId; S.clubTab = 'teams'; S.teamId = null;
+  S.clubId = clubId; S.clubTab = 'hub'; S.teamId = null;
   S.clubTrainBouw = S.clubTrainBouw || 'onder';
   stopUnsubs('club');
   S.unsub.club = onSnapshot(doc(db,'clubs',clubId), snap => {
@@ -66,13 +67,13 @@ export function openClub(clubId){
     if (err.code === 'permission-denied') meld('Geen toegang tot deze club — controleer de Firestore-rules');
   });
   toon('club');
-  telNav('club:teams', 'open');
+  telNav('club:hub', 'open');
 }
 
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260819b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260819c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -218,13 +219,8 @@ async function clubDashboardOphalen(teams){
   }));
 }
 
-function htmlClubDashboard(teams, dash, gebruik){
-  if (!teams.length) return `<div class="kaart leeg">Nog geen teams in deze club.<br>Zodra er teams, wedstrijden en trainingen zijn, verschijnt hier een overzicht.</div>`;
-
-  const totSpelers = dash.reduce((s,d) => s + d.spelersAantal, 0);
-  const totCoaches = dash.reduce((s,d) => s + d.coachesAantal, 0);
-  const wedstrijdenWeek = dash.reduce((s,d) => s + d.activiteiten.filter(a => a.soort==='wedstrijd' && dagenSinds(a.datum) <= 7).length, 0);
-
+/* Bereken de aandacht-signalen (gedeeld door de Aandacht-badge én -scherm). */
+function clubSignalen(dash){
   const signalen = [];
   for (const d of dash){
     const dagen = d.laatsteDatum ? dagenSinds(d.laatsteDatum) : null;
@@ -240,6 +236,16 @@ function htmlClubDashboard(teams, dash, gebruik){
     }
   }
   signalen.sort((a,b) => (b.ernstig?1:0) - (a.ernstig?1:0));
+  return signalen;
+}
+
+/* Dashboard-scherm 1: Overzicht — KPI-blokjes, teams-tabel, recente activiteit. */
+function htmlDashOverzicht(teams, dash){
+  if (!teams.length) return `<div class="kaart leeg">Nog geen teams in deze club.<br>Zodra er teams, wedstrijden en trainingen zijn, verschijnt hier een overzicht.</div>`;
+
+  const totSpelers = dash.reduce((s,d) => s + d.spelersAantal, 0);
+  const totCoaches = dash.reduce((s,d) => s + d.coachesAantal, 0);
+  const wedstrijdenWeek = dash.reduce((s,d) => s + d.activiteiten.filter(a => a.soort==='wedstrijd' && dagenSinds(a.datum) <= 7).length, 0);
 
   const sortDesc = (S.clubDashSort ?? 'desc') === 'desc';
   const gesorteerd = dash.map(d => ({...d, dagen: d.laatsteDatum ? dagenSinds(d.laatsteDatum) : Infinity}))
@@ -254,24 +260,6 @@ function htmlClubDashboard(teams, dash, gebruik){
       <div class="ov-blok"><div class="ov-getal">${totSpelers}</div><div class="ov-label">spelers</div></div>
       <div class="ov-blok"><div class="ov-getal">${totCoaches}</div><div class="ov-label">coaches</div></div>
       <div class="ov-blok ov-wedstrijden"><div class="ov-getal">${wedstrijdenWeek}</div><div class="ov-label">wedstr. 7 dgn</div></div>
-    </div>
-
-    <div class="kaart dash-inklap ${(S.clubAandachtOpen ?? true) ? 'open' : 'dicht'}">
-      <button class="dash-inklap-kop" data-dash-inklap="aandacht">
-        <span class="dash-inklap-titel ${signalen.length?'waarschuwing':''}">⚠️ Aandacht nodig</span>
-        ${signalen.length ? `<span class="dash-badge">${signalen.length}</span>` : `<span class="dash-badge ok">✓</span>`}
-        <span class="dash-inklap-pijl">›</span>
-      </button>
-      <div class="dash-inklap-inhoud">
-        ${signalen.length ? `
-          <div class="caf-historie">
-            ${signalen.slice(0,8).map(s => `
-              <div class="caf-rij">
-                <span class="caf-rij-datum" style="${s.ernstig?'color:var(--uit)':''}">${esc(s.team)}</span>
-                <span class="caf-rij-reden">${esc(s.reden)}</span>
-              </div>`).join('')}
-          </div>` : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">✅ Alle teams zijn actief en up-to-date.</p>`}
-      </div>
     </div>
 
     <div class="kaart">
@@ -299,28 +287,28 @@ function htmlClubDashboard(teams, dash, gebruik){
           <div class="t"><div class="t-titel">${esc(a.team)}</div>
             <div class="t-meta">${esc(a.tekst)} · ${esc(afgKort(a.datum))}</div></div>
         </div>`).join('') : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen wedstrijden of presentie geregistreerd.</p>`}
-    </div>
-
-    <div class="dash-inklap ${S.clubStatsOpen ? 'open' : 'dicht'}" style="margin-bottom:12px">
-      <button class="dash-inklap-kop kaart" data-dash-inklap="stats" style="margin-bottom:0;width:100%">
-        <span class="dash-inklap-titel" style="color:var(--ink-2)">📊 Gebruiksstatistieken</span>
-        <span class="dash-inklap-pijl">›</span>
-      </button>
-      <div class="dash-inklap-inhoud" style="margin-top:12px">
-        ${htmlClubGebruik(gebruik)}
-        ${htmlClubFunctiegebruik(gebruik)}
-      </div>
-    </div>
-
-    <div class="dash-inklap ${S.clubNavOpen ? 'open' : 'dicht'}" style="margin-bottom:12px">
-      <button class="dash-inklap-kop kaart" data-dash-inklap="nav" style="margin-bottom:0;width:100%">
-        <span class="dash-inklap-titel" style="color:var(--ink-2)">🧭 Navigatie-inzicht</span>
-        <span class="dash-inklap-pijl">›</span>
-      </button>
-      <div class="dash-inklap-inhoud" style="margin-top:12px">
-        ${htmlClubNavigatie(gebruik)}
-      </div>
     </div>`;
+}
+
+/* Dashboard-scherm 2: Aandacht — de signalen als lijst. */
+function htmlDashAandacht(dash){
+  const signalen = clubSignalen(dash);
+  return `
+    <div class="kaart">
+      ${signalen.length ? `
+        <div class="caf-historie">
+          ${signalen.map(s => `
+            <div class="caf-rij">
+              <span class="caf-rij-datum" style="${s.ernstig?'color:var(--uit)':''}">${esc(s.team)}</span>
+              <span class="caf-rij-reden">${esc(s.reden)}</span>
+            </div>`).join('')}
+        </div>` : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">✅ Alle teams zijn actief en up-to-date.</p>`}
+    </div>`;
+}
+
+/* Dashboard-scherm 3: Gebruik — logins + functiegebruik. */
+function htmlDashGebruik(gebruik){
+  return htmlClubGebruik(gebruik) + htmlClubFunctiegebruik(gebruik);
 }
 
 /* ==================== GEBRUIKSSTATISTIEKEN (logins) ====================
@@ -777,6 +765,65 @@ function htmlClubGebruik(gebruik){
     </div>`;
 }
 
+/* ==================== CLUB-HUB (tegel-startscherm) ====================
+   Vervangt de onderbalk. Dezelfde tegel-opmaak als de coaches-hub: secties met
+   een kop, elk met tegels (icoon + naam, optioneel een badge/dot). Terug gaat
+   één niveau: leaf → hub → teams, en dashboard-subs → inzicht → hub. */
+
+/* Eén club-tegel. data-club-open="<tab>" wordt in renderClub gekoppeld. */
+function clubTegel(tab, naam, icoNaam, badge){
+  const mark = badge === true ? '<span class="hub-dot"></span>'
+             : badge ? `<span class="hub-badge">${badge}</span>` : '';
+  return `<button class="hub-tegel" data-club-open="${tab}">${mark}${ico(icoNaam, 40)}<span class="hub-tnaam">${esc(naam)}</span></button>`;
+}
+/* Tegel met warn-badge (geel) — voor aandacht-signalen. */
+function clubTegelWarn(tab, naam, icoNaam, aantal){
+  const mark = aantal ? `<span class="hub-badge warn">${aantal}</span>` : '';
+  return `<button class="hub-tegel" data-club-open="${tab}">${mark}${ico(icoNaam, 40)}<span class="hub-tnaam">${esc(naam)}</span></button>`;
+}
+
+function htmlClubHub(teams){
+  const admin = isBeheerder();
+  const ongelezenBer = (S.clubBerichten || []).filter(b => b && b._ongelezen).length || 0;
+
+  const secties = [];
+  secties.push(['Beheer', [
+    clubTegel('teams',      'Teams',      'team-members'),
+    clubTegel('trainingen', 'Trainingen', 'training-cones'),
+    clubTegel('videos',     'Video\u2019s','training-video'),
+    clubTegel('documenten', 'Documenten', 'admin-document'),
+  ]]);
+  const comm = [];
+  if (admin) comm.push(clubTegel('berichten', 'Berichten', 'communication-announcement', ongelezenBer || null));
+  if (admin) comm.push(clubTegel('content',   'Content',   'admin-file'));
+  if (comm.length) secties.push(['Communicatie', comm]);
+  secties.push(['Inzicht', [
+    clubTegel('inzicht',  'Inzicht',      'navigation-dashboard'),
+    clubTegel('instel',   'Instellingen', 'navigation-settings'),
+  ]]);
+
+  return secties.map(([kop, tegels]) => `
+    <section class="hub-sectie">
+      <div class="hub-sectie-kop">${esc(kop)}</div>
+      <div class="hub-grid">${tegels.join('')}</div>
+    </section>`).join('');
+}
+
+/* De Inzicht-sub-hub: het voormalige dashboard opgesplitst in losse tegels.
+   'signalen' = aantal aandachtspunten (voor de warn-badge op de Aandacht-tegel). */
+function htmlClubInzicht(signalenAantal){
+  return `
+    <section class="hub-sectie" style="margin-top:6px">
+      <div class="hub-grid">
+        ${clubTegel('dash-overzicht',   'Overzicht',  'navigation-dashboard')}
+        ${clubTegelWarn('dash-aandacht','Aandacht',   'action-warning', signalenAantal || null)}
+        ${clubTegel('dash-gebruik',     'Gebruik',    'stats-bars')}
+        ${clubTegel('dash-navigatie',   'Navigatie',  'football-competition')}
+        ${clubTegel('dash-evaluaties',  'Evaluaties', 'attendance-evaluatie')}
+      </div>
+    </section>`;
+}
+
 async function renderClub(){
   if (!S.club) return;
   const v = $('#view-club');
@@ -809,70 +856,117 @@ async function renderClub(){
   if (tab === 'instel'){
     syncStatus = await clubSyncStatusOphalen(teams);
   }
+
+  // Navigatieniveau: hub (tegels) → inzicht (sub-hub) → leaf/dashboard-scherm.
+  // 'terug' hieronder verwijst naar één niveau omhoog; op de hub verlaat je de club.
+  const dashSubs = ['dash-overzicht','dash-aandacht','dash-gebruik','dash-navigatie','dash-evaluaties'];
+  const isHub     = tab === 'hub';
+  const isInzicht = tab === 'inzicht';
+  const isDashSub = dashSubs.includes(tab);
+
+  // titel + terug-doel per scherm
+  const SCHERM_TITELS = {
+    'teams':'Teams', 'trainingen':'Trainingen', 'videos':"Video's", 'documenten':'Documenten',
+    'berichten':'Berichten', 'content':'Content', 'instel':'Instellingen', 'inzicht':'Inzicht',
+    'dash-overzicht':'Overzicht', 'dash-aandacht':'Aandacht nodig', 'dash-gebruik':'Gebruik',
+    'dash-navigatie':'Navigatie', 'dash-evaluaties':'Evaluaties',
+  };
+
   let inhoud = '';
-  if (tab === 'teams')      inhoud = htmlClubTeams(teams, afgelastingen);
-  if (tab === 'trainingen') inhoud = htmlClubTrainingen(teams, trainingen);
-  if (tab === 'videos')     inhoud = htmlClubVideos(teams, videos);
-  if (tab === 'documenten') inhoud = htmlClubDocumenten(teams, documenten);
-  if (tab === 'berichten'){
+  let clubEvalData = null;
+  let contentLijst = null;
+
+  if (isHub){
+    // hub heeft de berichten alvast nodig voor de ongelezen-badge (goedkoop; klein)
+    if (isBeheerder() && !S.clubBerichten){
+      try { S.clubBerichten = await clubBerichtenOphalen(); } catch(e){}
+    }
+    inhoud = htmlClubHub(teams);
+  }
+  else if (isInzicht){
+    // aandacht-signalen voor de warn-badge op de Aandacht-tegel
+    const dash = await clubDashboardOphalen(teams);
+    S._clubDashCache = dash;   // hergebruik bij het openen van een dash-scherm
+    inhoud = htmlClubInzicht(clubSignalen(dash).length);
+  }
+  else if (isDashSub){
+    if (tab === 'dash-evaluaties'){
+      clubEvalData = await clubEvaluatiesOphalen(teams);
+      inhoud = htmlClubEvaluaties(clubEvalData);
+    } else if (tab === 'dash-overzicht' || tab === 'dash-aandacht'){
+      const dash = S._clubDashCache || await clubDashboardOphalen(teams);
+      inhoud = tab === 'dash-overzicht' ? htmlDashOverzicht(teams, dash) : htmlDashAandacht(dash);
+    } else { // gebruik of navigatie
+      const gebruik = await clubGebruikOphalen(teams);
+      inhoud = tab === 'dash-gebruik' ? htmlDashGebruik(gebruik) : htmlClubNavigatie(gebruik);
+    }
+  }
+  else if (tab === 'teams')      inhoud = htmlClubTeams(teams, afgelastingen);
+  else if (tab === 'trainingen') inhoud = htmlClubTrainingen(teams, trainingen);
+  else if (tab === 'videos')     inhoud = htmlClubVideos(teams, videos);
+  else if (tab === 'documenten') inhoud = htmlClubDocumenten(teams, documenten);
+  else if (tab === 'berichten'){
     const berichten = await clubBerichtenOphalen();
     S.clubBerichten = berichten;
     inhoud = htmlClubBerichten(teams, berichten);
   }
-  let clubEvalData = null;
-  if (tab === 'dashboard'){
-    const dashModus = S.clubDashModus || 'overzicht';
-    const segment = `
-      <div class="segment" id="clubDashModus" style="margin-bottom:14px">
-        <button data-dashmodus="overzicht" class="${dashModus==='overzicht'?'actief':''}">Overzicht</button>
-        <button data-dashmodus="evaluaties" class="${dashModus==='evaluaties'?'actief':''}">📈 Evaluaties</button>
-      </div>`;
-    if (dashModus === 'evaluaties'){
-      clubEvalData = await clubEvaluatiesOphalen(teams);
-      inhoud = segment + htmlClubEvaluaties(clubEvalData);
-    } else {
-      const [dash, gebruik] = await Promise.all([
-        clubDashboardOphalen(teams),
-        clubGebruikOphalen(teams),
-      ]);
-      inhoud = segment + htmlClubDashboard(teams, dash, gebruik);
-    }
-  }
-  if (tab === 'instel')     inhoud = htmlClubInstel(teams, syncStatus);
-  let contentLijst = null;
-  if (tab === 'content' && isBeheerder()){
+  else if (tab === 'instel')     inhoud = htmlClubInstel(teams, syncStatus);
+  else if (tab === 'content' && isBeheerder()){
     stopUnsubs('clubContent');
     await new Promise(resolve => {
       let opgelost = false;
       S.unsub.clubContent = startClubContentListener(lijst => {
         contentLijst = lijst;
         if (!opgelost){ opgelost = true; resolve(); }
-        else if (S.clubTab === 'content') renderClub(); // latere wijziging: live herrenderen
+        else if (S.clubTab === 'content') renderClub(); // live herrenderen
       });
     });
     inhoud = htmlClubContent(contentLijst);
   }
-  v.innerHTML = `
-    <div class="kop"><button class="terug" id="naarTeams">‹</button>
-      <h1>🏛 ${esc(S.club.naam)}<span class="sub">${Object.keys(S.club.teams||{}).length} teams · clubcode ${esc(S.club.code)}</span></h1></div>
-    ${inhoud}
-    <nav class="onderbalk">
-      ${[['teams','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>','Teams'],['trainingen','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/></svg>','Training'],['videos','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>','Videos'],['documenten','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>','Documenten'],['dashboard','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>','Dashboard'],
-        ...(isBeheerder() ? [['content','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 11h8M9 15h8M9 7h3"/></svg>','Content']] : []),
-        ...(isBeheerder() ? [['berichten','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 3z"/><path d="M8 9h8M8 12h5"/></svg>','Berichten']] : []),
-        ['instel','<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7.6 1.6 1.6 0 0 0-1.1 1.5V20a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H4a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V4a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V10a1.6 1.6 0 0 0 1.5 1H20a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>','Club']]
-        .map(([id,ico,naam]) => `<button data-ctab="${id}" class="${tab===id?'actief':''}"><span class="ico">${ico}</span>${naam}</button>`).join('')}
-    </nav>`;
-  v.querySelector('#naarTeams').onclick = () => history.back();
-  v.querySelectorAll('[data-ctab]').forEach(b => b.onclick = () => { S.clubTab = b.dataset.ctab; telNav('club:' + b.dataset.ctab, 'tab'); renderClub(); });
-  v.querySelectorAll('[data-dashmodus]').forEach(b => b.onclick = () => { S.clubDashModus = b.dataset.dashmodus; renderClub(); });
-  if (tab === 'content' && contentLijst){
-    koppelClubContent(v);
+
+  // --- kop: op de hub de club-titel met veld-look; op subschermen een terug-kop ---
+  let kop;
+  if (isHub){
+    kop = `
+      <div class="welkom-kop hub-kop">
+        <button class="terug" id="clubTerug">‹</button>
+        <h1>🏛 ${esc(S.club.naam)}<span class="sub">${Object.keys(S.club.teams||{}).length} teams · clubcode ${esc(S.club.code)}</span></h1>
+      </div>`;
+  } else {
+    kop = `
+      <div class="kop"><button class="terug" id="clubTerug">‹</button>
+        <h1>${esc(SCHERM_TITELS[tab] || S.club.naam)}</h1></div>`;
   }
-  if (tab === 'dashboard' && S.clubDashModus === 'evaluaties' && clubEvalData){
-    koppelClubEvaluaties(v, clubEvalData, () => renderClub());
-  }
+
+  v.innerHTML = `${kop}${inhoud}`;
+
+  // terug-knop: één niveau omhoog volgens het huidige niveau
+  v.querySelector('#clubTerug').onclick = () => clubTerugEen();
+
+  // hub-tegels koppelen
+  v.querySelectorAll('[data-club-open]').forEach(b => b.onclick = () => {
+    const doel = b.dataset.clubOpen;
+    S.clubTab = doel;
+    telNav('club:' + doel, 'tegel');
+    renderClub();
+  });
+
+  if (tab === 'content' && contentLijst) koppelClubContent(v);
+  if (tab === 'dash-evaluaties' && clubEvalData) koppelClubEvaluaties(v, clubEvalData, () => renderClub());
   koppelClubTab(v, tab, teams, trainingen, videos, documenten);
+}
+
+/* Eén niveau terug in de club-hub: leaf/dash-scherm → hub of inzicht, hub → club uit. */
+export function clubTerugEen(){
+  const tab = S.clubTab;
+  const dashSubs = ['dash-overzicht','dash-aandacht','dash-gebruik','dash-navigatie','dash-evaluaties'];
+  if (dashSubs.includes(tab)){ S.clubTab = 'inzicht'; telNav('club:inzicht','terug'); renderClub(); return true; }
+  if (tab === 'inzicht' || tab === 'teams' || tab === 'trainingen' || tab === 'videos'
+      || tab === 'documenten' || tab === 'berichten' || tab === 'content' || tab === 'instel'){
+    S.clubTab = 'hub'; telNav('club:hub','terug'); renderClub(); return true;
+  }
+  // op de hub: verlaat de club
+  return false;
 }
 
 /* ==================== TEAMMODULES (admin, per team) ====================
@@ -1506,7 +1600,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819b');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819c');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -1607,7 +1701,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       meld('Bericht verwijderd'); renderClub();
     });
   }
-  if (tab === 'dashboard'){
+  if (tab === 'dash-overzicht' || tab === 'dash-gebruik' || tab === 'dash-navigatie'){
     const sortBtn = v.querySelector('#dashSort');
     if (sortBtn) sortBtn.onclick = () => {
       S.clubDashSort = (S.clubDashSort ?? 'desc') === 'desc' ? 'asc' : 'desc';
@@ -2049,7 +2143,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260819b');
+    const ai = await import('./training-ai.js?v=20260819c');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -2164,7 +2258,7 @@ function toonPreview(file, meta, ctx){
   $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819b');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260819c');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -2186,7 +2280,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   mod.innerHTML = `<div class="tr-verwerk"><div class="tr-spin"></div><h2>Opnieuw genereren</h2><p>De AI probeert de opmaak nog een keer.</p></div>`;
   try {
-    const ai = await import('./training-ai.js?v=20260819b');
+    const ai = await import('./training-ai.js?v=20260819c');
     const { paginas } = await ai.leesPdf(file);
     const oefeningen = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');

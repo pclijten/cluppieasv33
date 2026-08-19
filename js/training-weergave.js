@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260819b';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260819c';
 
 let _overlay = null;
 
