@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260819d'); }
+async function teamsModule(){ return await import('./teams.js?v=20260819e'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260819d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260819e').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1087,8 +1087,103 @@ function bouwenVanTraining(t, teams){
   return set;
 }
 
+/* Haalt een weeknummer uit het vrije week-veld ("Week 1", "week 3", "Wk2", …).
+   Geen nummer gevonden → null (valt onder "Overig"). */
+function weekNummer(week){
+  const m = String(week || '').match(/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+/* Gesorteerde, unieke lijst van weeklabels die in de trainingen voorkomen.
+   Weken mét nummer eerst (oplopend), daarna eventuele losse labels alfabetisch.
+   Elk item: { key (stabiel), label (zoals getoond), nr (of null) }. */
+function weekLijst(trainingen){
+  const gezien = new Map();   // key → {label, nr}
+  for (const t of trainingen){
+    const label = (t.week || '').trim();
+    const key = label ? label.toLowerCase() : '__leeg';
+    if (!gezien.has(key)) gezien.set(key, { label: label || 'Zonder week', nr: weekNummer(label) });
+  }
+  return [...gezien.entries()]
+    .map(([key, v]) => ({ key, ...v }))
+    .sort((a, b) => {
+      if (a.nr != null && b.nr != null) return a.nr - b.nr;
+      if (a.nr != null) return -1;
+      if (b.nr != null) return 1;
+      return a.label.localeCompare(b.label);
+    });
+}
+
+/* Coverage-overzicht binnen de Trainingen-tab: per team (in de gekozen bouw)
+   welke trainingen aan welke week gekoppeld zijn, met de gaten in amber.
+   Puur informatief — geen koppel-actie (bewust, als signaal). */
+function htmlClubTrainingenOverzicht(teams, trainingen, actiefBouw){
+  // teams in deze bouw, op naam gesorteerd
+  const teamsInBouw = teams
+    .filter(t => bouwVanCategorie(t.categorie) === actiefBouw)
+    .sort((a, b) => (a.naam || '').localeCompare(b.naam || ''));
+
+  if (!teamsInBouw.length){
+    return `<div class="kaart leeg">Geen teams in de ${esc(bouwNaam(actiefBouw).toLowerCase())}.</div>`;
+  }
+
+  const weken = weekLijst(trainingen);
+
+  // trainingen per team
+  const trainingenVoorTeam = (teamId) =>
+    trainingen.filter(t => (t.teams || []).includes(teamId));
+
+  // samenvatting: hoeveel teams hebben minstens één training?
+  let gedekt = 0;
+  for (const team of teamsInBouw) if (trainingenVoorTeam(team.id).length) gedekt++;
+  const mist = teamsInBouw.length - gedekt;
+
+  const samenvat = `
+    <div class="ov-samenvat">
+      <div class="ov-kpi"><div class="n">${teamsInBouw.length}</div><div class="l">teams</div></div>
+      <div class="ov-kpi goed"><div class="n">${gedekt}</div><div class="l">met training</div></div>
+      <div class="ov-kpi ${mist?'mist':''}"><div class="n">${mist}</div><div class="l">zonder</div></div>
+    </div>`;
+
+  const rijen = teamsInBouw.map(team => {
+    const trs = trainingenVoorTeam(team.id);
+    const heeft = trs.length > 0;
+    const badge = (team.naam || '').match(/[JM]O\d+/)?.[0] || (team.naam || '').slice(0, 4);
+
+    // per week de gekoppelde trainingen tonen; weken zonder training → amber gat
+    const perWeek = weken.length ? weken.map(w => {
+      const inWeek = trs.filter(t => ((t.week || '').trim().toLowerCase() || '__leeg') === w.key);
+      if (inWeek.length){
+        const namen = inWeek.map(t => esc(t.titel || t.bestandsnaam || 'Training')).join(', ');
+        return `<div class="ov-week ok"><span class="ov-wk">${esc(w.label)}</span><span class="ov-namen">${namen}</span></div>`;
+      }
+      return `<div class="ov-week mist"><span class="ov-wk">${esc(w.label)}</span><span class="ov-namen">— nog niets gekoppeld</span></div>`;
+    }).join('') : '';
+
+    const detail = heeft
+      ? perWeek
+      : `<div class="ov-week mist"><span class="ov-namen">⚠️ Dit team heeft nog geen enkele training gekoppeld.</span></div>`;
+
+    return `
+      <div class="ov-team ${heeft?'':'leeg'}">
+        <div class="ov-team-kop">
+          <div class="ov-badge">${esc(badge)}</div>
+          <div class="ov-team-info">
+            <div class="ov-team-naam">${esc(team.naam || '?')}</div>
+            <div class="ov-team-sub">${heeft ? trs.length + ' training' + (trs.length>1?'en':'') : 'niets gekoppeld'}</div>
+          </div>
+          <span class="ov-pil ${heeft?'ok':'mist'}">${heeft ? trs.length + '×' : 'geen'}</span>
+        </div>
+        <div class="ov-team-detail">${detail}</div>
+      </div>`;
+  }).join('');
+
+  return `${samenvat}<div class="ov-lijst">${rijen}</div>`;
+}
+
 function htmlClubTrainingen(teams, trainingen){
   const actief = S.clubTrainBouw || 'onder';
+  const weergave = S.clubTrainWeergave || 'lijst';   // 'lijst' | 'overzicht'
   // tellingen per bouw voor de badges
   const telPerBouw = {onder:0, midden:0, boven:0};
   for (const t of trainingen)
@@ -1100,6 +1195,22 @@ function htmlClubTrainingen(teams, trainingen){
     <div class="segment" id="bouwTabs" style="margin-bottom:14px">
       ${BOUWEN.map(b => `<button data-bouw="${b.id}" class="${actief===b.id?'actief':''}">${b.kort}${telPerBouw[b.id]?` <span style="opacity:.6">(${telPerBouw[b.id]})</span>`:''}</button>`).join('')}
     </div>`;
+
+  // weergave-schakelaar: Lijst (bestaand) of Overzicht (per team, met gaten)
+  const weergaveKies = `
+    <div class="segment tr-weergave" id="trainWeergave" style="margin-bottom:14px">
+      <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
+      <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per team</button>
+    </div>`;
+
+  if (weergave === 'overzicht'){
+    return `
+      <button class="upload-knop" id="trainingUpload">📄 PDF-training toevoegen voor één of meer teams
+        <input type="file" id="trainingFile" accept="application/pdf" style="display:none"></button>
+      ${weergaveKies}
+      ${segment}
+      ${htmlClubTrainingenOverzicht(teams, trainingen, actief)}`;
+  }
 
   const lijst = zichtbaar.length ? zichtbaar.map(t => {
     const teamNamen = (t.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
@@ -1126,6 +1237,7 @@ function htmlClubTrainingen(teams, trainingen){
   return `
     <button class="upload-knop" id="trainingUpload">📄 PDF-training toevoegen voor één of meer teams
       <input type="file" id="trainingFile" accept="application/pdf" style="display:none"></button>
+    ${weergaveKies}
     ${segment}
     ${lijst}`;
 }
@@ -1588,6 +1700,9 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     });
   }
   if (tab === 'trainingen'){
+    v.querySelectorAll('[data-weergave]').forEach(b => b.onclick = () => {
+      S.clubTrainWeergave = b.dataset.weergave; renderClub();
+    });
     v.querySelectorAll('[data-bouw]').forEach(b => b.onclick = () => {
       S.clubTrainBouw = b.dataset.bouw; renderClub();
     });
