@@ -246,6 +246,33 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .training-rij button{width:34px;height:34px;border-radius:8px;color:var(--ink-2);font-size:calc(15px * var(--fs))}
 .training-rij.ongelezen{border-left:3px solid var(--uit)}
 .training-rij.ongelezen .ico{background:var(--uit);color:#fff}
+
+/* ---------- Trainingen: overzicht per team (coverage) ---------- */
+.tr-weergave button{font-size:calc(13px * var(--fs))}
+.ov-samenvat{display:flex;gap:8px;margin-bottom:14px}
+.ov-kpi{flex:1;background:var(--card);border-radius:12px;padding:11px 8px;text-align:center;box-shadow:var(--shadow)}
+.ov-kpi .n{font-family:'Barlow Condensed';font-weight:700;font-size:calc(23px * var(--fs));line-height:1}
+.ov-kpi .l{font-size:calc(10.5px * var(--fs));color:var(--ink-2);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.ov-kpi.goed .n{color:var(--in,#3fb950)}
+.ov-kpi.mist .n{color:var(--uit)}
+.ov-lijst{display:flex;flex-direction:column;gap:8px}
+.ov-team{background:var(--card);border-radius:12px;padding:11px 13px;box-shadow:var(--shadow)}
+.ov-team.leeg{border-left:3px solid var(--uit)}
+.ov-team-kop{display:flex;align-items:center;gap:11px}
+.ov-badge{width:40px;height:40px;border-radius:10px;background:var(--surface-2,rgba(0,0,0,.05));display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(12.5px * var(--fs));flex-shrink:0;color:var(--ink)}
+.ov-team-info{flex:1;min-width:0}
+.ov-team-naam{font-weight:600;font-size:calc(14.5px * var(--fs))}
+.ov-team-sub{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px}
+.ov-pil{padding:4px 10px;border-radius:99px;font-size:calc(12px * var(--fs));font-weight:600;white-space:nowrap;flex-shrink:0}
+.ov-pil.ok{background:rgba(63,185,80,.15);color:var(--in,#3fb950)}
+.ov-pil.mist{background:rgba(245,177,61,.15);color:var(--uit)}
+.ov-team-detail{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+.ov-week{display:flex;gap:10px;align-items:baseline;font-size:calc(12.5px * var(--fs));padding:5px 9px;border-radius:8px;background:var(--surface-2,rgba(0,0,0,.03))}
+.ov-week.mist{background:rgba(245,177,61,.09)}
+.ov-week .ov-wk{flex-shrink:0;font-weight:600;color:var(--ink-2);min-width:64px}
+.ov-week.ok .ov-wk{color:var(--ink)}
+.ov-week .ov-namen{color:var(--ink);min-width:0}
+.ov-week.mist .ov-namen{color:var(--uit)}
 .team-chip-kies{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .team-chip-kies label{display:inline-flex;align-items:center;gap:6px;background:var(--card);padding:7px 11px;border-radius:99px;font-size:calc(13px * var(--fs));font-weight:500;cursor:pointer;box-shadow:var(--shadow);border:1.5px solid transparent}
 .team-chip-kies label.aan{border-color:var(--grass);background:rgba(226,6,19,.07);color:var(--grass);font-weight:600}
