@@ -11,12 +11,12 @@
    alleen HTML + de opslaghulpjes voor de wedstrijd-presentie. Het importeert
    bewust NIET terug uit teams.js (geen circulaire import). */
 import { db, doc, updateDoc } from './firebase.js?v=20260811a';
-import { S, esc, meld, datumNL, modAan } from './state.js?v=20260818c';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20260818c';
-import { ico } from './icons.js?v=20260818c';
-import { analyseWedstrijd } from './analyse.js?v=20260818c';
-import { telGebruik } from './tracker.js?v=20260818c';
-import { ongelezenBerichten } from './berichten.js?v=20260818c';
+import { S, esc, meld, datumNL, modAan } from './state.js?v=20260818e';
+import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20260818e';
+import { ico } from './icons.js?v=20260818e';
+import { analyseWedstrijd } from './analyse.js?v=20260818e';
+import { telGebruik } from './tracker.js?v=20260818e';
+import { ongelezenBerichten } from './berichten.js?v=20260818e';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
@@ -266,7 +266,7 @@ export async function presWedstrijdBewaar(wijzig){
 export function htmlEvaluatieLijst(){
   const open = evaluatieOpen();
   if (!open.length){
-    return `<div class="kaart leeg">Alles is geëvalueerd. 🎉<br>Na de eerstvolgende gespeelde wedstrijd verschijnt hij hier.<br><br>De groeicurve en het dashboard vind je onder <b>Stats</b>.</div>`;
+    return `<div class="kaart leeg">Alles is geëvalueerd. 🎉<br>Na de eerstvolgende gespeelde wedstrijd verschijnt hij hier.</div>`;
   }
   return `
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">Deze wedstrijden zijn gespeeld maar nog niet geëvalueerd. Tik op een wedstrijd om de teamevaluatie in te vullen.</p>

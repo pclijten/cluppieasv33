@@ -8,12 +8,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260818c';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260818c';
-import { ico } from './icons.js?v=20260818c';
+} from './state.js?v=20260818e';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260818e';
+import { ico } from './icons.js?v=20260818e';
 
-import { htmlStats } from './wedstrijd.js?v=20260818c';
-import { telGebruik } from './tracker.js?v=20260818c';
+import { htmlStats } from './wedstrijd.js?v=20260818e';
+import { telGebruik } from './tracker.js?v=20260818e';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -177,7 +177,7 @@ function htmlTeamEvalHistorie(evalsOudNieuw){
     </div>`;
 }
 
-function htmlTeamEvaluatieDashboard(){
+export function htmlTeamEvaluatieDashboard(){
   const alleSeizoenen = S.statsSeizoen === 'alles';
   const evals = alleSeizoenen ? S.teamEvaluaties : S.teamEvaluaties.filter(e => e.seizoen === S.statsSeizoen); // oud → nieuw
   if (!evals.length){
@@ -304,17 +304,17 @@ function seizoenenLijst(){
   for (const p of (S.presentie||[])) if (p.seizoen) set.add(p.seizoen);
   return [...set].sort((a,b) => (parseInt(b)||0) - (parseInt(a)||0));
 }
-export function htmlStatsTab(){
+/* Seizoensfilter (huidig seizoen + "Alle", oudere seizoenen als tweede rij).
+   Gedeeld door de Stats-tab (spelersstatistieken) en de Evaluatie-pagina
+   (teamevaluatie-dashboard); beide binden data-seizoenfilter zelf. */
+export function htmlSeizoenFilter(){
   if (!S.statsSeizoen) S.statsSeizoen = S.huidigSeizoen || 'alles';
-  const modus = S.statsSubTab || 'spelers';
   const seizoenen = seizoenenLijst();
+  if (!seizoenen.length) return '';
   const huidig = S.huidigSeizoen || seizoenen[0];
   const oudere = seizoenen.filter(sz => sz !== huidig); // eerdere seizoenen
-  // Hoofdtabs tonen alleen het huidige seizoen + "Alle". Oudere seizoenen
-  // verschijnen als tweede rij zodra "Alle" actief is — houdt de kop rustig.
   const alleActief = S.statsSeizoen === 'alles' || oudere.includes(S.statsSeizoen);
   return `
-    ${seizoenen.length ? `
     <div class="segment" id="statsSeizoen" style="margin-bottom:${alleActief && oudere.length ? '8' : '10'}px">
       ${huidig ? `<button data-seizoenfilter="${esc(huidig)}" class="${S.statsSeizoen===huidig?'actief':''}">${esc(huidig)}</button>` : ''}
       <button data-seizoenfilter="alles" class="${alleActief?'actief':''}">Alle</button>
@@ -323,12 +323,13 @@ export function htmlStatsTab(){
     <div class="segment segment-sub" id="statsSeizoenOud" style="margin-bottom:10px">
       <button data-seizoenfilter="alles" class="${S.statsSeizoen==='alles'?'actief':''}">Alle seizoenen</button>
       ${oudere.map(sz => `<button data-seizoenfilter="${esc(sz)}" class="${S.statsSeizoen===sz?'actief':''}">${esc(sz)}</button>`).join('')}
-    </div>` : ''}` : ''}
-    ${modAan('evaluaties') ? `
-    <div class="segment" id="statsModus" style="margin-bottom:14px">
-      <button data-statsmodus="spelers" class="${modus==='spelers'?'actief':''}">Spelers</button>
-      <button data-statsmodus="evaluatie" class="${modus==='evaluatie'?'actief':''}">📈 Teamevaluatie</button>
-    </div>` : ''}
-    ${(modAan('evaluaties') && modus==='evaluatie') ? htmlTeamEvaluatieDashboard() : htmlStats()}`;
+    </div>` : ''}`;
+}
+
+/* De Stats-tab bevat sinds de hub-navigatie alleen nog de spelersstatistieken;
+   het teamevaluatie-dashboard woont op de Evaluatie-pagina (hub-tegel
+   Wedstrijden → Evaluatie, samengesteld in teams.js). */
+export function htmlStatsTab(){
+  return htmlSeizoenFilter() + htmlStats();
 }
 
