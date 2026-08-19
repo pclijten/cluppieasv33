@@ -261,26 +261,35 @@ export function bewaakTerug(){
      races met gelijktijdige navigatie. */
 }
 
+/* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
+   dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
+function _navTerug(scherm){
+  import('./tracker.js?v=20260819b').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+}
+
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260818e').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260819b').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
   const view = actieveView();
   if (view === 'team' && (S._beoordeelProfiel || S._leenProfiel)){
     S._beoordeelProfiel = null; S._leenProfiel = null; S._profielTab = 'overzicht';
+    _navTerug('team:' + (S.teamTab || 'hub'));
     S._navRerender?.();
     return true;
   }
-  if (view === 'wedstrijd'){ S._navTerugWedstrijd?.(); return true; }
-  if (view === 'club'){      S._navVerlaatClub?.();    return true; }
+  if (view === 'wedstrijd'){ _navTerug('team:' + (S.teamTab || 'hub')); S._navTerugWedstrijd?.(); return true; }
+  if (view === 'club'){      _navTerug('teams'); S._navVerlaatClub?.();    return true; }
   if (view === 'team'){
     /* Eerst één tabblad terug binnen het team (bv. van Planning → Meer, of van
        Stats → het tabblad waar je vandaan kwam). Pas als er geen tab-historie
-       meer is, verlaten we het team richting de teamkeuze. */
+       meer is, verlaten we het team richting de teamkeuze. _navTeamTabTerug
+       logt zijn eigen terug-stap; het team verlaten loggen we hier. */
     if (S._navTeamTabTerug?.()) return true;
+    _navTerug('teams');
     S._navVerlaatTeam?.();
     return true;
   }
