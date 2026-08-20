@@ -1,4 +1,4 @@
-import { S } from './state.js?v=20260819c';
+import { S } from './state.js?v=20260819d';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)
@@ -86,6 +86,7 @@ export const FORMATIES = {
   },
   '8': {
     '3-3-1': [[22,73,'V'],[50,76,'V'],[78,73,'V'],[22,48,'M'],[50,45,'M'],[78,48,'M'],[50,23,'A']],
+    '3-1-3': [[22,73,'V'],[50,76,'V'],[78,73,'V'],[50,49,'M'],[22,24,'A'],[50,21,'A'],[78,24,'A']],
     '2-3-2': [[32,74,'V'],[68,74,'V'],[20,48,'M'],[50,45,'M'],[80,48,'M'],[32,23,'A'],[68,23,'A']],
     '3-2-2': [[22,73,'V'],[50,76,'V'],[78,73,'V'],[32,47,'M'],[68,47,'M'],[32,23,'A'],[68,23,'A']],
     '2-4-1': [[32,74,'V'],[68,74,'V'],[14,48,'M'],[38,45,'M'],[62,45,'M'],[86,48,'M'],[50,23,'A']],
@@ -103,6 +104,7 @@ export const FORMATIES = {
     '4-4-2': [[14,75,'V'],[38,78,'V'],[62,78,'V'],[86,75,'V'],[14,49,'M'],[38,46,'M'],[62,46,'M'],[86,49,'M'],[35,23,'A'],[65,23,'A']],
     '3-4-3': [[25,76,'V'],[50,78,'V'],[75,76,'V'],[14,49,'M'],[38,46,'M'],[62,46,'M'],[86,49,'M'],[19,25,'A'],[50,21,'A'],[81,25,'A']],
     '4-2-3-1': [[14,77,'V'],[38,80,'V'],[62,80,'V'],[86,77,'V'],[36,58,'M'],[64,58,'M'],[20,38,'M'],[50,35,'M'],[80,38,'M'],[50,17,'A']],
+    '4-2-1-3': [[14,77,'V'],[38,80,'V'],[62,80,'V'],[86,77,'V'],[36,57,'M'],[64,57,'M'],[50,38,'M'],[20,20,'A'],[50,16,'A'],[80,20,'A']],
     '4-1-4-1': [[14,77,'V'],[38,80,'V'],[62,80,'V'],[86,77,'V'],[50,60,'M'],[14,40,'M'],[38,37,'M'],[62,37,'M'],[86,40,'M'],[50,17,'A']],
     '3-5-2': [[25,77,'V'],[50,79,'V'],[75,77,'V'],[10,46,'M'],[32,48,'M'],[50,52,'M'],[68,48,'M'],[90,46,'M'],[35,21,'A'],[65,21,'A']],
     '5-3-2': [[10,72,'V'],[30,78,'V'],[50,80,'V'],[70,78,'V'],[90,72,'V'],[27,48,'M'],[50,45,'M'],[73,48,'M'],[35,21,'A'],[65,21,'A']],
@@ -110,8 +112,55 @@ export const FORMATIES = {
 };
 export const LIJN_NAAM = {K:'Keeper', V:'Verdediging', M:'Middenveld', A:'Aanval'};
 
+/* ---- Eigen (zelfgemaakte) formaties ----------------------------------------
+   Een coach kan per team een eigen linieverdeling opgeven, bv. '4-2-1-3'.
+   parseFormatie() genereert daaruit dezelfde symmetrische spreiding als de
+   vaste formaties hierboven: linies gelijkmatig van achter (V) naar voren (A),
+   spelers per linie horizontaal verdeeld. Zo hoeft niemand te slepen.
+   aantalVeld = aantal veldspelers voor het format (format zonder keeper voor
+   '4', anders format-1). Retourneert null als de invoer niet klopt. */
+export function aantalVeldspelers(format){
+  return format === '4' ? 4 : (Number(format) - 1);
+}
+export function parseFormatie(naam, format){
+  if (typeof naam !== 'string') return null;
+  const delen = naam.trim().split(/[-\s.]+/).filter(Boolean);
+  if (delen.length < 2) return null;
+  if (!delen.every(d => /^\d+$/.test(d))) return null;
+  const lijnen = delen.map(Number);
+  if (lijnen.some(x => x < 1 || x > 6)) return null;
+  const som = lijnen.reduce((a,b) => a+b, 0);
+  const nodig = aantalVeldspelers(format);
+  if (som !== nodig) return null;
+  const n = lijnen.length, yStart = format === '4' ? 72 : 77, yEnd = format === '4' ? 26 : 18;
+  const coords = [];
+  lijnen.forEach((aantal, idx) => {
+    const y = n === 1 ? 49 : Math.round(yStart - (yStart - yEnd) * idx / (n - 1));
+    const rol = idx === 0 ? 'V' : idx === n-1 ? 'A' : 'M';
+    for (let i = 0; i < aantal; i++){
+      const x = aantal === 1 ? 50 : Math.round(14 + 72 * i / (aantal - 1));
+      coords.push([x, y, rol]);
+    }
+  });
+  return coords;
+}
+/* Geldig als naam? (vaste formatie óf parsebare eigen formatie) */
+export function formatieBestaat(format, naam, eigen){
+  if (FORMATIES[format] && FORMATIES[format][naam]) return true;
+  if (eigen && eigen[format] && eigen[format].includes(naam)) return true;
+  return false;
+}
+/* Alle formatienamen voor een format: vaste eerst, daarna de eigen van het team.
+   'eigen' = object { '11': ['4-2-1-3', ...], ... } zoals opgeslagen op het team. */
+export function formatieNamen(format, eigen){
+  const vast = Object.keys(FORMATIES[format] || {});
+  const extra = (eigen && eigen[format] || []).filter(n => !vast.includes(n));
+  return vast.concat(extra);
+}
+
 export function bouwSlots(format, formatie){
   const def = (FORMATIES[format] && FORMATIES[format][formatie])
+           || parseFormatie(formatie, format)
            || Object.values(FORMATIES[format])[0];
   const slots = format === '4' ? [] : [{id:'K', x:50, y:90, lijn:'K'}];
   const tel = {V:0, M:0, A:0};

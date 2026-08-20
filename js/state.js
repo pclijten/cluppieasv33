@@ -217,10 +217,17 @@ function modalOpen(){
 function pdfViewerOpen(){
   return !!document.querySelector('.pdfv-achter')?.classList.contains('open');
 }
+/* Diagram-lightbox (training-weergave.js) is net als de pdf-viewer een losse
+   fullscreen-overlay bovenop alles; ook hier checken we via de DOM i.p.v. een
+   import om een circulaire import te vermijden. */
+function lightboxOpen(){
+  return !!document.querySelector('.trw-lb')?.classList.contains('open');
+}
 
 /* Zit de app op dit moment "ergens binnen", d.w.z. valt er iets terug te gaan? */
 function kanTerug(){
   if (!S.user) return false;
+  if (lightboxOpen()) return true;
   if (pdfViewerOpen()) return true;
   if (modalOpen()) return true;
   const view = actieveView();
@@ -264,13 +271,17 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20260819c').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20260819d').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
+  if (lightboxOpen()){
+    import('./training-weergave.js?v=20260819e').then(m => m.sluitLightbox());
+    return true;
+  }
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260819c').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260819d').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
