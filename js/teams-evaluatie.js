@@ -12,7 +12,7 @@ import {
 import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260819f';
 import { ico } from './icons.js?v=20260818e';
 
-import { htmlStats } from './wedstrijd.js?v=20260819i';
+import { htmlStats } from './wedstrijd.js?v=20260819j';
 import { telGebruik } from './tracker.js?v=20260819d';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)

@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260819i').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260819j').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260819i').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260819j').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1549,7 +1549,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260819i').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260819j').then(m => m.renderTeam?.());
   });
 }
 
@@ -1808,7 +1808,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260819i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260819j').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2039,7 +2039,8 @@ function toonKwartFormatie(){
       <h2>Speelwijze ${esc(periodeLabel(w, S.kwart))}</h2>
       <p class="kf-sub">Alleen de speelwijze van <b>${esc(kwartTekst)}</b> verandert. Andere ${esc((w.periodes||4)===2?'helften':'kwarten')} blijven staan. Opgestelde spelers schuiven zoveel mogelijk mee naar hun plek.</p>
       <div class="kf-grid">${formatieNamen(w.format, eigenFormatiesVanTeam()).map(f =>
-        `<button data-f="${esc(f)}" class="${f===huidig?'actief':''}">${esc(f)}</button>`).join('')}</div>
+        `<button data-f="${esc(f)}" class="${f===huidig?'actief':''}">${esc(f)}</button>`).join('')}<button class="ef-knop kf-eigen" data-eigen="1">+ Eigen</button></div>
+      <div id="kfEigen">${eigenFormatieInvoerHtml()}</div>
       <div class="kf-acties">
         <button class="kf-annuleer" id="kfAnnuleer">Annuleren</button>
         <button class="kf-ok" id="kfOk">Toepassen op dit ${esc((w.periodes||4)===2?'helft':'kwart')}</button>
@@ -2049,10 +2050,25 @@ function toonKwartFormatie(){
   requestAnimationFrame(() => el.classList.add('open'));
 
   const sluit = () => { el.classList.remove('open'); setTimeout(() => el.remove(), 220); };
-  el.querySelectorAll('.kf-grid button').forEach(b => b.onclick = () => {
-    el.querySelectorAll('.kf-grid button').forEach(x => x.classList.remove('actief'));
-    b.classList.add('actief'); gekozen = b.dataset.f;
+
+  const efKwart = koppelEigenFormatieInvoer(el.querySelector('#kfEigen'), () => w.format, (naam) => {
+    gekozen = naam; vulGrid();
   });
+  const bindGrid = () => {
+    el.querySelectorAll('.kf-grid button[data-f]').forEach(b => b.onclick = () => {
+      el.querySelectorAll('.kf-grid button').forEach(x => x.classList.remove('actief'));
+      b.classList.add('actief'); gekozen = b.dataset.f;
+    });
+    const eb = el.querySelector('.kf-grid button[data-eigen]');
+    if (eb) eb.onclick = () => efKwart.toonInvoer();
+  };
+  const vulGrid = () => {
+    el.querySelector('.kf-grid').innerHTML = formatieNamen(w.format, eigenFormatiesVanTeam()).map(f =>
+      `<button data-f="${esc(f)}" class="${f===gekozen?'actief':''}">${esc(f)}</button>`).join('') +
+      `<button class="ef-knop kf-eigen" data-eigen="1">+ Eigen</button>`;
+    bindGrid();
+  };
+  bindGrid();
   el.querySelector('#kfAnnuleer').onclick = sluit;
   el.onclick = (e) => { if (e.target === el) sluit(); };
   el.querySelector('#kfOk').onclick = () => {
