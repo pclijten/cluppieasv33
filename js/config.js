@@ -122,6 +122,16 @@ export const LIJN_NAAM = {K:'Keeper', V:'Verdediging', M:'Middenveld', A:'Aanval
 export function aantalVeldspelers(format){
   return format === '4' ? 4 : (Number(format) - 1);
 }
+/* Horizontale spreiding per linie — zelfde randmarges als de vaste formaties:
+   1→midden, 2→32/68, 3→22/50/78, 4→14/38/62/86, 5→10..90, 6→8..92. */
+function spreidX(aantal){
+  const marge = {1:0, 2:32, 3:22, 4:14, 5:10, 6:8}[aantal] ?? 12;
+  if (aantal === 1) return [50];
+  const links = marge, rechts = 100 - marge;
+  const xs = [];
+  for (let i = 0; i < aantal; i++) xs.push(Math.round(links + (rechts - links) * i / (aantal - 1)));
+  return xs;
+}
 export function parseFormatie(naam, format){
   if (typeof naam !== 'string') return null;
   const delen = naam.trim().split(/[-\s.]+/).filter(Boolean);
@@ -130,17 +140,36 @@ export function parseFormatie(naam, format){
   const lijnen = delen.map(Number);
   if (lijnen.some(x => x < 1 || x > 6)) return null;
   const som = lijnen.reduce((a,b) => a+b, 0);
-  const nodig = aantalVeldspelers(format);
-  if (som !== nodig) return null;
-  const n = lijnen.length, yStart = format === '4' ? 72 : 77, yEnd = format === '4' ? 26 : 18;
+  if (som !== aantalVeldspelers(format)) return null;
+
+  // Dieptebanden (achter → voor). We verdelen de linies over de band tussen
+  // 'achter' (verdediging) en 'voor' (aanval), net als de vaste formaties.
+  const band = format === '4'
+    ? { achter: 70, voor: 26 }
+    : { achter: 76, voor: 22 };
+  const n = lijnen.length;
   const coords = [];
   lijnen.forEach((aantal, idx) => {
-    const y = n === 1 ? 49 : Math.round(yStart - (yStart - yEnd) * idx / (n - 1));
-    const rol = idx === 0 ? 'V' : idx === n-1 ? 'A' : 'M';
-    for (let i = 0; i < aantal; i++){
-      const x = aantal === 1 ? 50 : Math.round(14 + 72 * i / (aantal - 1));
+    // basisdiepte van deze linie
+    const yBasis = n === 1 ? 49
+      : Math.round(band.achter - (band.achter - band.voor) * idx / (n - 1));
+    const rol = idx === 0 ? 'V' : idx === n - 1 ? 'A' : 'M';
+    const xs = spreidX(aantal);
+    xs.forEach((x, i) => {
+      // lichte boog: middelste speler(s) van een linie iets dieper (V) of
+      // hoger (A), zoals de handgemaakte formaties, voor een natuurlijker beeld.
+      let y = yBasis;
+      if (aantal >= 3){
+        const midden = (aantal - 1) / 2;
+        const afstand = Math.abs(i - midden) / midden;      // 0 in het midden, 1 aan de rand
+        // Middelste speler van de verdediging staat iets dieper (hogere y);
+        // middelste aanvaller iets verder naar voren (lagere y) — net als de
+        // handgemaakte formaties, wat een natuurlijke boog geeft.
+        const boog = idx === 0 ? 3 : idx === n - 1 ? -3 : 0;
+        y = Math.round(yBasis + boog * (1 - afstand));
+      }
       coords.push([x, y, rol]);
-    }
+    });
   });
   return coords;
 }
