@@ -15,8 +15,8 @@ import { ico } from './icons.js?v=20260818e';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260819f';
-import { htmlKompas } from './teams-leerlijn.js?v=20260819f';
+} from './config.js?v=20260819g';
+import { htmlKompas } from './teams-leerlijn.js?v=20260819g';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------

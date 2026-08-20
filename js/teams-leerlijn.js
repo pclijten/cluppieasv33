@@ -10,7 +10,7 @@
    blijft in config.js staan; dat verandert niet via het contentbeheer-tabblad. */
 import { S, $, esc, openModal, modAan } from './state.js?v=20260819d';
 import { skillDomein, leercurveThema, isoWeek, kompasIndexVoorWeek,
-         LEERCURVE, leercurveRelevant } from './config.js?v=20260819f';
+         LEERCURVE, leercurveRelevant } from './config.js?v=20260819g';
 import { contentVoorThema, kompasTips } from './content.js?v=20260819d';
 
 /* ---------- Leerlijn-blok: ASV-kompas + leerlijn (Training-tab) ----------
