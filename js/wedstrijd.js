@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260819k').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260819l').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260819k').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260819l').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1549,7 +1549,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260819k').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260819l').then(m => m.renderTeam?.());
   });
 }
 
@@ -1808,7 +1808,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260819k').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260819l').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2187,13 +2187,18 @@ function koppelSleep(v){
     modalStartBankReden(b.dataset.bankreden);
   }));
 
-  // tik op een leeg veldvak: plaats de geselecteerde speler daar
-  veld.querySelectorAll('.slot').forEach(slot => {
-    slot.addEventListener('click', ev => {
-      if (!S.geselecteerd) return;
-      if (ev.target.closest('[data-chip]')) return;
-      plaats(S.geselecteerd.pid, slot.dataset.slot);
-    });
+  // tik op een leeg veldvak: plaats de geselecteerde speler daar.
+  // Eén gedelegeerde handler op het hele veld (i.p.v. per slot), zodat een tik
+  // op de rand van een slot of op de 'M1'-ring altijd wordt opgevangen — ook
+  // bij zelfgemaakte formaties. Klikken op een veldspeler-chip wordt door de
+  // chip-handler zelf afgehandeld (met stopPropagation), dus die botst niet.
+  veld.addEventListener('click', ev => {
+    if (!S.geselecteerd) return;
+    if (ev.target.closest('[data-chip]')) return;         // chip regelt zichzelf
+    if (ev.target.closest('.veld-overlay')) return;        // badge/Speelwijze-knop
+    const slotEl = ev.target.closest('.slot');
+    if (!slotEl) return;
+    plaats(S.geselecteerd.pid, slotEl.dataset.slot);
   });
 
   // tik op de bank: haal de geselecteerde veldspeler naar de bank
