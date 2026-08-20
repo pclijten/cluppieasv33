@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260819c';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260819d';
 
 let _overlay = null;
 
@@ -39,6 +39,57 @@ export function sluitTrainingWeergave(){
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
+/* ---- Diagram-lightbox: schermvullende weergave met pinch/dubbeltik-zoom ----
+   De app zet globaal user-scalable=no; net als in pdf-viewer.js zetten we de
+   viewport tijdelijk zoombaar zolang de lightbox open staat, zodat de coach
+   met knijpen of dubbeltikken op het diagram kan inzoomen. */
+let _lb = null, _viewportOrigineel = null;
+
+function zetViewportZoombaar(aan){
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  if (_viewportOrigineel === null) _viewportOrigineel = meta.getAttribute('content');
+  meta.setAttribute('content', aan
+    ? 'width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes'
+    : _viewportOrigineel);
+}
+
+function bouwLightbox(){
+  if (_lb) return _lb;
+  const el = document.createElement('div');
+  el.className = 'trw-lb';
+  el.innerHTML = `
+    <div class="trw-lb-balk">
+      <div class="trw-lb-titel"></div>
+      <button class="trw-lb-sluit" aria-label="Sluiten">✕</button>
+    </div>
+    <div class="trw-lb-canvas"><img alt=""></div>
+    <div class="trw-lb-voet">🔍 knijp of dubbeltik om in te zoomen</div>`;
+  document.body.appendChild(el);
+  el.querySelector('.trw-lb-sluit').onclick = () => sluitLightbox();
+  el.addEventListener('click', e => { if (e.target === el) sluitLightbox(); });
+  _lb = el;
+  return el;
+}
+
+function openLightbox(url, titel){
+  const el = bouwLightbox();
+  el.querySelector('.trw-lb-titel').textContent = titel || 'Diagram';
+  el.querySelector('.trw-lb-canvas img').src = url;
+  zetViewportZoombaar(true);
+  el.classList.add('open');
+  bewaakTerug();
+}
+
+export function sluitLightbox(){
+  if (!_lb) return;
+  const wasOpen = _lb.classList.contains('open');
+  _lb.classList.remove('open');
+  _lb.querySelector('.trw-lb-canvas img').src = '';
+  zetViewportZoombaar(false);
+  vangnetStilTerugAlsNodig(wasOpen);
+}
+
 function blokHtml(blok){
   const kop = blok.kop ? `<h3>${esc(blok.kop)}</h3>` : '';
   if (blok.type === 'lijst' && Array.isArray(blok.items)){
@@ -57,7 +108,7 @@ function oefHtml(idx, oef, diagramUrls){
   const url = D[idx] || D[String(idx)] ||
     (oef.diagramPagina != null ? (D[oef.diagramPagina] || D[String(oef.diagramPagina)]) : null);
   const diagram = url
-    ? `<figure class="trw-diagram"><img src="${esc(url)}" alt="" loading="lazy"></figure>`
+    ? `<figure class="trw-diagram" data-zoom="${esc(url)}" data-zoomtitel="${esc(oef.titel || 'Oefening ' + idx)}"><img src="${esc(url)}" alt="" loading="lazy"><span class="trw-zoomhint">🔍 tik om te vergroten</span></figure>`
     : '';
   const blokken = (oef.blokken || []).map(blokHtml).join('');
   return `
@@ -106,6 +157,11 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
       const i = Number(chip.dataset.naar);
       if (secties[i]) secties[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+  });
+
+  // diagram → schermvullende lightbox met zoom
+  stage.querySelectorAll('.trw-diagram[data-zoom]').forEach(fig => {
+    fig.onclick = () => openLightbox(fig.dataset.zoom, fig.dataset.zoomtitel);
   });
 
   stage.scrollTop = 0;

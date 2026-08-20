@@ -1,22 +1,23 @@
 import {
-  db, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, serverTimestamp,
+  db, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp,
   functions, httpsCallable
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260819c';
+} from './state.js?v=20260819d';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
+  parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260819c';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260819c';
+} from './config.js?v=20260819f';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260819f';
 import { ico } from './icons.js?v=20260818e';
 
-import { telGebruik, telNav } from './tracker.js?v=20260819c';
+import { telGebruik, telNav } from './tracker.js?v=20260819d';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -27,7 +28,81 @@ function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok
    nog-lege kwarten gewoon werken. */
 function kwartFormatie(w, k){
   const f = k && k.formatie;
-  return (f && FORMATIES[w.format] && FORMATIES[w.format][f]) ? f : w.formatie;
+  return (f && (formatieBestaat(w.format, f, eigenFormatiesVanTeam()) || parseFormatie(f, w.format))) ? f : w.formatie;
+}
+
+/* Eigen formaties van het huidige team ({ '11': ['4-2-1-3'], ... }), veilig als
+   er nog geen zijn. */
+function eigenFormatiesVanTeam(){
+  return (S.team && S.team.eigenFormaties) || {};
+}
+
+/* Sla een zelfgemaakte formatie op bij het team, zodat hij voortaan als knop
+   naast de vaste formaties verschijnt. Retourneert de genormaliseerde naam of
+   null als de invoer niet klopt. De live team-subscription (teams.js) werkt
+   S.team daarna vanzelf bij. */
+async function bewaarEigenFormatie(format, ruweNaam){
+  const coords = parseFormatie(ruweNaam, format);
+  if (!coords) return null;
+  const naam = ruweNaam.trim().split(/[-\s.]+/).filter(Boolean).join('-');
+  if (formatieBestaat(format, naam, eigenFormatiesVanTeam())) return naam; // bestaat al
+  const eigen = { ...(eigenFormatiesVanTeam()) };
+  eigen[format] = (eigen[format] || []).concat(naam);
+  try {
+    await updateDoc(doc(db,'teams',S.teamId), { eigenFormaties: eigen });
+    if (S.team) S.team.eigenFormaties = eigen; // direct lokaal, vóór snapshot
+    telGebruik('eigen_formatie');
+  } catch(e){ console.warn('[Cluppie] eigen formatie opslaan mislukt', e); return null; }
+  return naam;
+}
+
+/* Herbruikbare "+ Eigen"-invoer voor de formatiekiezers (wizard én wijzig-opzet).
+   Rendert een knoppenrij (vaste + eigen formaties) plus een uitklapbaar
+   invoerveld. onKies(naam) wordt aangeroepen bij elke keuze; herteken() vult de
+   knoppenrij opnieuw (na opslaan van een nieuwe eigen formatie).
+   knopHtml(naam, actief) en actiefNaam() maken het geschikt voor zowel de
+   tegel-stijl (wizard) als de knop-stijl (wijzig-opzet). */
+function eigenFormatieInvoerHtml(){
+  return `
+    <div class="ef-invoer" hidden>
+      <div class="ef-rij">
+        <input class="invoer ef-veld" inputmode="numeric" placeholder="bijv. 4-2-1-3" autocomplete="off" maxlength="15">
+        <button class="knop ef-bewaar" disabled>Toevoegen</button>
+      </div>
+      <div class="ef-status"></div>
+    </div>`;
+}
+/* Koppelt de invoer-interactie. container = element dat de .ef-invoer,
+   .ef-veld, .ef-bewaar, .ef-status bevat. getFormat() geeft het huidige format.
+   onToegevoegd(naam) na succesvol opslaan. */
+function koppelEigenFormatieInvoer(container, getFormat, onToegevoegd){
+  const wrap = container.querySelector('.ef-invoer');
+  const veld = container.querySelector('.ef-veld');
+  const knop = container.querySelector('.ef-bewaar');
+  const status = container.querySelector('.ef-status');
+  if (!wrap || !veld || !knop) return { toon(){}, };
+  const check = () => {
+    const fmt = getFormat();
+    const coords = parseFormatie(veld.value, fmt);
+    if (!veld.value.trim()){ status.textContent=''; status.className='ef-status'; knop.disabled=true; return; }
+    if (coords){
+      const naam = veld.value.trim().split(/[-\s.]+/).filter(Boolean).join('-');
+      status.textContent = `✓ ${naam} — ${aantalVeldspelers(fmt)} veldspelers${fmt!=='4'?' + keeper':''}`;
+      status.className = 'ef-status ok'; knop.disabled = false;
+    } else {
+      status.textContent = `Samen ${aantalVeldspelers(fmt)} veldspelers, elke linie 1–6`;
+      status.className = 'ef-status fout'; knop.disabled = true;
+    }
+  };
+  veld.oninput = check;
+  knop.onclick = async () => {
+    const fmt = getFormat();
+    knop.disabled = true;
+    const naam = await bewaarEigenFormatie(fmt, veld.value);
+    if (naam){ veld.value=''; status.textContent=''; status.className='ef-status'; wrap.hidden=true; onToegevoegd(naam); }
+    else { status.textContent='Opslaan lukte niet — probeer opnieuw'; status.className='ef-status fout'; }
+  };
+  return { toonInvoer(){ wrap.hidden = !wrap.hidden; if (!wrap.hidden){ veld.focus(); check(); } } };
 }
 
 /* Herplaats de opstelling van één kwart naar een nieuwe formatie en houd
@@ -282,7 +357,7 @@ export function modalNieuweWedstrijd(){
       const vorige = laatsteOpstelling(format);
       if (vorige){
         overTeNemen = {...vorige.lineup};
-        if (FORMATIES[format][vorige.formatie]) formatie = vorige.formatie;
+        if (formatieBestaat(format, vorige.formatie, eigenFormatiesVanTeam()) || parseFormatie(vorige.formatie, format)) formatie = vorige.formatie;
       }
     }
     if (type === 'toernooi'){
@@ -339,7 +414,7 @@ function normaliseerWedstrijd(w){
   if (!w.periodes){ w.periodes = cat ? cat.periodes : 4; veranderd = true; }
   if (!w.kwartduur){ w.kwartduur = cat ? cat.duur : 15; veranderd = true; }
   if (!FORMATIES[w.format]){ w.format = '8'; veranderd = true; }
-  if (!w.formatie || !FORMATIES[w.format][w.formatie]){
+  if (!w.formatie || !(FORMATIES[w.format][w.formatie] || parseFormatie(w.formatie, w.format))){
     w.formatie = Object.keys(FORMATIES[w.format])[0]; veranderd = true;
   }
   if (!w.kwarten || typeof w.kwarten !== 'object' || !Object.keys(w.kwarten).length){
@@ -352,7 +427,7 @@ function normaliseerWedstrijd(w){
      zijn eigen speelwijze kan onthouden. Ongeldige waarden corrigeren we. */
   for (const kk of Object.values(w.kwarten)){
     if (!kk || typeof kk !== 'object') continue;
-    if (!kk.formatie || !FORMATIES[w.format][kk.formatie]){
+    if (!kk.formatie || !(FORMATIES[w.format][kk.formatie] || parseFormatie(kk.formatie, w.format))){
       kk.formatie = w.formatie; veranderd = true;
     }
   }
@@ -371,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260819f').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260819i').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -415,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260819f').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260819i').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -466,7 +541,8 @@ function toonWedstrijdWizard(){
     `<div class="wz-icoon">📐</div>
      <h2>Welke speelwijze?</h2>
      <p class="wz-uitleg" id="wzFormatieUitleg">Kies de formatie voor ${gekFormat}×${gekFormat}.</p>
-     <div class="wz-tegels wz-tegels-drie" id="wzFormatieTegels"></div>`,
+     <div class="wz-tegels wz-tegels-drie" id="wzFormatieTegels"></div>
+     <div id="wzEigen">${eigenFormatieInvoerHtml()}</div>`,
     `<div class="wz-icoon">🎯</div>
      <h2>Wat is het wedstrijddoel?</h2>
      <p class="wz-uitleg">Waar wil je dit team vandaag op laten letten?</p>
@@ -510,16 +586,23 @@ function toonWedstrijdWizard(){
     </div>`;
   $('#wizardAchter').classList.add('open');
 
+  const efWizard = koppelEigenFormatieInvoer($('#wzEigen'), () => gekFormat, (naam) => {
+    gekFormatie = naam; vulFormatieTegels();
+  });
   const vulFormatieTegels = () => {
-    if (!FORMATIES[gekFormat][gekFormatie]) gekFormatie = Object.keys(FORMATIES[gekFormat])[0];
+    if (!formatieBestaat(gekFormat, gekFormatie, eigenFormatiesVanTeam())) gekFormatie = Object.keys(FORMATIES[gekFormat])[0];
     $('#wzFormatieUitleg').textContent = `Kies de formatie voor ${gekFormat}×${gekFormat}.`;
-    $('#wzFormatieTegels').innerHTML = Object.keys(FORMATIES[gekFormat]).map(fm =>
-      `<div class="wz-tegel ${gekFormatie===fm?'wz-actief':''}" data-fm="${fm}"><span class="wz-cijfer wz-cijfer-klein">${fm}</span></div>`).join('');
-    $$('#wzFormatieTegels .wz-tegel').forEach(el => el.onclick = () => {
+    const namen = formatieNamen(gekFormat, eigenFormatiesVanTeam());
+    $('#wzFormatieTegels').innerHTML = namen.map(fm =>
+      `<div class="wz-tegel ${gekFormatie===fm?'wz-actief':''}" data-fm="${fm}"><span class="wz-cijfer wz-cijfer-klein">${fm}</span></div>`).join('') +
+      `<div class="wz-tegel wz-tegel-eigen" data-eigen="1"><span class="wz-cijfer wz-cijfer-klein">+ Eigen</span></div>`;
+    $$('#wzFormatieTegels .wz-tegel[data-fm]').forEach(el => el.onclick = () => {
       $$('#wzFormatieTegels .wz-tegel').forEach(x => x.classList.remove('wz-actief'));
       el.classList.add('wz-actief');
       gekFormatie = el.dataset.fm;
     });
+    const et = $('#wzFormatieTegels .wz-tegel[data-eigen]');
+    if (et) et.onclick = () => efWizard.toonInvoer();
   };
   vulFormatieTegels();
 
@@ -1466,7 +1549,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260819f').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260819i').then(m => m.renderTeam?.());
   });
 }
 
@@ -1725,7 +1808,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260819f').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260819i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -1790,7 +1873,7 @@ ${confroHtml}
       if ((w.selectie||[]).includes(pid) && speler(pid)) lineup[slot] = pid;
     if (!Object.keys(lineup).length){ meld('Geen spelers uit de vorige opstelling zitten in deze selectie'); return; }
     w.kwarten['1'].lineup = lineup;
-    if (FORMATIES[w.format][vorige.formatie]) w.formatie = vorige.formatie;
+    if (formatieBestaat(w.format, vorige.formatie, eigenFormatiesVanTeam()) || parseFormatie(vorige.formatie, w.format)) w.formatie = vorige.formatie;
     S.kwart = '1';
     bewaarWedstrijd(); renderWedstrijd();
     meld(`Opstelling overgenomen${vorige.bron.tegenstander ? ' van wedstrijd tegen '+vorige.bron.tegenstander : ''} — pas aan waar nodig`);
@@ -1855,6 +1938,7 @@ function toonWijzigOpzet(sectie){
         `<button data-f="${f}" class="${w.format===f?'actief':''}">${f}×${f}</button>`).join('')}</div></div>
     <div class="veldgroep"><label>Formatie (excl. keeper)</label>
       <div class="segment wrap" id="woFormatie"></div>
+      <div id="woEigen">${eigenFormatieInvoerHtml()}</div>
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:6px">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
       <div id="woFormatieHint"></div></div>
 
@@ -1881,20 +1965,27 @@ function toonWijzigOpzet(sectie){
       el.innerHTML = `<div class="formatie-hint info"><span class="fh-ico">💡</span><span>Het jeugdbeleidsplan gaat uit van <b>${esc(CLUB_FORMATIE_11)}</b> als basis (§3.2). Kies je bewust voor ${esc(formatie)}? Laat dan de vrije verdediger een opbouwende rol spelen, niet achter de mandekkers.</span></div>`;
     }
   };
+  const efInvoer = koppelEigenFormatieInvoer($('#woEigen'), () => format, (naam) => {
+    formatie = naam; vulFormaties(); toonFormatieHint();
+  });
   const vulFormaties = () => {
-    $('#woFormatie').innerHTML = Object.keys(FORMATIES[format]).map(f =>
-      `<button data-f="${f}" class="${formatie===f?'actief':''}">${f}</button>`).join('');
-    $$('#woFormatie button').forEach(b => b.onclick = () => {
+    const namen = formatieNamen(format, eigenFormatiesVanTeam());
+    $('#woFormatie').innerHTML = namen.map(f =>
+      `<button data-f="${f}" class="${formatie===f?'actief':''}">${f}</button>`).join('') +
+      `<button class="ef-knop" data-eigen="1">+ Eigen</button>`;
+    $$('#woFormatie button[data-f]').forEach(b => b.onclick = () => {
       $$('#woFormatie button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); formatie = b.dataset.f;
       toonFormatieHint();
     });
+    const eb = $('#woFormatie button[data-eigen]');
+    if (eb) eb.onclick = () => efInvoer.toonInvoer();
     toonFormatieHint();
   };
   vulFormaties();
   $$('#woFormat button').forEach(b => b.onclick = () => {
     $$('#woFormat button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief');
     format = b.dataset.f;
-    if (!FORMATIES[format][formatie]) formatie = Object.keys(FORMATIES[format])[0];
+    if (!formatieBestaat(format, formatie, eigenFormatiesVanTeam())) formatie = Object.keys(FORMATIES[format])[0];
     vulFormaties();
   });
 
@@ -1947,7 +2038,7 @@ function toonKwartFormatie(){
       <div class="kf-greep"></div>
       <h2>Speelwijze ${esc(periodeLabel(w, S.kwart))}</h2>
       <p class="kf-sub">Alleen de speelwijze van <b>${esc(kwartTekst)}</b> verandert. Andere ${esc((w.periodes||4)===2?'helften':'kwarten')} blijven staan. Opgestelde spelers schuiven zoveel mogelijk mee naar hun plek.</p>
-      <div class="kf-grid">${Object.keys(FORMATIES[w.format]).map(f =>
+      <div class="kf-grid">${formatieNamen(w.format, eigenFormatiesVanTeam()).map(f =>
         `<button data-f="${esc(f)}" class="${f===huidig?'actief':''}">${esc(f)}</button>`).join('')}</div>
       <div class="kf-acties">
         <button class="kf-annuleer" id="kfAnnuleer">Annuleren</button>
@@ -1965,7 +2056,7 @@ function toonKwartFormatie(){
   el.querySelector('#kfAnnuleer').onclick = sluit;
   el.onclick = (e) => { if (e.target === el) sluit(); };
   el.querySelector('#kfOk').onclick = () => {
-    if (gekozen !== huidig && FORMATIES[w.format][gekozen]){
+    if (gekozen !== huidig && formatieBestaat(w.format, gekozen, eigenFormatiesVanTeam())){
       herplaatsKwart(w, k, gekozen);
       bewaarWedstrijd();
       sluit();
