@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260819l').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260819m').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260819l').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260819m').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1549,7 +1549,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260819l').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260819m').then(m => m.renderTeam?.());
   });
 }
 
@@ -1808,7 +1808,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260819l').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260819m').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2161,6 +2161,25 @@ function modalSelectie(){
 }
 
 /* ==================== TIKKEN (geen slepen meer — verticaal scrollen blijft werken) ==================== */
+/* Zoekt of er onder de tik-locatie een LEEG veldvak ligt (een .slot zonder
+   speler-chip). Nodig omdat een breed naam-label van een naburige chip soms
+   over een leeg vak heen steekt en de tik "opvangt"; dankzij deze check landt
+   de speler dan toch in het bedoelde lege vak. Retourneert de slot-id of null. */
+function leegSlotOnderPunt(ev, negeerPid){
+  const x = ev.clientX, y = ev.clientY;
+  if (x == null || y == null || !document.elementsFromPoint) return null;
+  const onder = document.elementsFromPoint(x, y);
+  for (const el of onder){
+    const slot = el.closest && el.closest('.slot');
+    if (!slot) continue;
+    const chip = slot.querySelector('[data-chip]');
+    if (!chip) return slot.dataset.slot;            // leeg vak → dit bedoelen we
+    if (negeerPid && chip.dataset.chip === negeerPid) continue; // eigen chip: kijk verder
+    return null;                                    // ander bezet vak: niet stelen
+  }
+  return null;
+}
+
 function koppelSleep(v){
   const veld = v.querySelector('#veld');
   const bank = v.querySelector('#bank');
@@ -2172,8 +2191,14 @@ function koppelSleep(v){
       const pid = chip.dataset.chip;
       const bron = chip.dataset.bron;
       if (S.geselecteerd && S.geselecteerd.pid !== pid){
-        // staat de getikte speler op het veld? dan ruilen we van plek
         const k = huidigKwart(), l = effectieveLineup(k);
+        // Als er al een speler geselecteerd is en de tik landt (deels) op een
+        // LEEG veldvak dat onder het brede naam-label van deze chip uitsteekt,
+        // dan bedoelt de coach dat lege vak — niet deze chip. Plaats daar.
+        // (Anders kon een naburige naam een leeg slot "blokkeren".)
+        const leegSlot = leegSlotOnderPunt(ev, pid);
+        if (leegSlot){ plaats(S.geselecteerd.pid, leegSlot); return; }
+        // staat de getikte speler op het veld? dan ruilen we van plek
         const slot = Object.keys(l).find(s => l[s] === pid);
         if (slot){ plaats(S.geselecteerd.pid, slot); return; }
       }
@@ -2194,8 +2219,11 @@ function koppelSleep(v){
   // chip-handler zelf afgehandeld (met stopPropagation), dus die botst niet.
   veld.addEventListener('click', ev => {
     if (!S.geselecteerd) return;
-    if (ev.target.closest('[data-chip]')) return;         // chip regelt zichzelf
     if (ev.target.closest('.veld-overlay')) return;        // badge/Speelwijze-knop
+    // eerst: valt de tik op (of over) een leeg slot? dan dat vullen
+    const leeg = leegSlotOnderPunt(ev, S.geselecteerd.pid);
+    if (leeg){ plaats(S.geselecteerd.pid, leeg); return; }
+    if (ev.target.closest('[data-chip]')) return;         // chip regelt zichzelf
     const slotEl = ev.target.closest('.slot');
     if (!slotEl) return;
     plaats(S.geselecteerd.pid, slotEl.dataset.slot);
