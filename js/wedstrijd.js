@@ -5,7 +5,7 @@ import {
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan
-} from './state.js?v=20260819d';
+} from './state.js?v=20260822a';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
@@ -13,11 +13,11 @@ import {
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260819g';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260819g';
+} from './config.js?v=20260822a';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260822a';
 import { ico } from './icons.js?v=20260818e';
 
-import { telGebruik, telNav } from './tracker.js?v=20260819d';
+import { telGebruik, telNav } from './tracker.js?v=20260822a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260819m').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260822a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260819m').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260822a').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1549,8 +1549,187 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260819m').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260822a').then(m => m.renderTeam?.());
   });
+}
+
+/* ==================== EXCEL-EXPORT (stats) ====================
+   Zelfde patroon als de club-evaluatie-export: ExcelJS wordt pas van de CDN
+   geladen op het moment dat een coach echt exporteert. De export gebruikt de
+   al bestaande, geëxporteerde analysefuncties (analyseWedstrijd,
+   speeltijdReserve) — de speeltijd/klok-logica zelf blijft ongewijzigd; we
+   lézen alleen de uitkomsten en zetten ze in drie tabbladen die de drie
+   stats-bladen spiegelen: Speelminuten, Wedstrijd, Training.
+   AVG: enkel spelersnaam + eigen teamgegevens, geen externe/gevoelige data. */
+let _exceljsLoadStats = null;
+function laadExcelJsStats(){
+  if (window.ExcelJS) return Promise.resolve();
+  if (_exceljsLoadStats) return _exceljsLoadStats;
+  _exceljsLoadStats = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    script.onload = resolve;
+    script.onerror = () => { _exceljsLoadStats = null; reject(new Error('Kon Excel-library niet laden — controleer je internetverbinding')); };
+    document.head.appendChild(script);
+  });
+  return _exceljsLoadStats;
+}
+
+/* Bouwt dezelfde totalen op als htmlStats(), maar dan als platte data voor de
+   export. Bewust een aparte functie zodat htmlStats() (weergave) ongemoeid
+   blijft. */
+function statsExportData(){
+  const alleSeizoenen = S.statsSeizoen === 'alles';
+  const wedstrijdenLijst = alleSeizoenen ? S.wedstrijden : S.wedstrijden.filter(w => w.seizoen === S.statsSeizoen);
+  const presentieLijst = alleSeizoenen ? (S.presentie||[]) : (S.presentie||[]).filter(p => p.seizoen === S.statsSeizoen);
+
+  const tot = {tijd:{}, keeper:{}, wedstrijden:{}, goals:{}, geel:{}, rood:{}, aanv:{}};
+  for (const w of wedstrijdenLijst){
+    for (const g of (w.goals||[])) if (g.type==='voor' && g.pid) tot.goals[g.pid] = (tot.goals[g.pid]||0) + 1;
+    for (const c of (w.kaarten||[])){
+      if (c.auto) continue;
+      if (c.type === 'geel') tot.geel[c.pid] = (tot.geel[c.pid]||0) + 1;
+      if (c.type === 'rood') tot.rood[c.pid] = (tot.rood[c.pid]||0) + 1;
+    }
+    if (w.aanvoerder) tot.aanv[w.aanvoerder] = (tot.aanv[w.aanvoerder]||0) + 1;
+    const a = analyseWedstrijd(w);
+    if (!a.kwarten) continue;
+    for (const [pid, s] of Object.entries(a.tijd)){
+      tot.tijd[pid] = (tot.tijd[pid]||0) + s;
+      tot.wedstrijden[pid] = (tot.wedstrijden[pid]||0) + 1;
+    }
+    for (const [pid, n] of Object.entries(a.keeper)) tot.keeper[pid] = (tot.keeper[pid]||0) + n;
+  }
+
+  const sr = speeltijdReserve(wedstrijdenLijst);
+  const pctSpeeltijd = {}, pctReserve = {};
+  for (const [pid, r] of Object.entries(sr)){
+    if (r.speelbaar > 0){
+      pctSpeeltijd[pid] = Math.round((r.speeltijd / r.speelbaar) * 100);
+      pctReserve[pid]   = 100 - pctSpeeltijd[pid];
+    }
+  }
+
+  const totTrainingen = presentieLijst.length;
+  const opkomst = {}, aanwezigAantal = {};
+  if (totTrainingen){
+    for (const p of S.spelers){
+      let aanwezig = 0;
+      for (const sessie of presentieLijst) if (!(sessie.afwezig || []).includes(p.id)) aanwezig++;
+      aanwezigAantal[p.id] = aanwezig;
+      opkomst[p.id] = Math.round((aanwezig / totTrainingen) * 100);
+    }
+  }
+
+  const rijen = [...S.spelers].sort((a,b) => (pctSpeeltijd[b.id]??-1) - (pctSpeeltijd[a.id]??-1) || (tot.tijd[b.id]||0) - (tot.tijd[a.id]||0));
+  return { rijen, tot, sr, pctSpeeltijd, pctReserve, totTrainingen, opkomst, aanwezigAantal };
+}
+
+export async function exportStatsExcel(knop){
+  const label = knop ? knop.innerHTML : null;
+  if (knop){ knop.disabled = true; knop.innerHTML = 'Bezig…'; }
+  meld('Excel-export wordt klaargezet…');
+  try {
+    await laadExcelJsStats();
+    const d = statsExportData();
+    const seizoenLabel = (S.statsSeizoen && S.statsSeizoen !== 'alles') ? S.statsSeizoen : 'alle seizoenen';
+
+    const wb = new window.ExcelJS.Workbook();
+    wb.creator = 'Cluppie'; wb.created = new Date();
+
+    /* --- Tabblad 1: Speelminuten --- */
+    const ws1 = wb.addWorksheet('Speelminuten');
+    ws1.columns = [
+      {header:'Speler', key:'speler', width:22},
+      {header:'Wedstrijden', key:'wed', width:12},
+      {header:'Speeltijd %', key:'speel', width:12},
+      {header:'Reserve %', key:'res', width:11},
+      {header:'Totaal minuten', key:'min', width:14},
+      {header:'Disc. reservetijd (min)', key:'disc', width:20},
+    ];
+    ws1.getRow(1).font = {bold:true};
+    for (const p of d.rijen){
+      ws1.addRow({
+        speler: p.naam,
+        wed: d.tot.wedstrijden[p.id]||0,
+        speel: d.pctSpeeltijd[p.id] ?? null,
+        res: d.pctReserve[p.id] ?? null,
+        min: Math.round((d.tot.tijd[p.id]||0)/60),
+        disc: Math.round((d.sr[p.id]?.disciplinair || 0)/60),
+      });
+    }
+
+    /* --- Tabblad 2: Wedstrijd --- */
+    const ws2 = wb.addWorksheet('Wedstrijd');
+    ws2.columns = [
+      {header:'Speler', key:'speler', width:22},
+      {header:'Doelpunten', key:'goals', width:12},
+      {header:'Aanvoerder (×)', key:'aanv', width:14},
+      {header:'Periodes keeper', key:'keeper', width:15},
+      {header:'Geel', key:'geel', width:8},
+      {header:'Rood', key:'rood', width:8},
+    ];
+    ws2.getRow(1).font = {bold:true};
+    for (const p of d.rijen){
+      ws2.addRow({
+        speler: p.naam,
+        goals: d.tot.goals[p.id]||0,
+        aanv: d.tot.aanv[p.id]||0,
+        keeper: d.tot.keeper[p.id]||0,
+        geel: d.tot.geel[p.id]||0,
+        rood: d.tot.rood[p.id]||0,
+      });
+    }
+
+    /* --- Tabblad 3: Training (opkomst) --- */
+    const ws3 = wb.addWorksheet('Training');
+    ws3.columns = [
+      {header:'Speler', key:'speler', width:22},
+      {header:'Aanwezig', key:'aanw', width:10},
+      {header:'Totaal trainingen', key:'totaal', width:16},
+      {header:'Opkomst %', key:'opkomst', width:11},
+    ];
+    ws3.getRow(1).font = {bold:true};
+    if (d.totTrainingen){
+      for (const p of d.rijen){
+        ws3.addRow({
+          speler: p.naam,
+          aanw: d.aanwezigAantal[p.id] ?? 0,
+          totaal: d.totTrainingen,
+          opkomst: d.opkomst[p.id] ?? 0,
+        });
+      }
+    } else {
+      ws3.addRow({speler:'Nog geen trainingsopkomst geregistreerd'});
+    }
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const naam = `stats-${(S.team?.naam || 'team').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'team'}-${new Date().toISOString().slice(0,10)}.xlsx`;
+
+    // Zelfde betrouwbaarheids-afweging als bij de PDF: op mobiel de deel-sheet,
+    // op desktop de klassieke download.
+    if (navigator.canShare){
+      try {
+        const file = new File([blob], naam, {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        if (navigator.canShare({ files: [file] })){
+          await navigator.share({ files: [file], title: `Stats — ${seizoenLabel}` });
+          meld('Excel-export gedeeld');
+          return;
+        }
+      } catch(e){ if (e && e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = naam;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    meld('Excel-export gedownload');
+  } catch(e){
+    meld(e.message || 'Export mislukt');
+  } finally {
+    if (knop){ knop.disabled = false; if (label != null) knop.innerHTML = label; }
+  }
 }
 
 /* ==================== WEERGAVE ==================== */
@@ -1808,7 +1987,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260819m').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260822a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

@@ -5,22 +5,22 @@ import {
 import {
   S, $, $$, esc, meld, datumNL, teamCode, clubAfkorting, speler, isBeheerder,
   openModal, sluitModal, toon, stopUnsubs, bewaakTerug, modAan
-} from './state.js?v=20260819d';
+} from './state.js?v=20260822a';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek, afwezigRedenInfo
-} from './config.js?v=20260819g';
-import { kompasTips, startContentListener } from './content.js?v=20260819d';
+} from './config.js?v=20260822a';
+import { kompasTips, startContentListener } from './content.js?v=20260822a';
 import { ico } from './icons.js?v=20260818e';
 
-import { analyseWedstrijd } from './analyse.js?v=20260819g';
-import { telGebruik, telNav } from './tracker.js?v=20260819d';
-import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260819d';
+import { analyseWedstrijd } from './analyse.js?v=20260822a';
+import { telGebruik, telNav } from './tracker.js?v=20260822a';
+import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20260822a';
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
-  openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad
-} from './wedstrijd.js?v=20260819m';
+  openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
+} from './wedstrijd.js?v=20260822a';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -32,29 +32,29 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260819m')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260822a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn,
-} from './teams-spelers.js?v=20260819m';
-import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260819g';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260819m';
+} from './teams-spelers.js?v=20260822a';
+import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260822a';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260822a';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20260819g';
-import { htmlTeamDocumenten } from './teams-documenten.js?v=20260819d';
+} from './teams-training.js?v=20260822a';
+import { htmlTeamDocumenten } from './teams-documenten.js?v=20260822a';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
-} from './teams-hub.js?v=20260819h';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260819m';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260819m';
-import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260819d';
+} from './teams-hub.js?v=20260822a';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260822a';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260822a';
+import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260822a';
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
@@ -558,10 +558,10 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260819m').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260822a').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260819m').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260822a').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -664,7 +664,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260819m').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260822a').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -1470,6 +1470,60 @@ function htmlPlanning(){
     ${body}`;
 }
 
+/* ---------- Video delen (WhatsApp e.d.) ----------
+   Gebruikt de native deel-sheet (navigator.share) zodat WhatsApp, mail, enz.
+   automatisch tussen de opties staan. Volgorde van proberen:
+   1. Bij een geüploade mp4: het bestand zélf delen (mooiste resultaat) als de
+      browser file-sharing ondersteunt en het bestand vlot op te halen is.
+   2. Anders de link delen via de deel-sheet.
+   3. Kan de browser geen van beide? Dan de link naar het klembord kopiëren.
+   Geen spelersnamen of andere gevoelige data — enkel titel + URL. */
+async function deelVideo(url, titel, type, knop){
+  telGebruik('video_deel');
+  const tekst = `🎬 ${titel}`;
+
+  // 1. Probeer het mp4-bestand zelf te delen (alleen bij eigen uploads).
+  if (type === 'upload' && navigator.canShare){
+    try {
+      const oudeTekst = knop ? knop.textContent : '';
+      if (knop){ knop.disabled = true; knop.textContent = 'Video ophalen…'; }
+      const res  = await fetch(url);
+      const blob = await res.blob();
+      const naam = (titel.replace(/[^\w\- ]+/g,'').trim() || 'video') + '.mp4';
+      const file = new File([blob], naam, { type: blob.type || 'video/mp4' });
+      if (knop){ knop.disabled = false; knop.textContent = oudeTekst; }
+      if (navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: titel, text: tekst });
+        return;
+      }
+    } catch (e){
+      if (knop){ knop.disabled = false; knop.textContent = '📲 Delen via WhatsApp'; }
+      // Bewust doorvallen naar link delen hieronder (bv. gebruiker annuleerde,
+      // bestand te groot, of geen file-sharing). Een echte 'AbortError' door
+      // annuleren negeren we stilletjes.
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+
+  // 2. Deel de link via de native deel-sheet.
+  if (navigator.share){
+    try {
+      await navigator.share({ title: titel, text: tekst, url });
+      return;
+    } catch (e){
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+
+  // 3. Fallback: link naar klembord.
+  try {
+    await navigator.clipboard.writeText(url);
+    meld('Link gekopieerd — plak \'m in WhatsApp');
+  } catch {
+    window.open(url, '_blank');
+  }
+}
+
 /* ---------- Afgelasting (clubbreed) ----------
    De beheerder schrijft de afgelasting weg naar ALLE team-documenten van de club
    (zie modalClubAflasten in club.js). Elk team toont 'm hier zolang de datum geldig is.
@@ -1483,7 +1537,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260819m').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260822a').then(m => m.openChatbot());
     // teamkeuze-dropdown (bij meerdere teams) + doorlink naar het overzicht
     const teamKnop = v.querySelector('#hubTeamKnop');
     const keuze = v.querySelector('#hubTeamKeuze');
@@ -1584,14 +1638,14 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260819m').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260822a').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
     v.querySelectorAll('[data-open-document]').forEach(r => r.onclick = async () => {
       const id = r.dataset.openDocument;
       const d = S.documenten.find(x => x.id === id);
-      const { openPdfViewer } = await import('./pdf-viewer.js?v=20260819d');
+      const { openPdfViewer } = await import('./pdf-viewer.js?v=20260822a');
       openPdfViewer({
         url: r.dataset.url,
         titel: d?.titel || d?.bestandsnaam || 'Document',
@@ -1619,6 +1673,8 @@ function koppelTeamTab(v, tab){
     v.querySelectorAll('[data-open-teameval]').forEach(el => el.onclick = () => modalTeamEvaluatie(el.dataset.openTeameval));
     const histMeerBtn = v.querySelector('[data-hist-toon-meer]');
     if (histMeerBtn) histMeerBtn.onclick = () => { S._histAlles = true; renderTeam(); };
+    const excelBtn = v.querySelector('#statsExcelExport');
+    if (excelBtn) excelBtn.onclick = () => exportStatsExcel(excelBtn);
   }
   if (tab === 'planning'){
     const eigenBtn = v.querySelector('#planEigenDag');
@@ -1692,13 +1748,13 @@ function koppelTeamTab(v, tab){
 
       const openOrigineel = async () => {
         telGebruik('document_open');
-        const { openPdfViewer } = await import('./pdf-viewer.js?v=20260819d');
+        const { openPdfViewer } = await import('./pdf-viewer.js?v=20260822a');
         openPdfViewer({ url: r.dataset.url, titel, meta });
       };
 
       // AI-gestructureerde training → scrolbare weergave; anders de PDF-viewer.
       if (Array.isArray(t?.oefeningen) && t.oefeningen.length){
-        const { openTrainingWeergave } = await import('./training-weergave.js?v=20260819e');
+        const { openTrainingWeergave } = await import('./training-weergave.js?v=20260822a');
         openTrainingWeergave({
           titel, meta,
           oefeningen: t.oefeningen,
@@ -1763,13 +1819,22 @@ function koppelTeamTab(v, tab){
     v.querySelectorAll('[data-open-video]').forEach(r => r.onclick = () => {
       telGebruik('video_open');
       if (r.dataset.videoType === 'upload'){
+        const titel = r.dataset.videoTitel || 'Video';
+        const url   = r.dataset.openVideo;
         openModal(`
-          <h2 style="margin-bottom:12px">${esc(r.dataset.videoTitel || 'Video')}</h2>
-          <video src="${esc(r.dataset.openVideo)}" controls autoplay playsinline preload="metadata"
-                 style="width:100%;max-height:70vh;border-radius:12px;background:#000;display:block"></video>`);
+          <h2 style="margin-bottom:12px">${esc(titel)}</h2>
+          <video src="${esc(url)}" controls autoplay playsinline preload="metadata"
+                 style="width:100%;max-height:70vh;border-radius:12px;background:#000;display:block"></video>
+          <button class="knop fluo vol" id="videoDeelKnop" style="margin-top:12px">📲 Delen via WhatsApp</button>`);
+        const dk = v.ownerDocument.getElementById('videoDeelKnop');
+        if (dk) dk.onclick = () => deelVideo(url, titel, 'upload', dk);
       } else {
         window.open(r.dataset.openVideo, '_blank');
       }
+    });
+    v.querySelectorAll('[data-deel-video]').forEach(b => b.onclick = (e) => {
+      e.stopPropagation();
+      deelVideo(b.dataset.deelVideo, b.dataset.deelTitel || 'Video', b.dataset.deelType, b);
     });
     return;
   }
@@ -1839,7 +1904,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260819m').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260822a').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {

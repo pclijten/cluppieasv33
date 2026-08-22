@@ -8,15 +8,15 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260819d';
-import { telGebruik } from './tracker.js?v=20260819d';
+} from './state.js?v=20260822a';
+import { telGebruik } from './tracker.js?v=20260822a';
 import { ico } from './icons.js?v=20260818e';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
-} from './config.js?v=20260819g';
-import { htmlKompas } from './teams-leerlijn.js?v=20260819g';
+} from './config.js?v=20260822a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260822a';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
@@ -253,7 +253,10 @@ export function htmlTeamVideos(){
       <div class="thumb">${thumbInner}</div>
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
         <div class="v-meta">${upload ? (vid.clubNaam ? esc(vid.clubNaam) + ' · geüpload' : 'Geüpload') : (vid.clubNaam ? esc(vid.clubNaam) : 'YouTube')}</div></div>
-      <div class="acties"><button title="Afspelen">▶</button></div>
+      <div class="acties">
+        <button data-deel-video="${esc(href)}" data-deel-type="${upload ? 'upload' : 'youtube'}" data-deel-titel="${esc(vid.titel || 'Video')}" title="Delen">📲</button>
+        <button title="Afspelen">▶</button>
+      </div>
     </div>`;
   }).join('');
 }

@@ -8,12 +8,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20260819d';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260819g';
+} from './state.js?v=20260822a';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260822a';
 import { ico } from './icons.js?v=20260818e';
 
-import { htmlStats } from './wedstrijd.js?v=20260819m';
-import { telGebruik } from './tracker.js?v=20260819d';
+import { htmlStats } from './wedstrijd.js?v=20260822a';
+import { telGebruik } from './tracker.js?v=20260822a';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -330,6 +330,8 @@ export function htmlSeizoenFilter(){
    het teamevaluatie-dashboard woont op de Evaluatie-pagina (hub-tegel
    Wedstrijden → Evaluatie, samengesteld in teams.js). */
 export function htmlStatsTab(){
-  return htmlSeizoenFilter() + htmlStats();
+  return htmlSeizoenFilter() + htmlStats() + `
+    <button class="knop licht vol" id="statsExcelExport" style="margin-top:14px">
+      📊 Exporteer naar Excel</button>`;
 }
 

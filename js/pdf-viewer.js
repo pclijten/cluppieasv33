@@ -12,7 +12,7 @@
    club-evaluaties.js) — de rest van de app heeft deze library nooit
    nodig, dus pas ophalen op het moment dat een trainer echt een
    training opent. */
-import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260819d';
+import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260822a';
 
 const PDFJS_VERSIE = '3.11.174';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIE}/`;
@@ -39,12 +39,32 @@ function bestandsnaamVoor(titel){
   return (basis || 'training') + '.pdf';
 }
 
-function downloadPdf(bytes, titel){
+async function downloadPdf(bytes, titel){
+  const naam = bestandsnaamVoor(titel);
   const blob = new Blob([bytes], { type: 'application/pdf' });
+
+  // Op mobiel (zeker in een geïnstalleerde PWA) werkt een <a download> vaak niet
+  // betrouwbaar: iOS negeert het attribuut en het bestand belandt nergens. De
+  // native deel-sheet (navigator.share met een bestand) is daar wél betrouwbaar —
+  // de coach kan de PDF zo bewaren in Bestanden of delen via WhatsApp. Op desktop
+  // valt hij terug op de klassieke blob-download.
+  if (navigator.canShare){
+    try {
+      const file = new File([blob], naam, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: titel || 'Training' });
+        return;
+      }
+    } catch (e){
+      if (e && e.name === 'AbortError') return; // gebruiker annuleerde de deel-sheet
+      // anders: doorvallen naar de klassieke download hieronder
+    }
+  }
+
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;
-  a.download = bestandsnaamVoor(titel);
+  a.download = naam;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -117,8 +137,13 @@ export async function openPdfViewer({ url, titel, meta }){
     const resp = await fetch(url);
     if (!resp.ok) throw new Error('Download mislukt (' + resp.status + ')');
     const bytes = new Uint8Array(await resp.arrayBuffer());
+    // pdf.js verplaatst (transfert) de onderliggende ArrayBuffer naar zijn
+    // worker bij getDocument({data}), waardoor `bytes` in deze thread daarna
+    // 'detached' en dus leeg is. De downloadknop kreeg zo een leeg bestand.
+    // We bewaren daarom vooraf een losse, eigen kopie voor het downloaden.
+    const bytesVoorDownload = bytes.slice();
     dlBtn.disabled = false;
-    dlBtn.onclick = () => downloadPdf(bytes, titel);
+    dlBtn.onclick = () => downloadPdf(bytesVoorDownload, titel);
     const pdfDoc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
 
     teller.textContent = '1 / ' + pdfDoc.numPages;
