@@ -2221,6 +2221,36 @@ body::before{
 .stat-tabel .pct-bar span{display:block;height:100%;border-radius:2px}
 .stat-tabel td.res-cel{color:var(--ink-2);font-size:calc(12px * var(--fs))}
 
+/* ==================== STATS: team-overzicht + aandacht-blad ==================== */
+/* teller-badge op de Aandacht-blad-knop */
+.segment.stats-blad button .stats-blad-badge{display:inline-block;min-width:16px;height:16px;line-height:16px;
+  background:var(--accent);color:#fff;border-radius:99px;font-size:calc(10px * var(--fs));font-weight:700;
+  margin-left:4px;padding:0 4px;vertical-align:middle}
+
+/* kern-cijfers onder de eerlijkheidsmeter */
+.kern-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kern-box{background:var(--surface-2);border:1px solid var(--line-d);border-radius:11px;padding:10px 6px;text-align:center}
+.kern-box .v{font-family:'Barlow Condensed';font-weight:700;font-size:calc(21px * var(--fs));line-height:1;color:var(--accent)}
+.kern-box .l{font-size:calc(9.5px * var(--fs));color:var(--ink-2);margin-top:4px;text-transform:uppercase;letter-spacing:.3px}
+
+/* aandacht-kaarten (klikbaar → spelersprofiel) */
+.aandacht-kaart{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--hair);width:100%;
+  text-align:left;background:none;border-left:none;border-right:none;border-top:none;cursor:pointer;align-items:flex-start}
+.aandacht-kaart:last-of-type{border-bottom:none}
+.aandacht-kaart:active{opacity:.6}
+.aandacht-kaart .stip{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.aandacht-body{flex:1;min-width:0;display:block}
+.aandacht-naam{font-weight:700;font-size:calc(14.5px * var(--fs));display:flex;align-items:center;gap:6px;color:var(--ink)}
+.aandacht-naam .chev{margin-left:auto;color:var(--ink-2);font-weight:700}
+.aandacht-reden{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:2px;line-height:1.5;display:block}
+.mini-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.mini-tag{font-size:calc(11px * var(--fs));font-weight:600;padding:2px 8px;border-radius:7px;
+  background:var(--surface-2);border:1px solid var(--line-d);color:var(--ink-2)}
+.mini-tag.warn{color:var(--warn)}
+.mini-tag.laag{color:var(--n1)}
+.geen-aandacht{text-align:center;padding:22px 12px;color:var(--ink-2);font-size:calc(13px * var(--fs));line-height:1.6}
+.geen-aandacht .groot{font-size:calc(30px * var(--fs));display:block;margin-bottom:6px}
+
 /* ==================== SPELERPROFIEL: speeltijd/reserve-verhouding ==================== */
 .speeltijd-split{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 2px;background:var(--surface-2)}
 .speeltijd-split .veld{background:var(--ok)}
