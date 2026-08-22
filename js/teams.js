@@ -898,15 +898,15 @@ export function verlaatTeamView(){
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
   { datum:'2026-08-22', titel:'Stats: eerlijke speeltijd in één blik', punten:[
-      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer (0\\u2013100) dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger \\u2014 met de speler die het minst aan bod komt er meteen bij.',
-      'Nieuw blad \\u2018Aandacht\\u2019, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen \\u2014 op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
+      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger met de speler die het minst aan bod komt er meteen bij.',
+      'Nieuw blad, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
       'Daaronder een korte kern-strip met het aantal wedstrijden, doelpunten en de gemiddelde opkomst van het team.',
       'De bestaande bladen (Speelminuten, Wedstrijd, Training) blijven precies zoals je ze kent.',
     ]},
   { datum:'2026-08-19', titel:'Eigen speelwijzen & inzoombare tekeningen', punten:[
       'Je kunt nu je eigen speelwijze samenstellen: typ een linie-indeling (bijvoorbeeld 4-2-1-3) en de app plaatst de spelers automatisch netjes op het veld en bewaart \\u2019m bij je team. Daarna kies je \\u2019m gewoon naast de vaste formaties.',
       'Twee formaties toegevoegd: 3-1-3 voor 8-tegen-8 en 4-2-1-3 voor 11-tegen-11.',
-      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen \\u2014 handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
+      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen, handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
     ]},
   { datum:'2026-08-18', titel:'Nieuw startscherm: alles op één plek', punten:[
       'Na het inloggen land je nu direct op het startscherm van je team, met overzichtelijke tegels per onderwerp: Oefenstof, Presentie, Wedstrijden, Spelers en Meer. De balk onderin is verdwenen.',
