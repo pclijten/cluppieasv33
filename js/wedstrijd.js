@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260822b').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260822c').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260822b').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260822c').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1536,15 +1536,97 @@ export function htmlStats(){
     }
   }
 
-  // Drie losse bladen i.p.v. één brede tabel die horizontaal moet scrollen op
-  // mobiel: speelminuten, wedstrijdstatistiek en trainingsopkomst. De actieve
+  // --- Eerlijkheids-score: spreiding in speeltijd-% over de selectie, samengevat
+  // tot één getal 0..100 (100 = iedereen even veel). Gebaseerd op de
+  // variatiecoëfficiënt (sd/gem) van de speeltijd-percentages; uitlegbaar aan
+  // coaches: hoe dichter iedereen bij elkaar, hoe hoger. Alleen spelers met een
+  // percentage (dus die in ≥1 selectie zaten) tellen mee. Sluit aan bij het
+  // beleidsplan-uitgangspunt van eerlijke speeltijdverdeling.
+  const speelPcts = Object.values(pctSpeeltijd);
+  let eerlijk = null;
+  if (speelPcts.length >= 3){
+    const gem = speelPcts.reduce((a,b)=>a+b,0) / speelPcts.length;
+    if (gem > 0){
+      const sd = Math.sqrt(speelPcts.reduce((a,b)=>a+(b-gem)**2,0) / speelPcts.length);
+      const cv = sd / gem;
+      const score = Math.max(0, Math.min(100, Math.round(100 - cv*140)));
+      // laagst spelende speler (met percentage) voor de toelichting
+      let laagsteP = null, laagsteV = Infinity;
+      for (const p of S.spelers){
+        const v = pctSpeeltijd[p.id];
+        if (v != null && v < laagsteV){ laagsteV = v; laagsteP = p; }
+      }
+      eerlijk = {score, gem:Math.round(gem), sd:Math.round(sd), laagsteP, laagsteV};
+    }
+  }
+  const eerlijkKleur = sc => sc>=75?'var(--ok)':sc>=55?'var(--warn)':'var(--n1)';
+  const eerlijkLabel = sc => sc>=75?'Goed verdeeld'
+    : sc>=55?'Redelijk — houd de uitschieters in de gaten'
+    : 'Scheef — een paar spelers krijgen structureel weinig';
+
+  // --- Aandacht-signalen: spelers die opvallen op speeltijd, opkomst of
+  // disciplinaire beurten. Combineert data die anders over drie bladen verspreid
+  // staat, zodat een speler die op meerdere assen laag zit in één oogopslag
+  // zichtbaar wordt. Puur signalerend, geen oordeel. Drempels bewust conservatief.
+  const DREMPEL_SPEEL = 50, DREMPEL_OPKOMST = 60;
+  const aandachtSignalen = [];
+  for (const p of S.spelers){
+    const ps = pctSpeeltijd[p.id];
+    const op = toonOpkomst ? opkomst[p.id] : null;
+    const disc = Math.round(sr[p.id]?.disciplinair || 0) > 0;
+    const redenen = [], tags = [];
+    let gewicht = 0;
+    if (ps != null && ps < DREMPEL_SPEEL){ redenen.push('weinig speeltijd'); tags.push({t:ps+'% speeltijd', k:'laag'}); gewicht += 2; }
+    if (op != null && op < DREMPEL_OPKOMST){ redenen.push('lage trainingsopkomst'); tags.push({t:op+'% opkomst', k:'warn'}); gewicht += 1; }
+    if (disc){ redenen.push('disciplinaire reservebeurt'); tags.push({t:'disc.', k:'warn'}); gewicht += 1; }
+    if (redenen.length) aandachtSignalen.push({p, redenen, tags, gewicht});
+  }
+  aandachtSignalen.sort((a,b) => b.gewicht - a.gewicht);
+  const aandachtAantal = aandachtSignalen.length;
+
+  // Team-overzichtkaart: eerlijkheidsmeter + kern-cijfers. Verschijnt boven het
+  // speel- en het aandacht-blad. Toont niets als er nog te weinig data is.
+  const overzichtKaart = () => {
+    const totWed = wedstrijdenLijst.length;
+    const totGoals = Object.values(tot.goals).reduce((a,b)=>a+b, 0);
+    const opkomstVals = toonOpkomst ? Object.values(opkomst) : [];
+    const gemOpkomst = opkomstVals.length ? Math.round(opkomstVals.reduce((a,b)=>a+b,0)/opkomstVals.length) : null;
+    if (!eerlijk && !totWed) return '';
+    return `
+    <div class="kaart">
+      ${eerlijk ? `
+      <div class="sectie-kop" style="margin-top:0">⚖️ Eerlijke speeltijd<span style="margin-left:auto;font-family:'Inter';font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">seizoen tot nu</span></div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(38px * var(--fs));line-height:1;color:${eerlijkKleur(eerlijk.score)}">${eerlijk.score}</span>
+        <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">/ 100</span>
+      </div>
+      <div style="font-size:calc(13px * var(--fs));font-weight:600;margin-bottom:11px;color:${eerlijkKleur(eerlijk.score)}">${eerlijkLabel(eerlijk.score)}</div>
+      <div style="height:12px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;border-radius:6px;width:${eerlijk.score}%;background:${eerlijkKleur(eerlijk.score)}"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:calc(10.5px * var(--fs));color:var(--ink-2)"><span>scheef</span><span>gelijk verdeeld</span></div>
+      <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5;margin-top:9px">
+        Gemiddeld <b style="color:var(--ink)">${eerlijk.gem}%</b> speeltijd per speler, spreiding ±${eerlijk.sd}%.${eerlijk.score < 75 && eerlijk.laagsteP ? ` <b style="color:var(--ink)">${esc(eerlijk.laagsteP.naam)}</b> zit met ${eerlijk.laagsteV}% het laagst — de moeite van een blik waard.` : ' Iedereen zit dicht bij elkaar.'}
+      </div>` : ''}
+      <div class="kern-strip">
+        <div class="kern-box"><div class="v">${totWed}</div><div class="l">Wedstrijden</div></div>
+        <div class="kern-box"><div class="v">${totGoals}</div><div class="l">Doelpunten</div></div>
+        <div class="kern-box"><div class="v">${gemOpkomst != null ? gemOpkomst+'%' : '—'}</div><div class="l">Opkomst</div></div>
+      </div>
+    </div>`;
+  };
+
+  // Vier bladen: het nieuwe 'aandacht'-blad staat vooraan met een teller-badge,
+  // daarna speelminuten, wedstrijdstatistiek en trainingsopkomst. De actieve
   // keuze staat in S.statsBlad (default 'speel'); koppeling in koppelStatsBlad().
   const blad = S.statsBlad || 'speel';
+  const aandachtBadge = aandachtAantal ? `<span class="stats-blad-badge">${aandachtAantal}</span>` : '';
   const bladBalk = `
     <div class="segment stats-blad" id="statsBlad" style="margin-bottom:14px">
-      <button data-statsblad="speel" class="${blad==='speel'?'actief':''}">⏱ Speelminuten</button>
-      <button data-statsblad="wed" class="${blad==='wed'?'actief':''}">📋 Wedstrijd</button>
-      <button data-statsblad="tr" class="${blad==='tr'?'actief':''}">🏃 Training</button>
+      <button data-statsblad="aandacht" class="${blad==='aandacht'?'actief':''}">⚠ Aandacht${aandachtBadge}</button>
+      <button data-statsblad="speel" class="${blad==='speel'?'actief':''}">⏱ Speel</button>
+      <button data-statsblad="wed" class="${blad==='wed'?'actief':''}">📋 Wed</button>
+      <button data-statsblad="tr" class="${blad==='tr'?'actief':''}">🏃 Train</button>
     </div>`;
 
   // Naam in de stats-tabel is klikbaar → opent het spelersprofiel (details).
@@ -1558,7 +1640,7 @@ export function htmlStats(){
     return `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button>${badge}</td>`;
   };
 
-  const speelBlad = () => `
+  const speelBlad = () => overzichtKaart() + `
     <table class="stat-tabel">
       <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th></tr></thead>
       <tbody>${rijen.map(p => {
@@ -1610,10 +1692,36 @@ export function htmlStats(){
       <b>Opkomst</b> = % aanwezig van de ${totTrainingen} geregistreerde training${totTrainingen>1?'en':''}. Onder elke speler zie je waarom hij afwezig was.</p>`
     : `<div class="kaart leeg">Nog geen trainingsopkomst geregistreerd.<br>Zodra je op de Training-tab presentie bijhoudt, verschijnt hier per speler het opkomstpercentage.</div>`;
 
+  // Aandacht-blad: de gecombineerde signalenlijst. Elke kaart is klikbaar en
+  // opent — net als de tabelnamen — het spelersprofiel via data-statsprofiel.
+  const aandachtBlad = () => {
+    const kop = overzichtKaart();
+    if (!aandachtSignalen.length){
+      return kop + `<div class="kaart"><div class="geen-aandacht"><span class="groot">✅</span>
+        Niemand vraagt nu extra aandacht.<br>Speeltijd en opkomst zitten voor iedereen op orde.</div></div>`;
+    }
+    return kop + `
+    <div class="kaart">
+      <div class="sectie-kop" style="margin-top:0">⚠️ Spelers die aandacht vragen<span style="margin-left:auto;font-family:'Inter';font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">${aandachtSignalen.length} van ${S.spelers.length}</span></div>
+      ${aandachtSignalen.map(({p, redenen, tags, gewicht}) => `
+        <button type="button" class="aandacht-kaart" data-statsprofiel="${p.id}">
+          <span class="stip" style="background:${gewicht>=2?'var(--n1)':'var(--warn)'}"></span>
+          <span class="aandacht-body">
+            <span class="aandacht-naam">${esc(p.naam)}<span class="chev">›</span></span>
+            <span class="aandacht-reden">${redenen.join(' · ')}</span>
+            <span class="mini-tags">${tags.map(t => `<span class="mini-tag ${t.k}">${esc(t.t)}</span>`).join('')}</span>
+          </span>
+        </button>`).join('')}
+      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">
+        Automatisch samengesteld uit speeltijd (&lt; ${DREMPEL_SPEEL}%), trainingsopkomst (&lt; ${DREMPEL_OPKOMST}%) en disciplinaire beurten. Tik op een speler voor het profiel. <b>Puur ter signalering</b> — geen oordeel.</p>
+    </div>`;
+  };
+
   const leegWed = `<div class="kaart leeg" style="margin-bottom:12px">Nog geen gespeelde wedstrijden.<br>Zodra je opstellingen maakt, verschijnt hier automatisch de speeltijd per speler.</div>`;
 
   let inhoud;
-  if (blad === 'speel') inhoud = (heeftData ? '' : leegWed) + speelBlad();
+  if (blad === 'aandacht') inhoud = aandachtBlad();
+  else if (blad === 'speel') inhoud = (heeftData ? '' : leegWed) + speelBlad();
   else if (blad === 'wed') inhoud = (heeftData ? '' : leegWed) + wedBlad();
   else inhoud = trBlad();
 
@@ -1625,7 +1733,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260822b').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260822c').then(m => m.renderTeam?.());
   });
 }
 
@@ -2063,7 +2171,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260822b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260822c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
