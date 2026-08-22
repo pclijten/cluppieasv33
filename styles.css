@@ -1606,6 +1606,31 @@ body::before{
 
 .wz-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
 .wz-chip{background:var(--surface);border:1px solid var(--line-d);border-radius:20px;padding:8px 13px;font-size:calc(12.5px * var(--fs));color:var(--ink-2);cursor:pointer}
+.wz-chip.wz-actief{background:var(--accent);color:#fff;border-color:var(--accent)}
+.wz-chips-kop{font-size:calc(12px * var(--fs));color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+
+/* Suggestietegels uit de training van dezelfde week (wedstrijd-wizard) */
+.wz-doel-sug-kop{display:flex;align-items:center;gap:7px;font-size:calc(12px * var(--fs));color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin:16px 0 9px}
+.wz-doel-badge{background:color-mix(in srgb,var(--accent) 18%, var(--surface));color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%, var(--line-d));border-radius:99px;padding:2px 8px;font-size:calc(10.5px * var(--fs));letter-spacing:.3px}
+.wz-doel-tegels{display:flex;flex-direction:column;gap:8px}
+.wz-doel-tegel{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--accent) 7%, var(--surface));border:1.5px solid color-mix(in srgb,var(--accent) 28%, var(--line-d));border-radius:13px;padding:12px 14px;cursor:pointer;transition:.12s}
+.wz-doel-ico{font-size:calc(16px * var(--fs));flex:0 0 auto}
+.wz-doel-t{font-size:calc(14px * var(--fs));flex:1;line-height:1.35}
+.wz-doel-vink{margin-left:auto;color:transparent;font-size:calc(15px * var(--fs))}
+.wz-doel-tegel.wz-actief{background:var(--accent);border-color:var(--accent)}
+.wz-doel-tegel.wz-actief .wz-doel-t{color:#fff}
+.wz-doel-tegel.wz-actief .wz-doel-vink{color:#fff}
+
+/* Herkende trainingsdoelen (bewerkbaar) — preview én 'Training aanpassen' */
+.tr-doelen{margin:12px 0;background:var(--surface-2);border:1px dashed color-mix(in srgb,var(--accent) 45%, var(--line-d));border-radius:14px;padding:13px 14px}
+.tr-doelen-kop{display:flex;align-items:center;gap:7px;font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:calc(14px * var(--fs));margin-bottom:4px}
+.tr-doelen-uitleg{font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin-bottom:11px}
+.tr-doel-rij{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line-d);border-radius:11px;padding:8px 11px;margin-bottom:8px}
+.tr-doel-rij .stip{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:0 0 auto}
+.tr-doel-inp{flex:1;background:transparent;border:none;color:var(--ink);font-size:calc(13.5px * var(--fs));font-family:inherit;padding:2px 0;border-bottom:1px dashed transparent}
+.tr-doel-inp:focus{outline:none;border-bottom-color:color-mix(in srgb,var(--accent) 50%, var(--line-d))}
+.tr-doel-x{color:var(--ink-2);font-size:calc(16px * var(--fs));cursor:pointer;padding:2px 4px;line-height:1}
+.tr-doel-toevoeg{font-size:calc(12.5px * var(--fs));color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:5px;margin-top:2px}
 .wz-chip:active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 .wz-klaar{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 24px;gap:8px}
