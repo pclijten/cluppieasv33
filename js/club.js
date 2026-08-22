@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260822a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260822b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260822a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260822b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2279,7 +2279,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260822a');
+    const ai = await import('./training-ai.js?v=20260822b');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -2293,9 +2293,9 @@ async function startTrainingVerwerking(file, meta){
 
     // AI-structurering
     toonVerwerk(stap(['PDF ingelezen','Origineel + diagrammen opgeslagen'], 'Oefeningen structureren met AI…', ['Controleren']));
-    let oefeningen;
+    let oefeningen, doelen;
     try {
-      oefeningen = await ai.structureer(paginas);
+      ({ oefeningen, doelen } = await ai.structureer(paginas));
       telGebruik('training_upload');
     } catch(e){
       console.error('[training-ai] structureren mislukt', e);
@@ -2306,7 +2306,7 @@ async function startTrainingVerwerking(file, meta){
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');
     const score = ai.berekenScore(origineleTekst, oefeningen);
 
-    toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, score, paginas });
+    toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, doelen, score, paginas });
   } catch(e){
     console.error('[training-ai] verwerking mislukt', e);
     meld('Verwerking mislukt — staat Firebase Storage aan?');
@@ -2319,6 +2319,21 @@ function toonPreview(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   const { score, oefeningen, diagramUrls } = ctx;
   const goed = score.dekkingPct >= 90 && score.verzonnenAantal <= 3;
+
+  // Herkende trainingsdoelen (bewerkbaar). Los van de oefeningen; coaches krijgen
+  // ze later als suggestie bij een wedstrijd in dezelfde week.
+  const doelenNu = Array.isArray(ctx.doelen) ? ctx.doelen : [];
+  const doelRij = (tekst) => `<div class="tr-doel-rij"><span class="stip"></span>`+
+    `<input class="tr-doel-inp" value="${esc(tekst||'')}" placeholder="Trainingsdoel…" maxlength="80">`+
+    `<span class="tr-doel-x" title="Verwijderen">✕</span></div>`;
+  const doelenBlok = `
+    <div class="tr-doelen" id="trDoelen">
+      <div class="tr-doelen-kop">🎯 Herkende trainingsdoelen</div>
+      <div class="tr-doelen-uitleg">Deze doelen zijn uit de oefenstof gehaald. Coaches zien ze als
+        suggestie bij een wedstrijd in deze week. Kloppen ze niet? Pas ze aan of haal ze weg.</div>
+      <div id="trDoelLijst">${doelenNu.map(doelRij).join('')}</div>
+      <span class="tr-doel-toevoeg" id="trDoelAdd">＋ Doel toevoegen</span>
+    </div>`;
 
   const scoreKaart = `
     <div class="tr-score ${goed?'goed':'fout'}">
@@ -2364,20 +2379,41 @@ function toonPreview(file, meta, ctx){
 
   zetTrainingModalInhoud('Controleer', `
     ${scoreKaart}
+    ${doelenBlok}
     <div style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.45">Zo zien je coaches de training straks.${goed?' Klopt de opmaak? Deel hem.':''}</div>
     ${acties}
     ${oefHtml}
     ${acties}`);
 
+  // Doelen bewerken: rij verwijderen, rij toevoegen, actuele waarden uitlezen.
+  const doelLijst = $('#trDoelLijst');
+  const leesDoelen = () => $$('#trDoelLijst .tr-doel-inp')
+    .map(i => (i.value || '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  if (doelLijst){
+    doelLijst.addEventListener('click', (e) => {
+      const x = e.target.closest('.tr-doel-x');
+      if (x){ x.closest('.tr-doel-rij')?.remove(); ctx.doelen = leesDoelen(); }
+    });
+    const add = $('#trDoelAdd');
+    if (add) add.onclick = () => {
+      if ($$('#trDoelLijst .tr-doel-rij').length >= 4) return;
+      doelLijst.insertAdjacentHTML('beforeend', doelRij(''));
+      doelLijst.lastElementChild?.querySelector('.tr-doel-inp')?.focus();
+    };
+  }
+
   const deel = async () => {
     const b = $('#trDeel'); if (b){ b.disabled = true; b.textContent = 'Delen…'; }
     try {
+      const doelen = leesDoelen();
       await addDoc(collection(db,'trainingen'), {
         club: S.clubId, clubNaam: S.club.naam,
         titel: meta.titel, week: meta.week, bestandsnaam: file.name,
         path: ctx.pdfPath, url: ctx.pdfUrl,
         mapId: ctx.mapId,
-        oefeningen, diagramUrls,
+        oefeningen, diagramUrls, doelen,
         paginas: (ctx.paginas || []).map(p => ({ pagina: p.pagina, tekst: p.tekst })),
         aiScore: { dekking: score.dekkingPct, verzonnen: score.verzonnenAantal },
         teams: meta.teams,
@@ -2395,6 +2431,7 @@ function toonPreview(file, meta, ctx){
   $$('#trPdfOnly').forEach(b => b.onclick = () => deelAlleenPdf(file, meta, ctx));
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
+    ctx.doelen = leesDoelen();   // typwijzigingen bewaren over het herteken heen
     const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260822a');
     openTrainingBewerken({
       titel: meta.titel || file.name,
@@ -2417,7 +2454,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20260822a');
+    const ai = await import('./training-ai.js?v=20260822b');
     // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
     // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
     // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden
@@ -2427,10 +2464,10 @@ async function startTrainingHerstructureer(file, meta, ctx){
     try {
       if (ctx.mapId) diagramUrls = await ai.uploadDiagrammen(S.clubId, ctx.mapId, diagramBlobs);
     } catch(e){ console.warn('[training-ai] diagrammen opnieuw opslaan faalde, oude blijven staan:', e); }
-    const oefeningen = await ai.structureer(paginas);
+    const { oefeningen, doelen } = await ai.structureer(paginas);
     const origineleTekst = paginas.map(p=>p.tekst).join(' ');
     const score = ai.berekenScore(origineleTekst, oefeningen);
-    toonPreview(file, meta, { ...ctx, diagramUrls, oefeningen, score });
+    toonPreview(file, meta, { ...ctx, diagramUrls, oefeningen, doelen, score });
   } catch(e){
     console.error('[training-ai] opnieuw mislukt', e);
     toonAlleenPdfKeuze(file, meta, ctx, 'Opnieuw genereren lukte niet. Je kunt de training als PDF delen.');
@@ -2481,6 +2518,11 @@ function modalBewerkTraining(t, teams){
       <input class="invoer" id="mTbTitel" value="${esc(t.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
       <input class="invoer" id="mTbWeek" value="${esc(t.week || '')}" autocomplete="off"></div>
+    <div class="veldgroep"><label>Trainingsdoelen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-2)">— getoond als suggestie bij wedstrijden in deze week</span></label>
+      <div class="tr-doelen" style="margin:0">
+        <div id="mTbDoelLijst">${(Array.isArray(t.doelen)?t.doelen:[]).map(d=>`<div class="tr-doel-rij"><span class="stip"></span><input class="tr-doel-inp mTbDoelInp" value="${esc(d||'')}" placeholder="Trainingsdoel…" maxlength="80"><span class="tr-doel-x" title="Verwijderen">✕</span></div>`).join('')}</div>
+        <span class="tr-doel-toevoeg" id="mTbDoelAdd">＋ Doel toevoegen</span>
+      </div></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
       <div id="mTbTeams">
         ${teams.length ? BOUWEN.map(b => {
@@ -2504,6 +2546,19 @@ function modalBewerkTraining(t, teams){
   $$('#mTbTeams input').forEach(c => c.onchange = sync);
   $('#mTbAlle').onclick = () => { $$('#mTbTeams input').forEach(c => c.checked = true); sync(); };
   $('#mTbGeen').onclick = () => { $$('#mTbTeams input').forEach(c => c.checked = false); sync(); };
+  const mTbLeesDoelen = () => $$('#mTbDoelLijst .mTbDoelInp')
+    .map(i => (i.value || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 4);
+  const mTbLijst = $('#mTbDoelLijst');
+  if (mTbLijst){
+    mTbLijst.addEventListener('click', (e) => {
+      const x = e.target.closest('.tr-doel-x'); if (x) x.closest('.tr-doel-rij')?.remove();
+    });
+    $('#mTbDoelAdd').onclick = () => {
+      if ($$('#mTbDoelLijst .tr-doel-rij').length >= 4) return;
+      mTbLijst.insertAdjacentHTML('beforeend', `<div class="tr-doel-rij"><span class="stip"></span><input class="tr-doel-inp mTbDoelInp" placeholder="Trainingsdoel…" maxlength="80"><span class="tr-doel-x" title="Verwijderen">✕</span></div>`);
+      mTbLijst.lastElementChild?.querySelector('.mTbDoelInp')?.focus();
+    };
+  }
   $('#mTbOk').onclick = async () => {
     const gekozen = $$('#mTbTeams input').filter(c => c.checked).map(c => c.dataset.tid);
     if (!gekozen.length) return meld('Kies minstens één team');
@@ -2511,7 +2566,7 @@ function modalBewerkTraining(t, teams){
     const week  = $('#mTbWeek').value.trim();
     sluitModal();
     try {
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week});
+      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen: mTbLeesDoelen()});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));

@@ -281,7 +281,8 @@ export async function structureer(paginas){
   if (!Array.isArray(oefeningen) || !oefeningen.length){
     throw new Error('AI leverde geen oefeningen op');
   }
-  return oefeningen;
+  const doelen = Array.isArray(res?.data?.doelen) ? res.data.doelen : [];
+  return { oefeningen, doelen };
 }
 
 /* ---------- Overeenkomst-score (programmatisch, geen AI) ---------- */

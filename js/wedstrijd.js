@@ -1,6 +1,6 @@
 import {
   db, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp,
-  functions, httpsCallable
+  functions, httpsCallable, query, where, getDocs
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
@@ -11,7 +11,7 @@ import {
   parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
-  CLUB_FORMATIE_11, doelSuggesties, SEIZOEN_FALLBACK,
+  CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260822a';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260822a';
@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260822a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260822b').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260822a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260822b').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -508,6 +508,70 @@ function bewaarWedstrijd(){
    is via "Wijzig opzet" rechtsboven. Oude wedstrijden (voor deze feature) krijgen via
    normaliseerWedstrijd() al opzetGedaan=true en zien deze wizard dus nooit. */
 const WIZARD_STAPPEN = 4;
+
+/* Haalt trainingsdoelen op uit de oefenstof van DEZELFDE week als de wedstrijd
+   en toont ze als suggestietegels boven de algemene doel-chips. "Dezelfde week"
+   = zelfde jaar + ISO-weeknummer, gemeten op het moment waarop de training werd
+   gedeeld (gemaakt). Doelen van meerdere trainingen in die week worden
+   samengevoegd en ontdubbeld. Faalt stil: geen tegels als er niets is. */
+async function laadTrainingsdoelTegels(w, kiesDoel){
+  const houder = $('#wzTrainDoelen');
+  if (!houder) return;
+  const clubId = S.team?.club;
+  if (!clubId || !w?.datum) return;                    // los team of geen datum: geen tegels
+
+  // ISO-week + jaar van de wedstrijddatum ("YYYY-MM-DD").
+  const wDatum = new Date(w.datum + 'T12:00');
+  if (isNaN(wDatum)) return;
+  const wWeek = isoWeek(wDatum);
+  const wJaar = wDatum.getFullYear();
+
+  let snap;
+  try {
+    snap = await getDocs(query(collection(db, 'trainingen'), where('club', '==', clubId)));
+  } catch(e){ console.warn('[wz] trainingen ophalen faalde', e); return; }
+
+  const gezien = new Set();
+  const doelen = [];
+  snap.forEach(docSnap => {
+    const t = docSnap.data();
+    if (!Array.isArray(t.doelen) || !t.doelen.length) return;
+    // Alleen trainingen die (ook) voor dit team bedoeld zijn; zonder teams-veld: meenemen.
+    if (Array.isArray(t.teams) && t.teams.length && S.teamId && !t.teams.includes(S.teamId)) return;
+    // Weekmatch op 'gemaakt' (Firestore Timestamp).
+    const g = t.gemaakt && typeof t.gemaakt.toDate === 'function' ? t.gemaakt.toDate() : null;
+    if (!g) return;
+    if (isoWeek(g) !== wWeek || g.getFullYear() !== wJaar) return;
+    for (const d of t.doelen){
+      const tekst = String(d || '').replace(/\s+/g, ' ').trim();
+      if (!tekst) continue;
+      const sleutel = tekst.toLowerCase();
+      if (gezien.has(sleutel)) continue;
+      gezien.add(sleutel);
+      doelen.push(tekst);
+    }
+  });
+
+  if (!doelen.length) return;                          // niets deze week: laat de container leeg
+
+  houder.innerHTML = `
+    <div class="wz-doel-sug-kop">Uit de training van deze week
+      <span class="wz-doel-badge">week ${wWeek}</span></div>
+    <div class="wz-doel-tegels">
+      ${doelen.map(d => `<div class="wz-doel-tegel" data-doel="${esc(d)}">
+        <span class="wz-doel-ico">\u{1F3AF}</span><span class="wz-doel-t">${esc(d)}</span>
+        <span class="wz-doel-vink">\u2713</span></div>`).join('')}
+    </div>`;
+
+  const huidig = ($('#wzDoelInvoer')?.value || '').trim().toLowerCase();
+  houder.querySelectorAll('.wz-doel-tegel').forEach(tegel => {
+    if (tegel.dataset.doel.toLowerCase() === huidig) tegel.classList.add('wz-actief');
+    tegel.onclick = () => {
+      kiesDoel(tegel.dataset.doel);
+      tegel.classList.add('wz-actief');
+    };
+  });
+}
 
 function toonWedstrijdWizard(){
   const w = S.wedstrijd;
@@ -547,6 +611,8 @@ function toonWedstrijdWizard(){
      <h2>Wat is het wedstrijddoel?</h2>
      <p class="wz-uitleg">Waar wil je dit team vandaag op laten letten?</p>
      <input class="invoer" id="wzDoelInvoer" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
+     <div id="wzTrainDoelen"></div>
+     <div class="wz-chips-kop" style="margin-top:16px">Of kies een algemeen doel</div>
      <div class="wz-chips">
        ${doelSuggesties(S.team?.categorie).slice(0,4).map(s => `<div class="wz-chip" data-doelsug="${esc(s)}">${esc(s)}</div>`).join('')}
      </div>`,
@@ -620,7 +686,17 @@ function toonWedstrijdWizard(){
     vulFormatieTegels();
   });
 
-  $$('#wzBody [data-doelsug]').forEach(b => b.onclick = () => { $('#wzDoelInvoer').value = b.dataset.doelsug; });
+  const kiesDoel = (tekst) => {
+    const inp = $('#wzDoelInvoer'); if (inp) inp.value = tekst;
+    $$('#wzBody [data-doelsug], #wzTrainDoelen .wz-doel-tegel').forEach(x => x.classList.remove('wz-actief'));
+  };
+  $$('#wzBody [data-doelsug]').forEach(b => b.onclick = () => {
+    kiesDoel(b.dataset.doelsug); b.classList.add('wz-actief');
+  });
+
+  // Suggestietegels uit de oefenstof van dezelfde week (fire-and-forget; vult de
+  // container zodra de data binnen is, blokkeert het openen van de wizard niet).
+  laadTrainingsdoelTegels(w, kiesDoel).catch(e => console.warn('[wz] trainingsdoelen laden faalde', e));
 
   const toonStap = i => {
     $$('.wz-stap').forEach(s => s.classList.remove('wz-actief'));
@@ -1549,7 +1625,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260822a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260822b').then(m => m.renderTeam?.());
   });
 }
 
@@ -1987,7 +2063,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260822a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260822b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
