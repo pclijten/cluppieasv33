@@ -20,7 +20,7 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202608
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20260822c';
+} from './wedstrijd.js?v=20260822d';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -32,16 +32,16 @@ import {
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260822c')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260822d')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn,
-} from './teams-spelers.js?v=20260822b';
+} from './teams-spelers.js?v=20260822d';
 import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260822a';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260822c';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260822d';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
@@ -52,8 +52,8 @@ import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
 } from './teams-hub.js?v=20260822a';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260822b';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260822b';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260822d';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260822d';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260822a';
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
@@ -558,10 +558,10 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260822b').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260822d').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260822b').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260822d').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -664,7 +664,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260822b').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260822d').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -898,15 +898,15 @@ export function verlaatTeamView(){
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
   { datum:'2026-08-22', titel:'Stats: eerlijke speeltijd in één blik', punten:[
-      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger met de speler die het minst aan bod komt er meteen bij.',
-      'Nieuw blad, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
+      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer (0\\u2013100) dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger \\u2014 met de speler die het minst aan bod komt er meteen bij.',
+      'Nieuw blad \\u2018Aandacht\\u2019, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen \\u2014 op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
       'Daaronder een korte kern-strip met het aantal wedstrijden, doelpunten en de gemiddelde opkomst van het team.',
       'De bestaande bladen (Speelminuten, Wedstrijd, Training) blijven precies zoals je ze kent.',
     ]},
   { datum:'2026-08-19', titel:'Eigen speelwijzen & inzoombare tekeningen', punten:[
       'Je kunt nu je eigen speelwijze samenstellen: typ een linie-indeling (bijvoorbeeld 4-2-1-3) en de app plaatst de spelers automatisch netjes op het veld en bewaart \\u2019m bij je team. Daarna kies je \\u2019m gewoon naast de vaste formaties.',
       'Twee formaties toegevoegd: 3-1-3 voor 8-tegen-8 en 4-2-1-3 voor 11-tegen-11.',
-      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen, handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
+      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen \\u2014 handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
     ]},
   { datum:'2026-08-18', titel:'Nieuw startscherm: alles op één plek', punten:[
       'Na het inloggen land je nu direct op het startscherm van je team, met overzichtelijke tegels per onderwerp: Oefenstof, Presentie, Wedstrijden, Spelers en Meer. De balk onderin is verdwenen.',
@@ -1548,7 +1548,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260822b').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260822d').then(m => m.openChatbot());
     // teamkeuze-dropdown (bij meerdere teams) + doorlink naar het overzicht
     const teamKnop = v.querySelector('#hubTeamKnop');
     const keuze = v.querySelector('#hubTeamKeuze');
@@ -1649,7 +1649,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260822b').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260822d').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
@@ -1915,7 +1915,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260822b').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260822d').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {

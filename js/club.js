@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260822c'); }
+async function teamsModule(){ return await import('./teams.js?v=20260822d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260822c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260822d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1190,6 +1190,18 @@ function htmlClubTrainingen(teams, trainingen){
     for (const b of bouwenVanTraining(t, teams)) telPerBouw[b]++;
 
   const zichtbaar = trainingen.filter(t => bouwenVanTraining(t, teams).has(actief));
+  const groepen = trainingsGroepen();
+
+  // Uploadblok: knop met multi-select PDF-input + (indien groepen bestaan) een
+  // snelknop naar het groepenbeheer. Eén helper zodat lijst- en overzichts-
+  // weergave identiek zijn.
+  const uploadBlok = `
+    <button class="upload-knop" id="trainingUpload">📄 PDF-training(en) toevoegen
+      <input type="file" id="trainingFile" accept="application/pdf" multiple style="display:none"></button>
+    <div class="tr-boven-acties">
+      <span class="tr-boven-hint">Meerdere PDF's tegelijk kan — je verdeelt ze daarna per groep.</span>
+      <button class="link" id="trGroepenBeheer">${groepen.length ? '⚙️ Groepen beheren' : '＋ Trainingsgroepen instellen'}</button>
+    </div>`;
 
   const segment = `
     <div class="segment" id="bouwTabs" style="margin-bottom:14px">
@@ -1205,8 +1217,7 @@ function htmlClubTrainingen(teams, trainingen){
 
   if (weergave === 'overzicht'){
     return `
-      <button class="upload-knop" id="trainingUpload">📄 PDF-training toevoegen voor één of meer teams
-        <input type="file" id="trainingFile" accept="application/pdf" style="display:none"></button>
+      ${uploadBlok}
       ${weergaveKies}
       ${segment}
       ${htmlClubTrainingenOverzicht(teams, trainingen, actief)}`;
@@ -1235,8 +1246,7 @@ function htmlClubTrainingen(teams, trainingen){
   : `<div class="kaart leeg">Nog geen trainingen voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Upload een PDF en koppel hem aan een team uit deze bouw.</div>`;
 
   return `
-    <button class="upload-knop" id="trainingUpload">📄 PDF-training toevoegen voor één of meer teams
-      <input type="file" id="trainingFile" accept="application/pdf" style="display:none"></button>
+    ${uploadBlok}
     ${weergaveKies}
     ${segment}
     ${lijst}`;
@@ -1710,9 +1720,13 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const input = v.querySelector('#trainingFile');
     knop.onclick = () => input.click();
     input.onchange = e => {
-      const file = e.target.files[0]; if (!file) return;
-      modalNieuweTraining(file, teams, S.clubTrainBouw);
+      const files = [...e.target.files]; if (!files.length) return;
+      e.target.value = '';   // zelfde bestand later opnieuw kunnen kiezen
+      if (files.length === 1) modalNieuweTraining(files[0], teams, S.clubTrainBouw);
+      else modalMeerdereTrainingen(files, teams);
     };
+    const grpBeheer = v.querySelector('#trGroepenBeheer');
+    if (grpBeheer) grpBeheer.onclick = () => modalTrainingsGroepen(teams);
     v.querySelectorAll('[data-tdownload]').forEach(b => b.onclick = () => window.open(b.dataset.tdownload, '_blank'));
     v.querySelectorAll('[data-ttekst]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
@@ -2187,8 +2201,117 @@ function isoWeek(d){
   return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 }
 
-function modalNieuweTraining(file, teams, voorBouw = null){
+/* ==================== MEERDERE TRAININGEN TEGELIJK ====================
+   De club-admin krijgt wekelijks een setje PDF's binnen en wil ze in één keer
+   verdelen. Dit scherm laat per bestand een trainingsgroep kiezen (met een gok
+   op basis van de bestandsnaam, bv. "…-B.pdf" → groep B) en verwerkt ze daarna
+   één voor één via de bestaande AI-pijplijn. Elk bestand krijgt zijn normale
+   preview zodat de AI-controle behouden blijft; na delen (of overslaan) rolt
+   het volgende bestand automatisch door. */
+function modalMeerdereTrainingen(files, teams){
+  const groepen = trainingsGroepen();
   const weekNr = isoWeek(new Date());
+  // per bestand: gekozen groep-id (init = gok uit naam)
+  const raad = (naam) => {
+    const m = naam.match(/[-_ ]([a-zA-Z])(?:[-_. ]|$)/);
+    if (!m) return '';
+    const l = m[1].toUpperCase();
+    return groepen.some(g => g.id === l) ? l : '';
+  };
+  const keuze = files.map(f => raad(f.name));
+
+  if (!groepen.length){
+    // zonder groepen heeft de multi-flow weinig zin: bied beheer aan, of val
+    // terug op het één-voor-één verwerken.
+    openModal(`
+      <h2>${files.length} trainingen uploaden</h2>
+      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:14px">Je koos ${files.length} bestanden. Stel eerst trainingsgroepen in, dan kun je ze in één keer per groep verdelen. Zonder groepen loop je ze los langs.</p>
+      <button class="knop vol" id="mmNaarGroepen">Trainingsgroepen instellen</button>
+      <button class="knop licht" id="mmLosLangs" style="margin-top:8px">Toch één voor één (met teams aanvinken)</button>`);
+    $('#mmNaarGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
+    $('#mmLosLangs').onclick = () => verwerkRij(0, /*zonderGroep*/true);
+    return;
+  }
+
+  const teken = () => {
+    const rijen = files.map((f,i) => {
+      const opties = `<option value="">—</option>` + groepen.map(g =>
+        `<option value="${esc(g.id)}" ${keuze[i]===g.id?'selected':''}>${esc(g.id)} · ${esc(g.naam || ('Groep '+g.id))}</option>`).join('');
+      const sub = keuze[i] ? `herkend als groep ${esc(keuze[i])}` : 'kies een groep';
+      return `
+        <div class="mm-rij">
+          <div class="mm-ico">PDF</div>
+          <div class="mm-info">
+            <div class="mm-naam">${esc(f.name)}</div>
+            <div class="mm-sub">${(f.size/1024).toFixed(0)} KB · ${sub}</div>
+          </div>
+          <select class="mm-select" data-i="${i}">${opties}</select>
+        </div>`;
+    }).join('');
+    const zonder = keuze.filter(k => !k).length;
+    const teamsTotaal = new Set();
+    keuze.forEach(k => { if (k) (groepen.find(g=>g.id===k)?.teams||[]).forEach(t => teamsTotaal.add(t)); });
+    const samenv = zonder
+      ? `<div class="mm-samenv warn">⚠️ ${zonder} bestand${zonder===1?'':'en'} ${zonder===1?'heeft':'hebben'} nog geen groep</div>`
+      : `<div class="mm-samenv ok">✓ ${files.length} trainingen → ${teamsTotaal.size} teams in totaal</div>`;
+
+    openModal(`
+      <h2>${files.length} trainingen verdelen</h2>
+      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:12px">Kies per bestand de trainingsgroep. De app verwerkt ze daarna één voor één — je ziet van elke training nog de AI-preview.</p>
+      <div class="veldgroep"><label>Week / periode (voor alle)</label>
+        <input class="invoer" id="mmWeek" value="Week ${weekNr}" autocomplete="off"></div>
+      <div class="mm-lijst">${rijen}</div>
+      ${samenv}
+      <button class="knop vol" id="mmStart" ${zonder?'disabled':''}>Verwerken en verdelen</button>
+      <button class="link" id="mmGroepen" style="display:block;margin:10px auto 0">⚙️ Groepen beheren</button>`);
+
+    $$('.mm-select').forEach(s => s.onchange = () => { keuze[+s.dataset.i] = s.value; teken(); });
+    $('#mmGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
+    $('#mmStart').onclick = () => {
+      if (keuze.some(k => !k)) return meld('Kies voor elk bestand een groep');
+      verwerkRij(0, false);
+    };
+  };
+
+  // verwerk bestand i, ga daarna door naar i+1
+  const week = () => ($('#mmWeek')?.value || `Week ${weekNr}`).trim();
+  let vasteWeek = null;
+  function verwerkRij(i, zonderGroep){
+    if (vasteWeek === null) vasteWeek = week();   // vastleggen vóór de modal wisselt
+    if (i >= files.length){
+      sluitModal(); renderClub();
+      meld(`${files.length} training${files.length===1?'':'en'} verwerkt`);
+      return;
+    }
+    const f = files[i];
+    const volgende = () => verwerkRij(i+1, zonderGroep);
+    const meta = {
+      titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`,
+      week: vasteWeek,
+      onKlaar: volgende,
+      batchInfo: { huidig: i+1, totaal: files.length },
+    };
+    if (zonderGroep){
+      // los langs: normale team-picker per bestand (met chips), maar met
+      // doorrol-callback zodra gedeeld is.
+      modalNieuweTraining(f, teams, S.clubTrainBouw, meta);
+    } else {
+      const g = groepen.find(x => x.id === keuze[i]);
+      meta.teams = (g?.teams || []).filter(id => teams.some(t => t.id === id));
+      if (!meta.teams.length){
+        meld(`Groep ${keuze[i]} heeft geen teams — bestand overgeslagen`);
+        return volgende();
+      }
+      startTrainingVerwerking(f, meta);
+    }
+  }
+
+  teken();
+}
+
+function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
+  const weekNr = isoWeek(new Date());
+  const groepen = trainingsGroepen();
   // teams groeperen per bouw
   const perBouw = {onder:[], midden:[], boven:[]};
   for (const t of teams) perBouw[bouwVanCategorie(t.categorie)].push(t);
@@ -2204,33 +2327,53 @@ function modalNieuweTraining(file, teams, voorBouw = null){
         }).join('')}
       </div>`;
   }).join('');
+  const batchBanner = batchMeta?.batchInfo
+    ? `<div class="mm-samenv ok" style="margin:-2px 0 12px">Bestand ${batchMeta.batchInfo.huidig} van ${batchMeta.batchInfo.totaal}</div>` : '';
+  const startTitel = batchMeta?.titel || `Week ${weekNr} - training 1`;
+  const startWeek  = batchMeta?.week  || `Week ${weekNr}`;
   openModal(`
     <h2>Training uploaden</h2>
+    ${batchBanner}
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
     <div class="veldgroep"><label>Titel</label>
-      <input class="invoer" id="mTrTitel" value="Week ${weekNr} - training 1" autocomplete="off"></div>
+      <input class="invoer" id="mTrTitel" value="${esc(startTitel)}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
-      <input class="invoer" id="mTrWeek" value="Week ${weekNr}" autocomplete="off"></div>
+      <input class="invoer" id="mTrWeek" value="${esc(startWeek)}" autocomplete="off"></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
+      ${groepen.length ? `<div class="tr-groep-uitleg">Tik op een groep om alle teams in één keer te kiezen — of vink hieronder los aan.</div>${groepChipsHtml(groepen, teams)}` : ''}
       <div id="mTrTeams">
         ${teams.length ? groepHtml : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}
       </div>
       <div class="rij" style="margin-top:8px">
         <button class="knop licht klein" id="mTrAlle">Alle teams</button>
         <button class="knop licht klein" id="mTrGeen">Geen</button>
+        ${groepen.length ? '<button class="knop licht klein" id="mTrGroepen">⚙️ Groepen beheren</button>' : ''}
       </div>
     </div>
     <button class="knop vol" id="mTrOk">Uploaden en delen</button>`);
   const sync = () => $$('#mTrTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
   $$('#mTrTeams input').forEach(c => c.onchange = sync);
-  $('#mTrAlle').onclick = () => { $$('#mTrTeams input').forEach(c => c.checked = true); sync(); };
-  $('#mTrGeen').onclick = () => { $$('#mTrTeams input').forEach(c => c.checked = false); sync(); };
+  // Groep-chip: zet precies de teams van die groep aan (vervangt de selectie).
+  $$('[data-groep]').forEach(chip => chip.onclick = () => {
+    const g = groepen.find(x => x.id === chip.dataset.groep);
+    if (!g) return;
+    const wil = new Set(g.teams || []);
+    $$('#mTrTeams input').forEach(c => c.checked = wil.has(c.dataset.tid));
+    $$('.tr-groep-chip').forEach(x => x.classList.toggle('aan', x === chip));
+    sync();
+  });
+  const mGrp = $('#mTrGroepen');
+  if (mGrp) mGrp.onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
+  $('#mTrAlle').onclick = () => { $$('#mTrTeams input').forEach(c => c.checked = true); $$('.tr-groep-chip').forEach(x => x.classList.remove('aan')); sync(); };
+  $('#mTrGeen').onclick = () => { $$('#mTrTeams input').forEach(c => c.checked = false); $$('.tr-groep-chip').forEach(x => x.classList.remove('aan')); sync(); };
   $('#mTrOk').onclick = async () => {
     const gekozen = $$('#mTrTeams input').filter(c => c.checked).map(c => c.dataset.tid);
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mTrTitel').value.trim() || file.name;
     const week  = $('#mTrWeek').value.trim();
-    startTrainingVerwerking(file, { titel, week, teams: gekozen });
+    const meta = { titel, week, teams: gekozen };
+    if (batchMeta?.onKlaar) meta.onKlaar = batchMeta.onKlaar;   // doorrollen in batch
+    startTrainingVerwerking(file, meta);
   };
 }
 
@@ -2420,7 +2563,8 @@ function toonPreview(file, meta, ctx){
         gemaakt: serverTimestamp(),
         door: S.user.displayName || S.user.email || '',
       });
-      sluitModal(); meld('Training gedeeld'); renderClub();
+      meld('Training gedeeld');
+      if (meta.onKlaar){ meta.onKlaar(); } else { sluitModal(); renderClub(); }
     } catch(e){
       console.error(e); const bb = $('#trDeel'); if (bb){ bb.disabled = false; bb.textContent = '✓ Zo delen'; }
       meld('Delen mislukt');
@@ -2486,7 +2630,8 @@ async function deelAlleenPdf(file, meta, ctx){
       gemaakt: serverTimestamp(),
       door: S.user.displayName || S.user.email || '',
     });
-    sluitModal(); meld('Training gedeeld (als PDF)'); renderClub();
+    meld('Training gedeeld (als PDF)');
+    if (meta.onKlaar){ meta.onKlaar(); } else { sluitModal(); renderClub(); }
   } catch(e){
     console.error(e); meld('Delen mislukt');
     if (btn){ btn.disabled = false; btn.textContent = 'Alleen als PDF'; }
@@ -2587,6 +2732,155 @@ function teamKeuzePerBouw(teams, voorgevinkt){
         ${lijst.map(t => `<label data-pid="${t.id}" class="${vink.has(t.id)?'aan':''}"><input type="checkbox" data-tid="${t.id}" ${vink.has(t.id)?'checked':''}><span>${esc(t.naam)}</span></label>`).join('')}
       </div>`;
   }).join('');
+}
+
+/* ==================== TRAININGSGROEPEN ====================
+   Vaste letter-groepen (A, B, C, …) die elk een set teams bundelen, zodat de
+   club-admin bij het uploaden van de wekelijkse oefenstof niet elk team los
+   hoeft aan te vinken maar één keer op de groep tikt. Opgeslagen als veld op
+   het club-document (clubs/{clubId}.trainingsGroepen) — geen nieuwe collectie,
+   geen extra listener: de bestaande onSnapshot op de club levert ze mee.
+   Vorm: [{ id:'A', naam:'Groep A', teams:['<teamId>', …] }, …] */
+function trainingsGroepen(){
+  const g = S.club?.trainingsGroepen;
+  return Array.isArray(g) ? g : [];
+}
+/* eerstvolgende vrije letter A..Z, daarna 'G' + nummer als backup */
+function volgendeGroepId(){
+  const bezet = new Set(trainingsGroepen().map(g => g.id));
+  for (let i = 0; i < 26; i++){
+    const l = String.fromCharCode(65 + i);
+    if (!bezet.has(l)) return l;
+  }
+  let n = 1; while (bezet.has('G' + n)) n++; return 'G' + n;
+}
+
+/* Compacte rij groep-chips (voor bovenaan de upload-modal). Bij een klik roept
+   hij onKies(groep) aan; de aanroeper regelt zelf het aan/uit-zetten van de
+   team-checkboxes. Puur presentatie — geen eigen state. */
+function groepChipsHtml(groepen, teams, actiefId = null){
+  if (!groepen.length) return '';
+  return `<div class="tr-groep-rij">
+    ${groepen.map(g => {
+      const n = (g.teams || []).filter(id => teams.some(t => t.id === id)).length;
+      return `<button type="button" class="tr-groep-chip ${g.id===actiefId?'aan':''}" data-groep="${esc(g.id)}">
+        <span class="letter">${esc(g.id)}</span><span class="telling">${n} team${n===1?'':'s'}</span>
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+/* Beheerscherm: groepen zien, teams per groep wijzigen, groep toevoegen/weg.
+   Een team mag in meerdere groepen zitten (de app dwingt dat niet af) — maar de
+   uitleg raadt aan het bij één te houden. Opslaan schrijft in één keer terug
+   naar het club-doc; de onSnapshot ververst daarna de UI. */
+function modalTrainingsGroepen(teams){
+  const teken = () => {
+    const groepen = trainingsGroepen();
+    const rijen = groepen.length ? groepen.map(g => {
+      const namen = (g.teams || [])
+        .map(id => teams.find(t => t.id === id)?.naam)
+        .filter(Boolean);
+      const chips = namen.length
+        ? namen.map(n => `<span class="team-chip">${esc(n)}</span>`).join('')
+        : `<span class="team-chip leeg">nog geen teams</span>`;
+      return `
+        <div class="grp-beheer-rij">
+          <div class="grp-badge">${esc(g.id)}</div>
+          <div class="grp-body">
+            <div class="grp-naam">${esc(g.naam || ('Groep ' + g.id))} · ${namen.length} team${namen.length===1?'':'s'}</div>
+            <div class="team-chips">${chips}</div>
+            <div class="grp-acties">
+              <button class="link" data-grp-teams="${esc(g.id)}">Teams wijzigen</button>
+              <button class="link" data-grp-naam="${esc(g.id)}">Naam</button>
+              <button class="link uit" data-grp-weg="${esc(g.id)}">Verwijderen</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('') : `<div class="kaart leeg" style="margin:0 0 12px">Nog geen trainingsgroepen. Maak er één aan en koppel de teams die telkens dezelfde training krijgen.</div>`;
+
+    openModal(`
+      <h2>Trainingsgroepen</h2>
+      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:14px">Bundel teams die wekelijks dezelfde training krijgen. Bij het uploaden kies je dan alleen nog de letter — de teams worden automatisch gekoppeld.</p>
+      <div id="grpLijst">${rijen}</div>
+      <button class="knop licht" id="grpNieuw" style="width:100%;margin-top:4px">＋ Nieuwe groep</button>`);
+
+    $('#grpNieuw').onclick = () => grpNaamModal(null);
+    $$('#grpLijst [data-grp-teams]').forEach(b => b.onclick = () => grpTeamsModal(b.dataset.grpTeams));
+    $$('#grpLijst [data-grp-naam]').forEach(b => b.onclick = () => grpNaamModal(b.dataset.grpNaam));
+    $$('#grpLijst [data-grp-weg]').forEach(b => b.onclick = async () => {
+      const g = trainingsGroepen().find(x => x.id === b.dataset.grpWeg);
+      if (!g) return;
+      if (!confirm(`Groep "${g.naam || g.id}" verwijderen? De trainingen die er al mee gedeeld zijn, blijven gewoon staan.`)) return;
+      await bewaarGroepen(trainingsGroepen().filter(x => x.id !== g.id));
+      teken();
+    });
+  };
+
+  // naam bewerken of nieuwe groep aanmaken
+  const grpNaamModal = (id) => {
+    const bestaand = id ? trainingsGroepen().find(g => g.id === id) : null;
+    const nieuwId = bestaand ? bestaand.id : volgendeGroepId();
+    openModal(`
+      <h2>${bestaand ? 'Groepsnaam' : 'Nieuwe groep ' + nieuwId}</h2>
+      <div class="veldgroep"><label>Naam</label>
+        <input class="invoer" id="grpNaamInp" value="${esc(bestaand?.naam || ('Groep ' + nieuwId))}" placeholder="Bijv. Groep ${nieuwId}" autocomplete="off"></div>
+      <button class="knop vol" id="grpNaamOk">${bestaand ? 'Opslaan' : 'Aanmaken'}</button>
+      <button class="knop licht" id="grpNaamTerug" style="margin-top:8px">Terug</button>`);
+    $('#grpNaamTerug').onclick = teken;
+    $('#grpNaamOk').onclick = async () => {
+      const naam = $('#grpNaamInp').value.trim() || ('Groep ' + nieuwId);
+      let g = trainingsGroepen().slice();
+      if (bestaand){
+        g = g.map(x => x.id === nieuwId ? { ...x, naam } : x);
+      } else {
+        g.push({ id: nieuwId, naam, teams: [] });
+      }
+      await bewaarGroepen(g);
+      bestaand ? teken() : grpTeamsModal(nieuwId);   // na aanmaken meteen teams kiezen
+    };
+  };
+
+  // teams van een groep kiezen (per-bouw picker hergebruikt)
+  const grpTeamsModal = (id) => {
+    const g = trainingsGroepen().find(x => x.id === id);
+    if (!g) return teken();
+    const huidig = new Set(g.teams || []);
+    openModal(`
+      <h2>Teams voor groep ${esc(g.id)}</h2>
+      <div class="veldgroep"><label>Welke teams krijgen deze training?</label>
+        <div id="grpTeamsKies">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
+        <div class="rij" style="margin-top:8px">
+          <button class="knop licht klein" id="grpAlle">Alle teams</button>
+          <button class="knop licht klein" id="grpGeen">Geen</button>
+        </div>
+      </div>
+      <button class="knop vol" id="grpTeamsOk">Opslaan</button>
+      <button class="knop licht" id="grpTeamsTerug" style="margin-top:8px">Terug</button>`);
+    const sync = () => $$('#grpTeamsKies label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+    $$('#grpTeamsKies input').forEach(c => c.onchange = sync);
+    $('#grpAlle').onclick = () => { $$('#grpTeamsKies input').forEach(c => c.checked = true); sync(); };
+    $('#grpGeen').onclick = () => { $$('#grpTeamsKies input').forEach(c => c.checked = false); sync(); };
+    $('#grpTeamsTerug').onclick = teken;
+    $('#grpTeamsOk').onclick = async () => {
+      const gekozen = $$('#grpTeamsKies input').filter(c => c.checked).map(c => c.dataset.tid);
+      await bewaarGroepen(trainingsGroepen().map(x => x.id === id ? { ...x, teams: gekozen } : x));
+      teken();
+    };
+  };
+
+  teken();
+}
+
+async function bewaarGroepen(groepen){
+  try {
+    await updateDoc(doc(db,'clubs',S.clubId), { trainingsGroepen: groepen });
+    // optimistisch bijwerken zodat vervolg-schermen meteen de nieuwe stand zien
+    if (S.club) S.club.trainingsGroepen = groepen;
+  } catch(e){
+    console.error('[trainingsgroepen] opslaan mislukt', e);
+    meld('Opslaan mislukt: ' + (e.code || e.message));
+  }
 }
 
 function modalNieuweVideo(teams, voorBouw = null){
