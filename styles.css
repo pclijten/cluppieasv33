@@ -2817,3 +2817,50 @@ body::before{
 
 /* Club-hub kop: de subtitel (teams · clubcode) onder de clubnaam op eigen regel */
 .welkom-kop .sub{display:block;font-family:'Inter';font-size:calc(12.5px * var(--fs));font-weight:500;text-transform:none;letter-spacing:0;opacity:.9;margin-top:3px}
+
+/* ==================== TRAININGSGROEPEN & MULTI-UPLOAD ====================
+   Letter-groepen voor het uploaden van trainingen: chips in de upload-modal,
+   een lijst per bestand bij meerdere uploads, en het beheerscherm. Alle kleuren
+   via thema-tokens zodat het in donker én licht klopt; geen color-mix (voor de
+   render-pijplijn). */
+
+/* tekstlink-knop (hergebruikt in beheer en boven de trainingenlijst) */
+.link{background:none;border:none;padding:0;color:var(--accent);font-family:'Inter';font-weight:600;font-size:calc(12.5px * var(--fs));cursor:pointer;letter-spacing:.2px}
+.link.uit{color:var(--uit)}
+
+/* actierij boven de trainingenlijst */
+.tr-boven-acties{display:flex;align-items:center;gap:10px;justify-content:space-between;margin:-6px 0 14px;flex-wrap:wrap}
+.tr-boven-hint{font-size:calc(11.5px * var(--fs));color:var(--ink-2);line-height:1.4;flex:1;min-width:150px}
+
+/* groep-chips in de één-bestand upload-modal */
+.tr-groep-uitleg{font-size:calc(11.5px * var(--fs));color:var(--ink-2);line-height:1.45;margin-bottom:8px}
+.tr-groep-rij{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tr-groep-chip{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:8px 13px;border-radius:11px;background:var(--surface-2);border:1.5px solid transparent;cursor:pointer;transition:.12s}
+.tr-groep-chip:hover{border-color:var(--hair)}
+.tr-groep-chip.aan{background:rgba(226,52,47,.14);border-color:var(--accent)}
+.tr-groep-chip .letter{font-family:'Barlow Condensed';font-weight:700;font-size:calc(19px * var(--fs));line-height:1}
+.tr-groep-chip.aan .letter{color:var(--accent)}
+.tr-groep-chip .telling{font-size:calc(10.5px * var(--fs));color:var(--ink-2)}
+
+/* meerdere bestanden verdelen */
+.mm-lijst{display:flex;flex-direction:column;gap:9px;margin-bottom:6px}
+.mm-rij{display:flex;align-items:center;gap:11px;padding:11px;background:var(--surface-2);border-radius:11px}
+.mm-ico{width:34px;height:34px;border-radius:9px;background:rgba(226,52,47,.14);color:var(--accent);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(11px * var(--fs));flex-shrink:0}
+.mm-info{flex:1;min-width:0}
+.mm-naam{font-size:calc(13px * var(--fs));font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mm-sub{font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:1px}
+.mm-select{flex-shrink:0;padding:8px 9px;border-radius:9px;background:var(--card);border:1.5px solid var(--hair);color:var(--ink);font-family:'Barlow Condensed';font-weight:700;font-size:calc(13.5px * var(--fs));cursor:pointer;max-width:118px}
+.mm-select:focus{outline:none;border-color:var(--accent)}
+.mm-samenv{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:10px;font-size:calc(12.5px * var(--fs));line-height:1.4;margin:12px 0 4px}
+.mm-samenv.ok{background:rgba(53,196,122,.12);color:var(--in)}
+.mm-samenv.warn{background:rgba(245,177,61,.12);color:var(--uit)}
+
+/* beheerscherm trainingsgroepen */
+.grp-beheer-rij{display:flex;align-items:flex-start;gap:11px;padding:13px;background:var(--surface-2);border-radius:11px;margin-bottom:10px}
+.grp-badge{width:38px;height:38px;border-radius:10px;background:var(--card);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(19px * var(--fs));flex-shrink:0;border:1.5px solid var(--hair)}
+.grp-body{flex:1;min-width:0}
+.grp-naam{font-family:'Barlow Condensed';font-weight:700;font-size:calc(15px * var(--fs));letter-spacing:.3px;margin-bottom:6px}
+.grp-acties{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
+.grp-beheer-rij .team-chips{display:flex;flex-wrap:wrap;gap:6px}
+.team-chip{font-family:'Barlow Condensed';font-weight:600;font-size:calc(12.5px * var(--fs));padding:4px 10px;border-radius:99px;background:rgba(53,196,122,.14);color:var(--in);letter-spacing:.3px}
+.team-chip.leeg{background:var(--surface);color:var(--ink-2)}
