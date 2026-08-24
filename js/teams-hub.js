@@ -11,12 +11,12 @@
    alleen HTML + de opslaghulpjes voor de wedstrijd-presentie. Het importeert
    bewust NIET terug uit teams.js (geen circulaire import). */
 import { db, doc, updateDoc } from './firebase.js?v=20260811a';
-import { S, esc, meld, datumNL, modAan } from './state.js?v=20260822a';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20260822a';
+import { S, esc, meld, datumNL, modAan } from './state.js?v=20260823a';
+import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20260823a';
 import { ico } from './icons.js?v=20260818e';
-import { analyseWedstrijd } from './analyse.js?v=20260822a';
-import { telGebruik } from './tracker.js?v=20260822a';
-import { ongelezenBerichten } from './berichten.js?v=20260822a';
+import { analyseWedstrijd } from './analyse.js?v=20260823a';
+import { telGebruik } from './tracker.js?v=20260823a';
+import { ongelezenBerichten } from './berichten.js?v=20260823a';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */

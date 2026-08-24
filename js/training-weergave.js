@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260822a';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260823a';
 
 let _overlay = null;
 
@@ -36,6 +36,10 @@ export function sluitTrainingWeergave(){
   const wasOpen = _overlay.classList.contains('open');
   _overlay.classList.remove('open');
   _overlay.querySelector('.trw-stage').innerHTML = '';
+  // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
+  const nb = _overlay.querySelector('.trw-notitie-knop');
+  if (nb) nb.remove();
+  import('./training-aantekeningen.js?v=20260823a').then(m => m.resetAantekeningen()).catch(() => {});
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -127,7 +131,7 @@ function oefHtml(idx, oef, diagramUrls){
    - diagramUrls: { pagina: url }
    - oefeningen: de AI-structuur
    - onOrigineel: callback die de PDF-viewer opent */
-export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel }){
+export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId }){
   const el = bouwOverlay();
   el.querySelector('.trw-titel').textContent = titel || 'Training';
   el.querySelector('.trw-meta').textContent = meta || '';
@@ -167,4 +171,14 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
   stage.scrollTop = 0;
   el.classList.add('open');
   bewaakTerug();
+
+  // Aantekeningen-laag (additief): notitie-knop in de balk + tik-op-regel.
+  // Alleen als er een trainingId is om notities aan te koppelen.
+  if (trainingId){
+    import('./training-aantekeningen.js?v=20260823a').then(mod => {
+      const balk = el.querySelector('.trw-balk');
+      mod.initAantekeningen({ stage, balk, trainingId });
+      mod.bindItemKlik(stage);
+    }).catch(() => {});
+  }
 }

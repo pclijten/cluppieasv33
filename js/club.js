@@ -6,12 +6,12 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20260822a';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260822a';
-import { analyseWedstrijd } from './analyse.js?v=20260822a';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260822a';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260822a';
-import { telGebruik, telNav } from './tracker.js?v=20260822a';
+} from './state.js?v=20260823a';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260823a';
+import { analyseWedstrijd } from './analyse.js?v=20260823a';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260823a';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260823a';
+import { telGebruik, telNav } from './tracker.js?v=20260823a';
 import { ico } from './icons.js?v=20260818e';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260822d'); }
+async function teamsModule(){ return await import('./teams.js?v=20260823a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260822d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260823a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1229,6 +1229,9 @@ function htmlClubTrainingen(teams, trainingen){
     const tekstKnop = heeftAi
       ? `<button data-ttekst="${t.id}" title="Tekst controleren en bewerken">📝</button>`
       : '';
+    const notitieKnop = heeftAi
+      ? `<button data-tnotities="${t.id}" title="Notities van coaches bekijken">💬</button>`
+      : '';
     return `
       <div class="training-rij">
         <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
@@ -1237,6 +1240,7 @@ function htmlClubTrainingen(teams, trainingen){
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
           ${tekstKnop}
+          ${notitieKnop}
           <button data-tbewerk="${t.id}" title="Teams en titel wijzigen">✏️</button>
           <button data-tshare="${t.id}" title="Delen naar WhatsApp">📤</button>
           <button data-tweg="${t.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
@@ -1728,11 +1732,17 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const grpBeheer = v.querySelector('#trGroepenBeheer');
     if (grpBeheer) grpBeheer.onclick = () => modalTrainingsGroepen(teams);
     v.querySelectorAll('[data-tdownload]').forEach(b => b.onclick = () => window.open(b.dataset.tdownload, '_blank'));
+    v.querySelectorAll('[data-tnotities]').forEach(b => b.onclick = async () => {
+      const t = trainingen.find(x => x.id === b.dataset.tnotities);
+      if (!t) return;
+      const { openBeheerNotities } = await import('./training-notities-beheer.js?v=20260823a');
+      openBeheerNotities({ trainingId: t.id, titel: t.titel || t.bestandsnaam || 'Training', oefeningen: t.oefeningen || [] });
+    });
     v.querySelectorAll('[data-ttekst]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260822a');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260823a');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -2422,7 +2432,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260822b');
+    const ai = await import('./training-ai.js?v=20260823a');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -2576,7 +2586,7 @@ function toonPreview(file, meta, ctx){
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
     ctx.doelen = leesDoelen();   // typwijzigingen bewaren over het herteken heen
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260822a');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20260823a');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -2598,7 +2608,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20260822b');
+    const ai = await import('./training-ai.js?v=20260823a');
     // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
     // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
     // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden

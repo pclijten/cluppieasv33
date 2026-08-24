@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20260822d';
+import { onboardingHerstartBlok } from './onboarding.js?v=20260823a';
 
 export function htmlHandleiding(){
   return `<div class="hl">
