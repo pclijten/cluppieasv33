@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260825g').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260825h').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -492,7 +492,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260825g').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260825h').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -516,8 +516,8 @@ const WIZARD_STAPPEN = 4;
    = zelfde jaar + ISO-weeknummer, gemeten op het moment waarop de training werd
    gedeeld (gemaakt). Doelen van meerdere trainingen in die week worden
    samengevoegd en ontdubbeld. Faalt stil: geen tegels als er niets is. */
-async function laadTrainingsdoelTegels(w, kiesDoel){
-  const houder = $('#wzTrainDoelen');
+async function laadTrainingsdoelTegels(w, kiesDoel, houderId = 'wzTrainDoelen'){
+  const houder = document.getElementById(houderId);
   if (!houder) return;
   const clubId = S.team?.club;
   if (!clubId || !w?.datum) return;                    // los team of geen datum: geen tegels
@@ -1757,7 +1757,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260825g').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260825h').then(m => m.renderTeam?.());
   });
 }
 
@@ -2198,7 +2198,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260825g').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260825h').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2335,6 +2335,7 @@ function toonWijzigOpzet(sectie){
     <div class="wo-sectiekop" id="woSecDoel"><span class="ico">🎯</span><span>Doel & notitie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Wedstrijddoel</label>
       <input class="invoer" id="woDoel" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
+      <div id="woTrainDoelen"></div>
       <div class="doel-suggesties" id="woDoelSug">
         ${doelSuggesties(S.team?.categorie).map(s => `<button type="button" data-doelsug="${esc(s)}">${esc(s)}</button>`).join('')}
       </div>
@@ -2380,6 +2381,15 @@ function toonWijzigOpzet(sectie){
   });
 
   $$('#woDoelSug [data-doelsug]').forEach(b => b.onclick = () => { $('#woDoel').value = b.dataset.doelsug; });
+
+  // Trainingsdoelen van deze week als tegels boven de leercurve-suggesties.
+  // Kiest een tegel → vult het wedstrijddoel-veld. Faalt stil (leeg = geen blok).
+  const kiesTrainDoel = (tekst) => {
+    const inp = $('#woDoel'); if (inp) inp.value = tekst;
+    $$('#woTrainDoelen .wz-doel-tegel').forEach(x => x.classList.remove('wz-actief'));
+  };
+  laadTrainingsdoelTegels(w, kiesTrainDoel, 'woTrainDoelen')
+    .catch(e => console.warn('[wo] trainingsdoelen laden faalde', e));
 
   $('#woSluit').onclick = verbergWijzigOpzet;
   $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') verbergWijzigOpzet(); };
