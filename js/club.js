@@ -2811,10 +2811,9 @@ function modalBewerkTraining(t, teams){
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mTbTitel').value.trim() || t.bestandsnaam || 'Training';
     const week  = $('#mTbWeek').value.trim();
-    const doelen = mTbLeesDoelen();   // lezen vóór sluitModal — daarna is de DOM weg
     sluitModal();
     try {
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen});
+      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen: mTbLeesDoelen()});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));

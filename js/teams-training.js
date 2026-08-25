@@ -569,13 +569,16 @@ export function modalPresentie(bestaande = null, opties = {}){
     </div>` : ''}
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
     <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
-    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is. Elke wijziging wordt meteen bewaard.</p>
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is — elke wijziging wordt meteen bewaard. Is iedereen er? Tik dan onderaan op bevestigen.</p>
     <div class="pres-opslag rust" id="mPresOpslag" aria-live="polite">
       <span class="pres-opslag-stip"></span>
       <span id="mPresOpslagTekst">Alles bewaard</span>
     </div>
     <div class="pres-lijst" id="mPresLijst">${rijenHtml()}</div>
-    ${bestaande ? '<div class="rij" style="margin-top:14px"><button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button></div>' : ''}`);
+    <div class="rij" style="margin-top:14px">
+      ${bestaande ? '<button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button>' : ''}
+      <button class="knop vol" id="mPresKlaar">Klaar</button>
+    </div>`);
 
   /* ---------- Directe opslag (geen Opslaan-knop meer) ----------
      Elke tik (afwezig/reden/notitie) wordt automatisch bewaard, net als bij de
@@ -590,11 +593,29 @@ export function modalPresentie(bestaande = null, opties = {}){
   let bezigMetSchrijven = false;   // voorkomt overlappende writes
   let opnieuwNodig = false;        // er kwam een wijziging binnen tijdens een write
   let eersteKeerGeteld = false;    // telGebruik('presentie') slechts één keer per sessie
+  // Is er voor deze datum al iets vastgelegd? Bij het bewerken van een bestaande
+  // registratie (of als er al een record voor de datum bestaat) is dat zo; op een
+  // verse dag nog niet. Bepaalt de tekst van de knop onderaan: zolang er nog niks
+  // is vastgelegd nodigt de knop uit om te bevestigen ("Iedereen aanwezig —
+  // bewaren" / "Presentie bewaren"), daarna wordt het simpelweg "Klaar".
+  let ietsOpgeslagen = !!bestaande || !!docId;
 
   const zetStatus = (klasse, tekst) => {
     const b = $('#mPresOpslag'); if (!b) return;
     b.className = 'pres-opslag ' + klasse;
     $('#mPresOpslagTekst').textContent = tekst;
+  };
+
+  // Knoptekst onderaan afstemmen op de situatie.
+  const werkKnopBij = () => {
+    const knop = $('#mPresKlaar'); if (!knop) return;
+    if (ietsOpgeslagen){
+      knop.textContent = 'Klaar';
+    } else if (afwezig.size === 0){
+      knop.textContent = 'Iedereen aanwezig — bewaren';
+    } else {
+      knop.textContent = 'Presentie bewaren';
+    }
   };
 
   const schrijfNu = async () => {
@@ -629,6 +650,8 @@ export function modalPresentie(bestaande = null, opties = {}){
         }
       }
       if (!eersteKeerGeteld){ telGebruik('presentie'); eersteKeerGeteld = true; }
+      ietsOpgeslagen = true;
+      werkKnopBij();
       // Meteen het presentie-overzicht (maandlijst) opnieuw tekenen zodat een
       // net-geregistreerde datum direct zichtbaar is — ook bij een andere dag,
       // zonder te wachten op de serverbevestiging van de listener. De maandlijst
@@ -664,6 +687,7 @@ export function modalPresentie(bestaande = null, opties = {}){
       else afwezig.add(id);
       $('#mPresLijst').innerHTML = rijenHtml();
       koppelRijen();
+      werkKnopBij();
       planBewaar();
     });
     $$('.pres-reden-chip').forEach(b => b.onclick = () => {
@@ -698,9 +722,13 @@ export function modalPresentie(bestaande = null, opties = {}){
     docId = bestaandRecord ? bestaandRecord.id : null;
     afwezig = new Set(bestaandRecord ? (bestaandRecord.afwezig || []) : []);
     redenen = bestaandRecord ? JSON.parse(JSON.stringify(bestaandRecord.afwezigRedenen || {})) : {};
+    // op een datum met een bestaand record is er al iets vastgelegd → knop "Klaar";
+    // op een lege datum nog niet → knop nodigt uit om te bevestigen
+    ietsOpgeslagen = !!bestaandRecord;
     $('#mPresLijst').innerHTML = rijenHtml();
     koppelRijen();
     werkMeldingBij();
+    werkKnopBij();
     zetStatus('rust', 'Alles bewaard');
   };
 
@@ -735,6 +763,32 @@ export function modalPresentie(bestaande = null, opties = {}){
       sluitModal(); meld('Presentie verwijderd');
     } catch(e){ meld('Verwijderen mislukt: ' + (e.code || e.message)); }
   };
+
+  /* Knop onderaan: bevestigt de huidige stand en sluit. Onmisbaar voor het geval
+     dat iedereen aanwezig is en de coach dus niks aantikt — dan zou er zonder
+     deze knop niets worden vastgelegd. Is er nog niks bewaard, dan forceert de
+     knop één opslag (ook "iedereen aanwezig"); is er al bewaard, dan sluit hij
+     gewoon (alles staat immers al vast). */
+  $('#mPresKlaar').onclick = async () => {
+    const knop = $('#mPresKlaar');
+    // eventuele nog wachtende debounce-write nu uitvoeren
+    if (bewaarTimer){ clearTimeout(bewaarTimer); bewaarTimer = null; }
+    if (!ietsOpgeslagen){
+      knop.disabled = true;
+      await schrijfNu();               // legt de huidige stand vast
+      if (!ietsOpgeslagen){            // schrijven mislukt → modal openhouden
+        knop.disabled = false;
+        return;                        // foutmelding is al getoond door schrijfNu
+      }
+    } else if (bezigMetSchrijven){
+      // laat een lopende write nog even afronden, maar blokkeer de UI niet lang
+      await schrijfNu();
+    }
+    sluitModal();
+    meld(afwezig.size ? `${afwezig.size} afwezig genoteerd` : 'Iedereen aanwezig genoteerd');
+  };
+
+  werkKnopBij();   // begintekst zetten
 }
 
 /* ---------- Planning: eigen dag toevoegen ---------- */
