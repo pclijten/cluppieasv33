@@ -148,6 +148,32 @@ export function sluitModal(){
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
+/* ---------- Laatst bekeken positie (herstel na refresh) ----------
+   Coaches (en hun kinderen) verversen langs de lijn regelmatig per ongeluk de
+   pagina. Zonder dit landden ze dan altijd terug op de team-hub. We bewaren de
+   huidige plek — team, tabblad en een eventueel geopende wedstrijd — in
+   localStorage, zodat startTeams() (teams.js) daar bij het opstarten weer op
+   kan landen i.p.v. op de hub. Bewust klein en tolerant: mislukt lezen/schrijven
+   (privémodus, vol quota), dan valt de app gewoon terug op het oude gedrag. */
+const LS_POSITIE = 'cluppie_laatste_positie';
+export function bewaarPositie(){
+  try {
+    if (!S.teamId){ localStorage.removeItem(LS_POSITIE); return; }
+    localStorage.setItem(LS_POSITIE, JSON.stringify({
+      teamId: S.teamId,
+      teamTab: S.teamTab || 'hub',
+      wedstrijdId: S.wedstrijdId || null,
+    }));
+  } catch(e){}
+}
+export function leesPositie(){
+  try { return JSON.parse(localStorage.getItem(LS_POSITIE) || 'null'); }
+  catch(e){ return null; }
+}
+export function wisPositie(){
+  try { localStorage.removeItem(LS_POSITIE); } catch(e){}
+}
+
 /* ---------- Navigatie ---------- */
 export function toon(viewId){
   $$('.view').forEach(v => v.classList.remove('actief'));
@@ -271,17 +297,17 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20260823a').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20260825e').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (lightboxOpen()){
-    import('./training-weergave.js?v=20260823a').then(m => m.sluitLightbox());
+    import('./training-weergave.js?v=20260825e').then(m => m.sluitLightbox());
     return true;
   }
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260823a').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260825e').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }

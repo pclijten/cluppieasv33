@@ -8,15 +8,15 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260823a';
-import { telGebruik } from './tracker.js?v=20260823a';
+} from './state.js?v=20260825e';
+import { telGebruik } from './tracker.js?v=20260825e';
 import { ico } from './icons.js?v=20260825b';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20260823a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260823a';
+} from './config.js?v=20260825e';
+import { htmlKompas } from './teams-leerlijn.js?v=20260825e';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
@@ -569,12 +569,93 @@ export function modalPresentie(bestaande = null, opties = {}){
     </div>` : ''}
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
     <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
-    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is.</p>
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is. Elke wijziging wordt meteen bewaard.</p>
+    <div class="pres-opslag rust" id="mPresOpslag" aria-live="polite">
+      <span class="pres-opslag-stip"></span>
+      <span id="mPresOpslagTekst">Alles bewaard</span>
+    </div>
     <div class="pres-lijst" id="mPresLijst">${rijenHtml()}</div>
-    <div class="rij" style="margin-top:14px">
-      ${bestaande ? '<button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button>' : ''}
-      <button class="knop vol" id="mPresOk">Opslaan</button>
-    </div>`);
+    ${bestaande ? '<div class="rij" style="margin-top:14px"><button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button></div>' : ''}`);
+
+  /* ---------- Directe opslag (geen Opslaan-knop meer) ----------
+     Elke tik (afwezig/reden/notitie) wordt automatisch bewaard, net als bij de
+     wedstrijdselectie. Om te voorkomen dat snel achter elkaar tikken tientallen
+     Firestore-writes veroorzaakt (kosten + zwak bereik langs de lijn), wordt
+     het schrijven ge-debounced. Zodra het document bestaat onthouden we de id,
+     zodat vervolgwijzigingen datzelfde document bijwerken i.p.v. een nieuwe
+     registratie aan te maken. */
+  let bewaarTimer = null;          // debounce-timer
+  let statusRustTimer = null;      // "Bewaard" → "Alles bewaard" na even
+  let docId = bestaande ? bestaande.id : (S.presentie.find(p => p.datum === datum)?.id || null);
+  let bezigMetSchrijven = false;   // voorkomt overlappende writes
+  let opnieuwNodig = false;        // er kwam een wijziging binnen tijdens een write
+  let eersteKeerGeteld = false;    // telGebruik('presentie') slechts één keer per sessie
+
+  const zetStatus = (klasse, tekst) => {
+    const b = $('#mPresOpslag'); if (!b) return;
+    b.className = 'pres-opslag ' + klasse;
+    $('#mPresOpslagTekst').textContent = tekst;
+  };
+
+  const schrijfNu = async () => {
+    if (bezigMetSchrijven){ opnieuwNodig = true; return; }
+    bezigMetSchrijven = true;
+    zetStatus('bezig', 'Bewaren…');
+    // momentopname van de datum waarvoor we schrijven (kan wisselen tijdens await)
+    const schrijfDatum = datum;
+    const data = {
+      datum: schrijfDatum,
+      afwezig: Array.from(afwezig),
+      afwezigRedenen: redenen,
+      aantalAanwezig: S.spelers.length - afwezig.size,
+      aantalSpelers: S.spelers.length,
+      door: S.user.displayName || S.user.email || '',
+      gewijzigd: serverTimestamp(),
+    };
+    try {
+      if (docId){
+        await updateDoc(doc(db,'teams',S.teamId,'presentie',docId), data);
+      } else {
+        // dubbelcheck of er intussen (via de listener) al een record voor deze
+        // datum bestaat, zodat we er geen tweede naast maken
+        const zelfde = S.presentie.find(p => p.datum === schrijfDatum);
+        if (zelfde){
+          docId = zelfde.id;
+          await updateDoc(doc(db,'teams',S.teamId,'presentie',docId), data);
+        } else {
+          const ref = await addDoc(collection(db,'teams',S.teamId,'presentie'),
+            {...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK});
+          docId = ref.id;
+        }
+      }
+      if (!eersteKeerGeteld){ telGebruik('presentie'); eersteKeerGeteld = true; }
+      // Meteen het presentie-overzicht (maandlijst) opnieuw tekenen zodat een
+      // net-geregistreerde datum direct zichtbaar is — ook bij een andere dag,
+      // zonder te wachten op de serverbevestiging van de listener. De maandlijst
+      // woont op het tabblad 'presentietraining'; 'trainingen' toont de knoppen.
+      if (!S.wedstrijdId && (S.teamTab === 'presentietraining' || S.teamTab === 'trainingen')) S._navRerender?.();
+      zetStatus('klaar', 'Bewaard');
+      clearTimeout(statusRustTimer);
+      statusRustTimer = setTimeout(() => zetStatus('rust', 'Alles bewaard'), 1500);
+    } catch(e){
+      zetStatus('fout', 'Bewaren mislukt — probeer opnieuw');
+      meld('Opslaan mislukt: ' + (e.code || e.message));
+    } finally {
+      bezigMetSchrijven = false;
+      if (opnieuwNodig){ opnieuwNodig = false; schrijfNu(); }
+    }
+  };
+
+  const planBewaar = () => {
+    zetStatus('bezig', 'Bewaren…');
+    clearTimeout(bewaarTimer);
+    bewaarTimer = setTimeout(schrijfNu, 600);
+  };
+
+  // Direct doorschrijven zonder op de debounce te wachten (bij datumwissel).
+  const flushBewaar = () => {
+    if (bewaarTimer){ clearTimeout(bewaarTimer); bewaarTimer = null; schrijfNu(); }
+  };
 
   const koppelRijen = () => {
     $$('[data-toggle]').forEach(b => b.onclick = () => {
@@ -583,6 +664,7 @@ export function modalPresentie(bestaande = null, opties = {}){
       else afwezig.add(id);
       $('#mPresLijst').innerHTML = rijenHtml();
       koppelRijen();
+      planBewaar();
     });
     $$('.pres-reden-chip').forEach(b => b.onclick = () => {
       const id = b.dataset.pid, type = b.dataset.reden;
@@ -591,10 +673,12 @@ export function modalPresentie(bestaande = null, opties = {}){
       else redenen[id] = {type, notitie: huidig?.notitie || ''};
       $('#mPresLijst').innerHTML = rijenHtml();
       koppelRijen();
+      planBewaar();
     });
     $$('.pres-reden-notitie').forEach(inp => inp.oninput = () => {
       const id = inp.dataset.pid;
       if (redenen[id]) redenen[id].notitie = inp.value;
+      planBewaar();
     });
   };
   koppelRijen();
@@ -605,14 +689,19 @@ export function modalPresentie(bestaande = null, opties = {}){
   };
 
   const zetDatum = (nieuweDatum) => {
+    // eerst een eventuele wachtende write voor de oude datum wegschrijven,
+    // zodat die niet per ongeluk op de nieuwe datum belandt
+    flushBewaar();
     datum = nieuweDatum;
     $('#mPresDatumTekst').textContent = datLeesbaar(datum);
     const bestaandRecord = S.presentie.find(p => p.datum === datum);
+    docId = bestaandRecord ? bestaandRecord.id : null;
     afwezig = new Set(bestaandRecord ? (bestaandRecord.afwezig || []) : []);
     redenen = bestaandRecord ? JSON.parse(JSON.stringify(bestaandRecord.afwezigRedenen || {})) : {};
     $('#mPresLijst').innerHTML = rijenHtml();
     koppelRijen();
     werkMeldingBij();
+    zetStatus('rust', 'Alles bewaard');
   };
 
   if (kanDatumWijzigen){
@@ -637,34 +726,10 @@ export function modalPresentie(bestaande = null, opties = {}){
     }
   }
 
-  $('#mPresOk').onclick = async () => {
-    const knop = $('#mPresOk'); knop.disabled = true; knop.textContent = 'Opslaan...';
-    const data = {
-      datum,
-      afwezig: Array.from(afwezig),
-      afwezigRedenen: redenen,
-      aantalAanwezig: S.spelers.length - afwezig.size,
-      aantalSpelers: S.spelers.length,
-      door: S.user.displayName || S.user.email || '',
-      gewijzigd: serverTimestamp(),
-    };
-    try {
-      const zelfde = S.presentie.find(p => p.datum === datum);
-      if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'presentie',bestaande.id), data);
-      else if (zelfde) await updateDoc(doc(db,'teams',S.teamId,'presentie',zelfde.id), data);
-      else await addDoc(collection(db,'teams',S.teamId,'presentie'), {...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK});
-      telGebruik('presentie');
-      sluitModal();
-      meld(afwezig.size ? `${afwezig.size} afwezig genoteerd` : 'Iedereen aanwezig genoteerd');
-    } catch(e){
-      knop.disabled = false; knop.textContent = 'Opslaan';
-      meld('Opslaan mislukt: ' + (e.code || e.message));
-    }
-  };
-
   const weg = $('#mPresWeg');
   if (weg) weg.onclick = async () => {
     if (!confirm('Deze presentieregistratie verwijderen?')) return;
+    clearTimeout(bewaarTimer);   // geen wachtende write meer uitvoeren
     try {
       await deleteDoc(doc(db,'teams',S.teamId,'presentie',bestaande.id));
       sluitModal(); meld('Presentie verwijderd');

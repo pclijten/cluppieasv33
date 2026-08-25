@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260823a';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260825e';
 
 let _overlay = null;
 
@@ -39,7 +39,7 @@ export function sluitTrainingWeergave(){
   // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
   const nb = _overlay.querySelector('.trw-notitie-knop');
   if (nb) nb.remove();
-  import('./training-aantekeningen.js?v=20260823a').then(m => m.resetAantekeningen()).catch(() => {});
+  import('./training-aantekeningen.js?v=20260825e').then(m => m.resetAantekeningen()).catch(() => {});
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -175,7 +175,7 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
   // Aantekeningen-laag (additief): notitie-knop in de balk + tik-op-regel.
   // Alleen als er een trainingId is om notities aan te koppelen.
   if (trainingId){
-    import('./training-aantekeningen.js?v=20260823a').then(mod => {
+    import('./training-aantekeningen.js?v=20260825e').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initAantekeningen({ stage, balk, trainingId });
       mod.bindItemKlik(stage);
