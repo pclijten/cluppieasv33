@@ -45,7 +45,7 @@ export function htmlSpelers(){
   return `
     ${evalAan ? `<div class="segment" id="spelersModus" style="margin-bottom:14px">
       <button data-modus="selectie" class="actief">Selectie</button>
-      <button data-modus="snel">⚡ Snel beoordelen</button>
+      <button data-modus="snel">${ico('training-favorite', 15)} Snel beoordelen</button>
     </div>` : ''}
 
     <div class="avg-balk">
@@ -317,8 +317,10 @@ export function htmlProfiel(){
         const notitie = (p.notitie || '').trim();
         return `<div class="notitie-kaart${notitie ? '' : ' leeg'}">
           <div class="notitie-kop">
-            <div class="veldlabel" style="margin:0">📝 Notitie</div>
-            <button class="notitie-bewerk" data-notitie="${p.id}">${notitie ? '✏️ Bewerken' : '+ Toevoegen'}</button>
+            <div class="veldlabel" style="margin:0">Notitie</div>
+            <button class="notitie-bewerk" data-notitie="${p.id}" aria-label="${notitie ? 'Notitie bewerken' : 'Notitie toevoegen'}">
+              ${notitie ? ico('admin-edit', 18) : ico('action-add', 18)}
+            </button>
           </div>
           ${notitie
             ? `<div class="notitie-tekst">${esc(notitie)}</div>`
@@ -339,12 +341,12 @@ export function htmlProfiel(){
       </div>
 
       <div class="fab-rij">
-        <button class="knop fluo klein" style="flex:1" data-snel-speler="${p.id}">⚡ Snel beoordelen</button>
-        <button class="knop klein" style="flex:1" data-volledig-speler="${p.id}">📋 Volledige beoordeling</button>
+        <button class="knop fluo klein" style="flex:1" data-snel-speler="${p.id}">${ico('training-favorite', 17)} Snel beoordelen</button>
+        <button class="knop klein" style="flex:1" data-volledig-speler="${p.id}">${ico('training-completed', 17)} Volledige beoordeling</button>
       </div>` : ''}
 
       <div class="rij" style="margin-top:4px">
-        <button class="knop licht klein" data-bewerk-speler="${p.id}">✏️ Speler bewerken</button>
+        <button class="knop licht klein" data-bewerk-speler="${p.id}">${ico('admin-edit', 16)} Speler bewerken</button>
         <button class="knop gevaar klein" data-weg-speler="${p.id}">🗑 Verwijderen</button>
       </div>
       ${S.team?.club ? `<button class="knop klein" style="margin-top:4px;width:100%" data-uitleen-speler="${p.id}">⇄ Uitlenen aan ander team</button>` : ''}
