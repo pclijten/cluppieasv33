@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260823a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260823a');
+  const m = await import('./teams.js?v=20260824a');
   m.renderTeam();
 }
 
@@ -60,11 +60,13 @@ export function htmlSpelers(){
                  : b ? `<span class="beoordeel-stip" style="background:${niveauKleur(b.niveau)}" title="Laatste: ${esc(niveau(b.niveau)?.label||'')}"></span>`
                      : `<span class="beoordeel-stip leeg" title="Nog niet beoordeeld"></span>`;
       const lp = openLeerpunten(p.id);
+      const heeftNotitie = !!(p.notitie && p.notitie.trim());
       return `
       <button class="speler-rij" data-open-profiel="${p.id}">
         <div class="mini-shirt">${esc(p.nummer ?? '·')}</div>
         <div class="n">${esc(p.naam)}</div>
         ${lp ? `<span class="chip-info">${lp} leerpunt${lp===1?'':'en'}</span>` : ''}
+        ${heeftNotitie ? `<span class="notitie-vlag" title="Heeft een coach-notitie">!</span>` : ''}
         ${stip}
         <span class="pijl">›</span>
       </button>`;
@@ -90,7 +92,7 @@ export function htmlSpelers(){
     })()}
 
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">
-      Het gekleurde stipje toont de laatste snelle beoordeling. Tik op een speler voor het volledige profiel met statistieken, leerlijn en historie.</p>`;
+      <span class="notitie-vlag inline">!</span> toont een coach-notitie. Het gekleurde stipje toont de laatste snelle beoordeling. Tik op een speler voor het volledige profiel met statistieken, leerlijn en historie.</p>`;
 }
 
 /* ==================== BEOORDELINGEN ====================
@@ -310,6 +312,19 @@ export function htmlProfiel(){
           return `<span>${r.ico?ico(r.ico,15):r.emoji} ${n}× ${esc(r.label.toLowerCase())}</span>`;
         }).join('')}
       </div>` : ''}
+
+      ${(() => {
+        const notitie = (p.notitie || '').trim();
+        return `<div class="notitie-kaart${notitie ? '' : ' leeg'}">
+          <div class="notitie-kop">
+            <div class="veldlabel" style="margin:0">📝 Notitie</div>
+            <button class="notitie-bewerk" data-notitie="${p.id}">${notitie ? '✏️ Bewerken' : '+ Toevoegen'}</button>
+          </div>
+          ${notitie
+            ? `<div class="notitie-tekst">${esc(notitie)}</div>`
+            : `<div class="notitie-leeg-tekst">Nog geen notitie. Bijzonderheden, afspraken of aandachtspunten voor deze speler.</div>`}
+        </div>`;
+      })()}
 
       ${evalAan ? `<div class="kaart">
         <div class="veldlabel" style="margin-top:0">Ontwikkelprofiel${vol ? ` · ${datumNL(vol.datum)}` : ''}</div>
@@ -802,6 +817,40 @@ export function modalSpeler(p){
   const enterAdd = e => { if (e.key === 'Enter') ok(false); };
   $('#mSpNaam').addEventListener('keydown', enterAdd);
   $('#mSpAchter').addEventListener('keydown', enterAdd);
+}
+
+/* ===================== Coach-notitie ===================== *
+ * Vrij tekstveld op het spelerdoc (veld: notitie). Coach-only, valt onder
+ * dezelfde afscherming als de rest van het profiel. Een gevulde notitie
+ * toont een vlaggetje in de spelerslijst (zie htmlSpelers). */
+export function modalNotitie(spelerId){
+  const p = speler(spelerId);
+  if (!p) return;
+  openModal(`
+    <h2>Notitie · ${esc(p.naam)}</h2>
+    <div class="veldgroep">
+      <textarea class="invoer" id="mNotTekst" rows="5"
+        placeholder="Bijv. is altijd op de eerste van de maand afwezig voor werk · vindt het fijn om extra complimenten te krijgen">${esc(p.notitie || '')}</textarea>
+    </div>
+    <div class="avg-balk"><span class="slot">🔒</span>
+      <span>Coach-only. Niet zichtbaar voor spelers of ouders. Zet hier geen gevoelige (medische/AVG) gegevens in.</span></div>
+    <button class="knop vol" id="mNotOk">Opslaan</button>`);
+
+  $('#mNotOk').onclick = async () => {
+    const tekst = $('#mNotTekst').value.trim();
+    const knop = $('#mNotOk');
+    knop.disabled = true; knop.textContent = 'Opslaan...';
+    try {
+      await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), { notitie: tekst || null });
+      telGebruik('speler_notitie');
+      sluitModal();
+      meld(tekst ? 'Notitie opgeslagen' : 'Notitie verwijderd');
+    } catch (e){
+      console.error(e); knop.disabled = false; knop.textContent = 'Opslaan';
+      meld('Opslaan mislukt');
+    }
+  };
+  setTimeout(() => $('#mNotTekst')?.focus(), 50);
 }
 
 /* ===================== Uitlenen ===================== *

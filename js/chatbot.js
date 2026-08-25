@@ -21,7 +21,7 @@
 import { functions, httpsCallable } from './firebase.js?v=20260811a';
 import { S, esc } from './state.js?v=20260823a';
 import { telGebruik } from './tracker.js?v=20260823a';
-import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260823a';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20260824a';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]
