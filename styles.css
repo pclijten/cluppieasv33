@@ -940,6 +940,50 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 }
 .toon-meer:hover{ background:rgba(46,125,70,.13); }
 
+/* ---------- Oefenstof per week ----------
+   Hergebruikt .maand-kop/.maand-naam/.maand-tel/.maand-pijl/.maand-inhoud;
+   hieronder alleen de week-specifieke extra's. */
+.week-groep{ margin-bottom:8px; }
+.week-groep.huidig > .week-kop{
+  border:1.5px solid var(--accent);
+  box-shadow:0 2px 10px color-mix(in srgb,var(--accent) 18%, transparent);
+}
+.week-nu{
+  font-size:calc(9.5px * var(--fs));font-weight:700;letter-spacing:.4px;
+  text-transform:uppercase;background:var(--accent);color:#fff;
+  padding:2px 8px;border-radius:20px;flex-shrink:0;
+}
+.week-periode{ font-size:calc(11.5px * var(--fs));color:var(--ink-2);flex-shrink:0; }
+
+/* dag-chip in de trainingsrij ("Ma 25 aug") */
+.dag-chip{
+  display:inline-block;background:var(--op-vlak,rgba(0,0,0,.05));
+  border-radius:6px;padding:1px 7px;font-size:calc(11px * var(--fs));
+  font-weight:600;color:var(--ink);
+}
+.dag-chip.mist{ background:transparent;border:1px dashed var(--hair,var(--line-d));color:var(--ink-2);font-weight:500; }
+
+/* WhatsApp-deelknop op een oefenstof-rij */
+.training-rij .rij-wa{ display:flex;align-items:center;justify-content:center;color:#25D366;background:none;border:none; }
+.training-rij .rij-wa:active{ color:#1da851; }
+.training-rij .rij-wa svg{ width:18px;height:18px; }
+
+/* ---------- Trainingsdagen-instelling ---------- */
+.dag-opties{ display:flex;gap:6px;flex-wrap:wrap; }
+.dag-opt{
+  flex:1 1 auto;min-width:42px;padding:9px 0;border-radius:10px;
+  background:var(--surface,var(--card));border:1.5px solid var(--hair,var(--line-d));
+  font-size:calc(13px * var(--fs));font-weight:600;color:var(--ink-2);
+  transition:background .12s ease,color .12s ease,border-color .12s ease;
+}
+.dag-opt.aan{ background:var(--accent);border-color:var(--accent);color:#fff; }
+.td-volgorde{ margin-top:14px;background:var(--surface,var(--op-vlak));border-radius:12px;padding:11px 13px; }
+.td-volg-kop{ font-size:calc(11px * var(--fs));font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px; }
+.td-volg-rij{ display:flex;align-items:center;gap:10px;padding:5px 0; }
+.td-volg-rij .td-num{ width:22px;height:22px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:calc(11.5px * var(--fs));font-weight:700;flex-shrink:0; }
+.td-volg-rij .td-dag{ font-size:calc(13.5px * var(--fs));font-weight:600; }
+.td-volg-rij .td-heen{ margin-left:auto;font-size:calc(12px * var(--fs));color:var(--ink-2); }
+
 /* ASV-logo op het inlogscherm */
 .login-logo{
   display:block;width:84px;height:84px;margin:0 auto 14px;
