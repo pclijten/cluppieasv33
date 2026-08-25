@@ -1308,6 +1308,23 @@ body{ background:var(--bg); color:var(--ink); }
 .beoordeel-stip.leeg{background:var(--surface-2);box-shadow:inset 0 0 0 1.5px var(--line-d)}
 .chip-info{background:var(--surface-2);border-radius:8px;padding:4px 9px;font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:600;flex-shrink:0}
 
+/* coach-notitie: vlaggetje in de spelerslijst + kaart in het profiel */
+.notitie-vlag{width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs));line-height:1;
+  color:var(--warn);background:color-mix(in srgb, var(--warn) 15%, var(--card));
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--warn) 45%, transparent)}
+.notitie-vlag.inline{width:16px;height:16px;font-size:calc(11px * var(--fs));
+  display:inline-flex;vertical-align:-3px;margin-right:2px}
+.notitie-kaart{background:var(--card);border-radius:13px;padding:14px;box-shadow:var(--shadow);
+  margin-bottom:12px;border-left:3px solid var(--warn)}
+.notitie-kaart.leeg{border-left-color:var(--line-d)}
+.notitie-kop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.notitie-bewerk{background:var(--surface-2);border:none;border-radius:8px;padding:5px 11px;
+  font-size:calc(12px * var(--fs));font-weight:600;color:var(--ink-2);flex-shrink:0}
+.notitie-tekst{font-size:calc(14px * var(--fs));line-height:1.5;color:var(--ink);white-space:pre-wrap}
+.notitie-leeg-tekst{font-size:calc(13px * var(--fs));color:var(--ink-2);font-style:italic;line-height:1.45}
+
 /* klein segment */
 .segment.klein-seg{margin-bottom:10px}
 .segment.klein-seg button{padding:7px 4px;font-size:calc(13px * var(--fs))}
