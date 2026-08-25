@@ -18,7 +18,7 @@ import {
   wisselReden, isToernooi
 } from './config.js?v=20260823a';
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260823a';
-import { ico } from './icons.js?v=20260818e';
+import { ico } from './icons.js?v=20260825b';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260823a';
 import { telGebruik } from './tracker.js?v=20260823a';
@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260823a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260825a');
+  const m = await import('./teams.js?v=20260825b');
   m.renderTeam();
 }
 

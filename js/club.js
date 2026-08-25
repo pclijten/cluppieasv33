@@ -12,7 +12,7 @@ import { analyseWedstrijd } from './analyse.js?v=20260823a';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260823a';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260823a';
 import { telGebruik, telNav } from './tracker.js?v=20260823a';
-import { ico } from './icons.js?v=20260818e';
+import { ico } from './icons.js?v=20260825b';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260825a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260825b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260825a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260825b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2349,6 +2349,19 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
       <input class="invoer" id="mTrTitel" value="${esc(startTitel)}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
       <input class="invoer" id="mTrWeek" value="${esc(startWeek)}" autocomplete="off"></div>
+    <div class="veldgroep"><label>Op welke trainingsdag?</label>
+      <select class="invoer" id="mTrDag">
+        <option value="">Automatisch (per team)</option>
+        <option value="1">Maandag</option>
+        <option value="2">Dinsdag</option>
+        <option value="3">Woensdag</option>
+        <option value="4">Donderdag</option>
+        <option value="5">Vrijdag</option>
+        <option value="6">Zaterdag</option>
+        <option value="7">Zondag</option>
+      </select>
+      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.4">Standaard neemt Cluppie de trainingsdagen van elk team (training 1 op de eerste dag, enz.). Kies je hier een vaste dag, dan geldt die voor álle teams die deze oefenstof krijgen.</p>
+    </div>
     <div class="veldgroep"><label>Voor welke teams?</label>
       ${groepen.length ? `<div class="tr-groep-uitleg">Tik op een groep om alle teams in één keer te kiezen — of vink hieronder los aan.</div>${groepChipsHtml(groepen, teams)}` : ''}
       <div id="mTrTeams">
@@ -2381,7 +2394,9 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mTrTitel').value.trim() || file.name;
     const week  = $('#mTrWeek').value.trim();
+    const dagRaw = $('#mTrDag')?.value || '';
     const meta = { titel, week, teams: gekozen };
+    if (dagRaw) meta.trainingsdag = parseInt(dagRaw, 10);        // vaste dag voor álle teams
     if (batchMeta?.onKlaar) meta.onKlaar = batchMeta.onKlaar;   // doorrollen in batch
     startTrainingVerwerking(file, meta);
   };
@@ -2564,6 +2579,7 @@ function toonPreview(file, meta, ctx){
       await addDoc(collection(db,'trainingen'), {
         club: S.clubId, clubNaam: S.club.naam,
         titel: meta.titel, week: meta.week, bestandsnaam: file.name,
+        ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
         path: ctx.pdfPath, url: ctx.pdfUrl,
         mapId: ctx.mapId,
         oefeningen, diagramUrls, doelen,
@@ -2635,6 +2651,7 @@ async function deelAlleenPdf(file, meta, ctx){
     await addDoc(collection(db,'trainingen'), {
       club: S.clubId, clubNaam: S.club.naam,
       titel: meta.titel, week: meta.week, bestandsnaam: file.name,
+      ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
       path: ctx.pdfPath, url: ctx.pdfUrl,
       teams: meta.teams,
       gemaakt: serverTimestamp(),

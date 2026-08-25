@@ -10,11 +10,11 @@ import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
 } from './state.js?v=20260823a';
 import { telGebruik } from './tracker.js?v=20260823a';
-import { ico } from './icons.js?v=20260818e';
+import { ico } from './icons.js?v=20260825b';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
-  SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo
+  SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
 } from './config.js?v=20260823a';
 import { htmlKompas } from './teams-leerlijn.js?v=20260823a';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
@@ -68,6 +68,61 @@ function maandNaam(ym){
   const d = new Date(parseInt(j), parseInt(m)-1, 1);
   const s = d.toLocaleDateString('nl-NL', {month:'long', year:'numeric'});
   return s.charAt(0).toUpperCase()+s.slice(1);
+}
+
+/* ---------- Week-groepering van de oefenstof ----------
+   De oefenstof wordt getoond per (ISO-)week i.p.v. per maand. Het weeknummer
+   komt uit het vrije `week`-veld dat de clubadmin invult ("Week 35", "wk 35",
+   "35"); we plukken het eerste getal 1–53 eruit. Trainingen zonder herkenbaar
+   weeknummer belanden in de groep 'onbekend' (onderaan). */
+function weekNrUit(weekTekst){
+  const m = String(weekTekst || '').match(/\b([1-9]|[1-4]\d|5[0-3])\b/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* Het jaar bij een weeknummer schatten uit de uploaddatum: de week hoort bij
+   het jaar waarin die upload viel. Zo klopt de datum ook rond de jaarwisseling
+   (week 1 in januari, week 52 in december) zonder los jaarveld. */
+function jaarVoorWeek(weekNr, gemaaktSeconds){
+  const nu = gemaaktSeconds ? new Date(gemaaktSeconds*1000) : new Date();
+  let jaar = nu.getFullYear();
+  const maand = nu.getMonth();            // 0 = jan
+  // upload in januari maar hoge week → hoort nog bij vorig jaar
+  if (maand === 0 && weekNr >= 50) jaar -= 1;
+  // upload in december maar lage week → hoort al bij volgend jaar
+  if (maand === 11 && weekNr <= 2) jaar += 1;
+  return jaar;
+}
+
+/* De maandag (ISO) van gegeven weeknummer + jaar, als Date op 12:00 lokaal. */
+function maandagVanIsoWeek(weekNr, jaar){
+  // 4 januari zit altijd in ISO-week 1; van daaruit terugrekenen naar de maandag.
+  const vierJan = new Date(jaar, 0, 4, 12);
+  const dagNr = (vierJan.getDay() + 6) % 7;               // 0 = maandag
+  const maandagWeek1 = new Date(vierJan);
+  maandagWeek1.setDate(vierJan.getDate() - dagNr);
+  const maandag = new Date(maandagWeek1);
+  maandag.setDate(maandagWeek1.getDate() + (weekNr - 1) * 7);
+  return maandag;
+}
+
+/* Datum van de n-de trainingsdag (0-based) binnen een week.
+   `trainingsdagen` is een oplopende array [1..7] (1 = ma … 7 = zo) op het team.
+   Geeft null als er geen dag voor die index is. */
+function datumVoorTraining(weekNr, jaar, trainingsdagen, index){
+  if (!Array.isArray(trainingsdagen) || !trainingsdagen.length) return null;
+  const dag = trainingsdagen[index];
+  if (!dag) return null;                                  // meer PDF's dan trainingsdagen
+  const maandag = maandagVanIsoWeek(weekNr, jaar);
+  const d = new Date(maandag);
+  d.setDate(maandag.getDate() + (dag - 1));               // ma+0 … zo+6
+  return d;
+}
+
+/* 'Ma 25 aug' — korte dag-chip. */
+function dagChipTekst(datum){
+  const s = datum.toLocaleDateString('nl-NL', {weekday:'short', day:'numeric', month:'short'});
+  return s.charAt(0).toUpperCase() + s.slice(1).replace('.', '');
 }
 
 /* ---------- Tab: Presentie training ----------
@@ -171,20 +226,30 @@ export function htmlTeamTrainingen(){
   const afg = afgelastGeldig();
   const afgelastSectie = afg ? afgelastBannerHtml(afg) : '';
 
-  // --- PDF-sectie (per maand, zelfde gedrag als de presentie-lijst) ---
-  // huidige maand staat standaard open; gebruiker kan maanden dicht/open klappen.
+  // --- PDF-sectie (per week; huidige week bovenaan en open) ---
+  // hergebruikt de open/dicht-set (_pdfDicht) en "toon meer"-set (_pdfToonAlles),
+  // nu met week-sleutels ('2026-35', of 'onbekend') i.p.v. maand-sleutels.
   if (!S._pdfDicht){ S._pdfDicht = new Set(); S._pdfToonAlles = new Set(); }
 
-  const pdfRijHtml = (t) => {
+  const trainingsdagen = Array.isArray(S.team?.trainingsdagen) ? S.team.trainingsdagen : [];
+  const huidigeWeek = isoWeek();
+
+  // één trainingsrij; `dagChip` wordt per week meegegeven (kan leeg zijn).
+  const pdfRijHtml = (t, dagChip) => {
     const ongelezen = !S.trainingenGelezen[t.id];
-    const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
     const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
+    const chip = dagChip
+      ? `<span class="dag-chip">${esc(dagChip)}</span>`
+      : `<span class="dag-chip mist">dag onbekend</span>`;
     return `
       <div class="training-rij ${ongelezen?'ongelezen':''}" data-open-training="${t.id}" data-url="${esc(t.url)}" style="cursor:pointer">
         <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
-          <div class="t-meta">${esc(t.week || '')}${t.week && datum?' · ':''}${esc(datum)}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
-        <div class="acties"><button title="Openen">↗</button></div>
+          <div class="t-meta">${chip}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
+        <div class="acties">
+          <button class="rij-wa" data-deel-training="${t.id}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
+          <button title="Openen">↗</button>
+        </div>
       </div>`;
   };
 
@@ -192,39 +257,82 @@ export function htmlTeamTrainingen(){
   if (!pdfs.length){
     pdfLijst = `<div class="kaart leeg">Nog geen oefenstof gedeeld.<br>Elke zondag zet je clubadmin hier de oefenstof voor de komende week klaar.</div>`;
   } else {
-    // nieuw → oud op uploaddatum; items zonder datum gaan naar 'Eerder'
-    const gesorteerd = [...pdfs].sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
-    const perMaand = new Map();
-    for (const t of gesorteerd){
-      const ym = t.gemaakt?.seconds
-        ? new Date(t.gemaakt.seconds*1000).toISOString().slice(0,7)
-        : 'eerder';
-      if (!perMaand.has(ym)) perMaand.set(ym, []);
-      perMaand.get(ym).push(t);
+    // groepeer per weeknummer; binnen een week oud → nieuw (training 1 eerst),
+    // zodat de eerste PDF op de eerste trainingsdag valt.
+    const perWeek = new Map();   // key -> {weekNr, jaar, items[]}
+    for (const t of pdfs){
+      const wn = weekNrUit(t.week);
+      const jaar = wn ? jaarVoorWeek(wn, t.gemaakt?.seconds) : null;
+      const key = wn ? `${jaar}-${String(wn).padStart(2,'0')}` : 'onbekend';
+      if (!perWeek.has(key)) perWeek.set(key, {weekNr:wn, jaar, items:[]});
+      perWeek.get(key).items.push(t);
     }
-    const eersteYm = [...perMaand.keys()][0];   // nieuwste maand
+    for (const g of perWeek.values()){
+      g.items.sort((a,b) => (a.gemaakt?.seconds||0) - (b.gemaakt?.seconds||0));
+    }
+
+    // sorteer de weken: bekende weken nieuw → oud, 'onbekend' altijd onderaan.
+    const keys = [...perWeek.keys()].sort((a,b) => {
+      if (a === 'onbekend') return 1;
+      if (b === 'onbekend') return -1;
+      return b.localeCompare(a);
+    });
+
+    // welke week staat standaard open? de huidige week als die er is, anders de nieuwste.
+    const huidigeKey = keys.find(k => perWeek.get(k).weekNr === huidigeWeek);
+    const standaardOpenKey = huidigeKey || keys.find(k => k !== 'onbekend') || keys[0];
     const TOON_PDF = 5;
-    pdfLijst = [...perMaand.entries()].map(([ym, items]) => {
-      // standaard open: de nieuwste maand. Tenzij de gebruiker hem dichtklapte.
-      // overige maanden standaard dicht, tenzij de gebruiker ze openklapte (dan staan ze NIET in _pdfDicht maar markeren we expliciet).
-      const standaardOpen = (ym === eersteYm);
-      const open = standaardOpen ? !S._pdfDicht.has(ym) : S._pdfDicht.has('open:'+ym);
-      const toonAlles = S._pdfToonAlles.has(ym);
-      const titel = ym === 'eerder' ? 'Eerder' : maandNaam(ym);
-      const ongelezenInMaand = items.filter(t => !S.trainingenGelezen[t.id]).length;
+
+    pdfLijst = keys.map(key => {
+      const g = perWeek.get(key);
+      const items = g.items;
+      const isHuidig = g.weekNr === huidigeWeek;
+      const standaardOpen = (key === standaardOpenKey);
+      const open = standaardOpen ? !S._pdfDicht.has(key) : S._pdfDicht.has('open:'+key);
+      const toonAlles = S._pdfToonAlles.has(key);
+      const ongelezenInWeek = items.filter(t => !S.trainingenGelezen[t.id]).length;
+
+      // titel + datumbereik van de week
+      let titel, periode = '';
+      if (key === 'onbekend'){
+        titel = 'Zonder week';
+      } else {
+        titel = `Week ${g.weekNr}`;
+        const ma = maandagVanIsoWeek(g.weekNr, g.jaar);
+        const zo = new Date(ma); zo.setDate(ma.getDate()+6);
+        const f = d => d.toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.', '');
+        periode = `${f(ma)} – ${f(zo)}`;
+      }
+
       const zichtbaar = (open && !toonAlles) ? items.slice(0, TOON_PDF) : items;
       const meer = items.length - TOON_PDF;
+
+      // dag-chip per training: een vaste dag op de PDF zelf (upload-override)
+      // wint; anders bepaalt de index binnen de week welke trainingsdag van het
+      // team erbij hoort (training 1 → eerste dag, enz.).
+      const rijen = zichtbaar.map((t, i) => {
+        let chip = '';
+        if (g.weekNr){
+          const d = t.trainingsdag
+            ? datumVoorTraining(g.weekNr, g.jaar, [t.trainingsdag], 0)
+            : datumVoorTraining(g.weekNr, g.jaar, trainingsdagen, i);
+          if (d) chip = dagChipTekst(d);
+        }
+        return pdfRijHtml(t, chip);
+      }).join('');
+
       return `
-        <div class="maand-groep">
-          <button class="maand-kop" data-pdfmaand="${ym}">
+        <div class="week-groep${isHuidig?' huidig':''}">
+          <button class="maand-kop week-kop" data-pdfmaand="${key}">
             <span class="maand-naam">${esc(titel)}</span>
-            <span class="maand-tel">${items.length}× oefenstof${ongelezenInMaand?` · <b style="color:var(--uit)">${ongelezenInMaand} nieuw</b>`:''}</span>
+            ${isHuidig ? '<span class="week-nu">Deze week</span>' : (periode ? `<span class="week-periode">${esc(periode)}</span>` : '')}
+            <span class="maand-tel">${ongelezenInWeek?`<b style="color:var(--uit)">${ongelezenInWeek} nieuw</b>`:`${items.length}× oefenstof`}</span>
             <span class="maand-pijl ${open?'open':''}">▾</span>
           </button>
           ${open ? `
             <div class="maand-inhoud">
-              ${zichtbaar.map(pdfRijHtml).join('')}
-              ${(!toonAlles && meer > 0) ? `<button class="toon-meer" data-pdftoonmeer="${ym}">Toon ${meer} eerdere uit deze maand</button>` : ''}
+              ${rijen}
+              ${(!toonAlles && meer > 0) ? `<button class="toon-meer" data-pdftoonmeer="${key}">Toon ${meer} eerdere uit deze week</button>` : ''}
             </div>` : ''}
         </div>`;
     }).join('');
@@ -320,6 +428,29 @@ export function htmlInstellingen(){
       </div>
       <p class="hint" style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
+    ${(() => {
+      const dagen = Array.isArray(S.team.trainingsdagen) ? S.team.trainingsdagen : [];
+      const DAG_KORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+      const DAG_LANG = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+      const knoppen = DAG_KORT.map((k, i) => {
+        const nr = i + 1;   // 1 = maandag
+        const aan = dagen.includes(nr);
+        return `<button class="dag-opt ${aan?'aan':''}" data-trainingsdag="${nr}">${k}</button>`;
+      }).join('');
+      const volgorde = dagen.slice().sort((a,b)=>a-b)
+        .map((nr, idx) => `<div class="td-volg-rij"><span class="td-num">${idx+1}</span><span class="td-dag">${DAG_LANG[nr-1]}</span><span class="td-heen">→ Training ${idx+1}</span></div>`)
+        .join('');
+      return `
+      <div class="kaart">
+        <div class="sectie-kop" style="margin-top:0">Trainingsdagen</div>
+        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Op welke dagen traint dit team standaard? Dan zet Cluppie de juiste dag automatisch bij elke oefenstof — training 1 op de eerste dag, training 2 op de tweede.</p>
+        <div class="dag-opties" id="iTrainingsdagen">${knoppen}</div>
+        <div class="td-volgorde" id="iTdVolgorde" style="${dagen.length?'':'display:none'}">
+          <div class="td-volg-kop">Zo komt de oefenstof erbij te staan</div>
+          <div id="iTdVolgLijst">${volgorde}</div>
+        </div>
+      </div>`;
+    })()}
     ${(() => {
       const magThema = coachMagKiezen();          // thema alleen bij coachKiest
       const v = eigenVoorkeur();
