@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260825c').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260825d').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -490,7 +490,7 @@ export function sluitWedstrijd(naarTab){
   verbergWedstrijdWizard();
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
-  import('./teams.js?v=20260825c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260825d').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1733,7 +1733,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260825c').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260825d').then(m => m.renderTeam?.());
   });
 }
 
@@ -1950,6 +1950,9 @@ export function renderWedstrijd(){
         `<span class="dot ${h.speelde?'s':'b'}" title="${esc(periodeLabel(w, String(h.nr)))}: ${h.speelde?'gespeeld':'bank'}"></span>`).join('')}</div>`
     : '';
 
+  // Het veld is compleet gevuld wanneer alle posities een speler hebben.
+  // Pas dan is een bankbeurt een bewuste keuze en tonen we het reden-vlaggetje.
+  const veldVol = opVeld.size >= slots.length;
   const chipHtml = (pid, bron, slotId='') => {
     const sel = S.geselecteerd?.pid === pid;
     const aanv = w.aanvoerder === pid;
@@ -1957,7 +1960,7 @@ export function renderWedstrijd(){
     const straf = bron === 'bank' && (w.startBankReden||{})[pid]?.disciplinair;
     return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''} ${straf?'straf-chip':''}"
       data-chip="${pid}" data-bron="${bron}" data-chipslot="${slotId}">
-      ${bron === 'bank' ? `<button class="chip-reden ${straf?'straf':''}" data-bankreden="${pid}" title="Reden bankbeurt">⚑</button>` : ''}
+      ${bron === 'bank' && veldVol ? `<button class="chip-reden ${straf?'straf':''}" data-bankreden="${pid}" title="Reden bankbeurt">⚑</button>` : ''}
       <div class="shirt">${esc(spelerNr(pid))}${aanv ? '<span class="aanvoerder-band">C</span>' : ''}</div>
       <div class="naam">${esc(spelerNaam(pid))}</div>${dotsHtml(pid)}</div>`;
   };
@@ -2171,7 +2174,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260825c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260825d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
