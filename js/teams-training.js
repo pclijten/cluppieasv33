@@ -247,7 +247,6 @@ export function htmlTeamTrainingen(){
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           <div class="t-meta">${chip}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
         <div class="acties">
-          <button class="rij-wa" data-deel-training="${t.id}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
           <button title="Openen">↗</button>
         </div>
       </div>`;
@@ -362,7 +361,7 @@ export function htmlTeamVideos(){
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
         <div class="v-meta">${upload ? (vid.clubNaam ? esc(vid.clubNaam) + ' · geüpload' : 'Geüpload') : (vid.clubNaam ? esc(vid.clubNaam) : 'YouTube')}</div></div>
       <div class="acties">
-        <button data-deel-video="${esc(href)}" data-deel-type="${upload ? 'upload' : 'youtube'}" data-deel-titel="${esc(vid.titel || 'Video')}" title="Delen">📲</button>
+        <button class="rij-wa" data-deel-video="${esc(href)}" data-deel-type="${upload ? 'upload' : 'youtube'}" data-deel-titel="${esc(vid.titel || 'Video')}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
         <button title="Afspelen">▶</button>
       </div>
     </div>`;
@@ -428,29 +427,6 @@ export function htmlInstellingen(){
       </div>
       <p class="hint" style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
-    ${(() => {
-      const dagen = Array.isArray(S.team.trainingsdagen) ? S.team.trainingsdagen : [];
-      const DAG_KORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
-      const DAG_LANG = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
-      const knoppen = DAG_KORT.map((k, i) => {
-        const nr = i + 1;   // 1 = maandag
-        const aan = dagen.includes(nr);
-        return `<button class="dag-opt ${aan?'aan':''}" data-trainingsdag="${nr}">${k}</button>`;
-      }).join('');
-      const volgorde = dagen.slice().sort((a,b)=>a-b)
-        .map((nr, idx) => `<div class="td-volg-rij"><span class="td-num">${idx+1}</span><span class="td-dag">${DAG_LANG[nr-1]}</span><span class="td-heen">→ Training ${idx+1}</span></div>`)
-        .join('');
-      return `
-      <div class="kaart">
-        <div class="sectie-kop" style="margin-top:0">Trainingsdagen</div>
-        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Op welke dagen traint dit team standaard? Dan zet Cluppie de juiste dag automatisch bij elke oefenstof — training 1 op de eerste dag, training 2 op de tweede.</p>
-        <div class="dag-opties" id="iTrainingsdagen">${knoppen}</div>
-        <div class="td-volgorde" id="iTdVolgorde" style="${dagen.length?'':'display:none'}">
-          <div class="td-volg-kop">Zo komt de oefenstof erbij te staan</div>
-          <div id="iTdVolgLijst">${volgorde}</div>
-        </div>
-      </div>`;
-    })()}
     ${(() => {
       const magThema = coachMagKiezen();          // thema alleen bij coachKiest
       const v = eigenVoorkeur();

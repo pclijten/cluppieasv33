@@ -8,6 +8,7 @@
    clubscherm: KNVB · Beleid · Overig) — geen aparte filter-UI nodig, een
    team heeft doorgaans maar een handvol documenten per categorie. */
 import { S, esc } from './state.js?v=20260823a';
+import { ico } from './icons.js?v=20260825b';
 
 const CATEGORIE_ICOON = { beleid: 'PDF', knvb: 'KNVB', overig: 'DOC' };
 const CATEGORIE_KLASSE = { beleid: '', knvb: 'knvb', overig: 'overig' };
@@ -25,7 +26,10 @@ function docRij(d){
       <div class="ico ${CATEGORIE_KLASSE[d.categorie]||''}">${CATEGORIE_ICOON[d.categorie]||'DOC'}</div>
       <div class="t"><div class="t-titel">${esc(d.titel || d.bestandsnaam)}</div>
         <div class="t-meta">${datum?esc(datum):''}</div></div>
-      <div class="acties"><button title="Openen">↗</button></div>
+      <div class="acties">
+        <button class="rij-wa" data-deel-document="${d.id}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
+        <button title="Openen">↗</button>
+      </div>
     </div>`;
 }
 

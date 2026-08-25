@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260825b'); }
+async function teamsModule(){ return await import('./teams.js?v=20260825c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260825b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260825c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -991,6 +991,16 @@ function modulesMeta(t){
   return uit.length ? ` · <span style="color:var(--uit)">${esc(uit.join(', '))} uit</span>` : '';
 }
 
+/* korte trainingsdagen-samenvatting in de beheer-teamregel ("Ma + Wo").
+   Alleen op het clubscherm — coaches zien dit niet. */
+const DAG_KORT_META = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+function trainingsdagenMeta(t){
+  const d = Array.isArray(t.trainingsdagen) ? t.trainingsdagen.slice().sort((a,b)=>a-b) : [];
+  if (!d.length) return '';
+  const namen = d.map(n => DAG_KORT_META[n-1]).filter(Boolean).join(' + ');
+  return ` · <span style="color:var(--accent);font-weight:600">${esc(namen)}</span>`;
+}
+
 function modalTeamModules(team){
   if (!team) return;
   const m = team.modules || {};
@@ -1021,6 +1031,65 @@ function modalTeamModules(team){
       renderClub();
       meld('Modules opgeslagen');
     } catch(e){ meld('Opslaan mislukt — probeer opnieuw'); }
+  };
+}
+
+/* ---------- Trainingsdagen per team (beheer) ----------
+   Alleen de clubbeheerder stelt de vaste trainingsdagen in. Coaches zien dit
+   niet in hun team-instellingen; ze zien wél de dag-chip bij de oefenstof, die
+   deze dagen volgt. Opgeslagen als `trainingsdagen` (oplopende array 1–7,
+   1 = maandag) op het team-document. */
+function modalTrainingsdagen(team){
+  if (!team) return;
+  const DAG_KORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  const DAG_LANG = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+  const start = Array.isArray(team.trainingsdagen) ? team.trainingsdagen.slice().sort((a,b)=>a-b) : [];
+
+  const knoppen = DAG_KORT.map((k, i) => {
+    const nr = i + 1;
+    const aan = start.includes(nr);
+    return `<button type="button" class="dag-opt ${aan?'aan':''}" data-td="${nr}">${k}</button>`;
+  }).join('');
+  const volgordeHtml = (dagen) => dagen
+    .map((nr, idx) => `<div class="td-volg-rij"><span class="td-num">${idx+1}</span><span class="td-dag">${DAG_LANG[nr-1]}</span><span class="td-heen">→ Training ${idx+1}</span></div>`)
+    .join('');
+
+  openModal(`
+    <h2>Trainingsdagen · ${esc(team.naam)}</h2>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Op welke dagen traint dit team standaard? Cluppie zet de juiste dag automatisch bij elke oefenstof — training 1 op de eerste dag, training 2 op de tweede. Coaches kunnen dit niet zelf wijzigen.</p>
+    <div class="veldlabel" style="margin-bottom:8px">Vaste trainingsdagen</div>
+    <div class="dag-opties" id="mTdDagen">${knoppen}</div>
+    <div class="td-volgorde" id="mTdVolgorde" style="${start.length?'':'display:none'}">
+      <div class="td-volg-kop">Zo komt de oefenstof erbij te staan</div>
+      <div id="mTdVolgLijst">${volgordeHtml(start)}</div>
+    </div>
+    <button class="knop vol" id="mTdOk" style="margin-top:14px">Opslaan</button>`);
+
+  const huidig = () => $$('#mTdDagen .dag-opt.aan')
+    .map(b => parseInt(b.dataset.td, 10)).sort((a,b) => a - b);
+
+  $$('#mTdDagen .dag-opt').forEach(b => b.onclick = () => {
+    b.classList.toggle('aan');
+    const dagen = huidig();
+    const box = $('#mTdVolgorde'), lijst = $('#mTdVolgLijst');
+    if (lijst) lijst.innerHTML = volgordeHtml(dagen);
+    if (box) box.style.display = dagen.length ? '' : 'none';
+  });
+
+  const okBtn = $('#mTdOk');
+  if (okBtn) okBtn.onclick = async () => {
+    const dagen = huidig();
+    okBtn.disabled = true; okBtn.textContent = 'Opslaan…';
+    try {
+      await updateDoc(doc(db,'teams',team.id), { trainingsdagen: dagen });
+      team.trainingsdagen = dagen;   // lokaal bijwerken zodat de teamrij meteen klopt
+      sluitModal();
+      renderClub();
+      meld('Trainingsdagen opgeslagen');
+    } catch(e){
+      console.error(e); okBtn.disabled = false; okBtn.textContent = 'Opslaan';
+      meld('Opslaan mislukt — probeer opnieuw');
+    }
   };
 }
 
@@ -1069,7 +1138,8 @@ function htmlClubTeams(teams, afgelastingen = []){
       <button class="lijst-item" data-open-team="${t.id}">
         <div class="mini-shirt" style="width:40px;height:40px;border-radius:50%;background:var(--grass);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs))">${esc(t.format)}v${esc(t.format)}</div>
         <div><div class="titel">${esc(t.naam)}</div>
-        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)${modulesMeta(t)}</div></div>
+        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)${trainingsdagenMeta(t)}${modulesMeta(t)}</div></div>
+        <button class="actie" data-dagen-team="${t.id}" title="Trainingsdagen">${ico('planning-calendar',17)}</button>
         <button class="actie" data-modules-team="${t.id}" title="Modules aan/uit">🎛️</button>
         <button class="actie" data-uitnodig-team="${t.id}" title="Coach uitnodigen">📨</button>
         <span class="pijl">›</span>
@@ -1699,7 +1769,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const linkBtn = v.querySelector('#clubAlleLinks');
     if (linkBtn) linkBtn.onclick = () => modalAlleLinks(teams);
     v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = async e => {
-      if (e.target.closest('[data-uitnodig-team]') || e.target.closest('[data-modules-team]')) return;
+      if (e.target.closest('[data-uitnodig-team]') || e.target.closest('[data-modules-team]') || e.target.closest('[data-dagen-team]')) return;
       (await teamsModule()).openTeam(b.dataset.openTeam);
     });
     v.querySelectorAll('[data-uitnodig-team]').forEach(b => b.onclick = e => {
@@ -1711,6 +1781,11 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       e.stopPropagation();
       const team = teams.find(t => t.id === b.dataset.modulesTeam);
       modalTeamModules(team);
+    });
+    v.querySelectorAll('[data-dagen-team]').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const team = teams.find(t => t.id === b.dataset.dagenTeam);
+      modalTrainingsdagen(team);
     });
   }
   if (tab === 'trainingen'){
