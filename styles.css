@@ -68,6 +68,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .segment.wrap{flex-wrap:wrap}
 .segment.wrap button{flex:1 1 30%;min-width:80px}
 .segment button{flex:1;padding:9px 4px;border-radius:9px;font-weight:600;font-size:calc(14px * var(--fs));color:var(--ink-2)}
+.segment button svg{vertical-align:-3px;margin-right:3px}
 .segment button.actief{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,39,26,.15)}
 .segment.stats-blad button{font-size:calc(13px * var(--fs));padding:9px 2px;white-space:nowrap}
 .segment.segment-sub{background:var(--surface);border:1px solid var(--line-d)}
@@ -1320,8 +1321,11 @@ body{ background:var(--bg); color:var(--ink); }
   margin-bottom:12px;border-left:3px solid var(--warn)}
 .notitie-kaart.leeg{border-left-color:var(--line-d)}
 .notitie-kop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-.notitie-bewerk{background:var(--surface-2);border:none;border-radius:8px;padding:5px 11px;
-  font-size:calc(12px * var(--fs));font-weight:600;color:var(--ink-2);flex-shrink:0}
+.notitie-bewerk{background:var(--surface-2);border:none;border-radius:9px;
+  width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;
+  color:var(--ink-2);flex-shrink:0;padding:0}
+.notitie-bewerk:hover{color:var(--ink)}
+.notitie-bewerk svg{display:block}
 .notitie-tekst{font-size:calc(14px * var(--fs));line-height:1.5;color:var(--ink);white-space:pre-wrap}
 .notitie-leeg-tekst{font-size:calc(13px * var(--fs));color:var(--ink-2);font-style:italic;line-height:1.45}
 
