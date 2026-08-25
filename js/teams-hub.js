@@ -56,7 +56,8 @@ function tegel(tab, naam, icoNaam, badge){
   return `<button class="hub-tegel" data-hub-open="${tab}">${mark}${ico(icoNaam, 40)}<span class="hub-tnaam">${esc(naam)}</span></button>`;
 }
 
-export function htmlHub(){
+export function htmlHub(updInfo){
+  const upd = updInfo || { ongelezen:0, nieuwsteTitel:'' };
   const vandaagMooi = (() => {
     let d = '';
     try { d = new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'}); } catch(e){}
@@ -115,6 +116,29 @@ export function htmlHub(){
     ]],
   ];
 
+  /* Update-melding — combi van banner (bovenaan) en verrijkte onder-link.
+     Beide verschijnen alleen zolang er ongelezen updates zijn; zodra de
+     coach de Updates-tab opent, markeert htmlUpdates() alles als gezien en
+     valt de melding vanzelf weg. De banner is per sessie weg te tikken
+     (S._updBannerWeg) zonder de teller op de onder-link te wissen. */
+  const updBanner = (upd.ongelezen > 0 && !S._updBannerWeg) ? `
+    <button class="upd-banner" data-hub-open="updates">
+      <span class="upd-b-ico">${ico('communication-announcement', 22)}</span>
+      <span class="upd-b-txt">
+        <span class="upd-b-rij1"><span class="upd-b-badge">Nieuw</span><span class="upd-b-tel">${upd.ongelezen} nieuwe update${upd.ongelezen === 1 ? '' : 's'}</span></span>
+        <span class="upd-b-titel">${esc(upd.nieuwsteTitel)}</span>
+        <span class="upd-b-sub">Tik om te bekijken wat er nieuw is</span>
+      </span>
+      <svg class="upd-b-pijl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      <span class="upd-b-sluit" id="updBannerSluit" role="button" aria-label="Verbergen">&#10005;</span>
+    </button>` : '';
+
+  const updLink = upd.ongelezen > 0 ? `
+    <button class="hub-updates-link plus" data-hub-open="updates">
+      <span class="upd-l-dot"></span>Wat is er nieuw?<span class="upd-l-pil">${upd.ongelezen} nieuw</span><span class="upd-l-pijl">&#8250;</span>
+    </button>` : `
+    <button class="hub-updates-link" data-hub-open="updates">Wat is er nieuw? Bekijk de updates &#8250;</button>`;
+
   return `
     <div class="welkom-kop hub-kop">
       <div class="asv-streep" aria-hidden="true"></div>
@@ -126,12 +150,13 @@ export function htmlHub(){
       <button class="uitlog-knop" id="hubUitloggen" title="Uitloggen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/></svg></button>
     </div>
     ${teamKeuze}
+    ${updBanner}
     ${secties.map(([kop, tegels]) => `
       <section class="hub-sectie">
         <div class="hub-sectie-kop">${esc(kop)}</div>
         <div class="hub-grid">${tegels.join('')}</div>
       </section>`).join('')}
-    <button class="hub-updates-link" data-hub-open="updates">Wat is er nieuw? Bekijk de updates ›</button>`;
+    ${updLink}`;
 }
 
 /* ==================== PRESENTIE WEDSTRIJD ==================== */
