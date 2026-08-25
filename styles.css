@@ -770,6 +770,20 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .pres-reden-chip.actief{ background:var(--uit);color:#fff;border-color:var(--uit); }
 .pres-reden-notitie{ margin:0 11px 10px;width:calc(100% - 22px); }
 
+/* Opslag-indicator bij directe presentie-opslag (geen Opslaan-knop meer):
+   toont bewaren…/bewaard zodat de coach ziet dat elke tik is opgeslagen. */
+.pres-opslag{ display:flex;align-items:center;gap:7px;height:20px;margin:0 0 10px;font-size:calc(12px * var(--fs));font-weight:600;letter-spacing:.2px; }
+.pres-opslag .pres-opslag-stip{ width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--ink-2); }
+.pres-opslag.rust{ color:var(--ink-2); }
+.pres-opslag.bezig{ color:var(--warn); }
+.pres-opslag.bezig .pres-opslag-stip{ background:var(--warn);animation:presOpslagKnipper .8s infinite; }
+.pres-opslag.klaar{ color:var(--veld); }
+.pres-opslag.klaar .pres-opslag-stip{ background:var(--veld); }
+.pres-opslag.fout{ color:var(--uit); }
+.pres-opslag.fout .pres-opslag-stip{ background:var(--uit); }
+@keyframes presOpslagKnipper{ 0%,100%{opacity:1} 50%{opacity:.25} }
+@media (prefers-reduced-motion: reduce){ .pres-opslag.bezig .pres-opslag-stip{ animation:none; } }
+
 .presentie-uitsplitsing{ display:flex;gap:14px;flex-wrap:wrap;font-size:calc(12.5px * var(--fs));color:var(--ink-2); }
 .presentie-hist-rij{ display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair);font-size:calc(13px * var(--fs)); }
 .presentie-hist-rij:last-child{ border-bottom:none; }
