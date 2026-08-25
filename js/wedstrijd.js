@@ -446,7 +446,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260825f').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260825g').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -492,7 +492,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260825f').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260825g').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -533,6 +533,15 @@ async function laadTrainingsdoelTegels(w, kiesDoel){
     snap = await getDocs(query(collection(db, 'trainingen'), where('club', '==', clubId)));
   } catch(e){ console.warn('[wz] trainingen ophalen faalde', e); return; }
 
+  // Weeknummer uit het (bewerkbare) tekstveld "Week / periode" halen, bv.
+  // "Week 35" of "week35" → 35. Geen getal erin: dan geen tekstveld-match.
+  const weekUitVeld = (tekst) => {
+    const m = String(tekst || '').match(/\d{1,2}/);
+    if (!m) return null;
+    const n = parseInt(m[0], 10);
+    return (n >= 1 && n <= 53) ? n : null;
+  };
+
   const gezien = new Set();
   const doelen = [];
   snap.forEach(docSnap => {
@@ -540,10 +549,23 @@ async function laadTrainingsdoelTegels(w, kiesDoel){
     if (!Array.isArray(t.doelen) || !t.doelen.length) return;
     // Alleen trainingen die (ook) voor dit team bedoeld zijn; zonder teams-veld: meenemen.
     if (Array.isArray(t.teams) && t.teams.length && S.teamId && !t.teams.includes(S.teamId)) return;
-    // Weekmatch op 'gemaakt' (Firestore Timestamp).
-    const g = t.gemaakt && typeof t.gemaakt.toDate === 'function' ? t.gemaakt.toDate() : null;
-    if (!g) return;
-    if (isoWeek(g) !== wWeek || g.getFullYear() !== wJaar) return;
+    // Weekmatch: eerst op het bewerkbare "Week / periode"-veld (dat is wat de
+    // coach bedoelt). Bevat dat geen weeknummer, dan terugvallen op de
+    // uploaddatum 'gemaakt', zodat oude trainingen zonder ingevuld weekveld
+    // blijven werken zoals voorheen.
+    const veldWeek = weekUitVeld(t.week);
+    if (veldWeek !== null){
+      if (veldWeek !== wWeek) return;
+      // Zacht jaarguard: kennen we de uploaddatum, dan mag die hooguit één jaar
+      // afwijken (dekt de dec/jan-grens van ISO-week 1, blokkeert een label van
+      // een heel seizoen terug). Onbekende datum → toch tonen.
+      const g = t.gemaakt && typeof t.gemaakt.toDate === 'function' ? t.gemaakt.toDate() : null;
+      if (g && Math.abs(g.getFullYear() - wJaar) > 1) return;
+    } else {
+      const g = t.gemaakt && typeof t.gemaakt.toDate === 'function' ? t.gemaakt.toDate() : null;
+      if (!g) return;
+      if (isoWeek(g) !== wWeek || g.getFullYear() !== wJaar) return;
+    }
     for (const d of t.doelen){
       const tekst = String(d || '').replace(/\s+/g, ' ').trim();
       if (!tekst) continue;
@@ -1735,7 +1757,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260825f').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260825g').then(m => m.renderTeam?.());
   });
 }
 
@@ -2176,7 +2198,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260825f').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260825g').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

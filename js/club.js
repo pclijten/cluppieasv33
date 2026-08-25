@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260825f'); }
+async function teamsModule(){ return await import('./teams.js?v=20260825g'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +73,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260825f').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260825g').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2811,9 +2811,10 @@ function modalBewerkTraining(t, teams){
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mTbTitel').value.trim() || t.bestandsnaam || 'Training';
     const week  = $('#mTbWeek').value.trim();
+    const doelen = mTbLeesDoelen();   // lezen vóór sluitModal — daarna is de DOM weg
     sluitModal();
     try {
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen: mTbLeesDoelen()});
+      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
