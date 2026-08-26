@@ -3104,3 +3104,109 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .tnb-ai-anoniem{font-size:calc(10px * var(--fs));color:var(--ink-2);margin-left:auto}
 .tnb-ai-tekst{font-size:calc(12.5px * var(--fs));line-height:1.5;color:var(--ink)}
 .tnb-ai-leeg{font-size:calc(12px * var(--fs));color:var(--ink-2);padding:6px 2px}
+
+/* ==================== OPSTELLING-SJABLONEN ====================
+   Fullscreen beheer- en editor-scherm + keuze-sheets. Volgt de trw-overlay
+   aanpak (zie training-weergave). Veld/chip-maten gelijk aan het wedstrijdveld. */
+.sj-overlay{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column}
+.sj-overlay.open{display:flex}
+.sj-balk{display:flex;align-items:center;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--hair);flex-shrink:0}
+.sj-terug{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:calc(20px * var(--fs));flex-shrink:0}
+.sj-kop{flex:1;min-width:0}
+.sj-titel{font-weight:600;font-size:calc(14.5px * var(--fs));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.sj-sub{font-size:calc(12px * var(--fs));color:var(--ink-2)}
+.sj-balk-actie{flex-shrink:0;background:var(--accent);color:#fff;border:0;border-radius:9px;padding:9px 15px;font-weight:700;font-size:calc(13px * var(--fs));cursor:pointer}
+.sj-stage{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px 14px calc(30px + env(safe-area-inset-bottom))}
+
+/* beheer: grote knop + sectiekop + sjabloonkaarten */
+.sj-groot-knop{width:100%;display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--hair);border-radius:13px;padding:14px;margin-bottom:6px;cursor:pointer;box-shadow:var(--shadow);text-align:left}
+.sj-groot-knop .ico{width:40px;height:40px;border-radius:11px;background:rgba(226,52,47,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:calc(22px * var(--fs));flex-shrink:0}
+.sj-groot-knop .tk{flex:1;min-width:0;display:flex;flex-direction:column}
+.sj-groot-knop .tt{font-weight:700;font-size:calc(14.5px * var(--fs));color:var(--ink)}
+.sj-groot-knop .ts{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:2px}
+.sj-groot-knop .pijl{color:var(--ink-2);font-size:calc(18px * var(--fs));flex-shrink:0}
+.sj-sectiekop{font-family:'Barlow Condensed';font-size:calc(15px * var(--fs));text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2);margin:20px 0 10px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sj-sectiekop::after{content:'';flex:1;height:1px;background:var(--hair)}
+.sj-leeg{background:var(--surface);border:1px dashed var(--line-d);border-radius:13px;padding:18px;text-align:center;font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5}
+
+.sj-kaart{background:var(--card);border:1px solid var(--hair);border-radius:13px;padding:13px 14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.sj-kaart-top{display:flex;align-items:center;gap:10px}
+.sj-kaart-ico{width:40px;height:40px;border-radius:10px;background:var(--pitch-ink);color:var(--fluo);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs));flex-shrink:0}
+.sj-kaart-info{flex:1;min-width:0}
+.sj-kaart-naam{font-weight:700;font-size:calc(14.5px * var(--fs));color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sj-kaart-meta{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:2px}
+.sj-kaart-acties{display:flex;gap:5px;flex-shrink:0}
+.sj-kaart-acties button{width:32px;height:32px;border-radius:8px;border:0;background:var(--surface);color:var(--ink-2);font-size:calc(13px * var(--fs));cursor:pointer;font-family:'Barlow Condensed';font-weight:700}
+.sj-kaart-acties button.weg{color:var(--uit)}
+.sj-kaart-kwarten{display:flex;gap:5px;margin-top:11px}
+.sj-kw{flex:1;text-align:center;background:var(--surface);border-radius:7px;padding:6px 2px}
+.sj-kw-l{font-family:'Barlow Condensed';font-weight:700;font-size:calc(13px * var(--fs));color:var(--ink-2)}
+.sj-kw-f{font-size:calc(10px * var(--fs));color:var(--veld);font-weight:700;margin-top:1px}
+.sj-kaart-toepas{width:100%;margin-top:11px;background:var(--accent);color:#fff;border:0;border-radius:9px;padding:11px;font-weight:700;font-size:calc(13.5px * var(--fs));cursor:pointer}
+
+/* editor: velden, segment-kiezers, kwart-tabs */
+.sj-veldgroep{margin-bottom:12px}
+.sj-veldgroep label{display:block;font-size:calc(11.5px * var(--fs));font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+.sj-invoer{width:100%;background:var(--card);border:1.5px solid var(--hair);border-radius:10px;padding:10px 12px;color:var(--ink);font-size:calc(14px * var(--fs));font-family:inherit}
+.sj-invoer:focus{outline:none;border-color:var(--accent)}
+.sj-segment{display:flex;gap:5px;flex-wrap:wrap}
+.sj-segment button{flex:1;min-width:44px;padding:9px 0;border-radius:9px;background:var(--card);border:1px solid var(--line-d);font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs));color:var(--ink-2);cursor:pointer}
+.sj-segment button.actief{background:var(--pitch-ink);color:var(--fluo);border-color:transparent}
+.sj-segment.formaties button.actief{background:var(--accent);color:#fff}
+.sj-kwarttabs{display:flex;gap:6px;margin:16px 0 12px}
+.sj-kwarttabs button{flex:1;padding:9px 0;border-radius:10px;background:var(--surface);border:1px solid var(--line-d);font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));color:var(--ink-2);cursor:pointer;position:relative}
+.sj-kwarttabs button.actief{background:var(--accent);color:#fff;border-color:transparent}
+.sj-kwarttabs button .bol{position:absolute;top:3px;right:6px;font-size:calc(8px * var(--fs));color:var(--veld)}
+.sj-kwarttabs button.actief .bol{color:#fff}
+.sj-kwartbalk{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sj-kwartbalk .kb{flex:1;font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
+.sj-kwartbalk button{background:var(--card);border:1px solid var(--hair);border-radius:8px;padding:7px 11px;font-size:calc(12px * var(--fs));color:var(--ink);cursor:pointer;font-weight:600;flex-shrink:0}
+
+/* editor-veld: zelfde maten als het wedstrijdveld */
+.sj-veld-wrap{position:relative;border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+.sj-veld{position:relative;aspect-ratio:3/4;width:100%;background:repeating-linear-gradient(0deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%)}
+.sj-lijn{position:absolute;border:2px solid var(--line)}
+.sj-lijn.midden{left:0;right:0;top:50%;border-width:1px 0 0}
+.sj-lijn.cirkel{left:50%;top:50%;width:24%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.sj-lijn.zestien-b{left:22%;right:22%;bottom:-2px;height:13%;border-bottom:none}
+.sj-lijn.zestien-o{left:22%;right:22%;top:-2px;height:13%;border-top:none}
+.sj-slot{position:absolute;transform:translate(-50%,-50%);width:64px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.sj-ring{width:46px;height:46px;border-radius:50%;border:2px dashed rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:600;font-size:calc(14px * var(--fs));color:rgba(255,255,255,.75)}
+.sj-slot.doelwit .sj-ring{border-color:var(--accent);border-style:solid;background:rgba(226,6,19,.14)}
+.sj-chip{display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+.sj-shirt{width:46px;height:46px;border-radius:50%;background:#fff;color:var(--pitch-ink);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(21px * var(--fs));box-shadow:0 2px 6px rgba(0,0,0,.28);border:2.5px solid #fff}
+.sj-chip.keeper .sj-shirt{background:var(--keeper);border-color:var(--keeper);color:#fff}
+.sj-naam{font-size:calc(10.5px * var(--fs));font-weight:600;color:#fff;background:rgba(16,39,26,.78);padding:2px 7px;border-radius:99px;max-width:78px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sj-hint{font-size:calc(12px * var(--fs));color:var(--ink-2);text-align:center;margin:10px 0 0;line-height:1.5}
+.sj-lade{background:var(--pitch-ink);border-radius:14px;padding:12px;margin-top:12px}
+.sj-lade-kop{font-family:'Barlow Condensed';font-weight:700;font-size:calc(15px * var(--fs));letter-spacing:1px;color:var(--fluo);text-transform:uppercase;margin-bottom:10px}
+.sj-lade-chips{display:flex;gap:12px;flex-wrap:wrap;min-height:60px;align-items:flex-start}
+.sj-lade .sj-naam{background:rgba(255,255,255,.14)}
+.sj-lade-leeg{color:rgba(255,255,255,.5);font-size:calc(12px * var(--fs))}
+
+/* keuze-sheet (speler kiezen / wedstrijd kiezen / invoegen) */
+.sj-sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center;z-index:70}
+.sj-sheet-overlay.open{display:flex}
+.sj-sheet{background:var(--bg);width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:18px 16px calc(24px + env(safe-area-inset-bottom));max-height:78%;overflow-y:auto}
+.sj-sheet-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:14px}
+.sj-sheet-titel{font-family:'Barlow Condensed';font-size:calc(20px * var(--fs));text-transform:uppercase;letter-spacing:.4px;color:var(--ink);font-weight:700}
+.sj-sheet-sub{font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-top:2px}
+.sj-sheet-sluit{width:32px;height:32px;border-radius:8px;border:0;background:var(--surface);color:var(--ink-2);font-size:calc(16px * var(--fs));cursor:pointer;flex-shrink:0}
+.sj-sheet-groep{font-size:calc(11px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2);margin:12px 0 7px}
+.sj-sheet-groep:first-child{margin-top:0}
+.sj-kies-rij{display:flex;align-items:center;gap:11px;background:var(--card);border:1.5px solid var(--hair);border-radius:11px;padding:9px 12px;margin-bottom:7px;cursor:pointer}
+.sj-kies-rij:active{border-color:var(--accent)}
+.sj-kies-rij.bezet{opacity:.4;cursor:default}
+.sj-kies-nr{width:34px;height:34px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(15px * var(--fs));color:var(--ink);flex-shrink:0}
+.sj-kies-nm{flex:1;min-width:0;font-weight:600;font-size:calc(14px * var(--fs));color:var(--ink)}
+.sj-kies-sub{font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400;margin-top:1px}
+.sj-kies-bz{font-size:calc(11px * var(--fs));color:var(--ink-2);flex-shrink:0}
+.sj-sheet-leeg{width:100%;border:0;border-radius:11px;padding:12px;font-weight:700;font-size:calc(14px * var(--fs));cursor:pointer;margin-top:6px;background:rgba(226,52,47,.1);color:var(--accent)}
+
+/* snelknop "Opstelling invoegen" in het wedstrijdscherm */
+.sj-invoeg-knop{width:100%;display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line-d);border-radius:13px;padding:12px 13px;margin-bottom:12px;cursor:pointer;box-shadow:var(--shadow);text-align:left}
+.sj-invoeg-knop .ico{width:36px;height:36px;border-radius:10px;background:rgba(226,52,47,.1);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:calc(18px * var(--fs));flex-shrink:0}
+.sj-invoeg-knop .tk{flex:1;min-width:0;display:flex;flex-direction:column}
+.sj-invoeg-knop .tt{font-weight:700;font-size:calc(14px * var(--fs));color:var(--ink)}
+.sj-invoeg-knop .ts{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:1px}
+.sj-invoeg-knop .pijl{color:var(--ink-2);font-size:calc(17px * var(--fs));flex-shrink:0}
