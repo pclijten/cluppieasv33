@@ -18,7 +18,7 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260825e';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260826a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260826b';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -447,7 +447,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260826a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260826b').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -493,7 +493,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260826a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260826b').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1758,7 +1758,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260826a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260826b').then(m => m.renderTeam?.());
   });
 }
 
@@ -2216,7 +2216,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260826a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260826b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2355,6 +2355,8 @@ function toonWijzigOpzet(sectie){
       <div id="woEigen">${eigenFormatieInvoerHtml()}</div>
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:6px">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
       <div id="woFormatieHint"></div></div>
+    <button class="knop licht vol" id="woSjabloon" style="margin-top:2px">⧉ Standaardopstelling invoegen</button>
+    <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:5px">Vult alle kwarten met een opgeslagen sjabloon of een vorige wedstrijd. Dit vervangt de huidige opstellingen.</p>
 
     <div class="wo-sectiekop" id="woSecDoel"><span class="ico">🎯</span><span>Doel & notitie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Wedstrijddoel</label>
@@ -2417,6 +2419,15 @@ function toonWijzigOpzet(sectie){
 
   $('#woSluit').onclick = verbergWijzigOpzet;
   $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') verbergWijzigOpzet(); };
+
+  const woSj = $('#woSjabloon');
+  if (woSj) woSj.onclick = () => {
+    // sluit eerst het wijzig-opzet-paneel zodat de invoeg-sheet er bovenop komt,
+    // en registreer de callback die na toepassen opslaat + hertekent.
+    verbergWijzigOpzet();
+    zetNaToepassenCallback(() => { S.kwart = '1'; bewaarWedstrijd(); renderWedstrijd(); });
+    openInvoegSheet(w);
+  };
 
   $('#woOk').onclick = () => {
     w.tegenstander = $('#woTegen').value.trim() || w.tegenstander;

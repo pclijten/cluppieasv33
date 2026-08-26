@@ -21,8 +21,8 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202608
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20260826a';
-import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20260826a';
+} from './wedstrijd.js?v=20260826b';
+import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20260826b';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -34,16 +34,16 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260826a')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260826b')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn, modalNotitie,
-} from './teams-spelers.js?v=20260826a';
+} from './teams-spelers.js?v=20260826b';
 import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260825e';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260826a';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260826b';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
@@ -54,13 +54,13 @@ import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
 } from './teams-hub.js?v=20260825e';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260826a';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260826a';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260826b';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260826b';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260825e';
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20260826a' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20260826b' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -171,7 +171,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20260826a').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20260826b').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -579,10 +579,10 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260826a').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260826b').then(m => m.openClub(b.dataset.openClub)));
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260826a').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260826b').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -685,7 +685,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260826a').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260826b').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -929,6 +929,7 @@ const UPDATES = [
       'Onder het tabblad Wedstrijden staat een nieuwe knop “Opstelling-sjablonen”. Daar maak je een sjabloon van de grond af op: kies aantal spelers en formatie, en tik per kwart de spelers op hun plek. Met “⧉ Naar K2/K3/K4” kopieer je een kwart razendsnel naar het volgende.',
       'Al een mooie opstelling gemaakt in een wedstrijd? Onderaan het wedstrijdscherm bewaar je die met één tik als sjabloon via “Opslaan als sjabloon”.',
       'Bij een nog lege wedstrijd verschijnt bovenaan de knop “Opstelling invoegen”: kies een sjabloon óf een vorige wedstrijd en alle kwarten worden in één keer gevuld. Spelers die niet in je selectie zitten worden netjes overgeslagen — je hoort achteraf hoeveel.',
+      'Ook via “Wijzig opzet” (onder Speelwijze & formatie) kun je een standaardopstelling invoegen — óók als de wedstrijd al een opstelling heeft. Je krijgt eerst een bevestiging voordat de bestaande opstellingen worden vervangen.',
       'Sjablonen zijn per team: elk team beheert z’n eigen standaardopstellingen.',
     ]},
   { datum:'2026-08-25', titel:'Zie meteen wat er nieuw is', punten:[
@@ -1651,7 +1652,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260826a').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260826b').then(m => m.openChatbot());
     // teamkeuze-dropdown (bij meerdere teams) + doorlink naar het overzicht
     const teamKnop = v.querySelector('#hubTeamKnop');
     const keuze = v.querySelector('#hubTeamKeuze');
@@ -1759,7 +1760,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260826a').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260826b').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
@@ -2035,7 +2036,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260826a').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260826b').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {
