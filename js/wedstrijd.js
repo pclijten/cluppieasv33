@@ -18,7 +18,7 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260826c';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260826c';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260826d';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -447,7 +447,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260826c').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260826d').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -493,7 +493,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260826c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260826d').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1758,7 +1758,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260826c').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260826d').then(m => m.renderTeam?.());
   });
 }
 
@@ -2216,7 +2216,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260826c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260826d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2334,12 +2334,14 @@ function toonWijzigOpzet(sectie){
 
     <div class="wo-sectiekop" id="woSecBasis"><span class="ico">📝</span><span>Basisgegevens</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>${isToernooi(w) ? 'Naam toernooi' : 'Tegenstander'}</label>
+      <span class="wo-opg" data-opg="tegen"></span>
       <input class="invoer" id="woTegen" value="${esc(w.tegenstander)}"></div>
     <div class="rij">
-      <div class="veldgroep"><label>Datum</label><input class="invoer" type="date" id="woDatum" value="${esc(w.datum)}"></div>
-      <div class="veldgroep"><label>Minuten per periode</label><input class="invoer" id="woDuur" inputmode="decimal" value="${esc(w.kwartduur)}"></div>
+      <div class="veldgroep"><label>Datum</label><span class="wo-opg" data-opg="datum"></span><input class="invoer" type="date" id="woDatum" value="${esc(w.datum)}"></div>
+      <div class="veldgroep"><label>Minuten per periode</label><span class="wo-opg" data-opg="duur"></span><input class="invoer" id="woDuur" inputmode="decimal" value="${esc(w.kwartduur)}"></div>
     </div>
     <div class="veldgroep"><label>Aanvoerder</label>
+      <span class="wo-opg" data-opg="aanvoerder"></span>
       <select class="invoer" id="woAanvoerder">
         <option value="">— geen aanvoerder gekozen —</option>
         ${(w.selectie||[]).map(pid => speler(pid)).filter(Boolean)
@@ -2348,9 +2350,11 @@ function toonWijzigOpzet(sectie){
 
     <div class="wo-sectiekop" id="woSecSpeelwijze"><span class="ico">⚽</span><span>Speelwijze & formatie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Aantal spelers</label>
+      <span class="wo-opg" data-opg="format"></span>
       <div class="segment" id="woFormat">${['4','6','8','9','11'].map(f =>
         `<button data-f="${f}" class="${w.format===f?'actief':''}">${f}×${f}</button>`).join('')}</div></div>
     <div class="veldgroep"><label>Formatie (excl. keeper)</label>
+      <span class="wo-opg" data-opg="formatie"></span>
       <div class="segment wrap" id="woFormatie"></div>
       <div id="woEigen">${eigenFormatieInvoerHtml()}</div>
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:6px">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
@@ -2360,6 +2364,7 @@ function toonWijzigOpzet(sectie){
 
     <div class="wo-sectiekop" id="woSecDoel"><span class="ico">🎯</span><span>Doel & notitie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Wedstrijddoel</label>
+      <span class="wo-opg" data-opg="doel"></span>
       <input class="invoer" id="woDoel" value="${esc(w.doel||'')}" placeholder="Bijv. opbouw van achteruit, durven schieten">
       <div id="woTrainDoelen"></div>
       <div class="doel-suggesties" id="woDoelSug">
@@ -2367,9 +2372,11 @@ function toonWijzigOpzet(sectie){
       </div>
       <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:5px">💡 Suggesties op basis van de leercurve (§3.3) voor ${esc(S.team?.categorie||'dit team')} — tik om over te nemen, of typ je eigen doel.</p></div>
     <div class="veldgroep"><label>Notitie</label>
+      <span class="wo-opg" data-opg="notitie"></span>
       <textarea class="invoer" id="woNotitie" rows="3" placeholder="Bijv. sterke counter, druk zetten op hun nr. 7. Zichtbaar bij de volgende keer tegen deze tegenstander.">${esc(w.notitie||'')}</textarea></div>
 
-    <button class="knop vol fluo" id="woOk">Opslaan</button>`;
+    <div class="wo-status" id="woStatus">${ico('admin-save',15)}<span id="woStatusTekst">Alles wordt automatisch opgeslagen</span></div>
+    <button class="knop vol fluo" id="woOk" style="margin-top:12px">Klaar</button>`;
   $('#woAchter').classList.add('open');
 
   const toonFormatieHint = () => {
@@ -2382,8 +2389,47 @@ function toonWijzigOpzet(sectie){
       el.innerHTML = `<div class="formatie-hint info"><span class="fh-ico">💡</span><span>Het jeugdbeleidsplan gaat uit van <b>${esc(CLUB_FORMATIE_11)}</b> als basis (§3.2). Kies je bewust voor ${esc(formatie)}? Laat dan de vrije verdediger een opbouwende rol spelen, niet achter de mandekkers.</span></div>`;
     }
   };
+  // ── Autosave-helper ──────────────────────────────────────────────
+  // Toont kort een groen "Opgeslagen"-vinkje bij het veld + statusregel,
+  // en laat bewaarWedstrijd() (600ms-debounce) het naar Firestore schrijven.
+  const opgTimers = {};
+  const bewaarVeld = (opg, label) => {
+    bewaarWedstrijd();
+    const badge = $(`.wo-opg[data-opg="${opg}"]`);
+    if (badge){
+      badge.innerHTML = `${ico('admin-save',12)} Opgeslagen`;
+      badge.classList.add('zichtbaar');
+      clearTimeout(opgTimers[opg]);
+      opgTimers[opg] = setTimeout(() => badge.classList.remove('zichtbaar'), 1600);
+    }
+    const st = $('#woStatus'), stt = $('#woStatusTekst');
+    if (st && stt){
+      st.classList.add('actief');
+      stt.textContent = 'Laatst opgeslagen: ' + label;
+      clearTimeout(opgTimers._st);
+      opgTimers._st = setTimeout(() => {
+        st.classList.remove('actief');
+        stt.textContent = 'Alles wordt automatisch opgeslagen';
+      }, 2000);
+    }
+  };
+
+  // Past een gewijzigd format/formatie meteen toe op het wedstrijdmodel:
+  // schoont opstelling-slots + events op die niet meer bestaan en slaat op.
+  // Spelers op nog bestaande plekken blijven staan.
+  const pasSpeelwijzeToe = (opg, label) => {
+    if (format === w.format && formatie === w.formatie) return;
+    const nieuweIds = new Set(bouwSlots(format, formatie).map(s => s.id));
+    for (const kk of Object.values(w.kwarten)){
+      for (const slot of Object.keys(kk.lineup)) if (!nieuweIds.has(slot)) delete kk.lineup[slot];
+      kk.events = kk.events.filter(e => nieuweIds.has(e.slot));
+    }
+    w.format = format; w.formatie = formatie;
+    bewaarVeld(opg, label);
+  };
+
   const efInvoer = koppelEigenFormatieInvoer($('#woEigen'), () => format, (naam) => {
-    formatie = naam; vulFormaties(); toonFormatieHint();
+    formatie = naam; vulFormaties(); toonFormatieHint(); pasSpeelwijzeToe('formatie', 'Formatie → ' + naam);
   });
   const vulFormaties = () => {
     const namen = formatieNamen(format, eigenFormatiesVanTeam());
@@ -2392,7 +2438,7 @@ function toonWijzigOpzet(sectie){
       `<button class="ef-knop" data-eigen="1">+ Eigen</button>`;
     $$('#woFormatie button[data-f]').forEach(b => b.onclick = () => {
       $$('#woFormatie button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); formatie = b.dataset.f;
-      toonFormatieHint();
+      toonFormatieHint(); pasSpeelwijzeToe('formatie', 'Formatie → ' + formatie);
     });
     const eb = $('#woFormatie button[data-eigen]');
     if (eb) eb.onclick = () => efInvoer.toonInvoer();
@@ -2404,21 +2450,63 @@ function toonWijzigOpzet(sectie){
     format = b.dataset.f;
     if (!formatieBestaat(format, formatie, eigenFormatiesVanTeam())) formatie = Object.keys(FORMATIES[format])[0];
     vulFormaties();
+    pasSpeelwijzeToe('format', 'Aantal spelers → ' + format + '×' + format);
   });
 
-  $$('#woDoelSug [data-doelsug]').forEach(b => b.onclick = () => { $('#woDoel').value = b.dataset.doelsug; });
+  // ── Basisgegevens: directe keuze (aanvoerder) + tekstvelden (blur) ──
+  $('#woAanvoerder').onchange = () => {
+    w.aanvoerder = $('#woAanvoerder').value || null;
+    bewaarVeld('aanvoerder', 'Aanvoerder');
+  };
+  const tekstVelden = [
+    ['#woTegen',   'tegen',   'Tegenstander', el => { const v = el.value.trim(); if (v) w.tegenstander = v; }],
+    ['#woDatum',   'datum',   'Datum',        el => { if (el.value) w.datum = el.value; }],
+    ['#woDuur',    'duur',    'Minuten',      el => { const n = parseFloat((el.value||'').replace(',','.')); if (n) w.kwartduur = n; }],
+    ['#woDoel',    'doel',    'Wedstrijddoel',el => { w.doel = el.value.trim(); }],
+    ['#woNotitie', 'notitie', 'Notitie',      el => { w.notitie = el.value.trim(); }],
+  ];
+  tekstVelden.forEach(([sel, opg, label, apply]) => {
+    const el = $(sel); if (!el) return;
+    el._startwaarde = el.value;
+    el.addEventListener('blur', () => {
+      if (el.value === el._startwaarde) return;
+      el._startwaarde = el.value;
+      apply(el);
+      bewaarVeld(opg, label);
+    });
+  });
+
+  $$('#woDoelSug [data-doelsug]').forEach(b => b.onclick = () => {
+    const inp = $('#woDoel'); inp.value = b.dataset.doelsug; inp._startwaarde = inp.value;
+    w.doel = inp.value.trim();
+    bewaarVeld('doel', 'Wedstrijddoel');
+  });
 
   // Trainingsdoelen van deze week als tegels boven de leercurve-suggesties.
   // Kiest een tegel → vult het wedstrijddoel-veld. Faalt stil (leeg = geen blok).
   const kiesTrainDoel = (tekst) => {
-    const inp = $('#woDoel'); if (inp) inp.value = tekst;
+    const inp = $('#woDoel'); if (inp){ inp.value = tekst; inp._startwaarde = tekst; }
     $$('#woTrainDoelen .wz-doel-tegel').forEach(x => x.classList.remove('wz-actief'));
+    w.doel = (tekst||'').trim();
+    bewaarVeld('doel', 'Wedstrijddoel');
   };
   laadTrainingsdoelTegels(w, kiesTrainDoel, 'woTrainDoelen')
     .catch(e => console.warn('[wo] trainingsdoelen laden faalde', e));
 
-  $('#woSluit').onclick = verbergWijzigOpzet;
-  $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') verbergWijzigOpzet(); };
+  // Sluiten via ✕ of tik naast het paneel: neem een nog niet ge-blurde
+  // tekstveldwijziging mee, sluit en herteken het wedstrijdscherm.
+  const sluitOpzet = () => {
+    w.tegenstander = $('#woTegen').value.trim() || w.tegenstander;
+    w.datum = $('#woDatum').value || w.datum;
+    w.kwartduur = parseFloat(($('#woDuur').value||'').replace(',','.')) || w.kwartduur;
+    w.doel = $('#woDoel').value.trim();
+    w.notitie = $('#woNotitie').value.trim();
+    verbergWijzigOpzet();
+    bewaarWedstrijd();
+    renderWedstrijd();
+  };
+  $('#woSluit').onclick = sluitOpzet;
+  $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') sluitOpzet(); };
 
   const woSj = $('#woSjabloon');
   if (woSj) woSj.onclick = () => {
@@ -2429,25 +2517,9 @@ function toonWijzigOpzet(sectie){
     openInvoegSheet(w);
   };
 
-  $('#woOk').onclick = () => {
-    w.tegenstander = $('#woTegen').value.trim() || w.tegenstander;
-    w.datum = $('#woDatum').value || w.datum;
-    w.kwartduur = parseFloat(($('#woDuur').value||'').replace(',','.')) || w.kwartduur;
-    w.aanvoerder = $('#woAanvoerder').value || null;
-    if (format !== w.format || formatie !== w.formatie){
-      const nieuweIds = new Set(bouwSlots(format, formatie).map(s => s.id));
-      for (const kk of Object.values(w.kwarten)){
-        for (const slot of Object.keys(kk.lineup)) if (!nieuweIds.has(slot)) delete kk.lineup[slot];
-        kk.events = kk.events.filter(e => nieuweIds.has(e.slot));
-      }
-      w.format = format; w.formatie = formatie;
-    }
-    w.doel = $('#woDoel').value.trim();
-    w.notitie = $('#woNotitie').value.trim();
-    verbergWijzigOpzet();
-    bewaarWedstrijd();
-    renderWedstrijd();
-  };
+  // "Klaar" — alles is al automatisch bewaard; we pakken alleen nog een
+  // eventuele wijziging mee die nog in een tekstveld staat zonder blur.
+  $('#woOk').onclick = sluitOpzet;
 
   if (sectie){
     const anker = {basis:'woSecBasis', speelwijze:'woSecSpeelwijze', doel:'woSecDoel'}[sectie];
