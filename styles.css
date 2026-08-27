@@ -1749,6 +1749,20 @@ body::before{
 .wo-sectiekop .ico{font-size:calc(15px * var(--fs))}
 .wo-sectiekop span{font-size:calc(11.5px * var(--fs));font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px}
 .wo-lijn{height:1px;background:var(--line-d);flex:1}
+/* Per-veld "Opgeslagen"-bevestiging bij autosave in Wijzig opzet.
+   Zit rechtsboven in de veldgroep — we maken die relatief binnen het paneel. */
+#woPaneel .veldgroep{position:relative}
+.wo-opg{position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:4px;
+  font-size:calc(11px * var(--fs));font-weight:600;color:var(--ok);
+  opacity:0;transform:translateY(-2px);transition:opacity .18s,transform .18s;pointer-events:none}
+.wo-opg.zichtbaar{opacity:1;transform:translateY(0)}
+.wo-opg svg{width:calc(12px * var(--fs));height:calc(12px * var(--fs))}
+/* Statusregel onderaan het paneel: bevestigt dat alles automatisch opslaat. */
+.wo-status{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:20px;
+  padding:11px 12px;border-radius:11px;background:var(--surface);border:1px solid var(--line-d);
+  color:var(--ink-2);font-size:calc(12px * var(--fs));transition:color .2s}
+.wo-status.actief{color:var(--ok)}
+.wo-status svg{width:calc(15px * var(--fs));height:calc(15px * var(--fs))}
 /* ==================== ONBOARDING / INTERACTIEVE RONDLEIDING ====================
    Coach-marks bovenop de ECHTE app. Geen losse demoschermen: we lichten
    bestaande knoppen uit met een spotlight, tonen een coachmark-bubbel en
