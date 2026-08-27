@@ -297,17 +297,17 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20260825e').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20260826c').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (lightboxOpen()){
-    import('./training-weergave.js?v=20260825e').then(m => m.sluitLightbox());
+    import('./training-weergave.js?v=20260826c').then(m => m.sluitLightbox());
     return true;
   }
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260825e').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260826c').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }

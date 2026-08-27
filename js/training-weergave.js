@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260825e';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260826c';
 
 let _overlay = null;
 
@@ -39,7 +39,8 @@ export function sluitTrainingWeergave(){
   // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
   const nb = _overlay.querySelector('.trw-notitie-knop');
   if (nb) nb.remove();
-  import('./training-aantekeningen.js?v=20260825e').then(m => m.resetAantekeningen()).catch(() => {});
+  import('./training-aantekeningen.js?v=20260826c').then(m => m.resetAantekeningen()).catch(() => {});
+  import('./training-video.js?v=20260826c').then(m => m.resetTrainingVideos()).catch(() => {});
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -131,7 +132,7 @@ function oefHtml(idx, oef, diagramUrls){
    - diagramUrls: { pagina: url }
    - oefeningen: de AI-structuur
    - onOrigineel: callback die de PDF-viewer opent */
-export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId }){
+export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId, oefeningVideos, trainingClub }){
   const el = bouwOverlay();
   el.querySelector('.trw-titel').textContent = titel || 'Training';
   el.querySelector('.trw-meta').textContent = meta || '';
@@ -175,10 +176,17 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
   // Aantekeningen-laag (additief): notitie-knop in de balk + tik-op-regel.
   // Alleen als er een trainingId is om notities aan te koppelen.
   if (trainingId){
-    import('./training-aantekeningen.js?v=20260825e').then(mod => {
+    import('./training-aantekeningen.js?v=20260826c').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initAantekeningen({ stage, balk, trainingId });
       mod.bindItemKlik(stage);
+    }).catch(() => {});
+
+    // Video-uitleg-laag (additief): 🎬-knop in de balk die de zichtbare oefening
+    // volgt + afspeeltegel per oefening; beheerder kan uploaden/vervangen/wissen.
+    import('./training-video.js?v=20260826c').then(mod => {
+      const balk = el.querySelector('.trw-balk');
+      mod.initTrainingVideos({ stage, balk, trainingId, videos: oefeningVideos || {}, trainingClub });
     }).catch(() => {});
   }
 }
