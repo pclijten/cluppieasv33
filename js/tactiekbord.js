@@ -25,9 +25,9 @@
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828b';
-import { bouwSlots } from './config.js?v=20260828b';
-import { telNav } from './tracker.js?v=20260828b';
+import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828c';
+import { bouwSlots } from './config.js?v=20260828c';
+import { telNav } from './tracker.js?v=20260828c';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -384,11 +384,12 @@ function tekenBoard(w){
   renderObjecten(); renderTekeningen();
 
   /* ---------- coördinaten ----------
-     Eén systeem overal: percentages 0–100 op beide assen, gemeten tegen het
-     tekenvlak zelf (de svg). Zo kan er geen ratio-mismatch tussen tekenlaag en
-     objectenlaag ontstaan, en begint een lijn exact onder de vinger. */
+     Eén systeem overal: percentages 0–100 op beide assen, gemeten tegen de
+     veld-wrap (het echte veldvak). Zowel de tekenlaag (svg, 0–100 viewBox) als
+     de objectenlaag vullen exact deze wrap, dus chip én lijn volgen de vinger
+     1-op-1 zonder offset. */
   function pos(clientX, clientY){
-    const r = teken.getBoundingClientRect();
+    const r = veldWrap.getBoundingClientRect();
     return { x: clamp((clientX - r.left) / r.width  * 100, 0, 100),
              y: clamp((clientY - r.top)  / r.height * 100, 0, 100) };
   }

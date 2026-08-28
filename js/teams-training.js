@@ -8,15 +8,15 @@ import {
 } from './firebase.js?v=20260811a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260828b';
-import { telGebruik } from './tracker.js?v=20260828b';
+} from './state.js?v=20260828c';
+import { telGebruik } from './tracker.js?v=20260828c';
 import { ico } from './icons.js?v=20260825b';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20260828b';
-import { htmlKompas } from './teams-leerlijn.js?v=20260828b';
+} from './config.js?v=20260828c';
+import { htmlKompas } from './teams-leerlijn.js?v=20260828c';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
