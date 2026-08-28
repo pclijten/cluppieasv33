@@ -13,8 +13,7 @@
    Zelfde overlay-aanpak en terug-bewaking als de andere fullscreen-weergaven. */
 
 import { db, doc, updateDoc } from './firebase.js?v=20260811a';
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld, S } from './state.js?v=20260828d';
-import { maakVideoBeheerRij } from './training-video.js?v=20260828d';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld } from './state.js?v=20260828d';
 
 let _overlay = null;
 let _ctx = null;   // { trainingId, oefeningen, origPerPagina }
@@ -215,7 +214,6 @@ function renderEdit(){
       }).join('');
       return `<section class="trb-oef">
         <div class="trb-oef-kop"><span class="trb-oef-nr">${i + 1}</span><h2>${esc(oef.titel || 'Oefening ' + (i + 1))}</h2></div>
-        <div class="trb-video-slot" data-videoslot="${i + 1}"></div>
         <div class="hl">${blokken}</div>
       </section>`;
     }).join('')}
@@ -223,16 +221,6 @@ function renderEdit(){
       <button class="trb-knop grijs" data-actie="annuleer">Annuleren</button>
       <button class="trb-knop vol" data-actie="opslaan">✓ Opslaan</button>
     </div>`;
-
-  // Video-beheer per oefening (admin-only: dit scherm zit in het clubbeheer).
-  el.querySelectorAll('[data-videoslot]').forEach(slot => {
-    const idx = Number(slot.dataset.videoslot);
-    const rij = maakVideoBeheerRij(
-      { trainingId: _ctx.trainingId, clubId: _ctx.clubId, idx, video: _ctx.videos[idx] || null },
-      (nieuw) => { if (nieuw) _ctx.videos[idx] = nieuw; else delete _ctx.videos[idx]; }
-    );
-    slot.appendChild(rij);
-  });
 
   el.querySelector('[data-actie="annuleer"]').onclick = () => zetModus('diff');
   el.querySelector('[data-actie="opslaan"]').onclick = () => bewaarBewerkingen();
@@ -288,8 +276,8 @@ async function bewaarBewerkingen(){
   }
 }
 
-/* openTrainingBewerken({ trainingId, titel, meta, oefeningen, paginas, onOpgeslagen, opslaanLokaal, clubId, oefeningVideos }) */
-export function openTrainingBewerken({ trainingId, titel, meta, oefeningen, paginas, onOpgeslagen, opslaanLokaal, clubId, oefeningVideos }){
+/* openTrainingBewerken({ trainingId, titel, meta, oefeningen, paginas, onOpgeslagen, opslaanLokaal }) */
+export function openTrainingBewerken({ trainingId, titel, meta, oefeningen, paginas, onOpgeslagen, opslaanLokaal }){
   const el = bouwOverlay();
   // originele tekst per pagina in een map { 1: "...", 2: "..." }
   const origPerPagina = {};
@@ -301,8 +289,6 @@ export function openTrainingBewerken({ trainingId, titel, meta, oefeningen, pagi
     origPerPagina,
     onOpgeslagen,
     opslaanLokaal,
-    clubId: clubId || S.clubId || null,
-    videos: { ...(oefeningVideos || {}) },
   };
   el.querySelector('.trb-titel').textContent = titel || 'Training bewerken';
   el.querySelector('.trb-meta').textContent = meta || '';

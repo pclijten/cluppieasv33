@@ -255,11 +255,17 @@ function lightboxOpen(){
 function tactiekbordOpen(){
   return !!document.querySelector('.tb-board');
 }
+/* Leerplein (leerplein.js) is een fullscreen-overlay onder het tactiekbord.
+   Zelfde DOM-check-patroon om circulaire imports te vermijden. */
+function leerpleinOpen(){
+  return !!document.querySelector('.lp-scherm');
+}
 
 /* Zit de app op dit moment "ergens binnen", d.w.z. valt er iets terug te gaan? */
 function kanTerug(){
   if (!S.user) return false;
   if (tactiekbordOpen()) return true;
+  if (leerpleinOpen()) return true;
   if (lightboxOpen()) return true;
   if (pdfViewerOpen()) return true;
   if (modalOpen()) return true;
@@ -311,6 +317,10 @@ function _navTerug(scherm){
 function stapTerug(){
   if (tactiekbordOpen()){
     import('./tactiekbord.js?v=20260828d').then(m => m.sluitTactiekbord());
+    return true;
+  }
+  if (leerpleinOpen()){
+    import('./leerplein.js?v=20260828d').then(m => m.sluitLeerplein());
     return true;
   }
   if (lightboxOpen()){

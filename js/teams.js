@@ -924,6 +924,12 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
+  { datum:'2026-08-28', titel:'Leerplein: leg een speelprincipe uit op het veld', punten:[
+      'Via een wedstrijd → Tactiekbord → Leerplein vind je uitleg per leerthema, afgestemd op JO12/JO13.',
+      'Per thema zie je het principe, waarom het ertoe doet, hoe je het aan spelers uitlegt en waar je op let — met voorbeeld-loopacties die zichzelf op het veld tekenen.',
+      'Je kunt de spelers van een opstelling invoegen als context, en een voorbeeld “overnemen op kladbord” om het aan te passen en zelf verder te tekenen.',
+      'Voor nu zijn twee thema’s uitgewerkt (“Dieptespel opbouw” en “Storen en veroveren”). Beheerders kunnen het Leerplein per team aan- of uitzetten bij de modules.',
+    ]},
   { datum:'2026-08-28', titel:'Tactiekbord: teken je plan op het veld', punten:[
       'Open bij een wedstrijd het nieuwe Tactiekbord (onderaan het wedstrijdscherm). Het veld verschijnt schermvullend met de spelers uit de opstelling van de gekozen periode.',
       'Teken loopwegen (gestreepte pijl), passes (doorgetrokken pijl) of vrij met het potlood, en versleep spelers, tegenstanders en een bal precies waar je ze wilt hebben.',

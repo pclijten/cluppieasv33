@@ -186,7 +186,7 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
     // volgt + afspeeltegel per oefening; beheerder kan uploaden/vervangen/wissen.
     import('./training-video.js?v=20260828d').then(mod => {
       const balk = el.querySelector('.trw-balk');
-      mod.initTrainingVideos({ stage, balk, trainingId, videos: oefeningVideos || {} });
+      mod.initTrainingVideos({ stage, balk, trainingId, videos: oefeningVideos || {}, trainingClub });
     }).catch(() => {});
   }
 }

@@ -983,6 +983,7 @@ const MODULE_DEFS = [
   ['evaluaties', '📈', 'Evaluaties', 'Stats-tabblad & de teamevaluatie na de wedstrijd.'],
   ['leerlijn',   '🧭', 'Leerlijn',   'Leerlijn-tabblad bij spelers, met thema-achtergrond & leerpunten.'],
   ['kompas',     '🎯', 'ASV-kompas tips', 'Wekelijkse beleidsplan-tip op de Training-tab. Aanbevolen om aan te laten.'],
+  ['leerplein',  '🎓', 'Leerplein',  'Uitleg + voorbeeld-loopacties per leerthema op het tactiekbord (via de wedstrijd).'],
 ];
 
 /* korte samenvatting van uitgeschakelde modules, getoond in de teamrij */
@@ -1824,8 +1825,6 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
         meta: [t.week, datum].filter(Boolean).join(' · '),
         oefeningen: t.oefeningen || [],
         paginas: t.paginas || [],
-        clubId: t.club || S.clubId || null,
-        oefeningVideos: t.oefeningVideos || {},
         onOpgeslagen: (nieuw) => { t.oefeningen = nieuw; },
       });
     });

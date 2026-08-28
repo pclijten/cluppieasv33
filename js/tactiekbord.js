@@ -25,7 +25,7 @@
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828d';
+import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828d';
 import { bouwSlots } from './config.js?v=20260828d';
 import { telNav } from './tracker.js?v=20260828d';
 
@@ -133,12 +133,19 @@ export function openTactiekLijst(w){
   telNav('wedstrijd:tactiek', 'open');
   const host = document.createElement('div');
   host.className = 'tb-sheet-bg';
+  const toonLeerplein = modAan('leerplein');
   host.innerHTML = `
     <div class="tb-sheet">
       <div class="tb-sheet-kop">
         <h3>Tactiekborden</h3>
         <button class="tb-sluit" aria-label="Sluiten">✕</button>
       </div>
+      ${toonLeerplein ? `
+      <button class="tb-nieuw tb-leerplein" id="tbLeerplein">
+        <span class="tb-nieuw-ico" style="background:#a855f7">🎓</span>
+        <span><strong>Leerplein</strong><br>
+          <span class="tb-sub">Leg een speelprincipe uit met voorbeeld-loopacties</span></span>
+      </button>` : ''}
       <button class="tb-nieuw" id="tbNieuw">
         <span class="tb-nieuw-ico">✎</span>
         <span><strong>Nieuw tactiekbord</strong><br>
@@ -153,6 +160,13 @@ export function openTactiekLijst(w){
   const sluit = () => { if (unsubLijst){ unsubLijst(); unsubLijst = null; } host.remove(); };
   host.querySelector('.tb-sluit').onclick = sluit;
   host.onclick = e => { if (e.target === host) sluit(); };
+
+  if (toonLeerplein){
+    host.querySelector('#tbLeerplein').onclick = () => {
+      sluit();
+      import('./leerplein.js?v=20260828d').then(m => m.openLeerplein(w));
+    };
+  }
 
   host.querySelector('#tbNieuw').onclick = () => {
     sluit();
@@ -264,6 +278,25 @@ function openBoard(w, it, periodeNr){
   }
   tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
   telNav('tactiek:bord', it ? 'open' : 'nieuw');
+  tekenBoard(w);
+}
+
+/* Open een vers (niet-opgeslagen) tactiekbord dat al gevuld is met gegeven
+   objecten en tekeningen. Gebruikt door het Leerplein: "Overnemen op kladbord"
+   zet een voorbeeld-loopactie op een bewerkbaar bord waar de coach verder kan.
+   Het bord is wegwerp tenzij de coach zelf op Bewaren tikt. */
+export function openBordMet(w, objecten, tekeningen, naam){
+  B = {
+    wid: S.wedstrijdId, tactiekId: null,
+    naam: naam || 'Tactiek',
+    periode: '1',
+    format: w.format,
+    formatie: w.formatie,
+    objecten: (objecten || []).map(o => ({...o})),
+    tekeningen: (tekeningen || []).map(t => ({...t, punten: (t.punten||[]).map(p => [...p])})),
+  };
+  tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
+  telNav('tactiek:bord', 'leerplein');
   tekenBoard(w);
 }
 
