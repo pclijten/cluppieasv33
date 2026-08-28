@@ -3397,3 +3397,26 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .tb-periode strong{font-family:'Barlow Condensed',sans-serif;font-size:20px}
 .tb-periode span{font-size:11.5px;color:var(--ink-2)}
 .tb-periode.leeg{opacity:.6}
+
+/* ==================== TRAINING-VIDEO — beheer-regel in training-bewerken ==================== */
+.trb-video{margin:0 0 12px}
+.trb-video-toevoegen{width:100%;background:var(--surface);border:1px dashed var(--line-d);border-radius:11px;
+  padding:11px;color:var(--ink-2);font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer}
+.trb-video-toevoegen:active{background:var(--surface-2)}
+.trb-video-tegel{display:flex;align-items:center;gap:10px;background:rgba(46,125,70,.08);
+  border:1px solid rgba(46,125,70,.28);border-radius:11px;padding:10px 12px;cursor:pointer}
+.trb-video-tegel .tv-thumb{width:52px;height:34px;border-radius:7px;background:#0d141a;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:calc(15px * var(--fs))}
+.trb-video-tegel .tv-t{flex:1;min-width:0}
+.trb-video-tegel .tv-titel{font-weight:600;font-size:calc(13px * var(--fs));color:var(--veld)}
+.trb-video-tegel .tv-sub{font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trb-video-tegel .tv-play{color:var(--veld);font-size:calc(17px * var(--fs));flex-shrink:0}
+.trb-video-acties{display:flex;gap:8px;margin-top:8px}
+.trb-video-acties button{flex:1;background:var(--surface);border:1px solid var(--hair);border-radius:9px;
+  padding:8px;font-size:calc(12px * var(--fs));font-weight:600;color:var(--ink-2);cursor:pointer}
+.trb-video-acties .weg{color:var(--uit)}
+.trb-video-voortgang .tvv-balk{height:8px;background:var(--surface);border-radius:99px;overflow:hidden}
+.trb-video-voortgang .tvv-vul{height:100%;width:35%;border-radius:99px;background:linear-gradient(90deg,var(--veld),#4ade80)}
+.trb-video-voortgang.bezig .tvv-vul{animation:tvvLoop 1.1s ease-in-out infinite}
+.trb-video-voortgang .tvv-tekst{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:5px;text-align:center}
