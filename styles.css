@@ -3341,10 +3341,10 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   background:radial-gradient(circle at 35% 30%,#fff,#d0d0cc);border:2px solid #333;
   box-shadow:0 2px 8px rgba(0,0,0,.5)}
 
-.tb-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:19;
-  background:rgba(10,13,18,.94);border:1px solid var(--line-d);color:var(--ink);
-  padding:8px 14px;border-radius:20px;font-size:12px;font-weight:500;max-width:82%;text-align:center;
-  box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s}
+.tb-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:19;
+  background:rgba(20,24,31,.96);border:1px solid rgba(255,255,255,.14);color:#fff;
+  padding:7px 14px;border-radius:20px;font-size:12.5px;font-weight:600;max-width:82%;text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);pointer-events:none;transition:opacity .35s;letter-spacing:.1px}
 .tb-hint.weg{opacity:0}
 
 /* toolbar */
