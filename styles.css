@@ -3398,25 +3398,94 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .tb-periode span{font-size:11.5px;color:var(--ink-2)}
 .tb-periode.leeg{opacity:.6}
 
-/* ==================== TRAINING-VIDEO — beheer-regel in training-bewerken ==================== */
-.trb-video{margin:0 0 12px}
-.trb-video-toevoegen{width:100%;background:var(--surface);border:1px dashed var(--line-d);border-radius:11px;
-  padding:11px;color:var(--ink-2);font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer}
-.trb-video-toevoegen:active{background:var(--surface-2)}
-.trb-video-tegel{display:flex;align-items:center;gap:10px;background:rgba(46,125,70,.08);
-  border:1px solid rgba(46,125,70,.28);border-radius:11px;padding:10px 12px;cursor:pointer}
-.trb-video-tegel .tv-thumb{width:52px;height:34px;border-radius:7px;background:#0d141a;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:calc(15px * var(--fs))}
-.trb-video-tegel .tv-t{flex:1;min-width:0}
-.trb-video-tegel .tv-titel{font-weight:600;font-size:calc(13px * var(--fs));color:var(--veld)}
-.trb-video-tegel .tv-sub{font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:1px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.trb-video-tegel .tv-play{color:var(--veld);font-size:calc(17px * var(--fs));flex-shrink:0}
-.trb-video-acties{display:flex;gap:8px;margin-top:8px}
-.trb-video-acties button{flex:1;background:var(--surface);border:1px solid var(--hair);border-radius:9px;
-  padding:8px;font-size:calc(12px * var(--fs));font-weight:600;color:var(--ink-2);cursor:pointer}
-.trb-video-acties .weg{color:var(--uit)}
-.trb-video-voortgang .tvv-balk{height:8px;background:var(--surface);border-radius:99px;overflow:hidden}
-.trb-video-voortgang .tvv-vul{height:100%;width:35%;border-radius:99px;background:linear-gradient(90deg,var(--veld),#4ade80)}
-.trb-video-voortgang.bezig .tvv-vul{animation:tvvLoop 1.1s ease-in-out infinite}
-.trb-video-voortgang .tvv-tekst{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:5px;text-align:center}
+/* ==========================================================================
+   LEERPLEIN (leerplein.js) — de app legt een speelprincipe uit.
+   Hergebruikt de veld-opzet van het tactiekbord; --loop stuurt de loopweg-kleur.
+   ========================================================================== */
+.lp-scherm{position:fixed;inset:0;z-index:1180;display:flex;flex-direction:column;background:var(--bg);--loop:#F2C94C}
+
+.lp-top{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);
+  border-bottom:1px solid var(--line-d);padding-top:calc(10px + env(safe-area-inset-top))}
+.lp-titel{flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;
+  letter-spacing:.3px;text-transform:uppercase;color:var(--ink)}
+.lp-top-btn{height:36px;min-width:36px;padding:0 12px;border:none;border-radius:10px;background:var(--surface-2);color:var(--ink);font-size:17px;font-weight:600;cursor:pointer}
+.lp-top-btn.ghost{background:transparent;font-size:26px;line-height:1}
+.lp-dom{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;color:#fff;letter-spacing:.4px}
+
+.lp-inhoud{flex:1;overflow-y:auto;padding:14px;max-width:var(--maxw,520px);margin:0 auto;width:100%}
+.lp-groep-kop{font-size:11px;font-weight:800;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.lp-thema{display:flex;align-items:center;gap:12px;width:100%;background:var(--surface-2);border:1px solid var(--line-d);
+  border-radius:12px;padding:13px;color:var(--ink);cursor:pointer;margin-bottom:10px;text-align:left}
+.lp-stip{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.lp-thema-tekst{flex:1;min-width:0}
+.lp-thema-tekst strong{font-size:14px}
+.lp-thema-tekst span{display:block;font-size:11.5px;color:var(--ink-2);margin-top:2px}
+.lp-klaar{margin-left:auto;font-size:10px;font-weight:700;color:#3FB950;flex:0 0 auto}
+.lp-voet{font-size:11.5px;color:var(--ink-2);margin-top:8px;line-height:1.4}
+.lp-leeg{padding:20px;text-align:center;color:var(--ink-2);font-size:13px}
+
+/* veld */
+.lp-stage{position:relative;height:52%;min-height:260px;display:flex;align-items:center;justify-content:center;padding:8px}
+.lp-veld-wrap{position:relative;height:100%;aspect-ratio:3/4;max-width:100%;border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+@media (orientation:landscape){.lp-veld-wrap{aspect-ratio:4/3;height:auto;width:100%;max-height:100%}}
+.lp-veld{position:absolute;inset:0;background:repeating-linear-gradient(0deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%)}
+@media (orientation:landscape){.lp-veld{background:repeating-linear-gradient(90deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%)}}
+.lp-lijn{position:absolute;border:2px solid rgba(255,255,255,.82)}
+.lp-midden{left:0;right:0;top:50%;border-width:1px 0 0}
+.lp-cirkel{left:50%;top:50%;width:24%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.lp-teken{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:5}
+.lp-objecten{position:absolute;inset:0;z-index:10}
+.lp-obj{position:absolute;transform:translate(-50%,-50%)}
+.lp-chip{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.9)}
+.lp-chip.eigen{background:var(--accent)}
+.lp-chip.tegen{background:#2B6FD6}
+.lp-chip.context{background:#5b6672;opacity:.55}
+.lp-bal{width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#d0d0cc);border:2px solid #333}
+.lp-veld-actie{position:absolute;top:8px;right:8px;z-index:15;background:rgba(20,24,31,.92);border:1px solid var(--line-d);
+  color:#fff;border-radius:9px;padding:7px 11px;font-size:11.5px;font-weight:600;cursor:pointer}
+.lp-legenda{position:absolute;left:8px;bottom:8px;z-index:14;background:rgba(20,24,31,.9);border:1px solid var(--line-d);
+  border-radius:9px;padding:6px 9px;font-size:10px;color:#fff;line-height:1.7}
+.lp-legenda .lp-rij{display:flex;align-items:center;gap:6px}
+.lp-sample{width:18px;height:0;border-top:3px solid}
+.lp-dot{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff}
+
+/* uitleg-paneel */
+.lp-paneel{flex:1;overflow-y:auto;background:var(--surface);border-top:1px solid var(--line-d);
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom));max-width:var(--maxw,520px);margin:0 auto;width:100%}
+.lp-principe{font-size:15px;font-weight:700;line-height:1.4;margin-bottom:10px;color:var(--ink)}
+.lp-badge{display:inline-block;background:var(--loop);color:#1a1a1a;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;vertical-align:middle;margin-right:7px;letter-spacing:.3px}
+.lp-blok{margin-bottom:14px}
+.lp-blok h4{font-size:11px;font-weight:800;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.lp-blok p{font-size:13px;line-height:1.5;color:var(--ink)}
+.lp-coachpunten{list-style:none;display:flex;flex-direction:column;gap:6px}
+.lp-coachpunten li{font-size:12.5px;line-height:1.4;padding-left:18px;position:relative;color:var(--ink)}
+.lp-coachpunten li::before{content:"→";position:absolute;left:0;color:var(--loop);font-weight:700}
+.lp-vb-kop{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.lp-vb-kop h4{margin:0}
+.lp-vb-nav{display:flex;gap:6px}
+.lp-vb-nav button{width:34px;height:34px;border:none;border-radius:9px;background:var(--surface-2);color:var(--ink);font-size:16px;cursor:pointer}
+.lp-vb-nav button.primary{background:var(--accent)}
+.lp-vb-kaart{background:var(--surface-2);border:1px solid var(--line-d);border-radius:12px;padding:12px}
+.lp-vb-naam{font-size:14px;font-weight:700;margin-bottom:5px;color:var(--ink)}
+.lp-vb-toel{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.lp-vb-teller{font-size:10.5px;color:var(--ink-2);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:8px}
+.lp-vb-acties{display:flex;gap:8px;margin-top:10px}
+.lp-vb-acties button{flex:1;border:none;border-radius:10px;padding:10px;font-size:12px;font-weight:600;cursor:pointer}
+.lp-btn-toon{background:var(--accent);color:#fff}
+.lp-btn-over{background:var(--surface);color:var(--ink);border:1px solid var(--line-d)!important}
+
+/* opstelling-kiezer sheet */
+.lp-sheet-bg{position:fixed;inset:0;z-index:1260;background:rgba(0,0,0,.6);display:flex;align-items:flex-end}
+.lp-sheet{width:100%;max-width:var(--maxw,520px);margin:0 auto;background:var(--surface);border:1px solid var(--line-d);
+  border-bottom:none;border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:70%;overflow-y:auto}
+.lp-sheet-kop{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.lp-sheet-kop h3{font-family:'Barlow Condensed',sans-serif;font-size:19px;text-transform:uppercase;color:var(--ink)}
+.lp-sluit{background:transparent;border:none;color:var(--ink-2);font-size:20px;cursor:pointer}
+.lp-sheet .lp-sub{font-size:12px;color:var(--ink-2);margin-bottom:14px}
+.lp-opst{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;background:var(--surface-2);
+  border:1px solid var(--line-d);border-radius:11px;padding:12px;color:var(--ink);cursor:pointer;margin-bottom:8px;text-align:left}
+.lp-opst strong{font-size:14px}
+.lp-opst span{font-size:11.5px;color:var(--ink-2)}
+.lp-opst-weg{opacity:.8}
