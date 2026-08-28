@@ -11,7 +11,7 @@
 
    Weggeklikt wordt lokaal onthouden in localStorage onder 'cluppie_bericht_weg'. */
 
-import { S, esc, datumNL } from './state.js?v=20260828c';
+import { S, esc, datumNL } from './state.js?v=20260828d';
 import { ico } from './icons.js?v=20260825b';
 
 const WEG_KEY = 'cluppie_bericht_weg';

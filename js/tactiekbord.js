@@ -25,9 +25,9 @@
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828c';
-import { bouwSlots } from './config.js?v=20260828c';
-import { telNav } from './tracker.js?v=20260828c';
+import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828d';
+import { bouwSlots } from './config.js?v=20260828d';
+import { telNav } from './tracker.js?v=20260828d';
 
 const NS = 'http://www.w3.org/2000/svg';
 
