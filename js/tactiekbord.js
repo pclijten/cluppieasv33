@@ -16,7 +16,7 @@
    Datamodel (Firestore doc in teams/{teamId}/wedstrijden/{wid}/tactieken):
      { naam, periode, format, formatie,
        objecten: [ {soort:'speler'|'tegen'|'bal', nr, naam, x, y} ],   // x,y in %
-       tekeningen: [ {soort:'loopweg'|'pass'|'potlood', kleur, punten:[[x,y],...]} ],
+       tekeningen: [ {soort:'loopweg'|'potlood', kleur, punten:[[x,y],...]} ],   // x,y in %
        gemaaktDoor, gemaaktOp, gewijzigdOp }
    De subcollectie valt onder de bestaande `/{sub=**}` team-regel, dus er zijn
    geen nieuwe Firestore-rules nodig. Alle coaches van het team mogen maken en
@@ -25,9 +25,9 @@
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828a';
-import { bouwSlots } from './config.js?v=20260828a';
-import { telNav } from './tracker.js?v=20260828a';
+import { S, esc, meld, spelerNaam, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828b';
+import { bouwSlots } from './config.js?v=20260828b';
+import { telNav } from './tracker.js?v=20260828b';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -291,7 +291,7 @@ function tekenBoard(w){
         <div class="tb-lijn tb-vijf-o"></div>
         <div class="tb-lijn tb-zestien-b"></div>
         <div class="tb-lijn tb-vijf-b"></div>
-        <svg class="tb-tekenlaag" id="tbTeken" viewBox="0 0 300 400" preserveAspectRatio="none">
+        <svg class="tb-tekenlaag" id="tbTeken" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <marker id="tbPijl" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto">
               <path d="M0,0 L6,3 L0,6 Z" fill="var(--tb-pijl)"/>
@@ -299,15 +299,13 @@ function tekenBoard(w){
           </defs>
         </svg>
         <div class="tb-objecten" id="tbObjecten"></div>
-        <div class="tb-hint" id="tbHint">Sleep een speler om te verplaatsen. Kies onderin een tool.</div>
+        <div class="tb-hint weg" id="tbHint"></div>
       </div>
     </div>
 
     <div class="tb-tools" id="tbTools">
       <button class="tb-tool actief" data-tool="select">◈<span>Verplaats</span></button>
       <button class="tb-tool" data-tool="volg" id="tbVolg">↝<span>Volg-loopweg</span></button>
-      <button class="tb-tool" data-tool="loopweg">⇢<span>Loopweg</span></button>
-      <button class="tb-tool" data-tool="pass">→<span>Pass</span></button>
       <button class="tb-tool" data-tool="potlood">✎<span>Potlood</span></button>
       <button class="tb-tool" data-tool="gum">⌫<span>Gum</span></button>
       <span class="tb-verdeler"></span>
@@ -359,33 +357,40 @@ function tekenBoard(w){
     }).join('');
     objLaag.querySelectorAll('.tb-obj').forEach(el => koppelSleep(el));
   }
+  function stijlPad(path, t){
+    path.setAttribute('stroke', t.kleur || '#F2C94C');
+    path.setAttribute('stroke-width', '3');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    // Houd de lijndikte constant in pixels ondanks de niet-uniforme uitrekking
+    // van het 100×100-viewBox (anders wordt 'ie de ene richting dik, de andere dun).
+    path.setAttribute('vector-effect', 'non-scaling-stroke');
+    if (t.soort === 'loopweg'){
+      path.setAttribute('stroke-dasharray', '7 5');
+      path.setAttribute('marker-end', 'url(#tbPijl)');
+    }
+  }
   function renderTekeningen(){
     // verwijder alle bestaande paths (behoud <defs>)
     teken.querySelectorAll('path').forEach(p => p.remove());
     for (const t of B.tekeningen){
       const path = document.createElementNS(NS, 'path');
       path.setAttribute('d', 'M' + (t.punten||[]).map(p => p.join(' ')).join(' L'));
-      path.setAttribute('stroke', t.kleur || '#F2C94C');
-      path.setAttribute('stroke-width', '3');
-      path.setAttribute('fill', 'none');
-      path.setAttribute('stroke-linecap', 'round');
-      path.setAttribute('stroke-linejoin', 'round');
-      if (t.soort === 'loopweg') path.setAttribute('stroke-dasharray', '8 6');
-      if (t.soort === 'loopweg' || t.soort === 'pass') path.setAttribute('marker-end', 'url(#tbPijl)');
+      stijlPad(path, t);
       teken.appendChild(path);
     }
   }
   renderObjecten(); renderTekeningen();
 
-  /* ---------- coördinaten ---------- */
-  function pctPos(clientX, clientY){
-    const r = veldWrap.getBoundingClientRect();
-    return { x: clamp((clientX-r.left)/r.width*100, 2, 98),
-             y: clamp((clientY-r.top)/r.height*100, 2, 98) };
-  }
-  function svgPos(clientX, clientY){
-    const r = veldWrap.getBoundingClientRect();
-    return { x: (clientX-r.left)/r.width*300, y: (clientY-r.top)/r.height*400 };
+  /* ---------- coördinaten ----------
+     Eén systeem overal: percentages 0–100 op beide assen, gemeten tegen het
+     tekenvlak zelf (de svg). Zo kan er geen ratio-mismatch tussen tekenlaag en
+     objectenlaag ontstaan, en begint een lijn exact onder de vinger. */
+  function pos(clientX, clientY){
+    const r = teken.getBoundingClientRect();
+    return { x: clamp((clientX - r.left) / r.width  * 100, 0, 100),
+             y: clamp((clientY - r.top)  / r.height * 100, 0, 100) };
   }
 
   /* ---------- objecten slepen (+ volg-loopweg) ---------- */
@@ -397,31 +402,35 @@ function tekenBoard(w){
       if (tool !== 'select' && tool !== 'volg') return;
       actief = true; el.classList.add('pak'); el.setPointerCapture(e.pointerId);
       if (volgAan && B.objecten[i] && B.objecten[i].soort !== 'bal'){
-        const s = svgPos(e.clientX, e.clientY);
-        volgPunten = [[+s.x.toFixed(1), +s.y.toFixed(1)]];
+        // Begin de loopweg exact op het middelpunt van de speler, niet op de
+        // (mogelijk iets naast de chip liggende) vingerpositie. Zo loopt de lijn
+        // netjes vanaf de speler mee.
+        volgPunten = [[+B.objecten[i].x.toFixed(1), +B.objecten[i].y.toFixed(1)]];
       }
       e.stopPropagation();
     });
     el.addEventListener('pointermove', e => {
       if (!actief) return;
       const i = +el.dataset.i;
-      const p = pctPos(e.clientX, e.clientY);
+      const p = pos(e.clientX, e.clientY);
       el.style.left = p.x + '%'; el.style.top = p.y + '%';
       B.objecten[i].x = +p.x.toFixed(1); B.objecten[i].y = +p.y.toFixed(1);
       if (volgPunten){
-        const s = svgPos(e.clientX, e.clientY);
         const l = volgPunten[volgPunten.length-1];
-        if (Math.hypot(s.x-l[0], s.y-l[1]) > 4){
-          volgPunten.push([+s.x.toFixed(1), +s.y.toFixed(1)]);
+        // kleinere drempel = vloeiender en nauwkeuriger spoor
+        if (Math.hypot(p.x-l[0], p.y-l[1]) > 1.2){
+          volgPunten.push([+p.x.toFixed(1), +p.y.toFixed(1)]);
         }
       }
     });
     el.addEventListener('pointerup', () => {
       actief = false; el.classList.remove('pak');
       if (volgPunten){
-        // spoorlengte; te kort = per ongeluk, weggooien
+        // eindpunt exact op de neergelegde positie
+        const i = +el.dataset.i;
+        volgPunten.push([+B.objecten[i].x.toFixed(1), +B.objecten[i].y.toFixed(1)]);
         const lengte = volgPunten.reduce((t,p,idx) => idx ? t+Math.hypot(p[0]-volgPunten[idx-1][0], p[1]-volgPunten[idx-1][1]) : 0, 0);
-        if (lengte >= 18){
+        if (lengte >= 5){
           B.tekeningen.push({ soort:'loopweg', kleur, punten: volgPunten });
           renderTekeningen();
         }
@@ -431,40 +440,28 @@ function tekenBoard(w){
     });
   }
 
-  /* ---------- vrij tekenen (potlood, loopweg, pass) ---------- */
+  /* ---------- vrij tekenen (alleen potlood) ---------- */
   let bezig = null, tijdelijk = null;
   veldWrap.addEventListener('pointerdown', e => {
-    if (tool === 'potlood' || tool === 'loopweg' || tool === 'pass'){
-      const s = svgPos(e.clientX, e.clientY);
-      bezig = { soort: tool, kleur, punten: [[+s.x.toFixed(1), +s.y.toFixed(1)]] };
-      tijdelijk = document.createElementNS(NS, 'path');
-      tijdelijk.setAttribute('stroke', kleur);
-      tijdelijk.setAttribute('stroke-width', '3');
-      tijdelijk.setAttribute('fill', 'none');
-      tijdelijk.setAttribute('stroke-linecap', 'round');
-      tijdelijk.setAttribute('stroke-linejoin', 'round');
-      if (tool === 'loopweg') tijdelijk.setAttribute('stroke-dasharray', '8 6');
-      if (tool === 'loopweg' || tool === 'pass') tijdelijk.setAttribute('marker-end', 'url(#tbPijl)');
-      teken.appendChild(tijdelijk);
-      veldWrap.setPointerCapture(e.pointerId);
-    }
+    if (tool !== 'potlood') return;
+    const s = pos(e.clientX, e.clientY);
+    bezig = { soort: 'potlood', kleur, punten: [[+s.x.toFixed(1), +s.y.toFixed(1)]] };
+    tijdelijk = document.createElementNS(NS, 'path');
+    stijlPad(tijdelijk, bezig);
+    teken.appendChild(tijdelijk);
+    veldWrap.setPointerCapture(e.pointerId);
   });
   veldWrap.addEventListener('pointermove', e => {
     if (!bezig) return;
-    const s = svgPos(e.clientX, e.clientY);
-    if (bezig.soort === 'potlood'){
-      const l = bezig.punten[bezig.punten.length-1];
-      if (Math.hypot(s.x-l[0], s.y-l[1]) > 3) bezig.punten.push([+s.x.toFixed(1), +s.y.toFixed(1)]);
-    } else {
-      // pijl: alleen begin- en eindpunt
-      bezig.punten = [bezig.punten[0], [+s.x.toFixed(1), +s.y.toFixed(1)]];
-    }
+    const s = pos(e.clientX, e.clientY);
+    const l = bezig.punten[bezig.punten.length-1];
+    if (Math.hypot(s.x-l[0], s.y-l[1]) > 1) bezig.punten.push([+s.x.toFixed(1), +s.y.toFixed(1)]);
     tijdelijk.setAttribute('d', 'M' + bezig.punten.map(p => p.join(' ')).join(' L'));
   });
   veldWrap.addEventListener('pointerup', () => {
     if (!bezig) return;
     const lengte = bezig.punten.reduce((t,p,i) => i ? t+Math.hypot(p[0]-bezig.punten[i-1][0], p[1]-bezig.punten[i-1][1]) : 0, 0);
-    if (lengte >= 8){ B.tekeningen.push(bezig); }
+    if (lengte >= 2){ B.tekeningen.push(bezig); }
     else if (tijdelijk){ tijdelijk.remove(); }
     bezig = null; tijdelijk = null;
     pushUndo();
@@ -497,9 +494,9 @@ function tekenBoard(w){
       volgAan = false; host.querySelector('#tbVolg').classList.remove('aan');
       tool = t;
       host.querySelectorAll('.tb-tool[data-tool]').forEach(x => x.classList.toggle('actief', x === b));
-      zetTeken(t === 'potlood' || t === 'loopweg' || t === 'pass');
-      const tk = { select:'Sleep spelers om ze te verplaatsen', loopweg:'Teken een loopweg: sleep van A naar B',
-        pass:'Teken een pass: sleep van speler naar doel', potlood:'Teken vrij met je vinger',
+      zetTeken(t === 'potlood');
+      const tk = { select:'Sleep spelers om ze te verplaatsen',
+        potlood:'Teken vrij met je vinger',
         gum:'Tik een object om het te verwijderen' };
       if (tk[t]) hint(tk[t]);
     };
@@ -510,9 +507,11 @@ function tekenBoard(w){
         B.objecten.push({ soort:'bal', x:50, y:50 }); renderObjecten(); pushUndo();
         hint('Bal geplaatst — sleep hem waar je wilt');
       } else {
-        const nr = (prompt('Rugnummer tegenstander?', '') || '').trim();
-        B.objecten.push({ soort:'tegen', nr, x: 42+Math.random()*16, y: 34+Math.random()*12 });
-        renderObjecten(); pushUndo(); hint('Tegenstander geplaatst');
+        // Tegenstander wordt meteen neergezet als effen pion, zonder rugnummer
+        // te hoeven kiezen. Meerdere tikken = meerdere pionnen, licht gespreid.
+        const n = B.objecten.filter(o => o.soort === 'tegen').length;
+        B.objecten.push({ soort:'tegen', nr:'', x: 38 + (n%4)*8, y: 30 + Math.floor(n/4)*10 });
+        renderObjecten(); pushUndo(); hint('Tegenstander geplaatst — sleep hem waar je wilt');
       }
     };
   });
@@ -579,7 +578,7 @@ async function deelAlsAfbeelding(w){
   box(true, 0.055, 0.28); box(false, 0.055, 0.28); // 5m
 
   // tekeningen
-  const px = v => v/300*W, py = v => v/400*H;
+  const px = v => v/100*W, py = v => v/100*H;
   for (const t of B.tekeningen){
     if (!(t.punten||[]).length) continue;
     c.strokeStyle = t.kleur || '#F2C94C'; c.lineWidth = 4;
