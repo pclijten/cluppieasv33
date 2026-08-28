@@ -3280,3 +3280,120 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .trw-vpop-speler video{width:100%;max-height:70vh;display:block;background:#000}
 .trw-vpop-voet{padding:10px 14px;font-size:calc(11.5px * var(--fs));color:var(--ink-2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ==========================================================================
+   TACTIEKBORD (tactiekbord.js) — fullscreen tactiekbord + lijst-sheet.
+   Gebruikt de bestaande donkere tokens; --tb-pijl stuurt de svg-markerkleur.
+   ========================================================================== */
+.tb-board{position:fixed;inset:0;z-index:1200;display:flex;flex-direction:column;
+  background:var(--bg);--tb-pijl:#F2C94C}
+
+/* topbar */
+.tb-top{display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:var(--surface);border-bottom:1px solid var(--line-d);
+  padding-top:calc(10px + env(safe-area-inset-top))}
+.tb-titel-wrap{flex:1;min-width:0}
+.tb-naam{width:100%;background:transparent;border:none;color:var(--ink);
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;
+  letter-spacing:.3px;padding:2px 0}
+.tb-naam:focus{outline:none;border-bottom:2px solid var(--accent)}
+.tb-sub2{font-size:11px;color:var(--ink-2);margin-top:-1px}
+.tb-top-btn{height:36px;min-width:36px;padding:0 12px;border:none;border-radius:10px;
+  background:var(--surface-2);color:var(--ink);font-size:17px;font-weight:600;cursor:pointer}
+.tb-top-btn.primary{background:var(--accent);color:#fff;font-size:14px}
+.tb-top-btn.ghost{background:transparent;color:var(--ink);font-size:26px;line-height:1}
+
+/* stage + veld */
+.tb-stage{flex:1;position:relative;overflow:hidden;display:flex;
+  align-items:center;justify-content:center;padding:8px}
+.tb-veld-wrap{position:relative;height:100%;aspect-ratio:3/4;max-width:100%;max-height:100%;
+  border-radius:12px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.4);touch-action:none}
+@media (orientation:landscape){
+  .tb-veld-wrap{aspect-ratio:4/3;height:auto;width:100%;max-height:100%}
+}
+.tb-veld{position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%)}
+@media (orientation:landscape){
+  .tb-veld{background:repeating-linear-gradient(90deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%)}
+}
+.tb-lijn{position:absolute;border:2px solid rgba(255,255,255,.82);pointer-events:none}
+.tb-midden{left:0;right:0;top:50%;border-width:1px 0 0}
+.tb-cirkel{left:50%;top:50%;width:24%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.tb-zestien-b{left:22%;right:22%;bottom:-2px;height:13%;border-bottom:none}
+.tb-zestien-o{left:22%;right:22%;top:-2px;height:13%;border-top:none}
+.tb-vijf-b{left:36%;right:36%;bottom:-2px;height:5.5%;border-bottom:none}
+.tb-vijf-o{left:36%;right:36%;top:-2px;height:5.5%;border-top:none}
+
+.tb-tekenlaag{position:absolute;inset:0;z-index:5;touch-action:none;pointer-events:none}
+.tb-objecten{position:absolute;inset:0;z-index:10}
+
+.tb-obj{position:absolute;transform:translate(-50%,-50%);touch-action:none;cursor:grab;user-select:none}
+.tb-obj.pak{cursor:grabbing;z-index:15}
+.tb-chip{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;color:#fff;
+  box-shadow:0 2px 8px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.9)}
+.tb-chip.eigen{background:var(--accent)}
+.tb-chip.keeper{background:var(--keeper,#F2A33C)}
+.tb-chip.tegen{background:#2B6FD6}
+.tb-chip-naam{position:absolute;top:40px;left:50%;transform:translateX(-50%);font-size:10px;
+  font-weight:600;color:#fff;white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.85);pointer-events:none}
+.tb-bal{width:26px;height:26px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff,#d0d0cc);border:2px solid #333;
+  box-shadow:0 2px 8px rgba(0,0,0,.5)}
+
+.tb-hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:19;
+  background:rgba(10,13,18,.94);border:1px solid var(--line-d);color:var(--ink);
+  padding:8px 14px;border-radius:20px;font-size:12px;font-weight:500;max-width:82%;text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none;transition:opacity .3s}
+.tb-hint.weg{opacity:0}
+
+/* toolbar */
+.tb-tools{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  background:var(--surface);border-top:1px solid var(--line-d)}
+.tb-tools::-webkit-scrollbar{display:none}
+.tb-tool{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;
+  width:58px;height:54px;justify-content:center;border:none;border-radius:11px;
+  background:transparent;color:var(--ink-2);cursor:pointer;font-size:19px;font-weight:600}
+.tb-tool span{font-size:9.5px;font-weight:600;line-height:1}
+.tb-tool.actief{background:var(--surface-2);color:var(--ink)}
+.tb-tool.aan{background:rgba(63,185,80,.18);color:#3FB950}
+.tb-verdeler{flex:0 0 auto;width:1px;height:34px;background:var(--line-d);margin:0 3px}
+.tb-kleuren{display:flex;gap:6px;align-items:center;padding:0 2px}
+.tb-kleur{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.tb-kleur.actief{border-color:#fff}
+
+/* lijst + periode-sheet */
+.tb-sheet-bg{position:fixed;inset:0;z-index:1250;background:rgba(0,0,0,.55);
+  display:flex;align-items:flex-end}
+.tb-sheet{width:100%;max-width:var(--maxw,520px);margin:0 auto;background:var(--surface);
+  border:1px solid var(--line-d);border-bottom:none;border-radius:20px 20px 0 0;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:72%;overflow-y:auto}
+.tb-sheet-kop{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tb-sheet-kop h3{font-family:'Barlow Condensed',sans-serif;font-size:20px;
+  text-transform:uppercase;letter-spacing:.3px;color:var(--ink)}
+.tb-sluit{background:transparent;border:none;color:var(--ink-2);font-size:20px;cursor:pointer}
+.tb-nieuw{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--surface-2);border:1px solid var(--line-d);border-radius:14px;
+  padding:14px;color:var(--ink);cursor:pointer;margin-bottom:14px}
+.tb-nieuw-ico{width:40px;height:40px;flex:0 0 auto;border-radius:50%;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px}
+.tb-nieuw .tb-sub{font-size:12px;color:var(--ink-2);font-weight:400}
+.tb-lijst{display:flex;flex-direction:column;gap:10px}
+.tb-laden,.tb-leeg{padding:20px;text-align:center;color:var(--ink-2);font-size:13px}
+.tb-rij{display:flex;align-items:center;gap:12px;background:var(--surface-2);
+  border:1px solid var(--line-d);border-radius:12px;padding:8px 10px}
+.tb-rij-mini{flex:0 0 auto;width:56px;height:42px;border-radius:6px;overflow:hidden;cursor:pointer}
+.tb-mini-svg{width:100%;height:100%;display:block}
+.tb-rij-tekst{flex:1;min-width:0;cursor:pointer}
+.tb-rij-naam{font-weight:600;color:var(--ink);font-size:14px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-rij-meta{font-size:11.5px;color:var(--ink-2);margin-top:1px}
+.tb-rij-verwijder{background:transparent;border:none;color:var(--ink-2);font-size:16px;cursor:pointer;padding:6px}
+.tb-periodes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.tb-periode{display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+  background:var(--surface-2);border:1px solid var(--line-d);border-radius:12px;
+  padding:14px;color:var(--ink);cursor:pointer}
+.tb-periode strong{font-family:'Barlow Condensed',sans-serif;font-size:20px}
+.tb-periode span{font-size:11.5px;color:var(--ink-2)}
+.tb-periode.leeg{opacity:.6}
