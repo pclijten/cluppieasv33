@@ -1,4 +1,4 @@
-import { S } from './state.js?v=20260826c';
+import { S } from './state.js?v=20260828a';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)

@@ -249,10 +249,17 @@ function pdfViewerOpen(){
 function lightboxOpen(){
   return !!document.querySelector('.trw-lb')?.classList.contains('open');
 }
+/* Tactiekbord (tactiekbord.js) is een fullscreen-overlay bovenop alles — ook
+   bovenop een wedstrijd-modal — en checkt via de DOM i.p.v. een import om een
+   circulaire import te vermijden. Zelfde patroon als de pdf-viewer/lightbox. */
+function tactiekbordOpen(){
+  return !!document.querySelector('.tb-board');
+}
 
 /* Zit de app op dit moment "ergens binnen", d.w.z. valt er iets terug te gaan? */
 function kanTerug(){
   if (!S.user) return false;
+  if (tactiekbordOpen()) return true;
   if (lightboxOpen()) return true;
   if (pdfViewerOpen()) return true;
   if (modalOpen()) return true;
@@ -297,17 +304,21 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20260826c').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20260828a').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
+  if (tactiekbordOpen()){
+    import('./tactiekbord.js?v=20260828a').then(m => m.sluitTactiekbord());
+    return true;
+  }
   if (lightboxOpen()){
-    import('./training-weergave.js?v=20260826c').then(m => m.sluitLightbox());
+    import('./training-weergave.js?v=20260828a').then(m => m.sluitLightbox());
     return true;
   }
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20260826c').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20260828a').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
