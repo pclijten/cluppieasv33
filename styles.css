@@ -2161,6 +2161,7 @@ body::before{
 .trw-oef-kop{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .trw-oef-nr{flex-shrink:0;width:32px;height:32px;border-radius:9px;background:var(--accent);color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:calc(18px * var(--fs));display:flex;align-items:center;justify-content:center}
 .trw-oef-kop h2{font-family:'Barlow Condensed';font-weight:700;font-size:calc(21px * var(--fs));text-transform:uppercase;letter-spacing:.4px;line-height:1.05;color:var(--ink)}
+.trw-oef .hl p{white-space:pre-wrap}
 .trw-diagram{position:relative;margin:0 0 13px;border-radius:10px;overflow:hidden;background:#fff;cursor:zoom-in}
 .trw-diagram img{display:block;width:100%;height:auto}
 .trw-zoomhint{position:absolute;right:8px;bottom:8px;background:rgba(14,17,22,.72);color:#fff;font-size:calc(12px * var(--fs));padding:5px 9px;border-radius:99px;pointer-events:none}
