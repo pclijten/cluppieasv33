@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260828e'); }
+async function teamsModule(){ return await import('./teams.js?v=20260829a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -56,7 +56,6 @@ export function modalNieuwClub(){
 
 export function openClub(clubId){
   S.clubId = clubId; S.clubTab = 'hub'; S.teamId = null;
-  S.clubTrainBouw = S.clubTrainBouw || 'onder';
   stopUnsubs('club');
   S.unsub.club = onSnapshot(doc(db,'clubs',clubId), snap => {
     if (!snap.exists()){ verlaatClubView(); return; }
@@ -73,7 +72,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260828e').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260829a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1185,82 +1184,117 @@ function weekLijst(trainingen){
     });
 }
 
-/* Coverage-overzicht binnen de Trainingen-tab: per team (in de gekozen bouw)
-   welke trainingen aan welke week gekoppeld zijn, met de gaten in amber.
+/* Coverage-overzicht binnen de Trainingen-tab: per TRAININGSGROEP (A/B/C/…)
+   een matrix teams × weken, zodat je in één oogopslag ziet welk team binnen
+   een groep achterloopt. Elke cel toont "titel · bestandsnaam" (of amber gat).
+   Teams die in géén groep zitten staan apart onderaan — die krijgen bij het
+   uploaden-per-groep automatisch niets en zijn dus de blinde vlek.
    Puur informatief — geen koppel-actie (bewust, als signaal). */
-function htmlClubTrainingenOverzicht(teams, trainingen, actiefBouw){
-  // teams in deze bouw, op naam gesorteerd
-  const teamsInBouw = teams
-    .filter(t => bouwVanCategorie(t.categorie) === actiefBouw)
-    .sort((a, b) => (a.naam || '').localeCompare(b.naam || ''));
+function htmlClubTrainingenOverzicht(teams, trainingen){
+  const weken = weekLijst(trainingen);
+  const teamById = new Map(teams.map(t => [t.id, t]));
 
-  if (!teamsInBouw.length){
-    return `<div class="kaart leeg">Geen teams in de ${esc(bouwNaam(actiefBouw).toLowerCase())}.</div>`;
+  // trainingen van één team in één week (op weeklabel gematcht, zoals de lijst)
+  const trsVoor = (teamId, weekKey) =>
+    trainingen.filter(t =>
+      (t.teams || []).includes(teamId) &&
+      (((t.week || '').trim().toLowerCase()) || '__leeg') === weekKey);
+
+  const heeftIets = (teamId) => trainingen.some(t => (t.teams || []).includes(teamId));
+
+  // één matrix-cel voor team × week
+  const celHtml = (teamId, w) => {
+    const items = trsVoor(teamId, w.key);
+    if (!items.length) return `<td><div class="tm-cel mist"><span class="tm-gat">— niets</span></div></td>`;
+    const inhoud = items.map(t =>
+      `<div class="tm-item"><span class="tm-titel">${esc(t.titel || t.bestandsnaam || 'Training')}</span>` +
+      (t.bestandsnaam ? `<span class="tm-dot">·</span><span class="tm-best">${esc(t.bestandsnaam)}</span>` : '') +
+      `</div>`).join('');
+    return `<td><div class="tm-cel ok">${inhoud}</div></td>`;
+  };
+
+  // matrix voor een set team-id's
+  const matrixHtml = (teamIds) => {
+    if (!weken.length){
+      return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
+    }
+    const kop = `<thead><tr><th class="tm-teamkop">Team</th>${
+      weken.map(w => `<th class="tm-wk">${esc(w.label)}</th>`).join('')}</tr></thead>`;
+    const rijen = teamIds.map(id => {
+      const naam = teamById.get(id)?.naam || '?';
+      return `<tr><th class="tm-teamnaam">${esc(naam)}</th>${
+        weken.map(w => celHtml(id, w)).join('')}</tr>`;
+    }).join('');
+    return `<div class="tm-scroll"><table class="tm-matrix">${kop}<tbody>${rijen}</tbody></table></div>`;
+  };
+
+  // status van een groep: aantal (team × week)-slots dat nog leeg is
+  const groepStatus = (teamIds) => {
+    if (!teamIds.length) return { ok:false, tekst:'geen teams' };
+    if (!weken.length)   return { ok:false, tekst:'nog geen weken' };
+    let gaten = 0; const teamsMist = new Set();
+    for (const id of teamIds)
+      for (const w of weken)
+        if (!trsVoor(id, w.key).length){ gaten++; teamsMist.add(id); }
+    if (gaten === 0) return { ok:true, tekst:'compleet' };
+    if (gaten === teamIds.length * weken.length) return { ok:false, tekst:'niets gekoppeld' };
+    return { ok:false, tekst:`${teamsMist.size} team${teamsMist.size>1?'s':''} mist ${gaten} slot${gaten>1?'s':''}` };
+  };
+
+  const groepen = trainingsGroepen();
+
+  if (!groepen.length){
+    return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b>⚙️ Groepen beheren</b> hierboven — dan zie je hier per groep of alle teams gedekt zijn.</div>`;
   }
 
-  const weken = weekLijst(trainingen);
-
-  // trainingen per team
-  const trainingenVoorTeam = (teamId) =>
-    trainingen.filter(t => (t.teams || []).includes(teamId));
-
-  // samenvatting: hoeveel teams hebben minstens één training?
-  let gedekt = 0;
-  for (const team of teamsInBouw) if (trainingenVoorTeam(team.id).length) gedekt++;
-  const mist = teamsInBouw.length - gedekt;
-
-  const samenvat = `
-    <div class="ov-samenvat">
-      <div class="ov-kpi"><div class="n">${teamsInBouw.length}</div><div class="l">teams</div></div>
-      <div class="ov-kpi goed"><div class="n">${gedekt}</div><div class="l">met training</div></div>
-      <div class="ov-kpi ${mist?'mist':''}"><div class="n">${mist}</div><div class="l">zonder</div></div>
-    </div>`;
-
-  const rijen = teamsInBouw.map(team => {
-    const trs = trainingenVoorTeam(team.id);
-    const heeft = trs.length > 0;
-    const badge = (team.naam || '').match(/[JM]O\d+/)?.[0] || (team.naam || '').slice(0, 4);
-
-    // per week de gekoppelde trainingen tonen; weken zonder training → amber gat
-    const perWeek = weken.length ? weken.map(w => {
-      const inWeek = trs.filter(t => ((t.week || '').trim().toLowerCase() || '__leeg') === w.key);
-      if (inWeek.length){
-        const namen = inWeek.map(t => esc(t.titel || t.bestandsnaam || 'Training')).join(', ');
-        return `<div class="ov-week ok"><span class="ov-wk">${esc(w.label)}</span><span class="ov-namen">${namen}</span></div>`;
-      }
-      return `<div class="ov-week mist"><span class="ov-wk">${esc(w.label)}</span><span class="ov-namen">— nog niets gekoppeld</span></div>`;
-    }).join('') : '';
-
-    const detail = heeft
-      ? perWeek
-      : `<div class="ov-week mist"><span class="ov-namen">⚠️ Dit team heeft nog geen enkele training gekoppeld.</span></div>`;
-
+  // per groep een uitklapbaar blok; complete groepen starten dichtgeklapt zodat
+  // de aandacht vanzelf naar de gaten gaat.
+  const groepBlokken = groepen.map(g => {
+    const ids = (g.teams || []).filter(id => teamById.has(id));
+    const st = groepStatus(ids);
+    const dicht = st.ok ? ' dicht' : '';
+    const body = ids.length ? matrixHtml(ids)
+      : `<div class="kaart leeg" style="margin:0">Nog geen teams in deze groep.</div>`;
     return `
-      <div class="ov-team ${heeft?'':'leeg'}">
-        <div class="ov-team-kop">
-          <div class="ov-badge">${esc(badge)}</div>
-          <div class="ov-team-info">
-            <div class="ov-team-naam">${esc(team.naam || '?')}</div>
-            <div class="ov-team-sub">${heeft ? trs.length + ' training' + (trs.length>1?'en':'') : 'niets gekoppeld'}</div>
+      <div class="tm-groep${dicht}">
+        <div class="tm-groep-kop" data-tm-klap>
+          <div class="tm-letter">${esc(g.id)}</div>
+          <div class="tm-groep-mid">
+            <div class="tm-groep-naam">${esc(g.naam || ('Groep ' + g.id))}</div>
+            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${weken.length?` · ${weken.length} ${weken.length===1?'week':'weken'} in beeld`:''}</div>
           </div>
-          <span class="ov-pil ${heeft?'ok':'mist'}">${heeft ? trs.length + '×' : 'geen'}</span>
+          <span class="tm-pil ${st.ok?'ok':'mist'}">${esc(st.tekst)}</span>
+          <span class="tm-chevron">▾</span>
         </div>
-        <div class="ov-team-detail">${detail}</div>
+        <div class="tm-groep-body">${body}</div>
       </div>`;
   }).join('');
 
-  return `${samenvat}<div class="ov-lijst">${rijen}</div>`;
+  // teams die in geen enkele groep zitten
+  const inGroep = new Set(groepen.flatMap(g => g.teams || []));
+  const losTeams = teams
+    .filter(t => !inGroep.has(t.id))
+    .sort((a, b) => (a.naam || '').localeCompare(b.naam || ''));
+
+  const losBlok = losTeams.length ? `
+    <div class="tm-los">
+      <div class="tm-los-kop">
+        <span class="tm-los-ic">⚠️</span>
+        <span class="tm-los-t">Teams zonder groep</span>
+        <span class="tm-los-s">${losTeams.length} team${losTeams.length>1?'s':''}</span>
+      </div>
+      <div class="tm-los-uitleg">Deze teams zitten in geen enkele trainingsgroep en krijgen bij het uploaden-per-groep automatisch niets. Voeg ze toe via ⚙️ Groepen beheren.</div>
+      <div class="tm-los-chips">${losTeams.map(t => {
+        const heeft = heeftIets(t.id);
+        return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':' · niets'}</span>`;
+      }).join('')}</div>
+    </div>` : '';
+
+  return `${groepBlokken}${losBlok}`;
 }
 
 function htmlClubTrainingen(teams, trainingen){
-  const actief = S.clubTrainBouw || 'onder';
   const weergave = S.clubTrainWeergave || 'lijst';   // 'lijst' | 'overzicht'
-  // tellingen per bouw voor de badges
-  const telPerBouw = {onder:0, midden:0, boven:0};
-  for (const t of trainingen)
-    for (const b of bouwenVanTraining(t, teams)) telPerBouw[b]++;
-
-  const zichtbaar = trainingen.filter(t => bouwenVanTraining(t, teams).has(actief));
   const groepen = trainingsGroepen();
 
   // Uploadblok: knop met multi-select PDF-input + (indien groepen bestaan) een
@@ -1274,27 +1308,22 @@ function htmlClubTrainingen(teams, trainingen){
       <button class="link" id="trGroepenBeheer">${groepen.length ? '⚙️ Groepen beheren' : '＋ Trainingsgroepen instellen'}</button>
     </div>`;
 
-  const segment = `
-    <div class="segment" id="bouwTabs" style="margin-bottom:14px">
-      ${BOUWEN.map(b => `<button data-bouw="${b.id}" class="${actief===b.id?'actief':''}">${b.kort}${telPerBouw[b.id]?` <span style="opacity:.6">(${telPerBouw[b.id]})</span>`:''}</button>`).join('')}
-    </div>`;
-
-  // weergave-schakelaar: Lijst (bestaand) of Overzicht (per team, met gaten)
+  // weergave-schakelaar: Lijst (bestaand) of Overzicht per groep (met gaten)
   const weergaveKies = `
     <div class="segment tr-weergave" id="trainWeergave" style="margin-bottom:14px">
       <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
-      <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per team</button>
+      <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per groep</button>
     </div>`;
 
   if (weergave === 'overzicht'){
     return `
       ${uploadBlok}
       ${weergaveKies}
-      ${segment}
-      ${htmlClubTrainingenOverzicht(teams, trainingen, actief)}`;
+      ${htmlClubTrainingenOverzicht(teams, trainingen)}`;
   }
 
-  const lijst = zichtbaar.length ? zichtbaar.map(t => {
+  // Lijst: alle trainingen van de club, nieuw → oud zoals ze binnenkomen.
+  const lijst = trainingen.length ? trainingen.map(t => {
     const teamNamen = (t.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
     const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
     const tekstKnop = heeftAi
@@ -1303,10 +1332,13 @@ function htmlClubTrainingen(teams, trainingen){
     const notitieKnop = heeftAi
       ? `<button data-tnotities="${t.id}" title="Notities van coaches bekijken">💬</button>`
       : '';
+    // bestandsnaam apart tonen als hij afwijkt van de titel (anders dubbelop)
+    const toonBest = t.bestandsnaam && t.bestandsnaam !== (t.titel || '');
     return `
       <div class="training-rij">
         <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
+          ${toonBest ? `<div class="t-best">${esc(t.bestandsnaam)}</div>` : ''}
           <div class="t-meta">${esc(t.week || '')}${t.week?' · ':''}${esc(teamNamen)}</div></div>
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
@@ -1318,12 +1350,11 @@ function htmlClubTrainingen(teams, trainingen){
         </div>
       </div>`;
   }).join('')
-  : `<div class="kaart leeg">Nog geen trainingen voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Upload een PDF en koppel hem aan een team uit deze bouw.</div>`;
+  : `<div class="kaart leeg">Nog geen trainingen.<br>Upload een PDF en koppel hem aan een team of trainingsgroep.</div>`;
 
   return `
     ${uploadBlok}
     ${weergaveKies}
-    ${segment}
     ${lijst}`;
 }
 
@@ -1793,8 +1824,9 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-weergave]').forEach(b => b.onclick = () => {
       S.clubTrainWeergave = b.dataset.weergave; renderClub();
     });
-    v.querySelectorAll('[data-bouw]').forEach(b => b.onclick = () => {
-      S.clubTrainBouw = b.dataset.bouw; renderClub();
+    // groepsblokken in het overzicht in-/uitklappen (puur UI, geen re-render)
+    v.querySelectorAll('[data-tm-klap]').forEach(kop => kop.onclick = () => {
+      kop.closest('.tm-groep')?.classList.toggle('dicht');
     });
     const knop = v.querySelector('#trainingUpload');
     const input = v.querySelector('#trainingFile');
@@ -1802,7 +1834,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     input.onchange = e => {
       const files = [...e.target.files]; if (!files.length) return;
       e.target.value = '';   // zelfde bestand later opnieuw kunnen kiezen
-      if (files.length === 1) modalNieuweTraining(files[0], teams, S.clubTrainBouw);
+      if (files.length === 1) modalNieuweTraining(files[0], teams);
       else modalMeerdereTrainingen(files, teams);
     };
     const grpBeheer = v.querySelector('#trGroepenBeheer');
@@ -2380,7 +2412,7 @@ function modalMeerdereTrainingen(files, teams){
     if (zonderGroep){
       // los langs: normale team-picker per bestand (met chips), maar met
       // doorrol-callback zodra gedeeld is.
-      modalNieuweTraining(f, teams, S.clubTrainBouw, meta);
+      modalNieuweTraining(f, teams, null, meta);
     } else {
       const g = groepen.find(x => x.id === keuze[i]);
       meta.teams = (g?.teams || []).filter(id => teams.some(t => t.id === id));
