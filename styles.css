@@ -278,6 +278,46 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .team-chip-kies label{display:inline-flex;align-items:center;gap:6px;background:var(--card);padding:7px 11px;border-radius:99px;font-size:calc(13px * var(--fs));font-weight:500;cursor:pointer;box-shadow:var(--shadow);border:1.5px solid transparent}
 .team-chip-kies label.aan{border-color:var(--grass);background:rgba(226,6,19,.07);color:var(--grass);font-weight:600}
 .team-chip-kies input{display:none}
+
+/* ---------- Trainingen-overzicht per groep (matrix teams × weken) ---------- */
+.t-best{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:1px;word-break:break-all;line-height:1.25}
+.tm-groep{background:var(--card);border-radius:12px;box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.tm-groep-kop{display:flex;align-items:center;gap:11px;padding:12px 14px;cursor:pointer;user-select:none}
+.tm-letter{width:40px;height:40px;border-radius:10px;background:var(--surface-2,rgba(0,0,0,.05));display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs));flex-shrink:0;color:var(--ink);border:1.5px solid var(--hair)}
+.tm-groep-mid{flex:1;min-width:0}
+.tm-groep-naam{font-weight:700;font-size:calc(15.5px * var(--fs))}
+.tm-groep-sub{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px}
+.tm-pil{padding:4px 11px;border-radius:99px;font-size:calc(11.5px * var(--fs));font-weight:700;white-space:nowrap;flex-shrink:0}
+.tm-pil.ok{background:rgba(63,185,80,.15);color:var(--in,#3fb950)}
+.tm-pil.mist{background:rgba(245,177,61,.15);color:var(--uit)}
+.tm-chevron{color:var(--ink-2);font-size:calc(14px * var(--fs));flex-shrink:0;transition:transform .18s}
+.tm-groep.dicht .tm-chevron{transform:rotate(-90deg)}
+.tm-groep.dicht .tm-groep-body{display:none}
+.tm-groep-body{padding:0 12px 12px}
+.tm-scroll{overflow-x:auto;border-radius:10px;border:1px solid var(--line-d,var(--hair));background:var(--surface-2,rgba(0,0,0,.03))}
+.tm-matrix{border-collapse:collapse;width:100%;min-width:320px;font-size:calc(12.5px * var(--fs))}
+.tm-matrix thead th{background:var(--surface-2,rgba(0,0,0,.05));font-size:calc(10.5px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2);padding:9px 10px;text-align:left;border-bottom:1px solid var(--line-d,var(--hair))}
+.tm-matrix thead th.tm-wk{text-align:center;min-width:135px}
+.tm-matrix tbody th.tm-teamnaam{font-weight:600;color:var(--ink);padding:8px 10px;white-space:nowrap;text-align:left;border-bottom:1px solid var(--line-d,var(--hair));background:var(--surface-2,rgba(0,0,0,.03));position:sticky;left:0;z-index:1}
+.tm-matrix tbody td{padding:5px 6px;border-bottom:1px solid var(--line-d,var(--hair));vertical-align:top}
+.tm-cel{border-radius:8px;padding:6px 8px;min-height:36px;display:flex;flex-direction:column;gap:2px}
+.tm-cel.ok{background:rgba(63,185,80,.12)}
+.tm-cel.mist{background:rgba(245,177,61,.10);align-items:center;justify-content:center}
+.tm-item{line-height:1.25}
+.tm-titel{font-weight:600;color:var(--ink)}
+.tm-dot{color:var(--ink-2);margin:0 4px}
+.tm-best{font-size:calc(11px * var(--fs));color:var(--ink-2);word-break:break-all}
+.tm-gat{color:var(--uit);font-weight:600;font-size:calc(11.5px * var(--fs))}
+.tm-los{background:var(--card);border-radius:12px;box-shadow:var(--shadow);border-left:3px solid var(--uit);padding:12px 14px;margin-bottom:12px}
+.tm-los-kop{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.tm-los-ic{font-size:calc(17px * var(--fs))}
+.tm-los-t{font-weight:700;font-size:calc(14.5px * var(--fs))}
+.tm-los-s{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-left:auto}
+.tm-los-uitleg{font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin-bottom:8px}
+.tm-los-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tm-los-chip{font-family:'Barlow Condensed';font-weight:600;font-size:calc(12.5px * var(--fs));padding:4px 10px;border-radius:99px;background:rgba(245,177,61,.14);color:var(--uit);letter-spacing:.3px}
+.tm-los-chip.heeft{background:var(--surface-2,rgba(0,0,0,.05));color:var(--ink-2)}
+
 .upload-knop{display:block;width:100%;padding:18px;border:2px dashed var(--hair);border-radius:12px;background:#FAFBF9;color:var(--ink-2);font-size:calc(14px * var(--fs));font-weight:500;text-align:center;cursor:pointer;margin-bottom:14px}
 .upload-knop.bezig{border-color:var(--grass);color:var(--grass);background:rgba(226,6,19,.06)}
 .club-knop{background:var(--pitch-ink);color:var(--fluo)}
