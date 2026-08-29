@@ -34,7 +34,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260829a')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260829b')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlLeenProfiel, htmlProfiel,
@@ -53,14 +53,14 @@ import { htmlTeamDocumenten } from './teams-documenten.js?v=20260828d';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
-} from './teams-hub.js?v=20260828d';
+} from './teams-hub.js?v=20260829b';
 import { htmlHandleiding } from './teams-handleiding.js?v=20260829a';
 import { koppelOnboardingHerstart } from './onboarding.js?v=20260829a';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260828d';
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20260829a' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20260829b' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -1722,6 +1722,10 @@ function koppelTeamTab(v, tab){
         if (redenen[pid]) redenen[pid].notitie = inp.value;
       });
     });
+    // "Klaar" is puur een zekerheidsknopje: alles is al direct bewaard, dit
+    // sluit het scherm (zelfde actie als de terug-knop ‹).
+    const pwKlaar = v.querySelector('#pwKlaar');
+    if (pwKlaar) pwKlaar.onclick = () => history.back();
     return;
   }
   if (tab === 'evaluatie'){

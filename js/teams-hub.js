@@ -218,7 +218,8 @@ export function htmlPresWedstrijd(){
   return `
     ${kiezer}
     <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee · wijzigingen worden direct bewaard</div>
-    ${S.spelers.length ? rijen : `<div class="kaart leeg">Nog geen spelers in dit team.</div>`}`;
+    ${S.spelers.length ? rijen : `<div class="kaart leeg">Nog geen spelers in dit team.</div>`}
+    <button class="knop vol" id="pwKlaar" style="margin-top:16px">Klaar</button>`;
 }
 
 /* Kiezerlijst voor de dropdown (komend eerst, dan afgelopen — beide op datum). */
