@@ -141,6 +141,57 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .kf-annuleer{background:var(--surface-2);color:var(--ink)}
 .kf-ok{background:var(--accent);color:#fff;border-color:var(--accent)}
 
+/* ── Aanvoerder-knop in Wijzig opzet (vervangt de oude dropdown) ── */
+.wo-aanv-knop{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--surface-2);border:1px solid var(--line-d);border-radius:11px;
+  padding:11px 13px;cursor:pointer}
+.wo-aanv-ico{position:relative;width:34px;height:34px;border-radius:9px;background:var(--accent);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.wo-aanv-ico .aanvoerder-band{position:static;width:auto;height:auto;border:none;box-shadow:none;
+  background:transparent;font-size:calc(16px * var(--fs))}
+.wo-aanv-tekst{flex:1;min-width:0}
+.wo-aanv-titel{display:block;font-size:calc(11px * var(--fs));color:var(--ink-2);
+  text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.wo-aanv-sam{display:block;font-weight:600;font-size:calc(14px * var(--fs));color:var(--ink);
+  margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wo-aanv-sam.leeg{color:var(--ink-2);font-weight:500}
+.wo-aanv-pijl{color:var(--ink-2);flex-shrink:0;display:flex}
+.wo-aanv-pijl svg{width:18px;height:18px}
+
+/* ── Aanvoerder-sheet (per periode) ── */
+.aanv-carr{display:grid;grid-template-columns:repeat(var(--aanv-cols,4),1fr);gap:6px;margin-bottom:10px}
+.aanv-tegel{position:relative;background:var(--surface-2);border:1px solid var(--line-d);
+  border-radius:11px;padding:8px 3px 7px;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:2px;min-width:0}
+.aanv-tegel.actief{background:var(--accent);border-color:var(--accent)}
+.aanv-tegel .aanv-q{font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));color:var(--ink)}
+.aanv-tegel .aanv-naam{font-size:calc(10px * var(--fs));color:var(--ink-2);max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 3px}
+.aanv-tegel.actief .aanv-q,.aanv-tegel.actief .aanv-naam{color:#fff}
+.aanv-punt{position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--in)}
+.aanv-tegel.actief .aanv-punt{background:#fff}
+.aanv-heel{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+  background:transparent;border:1px dashed var(--line-d);border-radius:10px;padding:9px 0;
+  color:var(--ink-2);font-size:calc(12.5px * var(--fs));font-weight:600;cursor:pointer;margin-bottom:14px}
+.aanv-heel svg{width:15px;height:15px}
+.aanv-lijstkop{font-size:calc(11px * var(--fs));color:var(--ink-2);text-transform:uppercase;
+  letter-spacing:.5px;font-weight:700;margin:0 2px 8px}
+.aanv-lijstkop b{color:var(--ink)}
+.aanv-lijst{display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow-y:auto;margin-bottom:14px}
+.aanv-rij{display:flex;align-items:center;gap:11px;background:var(--surface-2);
+  border:1px solid var(--line-d);border-radius:11px;padding:9px 11px;cursor:pointer;text-align:left;width:100%}
+.aanv-rij.actief{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border-color:var(--accent)}
+.aanv-b{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:calc(12.5px * var(--fs));flex-shrink:0}
+.aanv-b.c{background:var(--accent);color:#fff;font-family:'Barlow Condensed'}
+.aanv-b.nr{background:var(--surface);color:var(--ink-2);border:1px solid var(--line-d)}
+.aanv-rij-tekst{flex:1;min-width:0}
+.aanv-rij-naam{display:block;font-weight:600;font-size:calc(14px * var(--fs));color:var(--ink)}
+.aanv-meta{display:block;font-size:calc(10.5px * var(--fs));color:var(--ink-2);margin-top:1px}
+.aanv-vink{color:var(--accent);flex-shrink:0;display:flex}
+.aanv-vink svg{width:18px;height:18px}
+.aanv-klaar{width:100%}
+
 .veld{
   position:relative;aspect-ratio:3/4;width:100%;
   background:repeating-linear-gradient(0deg,var(--veld) 0 12.5%,var(--veld-2) 12.5% 25%);
