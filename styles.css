@@ -810,6 +810,16 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .pres-reden-chip.actief{ background:var(--uit);color:#fff;border-color:var(--uit); }
 .pres-reden-notitie{ margin:0 11px 10px;width:calc(100% - 22px); }
 
+/* "Te laat" = aanwezig met een vlag. Warn-kleur (geel/oranje) zodat het los
+   staat van aanwezig (groen) en afwezig (rood). De chip staat tussen de
+   afwezig-redenen; aangetikt zet hij de speler terug op aanwezig+vlag. */
+.pres-speler.telaat{ background:color-mix(in srgb,var(--warn) 14%,transparent);border-color:color-mix(in srgb,var(--warn) 45%,transparent); }
+.pres-speler.telaat .pres-shirt{ background:var(--warn);color:#1a1200; }
+.pres-speler.telaat .pres-status{ color:var(--warn); }
+.pres-telaat-rij{ display:flex;padding:0 11px 9px; }
+.pres-reden-chip.telaat-chip{ border-color:color-mix(in srgb,var(--warn) 50%,transparent); }
+.pres-reden-chip.telaat-chip.actief{ background:var(--warn);color:#1a1200;border-color:var(--warn); }
+
 /* Opslag-indicator bij directe presentie-opslag (geen Opslaan-knop meer):
    toont bewaren…/bewaard zodat de coach ziet dat elke tik is opgeslagen. */
 .pres-opslag{ display:flex;align-items:center;gap:7px;height:20px;margin:0 0 10px;font-size:calc(12px * var(--fs));font-weight:600;letter-spacing:.2px; }
