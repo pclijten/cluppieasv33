@@ -18,7 +18,7 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260828d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260829c';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260830a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -447,7 +447,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260829c').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260830a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -493,7 +493,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260829c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260830a').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -1758,7 +1758,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260829c').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260830a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2219,7 +2219,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260829c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260830a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2603,23 +2603,29 @@ function verbergWijzigOpzet(){
 function modalSelectie(){
   const w = S.wedstrijd;
   let sel = new Set(w.selectie || []);
+  let telaat = new Set(w.telaat || []);   // erbij, maar te laat gekomen
   // afwezig-redenen op de wedstrijd; kopie zodat annuleren niks wijzigt
   let redenen = JSON.parse(JSON.stringify(w.afwezigRedenen || {}));
 
   const rijenHtml = () => S.spelers.map(p => {
     const aanwezig = sel.has(p.id);
+    const isLaat = aanwezig && telaat.has(p.id);
+    const klasse = !aanwezig ? 'afwezig' : (isLaat ? 'telaat' : 'aanwezig');
+    const statusTxt = !aanwezig ? 'Afwezig' : (isLaat ? 'Te laat' : 'Erbij');
     const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
     return `
-    <div class="pres-speler ${aanwezig?'aanwezig':'afwezig'}">
+    <div class="pres-speler ${klasse}">
       <button type="button" class="pres-speler-kop" data-seltoggle="${p.id}">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${aanwezig?'Erbij':'Afwezig'}</span>
+        <span class="pres-status">${statusTxt}</span>
       </button>
       ${!aanwezig ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-seltelaat="${p.id}">⏱ Te laat</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ` : isLaat ? `
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-seltelaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
       ` : ''}
     </div>`;
   }).join('');
@@ -2633,8 +2639,15 @@ function modalSelectie(){
   const koppel = () => {
     $$('#mSelLijst [data-seltoggle]').forEach(b => b.onclick = () => {
       const id = b.dataset.seltoggle;
-      if (sel.has(id)){ sel.delete(id); }
+      if (sel.has(id)){ sel.delete(id); telaat.delete(id); }   // afwezig: geen te-laat
       else { sel.add(id); delete redenen[id]; }
+      $('#mSelLijst').innerHTML = rijenHtml(); koppel();
+    });
+    // Te-laat chip: afwezige speler terug erbij+vlag, of vlag weer weg. Telt als erbij.
+    $$('#mSelLijst [data-seltelaat]').forEach(b => b.onclick = () => {
+      const id = b.dataset.seltelaat;
+      if (telaat.has(id)){ telaat.delete(id); }
+      else { sel.add(id); delete redenen[id]; telaat.add(id); }
       $('#mSelLijst').innerHTML = rijenHtml(); koppel();
     });
     $$('#mSelLijst [data-selreden]').forEach(b => b.onclick = () => {
@@ -2653,6 +2666,8 @@ function modalSelectie(){
 
   $('#mSelOk').onclick = () => {
     w.selectie = [...sel];
+    // alleen te-laat-vlaggen bewaren van wie ook echt in de selectie zit
+    w.telaat = [...telaat].filter(pid => sel.has(pid));
     // alleen redenen bewaren van wie ook echt afwezig is
     const schoon = {};
     for (const [pid, r] of Object.entries(redenen)) if (!sel.has(pid)) schoon[pid] = r;

@@ -147,6 +147,7 @@ export function htmlPresentieTraining(){
 
   const rijHtml = (p) => {
     const afw = (p.afwezig || []);
+    const laat = (p.telaat || []);
     const aanwezig = Math.max(0, S.spelers.length - afw.length);
     const dat = new Date(p.datum+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
     const datMooi = dat.charAt(0).toUpperCase()+dat.slice(1);
@@ -163,8 +164,8 @@ export function htmlPresentieTraining(){
         <div class="pr-datum"><span class="pr-dag">${datMooi}</span></div>
         <div class="pr-info">
           ${afw.length
-            ? `<span class="pr-afw">${aanwezig} aanwezig · ${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
-            : `<span class="pr-allen">✓ Iedereen aanwezig (${aanwezig})</span>`}
+            ? `<span class="pr-afw">${aanwezig} aanwezig${laat.length?` · ${laat.length} te laat`:''} · ${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
+            : `<span class="pr-allen">✓ Iedereen aanwezig (${aanwezig})${laat.length?` · ${laat.length} te laat`:''}</span>`}
         </div>
         <span class="acties"><button title="Aanpassen">✏️</button></span>
       </div>`;
@@ -205,10 +206,11 @@ export function htmlPresentieTraining(){
 
   const alGeregAanwezig = alGeregistreerd ? Math.max(0, S.spelers.length - (alGeregistreerd.afwezig||[]).length) : 0;
   const alGeregAfwezig = alGeregistreerd ? (alGeregistreerd.afwezig||[]).length : 0;
+  const alGeregTeLaat = alGeregistreerd ? (alGeregistreerd.telaat||[]).length : 0;
 
   return `${afgelastSectie}
     ${alGeregistreerd
-      ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig en ${alGeregAfwezig} afwezig.</div>`
+      ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig${alGeregTeLaat?` (waarvan ${alGeregTeLaat} te laat)`:''} en ${alGeregAfwezig} afwezig.</div>`
       : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>`}
     <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:12px">${ico('planning-calendar',18)} Andere datum invullen</button>
     ${presentieLijst}`;
@@ -529,6 +531,7 @@ export function modalPresentie(bestaande = null, opties = {}){
   const vandaag = new Date().toISOString().slice(0,10);
   let datum = bestaande ? bestaande.datum : vandaag;
   let afwezig = new Set(bestaande ? (bestaande.afwezig || []) : []);
+  let telaat  = new Set(bestaande ? (bestaande.telaat  || []) : []);  // aanwezig, maar te laat
   let redenen = bestaande ? JSON.parse(JSON.stringify(bestaande.afwezigRedenen || {})) : {};
   const kanDatumWijzigen = !bestaande;
   const startAnder = kanDatumWijzigen && !!opties.startAnder;
@@ -540,18 +543,23 @@ export function modalPresentie(bestaande = null, opties = {}){
 
   const rijenHtml = () => S.spelers.map(p => {
     const isAfw = afwezig.has(p.id);
+    const isLaat = telaat.has(p.id);
+    const klasse = isAfw ? 'afwezig' : (isLaat ? 'telaat' : 'aanwezig');
+    const statusTxt = isAfw ? 'Afwezig' : (isLaat ? 'Te laat' : 'Aanwezig');
     const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
     return `
-    <div class="pres-speler ${isAfw?'afwezig':'aanwezig'}">
+    <div class="pres-speler ${klasse}">
       <button type="button" class="pres-speler-kop" data-toggle="${p.id}">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${isAfw?'Afwezig':'Aanwezig'}</span>
+        <span class="pres-status">${statusTxt}</span>
       </button>
       ${isAfw ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-telaat="${p.id}">⏱ Te laat</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ` : isLaat ? `
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
       ` : ''}
     </div>`;
   }).join('');
@@ -627,8 +635,10 @@ export function modalPresentie(bestaande = null, opties = {}){
     const data = {
       datum: schrijfDatum,
       afwezig: Array.from(afwezig),
+      telaat: Array.from(telaat),
       afwezigRedenen: redenen,
       aantalAanwezig: S.spelers.length - afwezig.size,
+      aantalTeLaat: telaat.size,
       aantalSpelers: S.spelers.length,
       door: S.user.displayName || S.user.email || '',
       gewijzigd: serverTimestamp(),
@@ -684,13 +694,24 @@ export function modalPresentie(bestaande = null, opties = {}){
     $$('[data-toggle]').forEach(b => b.onclick = () => {
       const id = b.dataset.toggle;
       if (afwezig.has(id)){ afwezig.delete(id); delete redenen[id]; }
-      else afwezig.add(id);
+      else { afwezig.add(id); telaat.delete(id); }   // afwezig sluit te-laat uit
       $('#mPresLijst').innerHTML = rijenHtml();
       koppelRijen();
       werkKnopBij();
       planBewaar();
     });
-    $$('.pres-reden-chip').forEach(b => b.onclick = () => {
+    // Te-laat chip: zet een afwezige speler terug op aanwezig+vlag, of haal de
+    // vlag weer weg. Telt mee als aanwezig.
+    $$('[data-telaat]').forEach(b => b.onclick = () => {
+      const id = b.dataset.telaat;
+      if (telaat.has(id)){ telaat.delete(id); }
+      else { afwezig.delete(id); delete redenen[id]; telaat.add(id); }
+      $('#mPresLijst').innerHTML = rijenHtml();
+      koppelRijen();
+      werkKnopBij();
+      planBewaar();
+    });
+    $$('.pres-reden-chip[data-reden]').forEach(b => b.onclick = () => {
       const id = b.dataset.pid, type = b.dataset.reden;
       const huidig = redenen[id];
       if (huidig && afwezigRedenInfo(huidig).id === type) delete redenen[id];
@@ -721,6 +742,7 @@ export function modalPresentie(bestaande = null, opties = {}){
     const bestaandRecord = S.presentie.find(p => p.datum === datum);
     docId = bestaandRecord ? bestaandRecord.id : null;
     afwezig = new Set(bestaandRecord ? (bestaandRecord.afwezig || []) : []);
+    telaat  = new Set(bestaandRecord ? (bestaandRecord.telaat  || []) : []);
     redenen = bestaandRecord ? JSON.parse(JSON.stringify(bestaandRecord.afwezigRedenen || {})) : {};
     // op een datum met een bestaand record is er al iets vastgelegd → knop "Klaar";
     // op een lege datum nog niet → knop nodigt uit om te bevestigen
