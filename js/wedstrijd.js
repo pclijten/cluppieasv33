@@ -18,10 +18,39 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260828d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260830a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260830b';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
+
+/* Aanvoerder van één periode. Nieuw model: w.aanvoerders is een object
+   gekeyd zoals w.kwarten ('1','2',…), zodat het aantal aanvoerders vanzelf
+   meebeweegt met w.periodes. Valt terug op het oude wedstrijd-brede
+   w.aanvoerder-veld zolang een wedstrijd nog niet gemigreerd is, zodat oude
+   wedstrijden hun aanvoerder blijven tonen. */
+function aanvoerderVan(w, nr){
+  const k = String(nr);
+  if (w.aanvoerders && Object.prototype.hasOwnProperty.call(w.aanvoerders, k))
+    return w.aanvoerders[k] || null;
+  return w.aanvoerder || null;
+}
+/* Zet (of wist met pid=null) de aanvoerder van één periode. Houdt het oude
+   w.aanvoerder-veld gelijk aan periode 1, zodat exports/plekken die dat veld
+   nog lezen kloppend blijven tot alles is omgezet. */
+function zetAanvoerder(w, nr, pid){
+  (w.aanvoerders ||= {})[String(nr)] = pid || null;
+  if (String(nr) === '1') w.aanvoerder = pid || null;
+}
+/* Unieke aanvoerdersbeurten binnen één wedstrijd, als lijst pids. Eén speler
+   die twee kwarten de band draagt telt hier als één beurt in de wedstrijd —
+   voor de seizoenstatistiek (kolom C) tellen we per wedstrijd, niet per kwart. */
+function aanvoerdersInWedstrijd(w){
+  const uit = new Set();
+  const n = w.periodes || Object.keys(w.kwarten||{}).length || 4;
+  for (let i = 1; i <= n; i++){ const p = aanvoerderVan(w, i); if (p) uit.add(p); }
+  if (!uit.size && w.aanvoerder) uit.add(w.aanvoerder);
+  return [...uit];
+}
 
 /* Formatie die dit specifieke kwart hanteert. Valt terug op de
    wedstrijd-brede startformatie (w.formatie) zolang het kwart zelf
@@ -432,6 +461,15 @@ function normaliseerWedstrijd(w){
       kk.formatie = w.formatie; veranderd = true;
     }
   }
+  /* Aanvoerder per periode: oude wedstrijden hebben alleen het brede
+     w.aanvoerder-veld. We zetten dat één keer om naar w.aanvoerders (met de
+     bestaande aanvoerder op periode 1), zodat elke periode voortaan zijn eigen
+     aanvoerder kan onthouden. Het oude veld laten we staan voor plekken die het
+     nog lezen. */
+  if (!w.aanvoerders || typeof w.aanvoerders !== 'object'){
+    w.aanvoerders = w.aanvoerder ? { '1': w.aanvoerder } : {};
+    veranderd = true;
+  }
   if (!Array.isArray(w.goals)){ w.goals = []; veranderd = true; }
   if (!Array.isArray(w.kaarten)){ w.kaarten = []; veranderd = true; }
   if (!Array.isArray(w.selectie) || !w.selectie.length){ w.selectie = S.spelers.map(p => p.id); veranderd = true; }
@@ -447,7 +485,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260830a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260830b').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -493,7 +531,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260830a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260830b').then(m => { m.renderTeam(); toon('team'); });
 }
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
@@ -741,6 +779,11 @@ function toonWedstrijdWizard(){
       }
       w.format = gekFormat; w.formatie = gekFormatie;
     }
+    // Wizard = eerste opzet: één keuze zetten we op elke periode als
+    // startpunt. Fijnmazig per kwart bijstellen kan later via Wijzig opzet.
+    w.aanvoerders = {};
+    const nP = w.periodes || Object.keys(w.kwarten||{}).length || 4;
+    for (let i = 1; i <= nP; i++) w.aanvoerders[String(i)] = gekAanvoerder || null;
     w.aanvoerder = gekAanvoerder || null;
     w.doel = ($('#wzDoelInvoer')?.value || '').trim();
     w.opzetGedaan = true;
@@ -1153,7 +1196,21 @@ function genereerVerslag(){
     for (const [pid, n] of top) lines.push(`• ${spelerNaam(pid)}${n>1?` (${n}×)`:''}`);
     lines.push('');
   }
-  if (w.aanvoerder){ lines.push(`Aanvoerder: ${spelerNaam(w.aanvoerder)}`); lines.push(''); }
+  {
+    const nP = w.periodes || Object.keys(w.kwarten||{}).length || 4;
+    const uniek = aanvoerdersInWedstrijd(w);
+    let ingevuld = 0; for (let i = 1; i <= nP; i++) if (aanvoerderVan(w, i)) ingevuld++;
+    if (uniek.length === 1 && ingevuld === nP){
+      lines.push(`Aanvoerder: ${spelerNaam(uniek[0])}`); lines.push('');
+    } else if (uniek.length){
+      lines.push('Aanvoerder:');
+      for (let i = 1; i <= nP; i++){
+        const pid = aanvoerderVan(w, i);
+        if (pid) lines.push(`• ${periodeLabel(w, String(i))}: ${spelerNaam(pid)}`);
+      }
+      lines.push('');
+    }
+  }
 
   const a = analyseWedstrijd(w);
   if (a.kwarten){
@@ -1249,7 +1306,16 @@ function genereerVerslagData(){
     datum: w.datum || null,
     doel: w.doel || null,
     doelBin: voor, doelTegen: tegen, resultaat: ww,
-    aanvoerder: w.aanvoerder ? label(w.aanvoerder) : null,
+    aanvoerder: (() => {
+      const u = aanvoerdersInWedstrijd(w);
+      return u.length === 1 ? label(u[0]) : (u.length ? u.map(label).join(', ') : null);
+    })(),
+    aanvoerdersPerPeriode: (() => {
+      const nP = w.periodes || Object.keys(w.kwarten||{}).length || 4;
+      const o = {};
+      for (let i = 1; i <= nP; i++){ const pid = aanvoerderVan(w, i); if (pid) o[periodeLabel(w, String(i))] = label(pid); }
+      return Object.keys(o).length ? o : null;
+    })(),
     doelpunten,
     speeltijd,
   };
@@ -1507,7 +1573,7 @@ export function htmlStats(){
       if (c.type === 'rood') tot.rood[c.pid] = (tot.rood[c.pid]||0) + 1;
       if (c.type === 'tijd') tot.tijd_[c.pid] = (tot.tijd_[c.pid]||0) + 1;
     }
-    if (w.aanvoerder) tot.aanv[w.aanvoerder] = (tot.aanv[w.aanvoerder]||0) + 1;
+    for (const _ap of aanvoerdersInWedstrijd(w)) tot.aanv[_ap] = (tot.aanv[_ap]||0) + 1;
     const a = analyseWedstrijd(w);
     if (!a.kwarten) continue;
     for (const [pid, s] of Object.entries(a.tijd)){
@@ -1758,7 +1824,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260830a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260830b').then(m => m.renderTeam?.());
   });
 }
 
@@ -1800,7 +1866,7 @@ function statsExportData(){
       if (c.type === 'geel') tot.geel[c.pid] = (tot.geel[c.pid]||0) + 1;
       if (c.type === 'rood') tot.rood[c.pid] = (tot.rood[c.pid]||0) + 1;
     }
-    if (w.aanvoerder) tot.aanv[w.aanvoerder] = (tot.aanv[w.aanvoerder]||0) + 1;
+    for (const _ap of aanvoerdersInWedstrijd(w)) tot.aanv[_ap] = (tot.aanv[_ap]||0) + 1;
     const a = analyseWedstrijd(w);
     if (!a.kwarten) continue;
     for (const [pid, s] of Object.entries(a.tijd)){
@@ -1980,7 +2046,7 @@ export function renderWedstrijd(){
   const veldVol = opVeld.size >= slots.length;
   const chipHtml = (pid, bron, slotId='') => {
     const sel = S.geselecteerd?.pid === pid;
-    const aanv = w.aanvoerder === pid;
+    const aanv = aanvoerderVan(w, S.kwart) === pid;
     // Vooraf ingestelde disciplinaire bankbeurt (start op de bank met straf)
     const straf = bron === 'bank' && (w.startBankReden||{})[pid]?.disciplinair;
     return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''} ${straf?'straf-chip':''}"
@@ -2219,7 +2285,7 @@ ${confroHtml}
   v.querySelector('#toonVerslag').onclick = modalVerslag;
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260830a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260830b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -2345,11 +2411,14 @@ function toonWijzigOpzet(sectie){
     </div>
     <div class="veldgroep"><label>Aanvoerder</label>
       <span class="wo-opg" data-opg="aanvoerder"></span>
-      <select class="invoer" id="woAanvoerder">
-        <option value="">— geen aanvoerder gekozen —</option>
-        ${(w.selectie||[]).map(pid => speler(pid)).filter(Boolean)
-          .map(p => `<option value="${p.id}" ${w.aanvoerder===p.id?'selected':''}>${esc(spelerNr(p.id))} · ${esc(p.naam)}</option>`).join('')}
-      </select></div>
+      <button type="button" class="wo-aanv-knop" id="woAanvoerderKnop">
+        <span class="wo-aanv-ico"><span class="aanvoerder-band">C</span></span>
+        <span class="wo-aanv-tekst">
+          <span class="wo-aanv-titel">${(w.periodes||4) === 2 ? 'Aanvoerder per helft' : 'Aanvoerder per kwart'}</span>
+          <span class="wo-aanv-sam" id="woAanvoerderSam"></span>
+        </span>
+        <span class="wo-aanv-pijl">${ico('navigation-forward',18)}</span>
+      </button></div>
 
     <div class="wo-sectiekop" id="woSecSpeelwijze"><span class="ico">⚽</span><span>Speelwijze & formatie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Aantal spelers</label>
@@ -2456,11 +2525,33 @@ function toonWijzigOpzet(sectie){
     pasSpeelwijzeToe('format', 'Aantal spelers → ' + format + '×' + format);
   });
 
-  // ── Basisgegevens: directe keuze (aanvoerder) + tekstvelden (blur) ──
-  $('#woAanvoerder').onchange = () => {
-    w.aanvoerder = $('#woAanvoerder').value || null;
-    bewaarVeld('aanvoerder', 'Aanvoerder');
+  // ── Basisgegevens: aanvoerder per periode (sheet) + tekstvelden (blur) ──
+  const vulAanvoerderSam = () => {
+    const el = $('#woAanvoerderSam'); if (!el) return;
+    const n = w.periodes || 4;
+    const delen = [];
+    for (let i = 1; i <= n; i++){
+      const pid = aanvoerderVan(w, i);
+      if (pid) delen.push(`${periodeLabel(w, String(i))} ${spelerNaam(pid)}`);
+    }
+    // Alle periodes dezelfde aanvoerder? Toon dan één compacte regel.
+    const uniek = aanvoerdersInWedstrijd(w);
+    if (uniek.length === 1 && delen.length === n){
+      el.textContent = `Hele wedstrijd: ${spelerNaam(uniek[0])}`;
+      el.classList.remove('leeg');
+    } else if (delen.length){
+      el.textContent = delen.join(' · ');
+      el.classList.remove('leeg');
+    } else {
+      el.textContent = 'Nog niet ingesteld';
+      el.classList.add('leeg');
+    }
   };
+  vulAanvoerderSam();
+  $('#woAanvoerderKnop').onclick = () => toonAanvoerderSheet(() => {
+    vulAanvoerderSam();
+    bewaarVeld('aanvoerder', 'Aanvoerder');
+  });
   const tekstVelden = [
     ['#woTegen',   'tegen',   'Tegenstander', el => { const v = el.value.trim(); if (v) w.tegenstander = v; }],
     ['#woDatum',   'datum',   'Datum',        el => { if (el.value) w.datum = el.value; }],
@@ -2594,6 +2685,97 @@ function toonKwartFormatie(){
   };
 }
 
+/* Aanvoerder-per-periode kiezer (bottom-sheet). Bovenaan een carrousel met de
+   periodes (Q1…Qn of 1e/2e helft — meebewegend met w.periodes); daaronder de
+   selectie om per periode de aanvoerder te tikken. "Hele wedstrijd" kopieert de
+   keuze van de actieve periode naar alle periodes. Schrijft rechtstreeks in
+   w.aanvoerders via zetAanvoerder(); onKlaar wordt bij sluiten aangeroepen zodat
+   de aanroeper (Wijzig opzet) de samenvatting kan verversen + opslaan. */
+function toonAanvoerderSheet(onKlaar){
+  const w = S.wedstrijd; if (!w) return;
+  const n = w.periodes || Object.keys(w.kwarten||{}).length || 4;
+  const nrs = []; for (let i = 1; i <= n; i++) nrs.push(String(i));
+  const selSpelers = (w.selectie||[]).map(pid => speler(pid)).filter(Boolean);
+  let actief = '1';
+
+  const el = document.createElement('div');
+  el.className = 'kf-achter aanv-achter';
+  el.innerHTML = `
+    <div class="kf-sheet aanv-sheet">
+      <div class="kf-greep"></div>
+      <h2>Aanvoerder ${(n===2?'per helft':'per kwart')}</h2>
+      <p class="kf-sub">Kies per ${(n===2?'helft':'kwart')} wie de band draagt. Tik een ${(n===2?'helft':'kwart')} en daarna een speler.</p>
+      <div class="aanv-carr" id="aanvCarr" style="--aanv-cols:${Math.min(n, 4)}"></div>
+      <button type="button" class="aanv-heel" id="aanvHeel">${ico('action-copy',15)}<span>Hele wedstrijd dezelfde aanvoerder</span></button>
+      <div class="aanv-lijstkop" id="aanvLijstKop"></div>
+      <div class="aanv-lijst" id="aanvLijst"></div>
+      <div class="kf-acties">
+        <button class="kf-ok aanv-klaar" id="aanvKlaar">Klaar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('open'));
+
+  const sluit = () => {
+    el.classList.remove('open');
+    setTimeout(() => el.remove(), 220);
+    onKlaar && onKlaar();
+  };
+
+  const carr = el.querySelector('#aanvCarr');
+  const lijst = el.querySelector('#aanvLijst');
+  const lijstKop = el.querySelector('#aanvLijstKop');
+
+  const tekenCarr = () => {
+    carr.innerHTML = nrs.map(nr => {
+      const pid = aanvoerderVan(w, nr);
+      const isA = nr === actief;
+      const naam = pid ? spelerNaam(pid).split(' ')[0] : '–';
+      return `<button type="button" data-nr="${nr}" class="aanv-tegel ${isA?'actief':''}">
+        ${pid ? '<span class="aanv-punt"></span>' : ''}
+        <span class="aanv-q">${esc(periodeLabel(w, nr))}</span>
+        <span class="aanv-naam">${esc(naam)}</span>
+      </button>`;
+    }).join('');
+    carr.querySelectorAll('[data-nr]').forEach(b => b.onclick = () => { actief = b.dataset.nr; teken(); });
+  };
+
+  const tekenLijst = () => {
+    lijstKop.innerHTML = `Aanvoerder voor <b>${esc(periodeLabel(w, actief))}</b>`;
+    lijst.innerHTML = selSpelers.map(p => {
+      const isA = aanvoerderVan(w, actief) === p.id;
+      const eerder = nrs.filter(nr => nr !== actief && aanvoerderVan(w, nr) === p.id)
+        .map(nr => periodeLabel(w, nr));
+      const badge = isA
+        ? `<span class="aanv-b c">C</span>`
+        : `<span class="aanv-b nr">${esc(spelerNr(p.id))}</span>`;
+      const meta = eerder.length ? `<span class="aanv-meta">band in ${esc(eerder.join(', '))}</span>` : '';
+      return `<button type="button" data-pid="${p.id}" class="aanv-rij ${isA?'actief':''}">
+        ${badge}
+        <span class="aanv-rij-tekst"><span class="aanv-rij-naam">${esc(p.naam)}</span>${meta}</span>
+        ${isA ? `<span class="aanv-vink">${ico('action-check',18)}</span>` : ''}
+      </button>`;
+    }).join('');
+    lijst.querySelectorAll('[data-pid]').forEach(b => b.onclick = () => {
+      const pid = b.dataset.pid;
+      zetAanvoerder(w, actief, aanvoerderVan(w, actief) === pid ? null : pid);
+      teken();
+    });
+  };
+
+  const teken = () => { tekenCarr(); tekenLijst(); };
+  teken();
+
+  el.querySelector('#aanvHeel').onclick = () => {
+    const pid = aanvoerderVan(w, actief);
+    for (const nr of nrs) zetAanvoerder(w, nr, pid);
+    teken();
+    meld(pid ? `Hele wedstrijd: ${spelerNaam(pid)} als aanvoerder` : 'Aanvoerder overal gewist');
+  };
+  el.querySelector('#aanvKlaar').onclick = sluit;
+  el.onclick = (e) => { if (e.target === el) sluit(); };
+}
+
 function verbergWijzigOpzet(){
   const el = $('#woAchter');
   if (!el) return;
@@ -2680,6 +2862,8 @@ function modalSelectie(){
       kk.plan = (kk.plan||[]).filter(p => (p.in === WISSEL_BEURT || toegestaan.has(p.in)) && toegestaan.has(p.uit));
     }
     w.kaarten = (w.kaarten||[]).filter(c => toegestaan.has(c.pid));
+    for (const nr of Object.keys(w.aanvoerders||{}))
+      if (w.aanvoerders[nr] && !toegestaan.has(w.aanvoerders[nr])) w.aanvoerders[nr] = null;
     if (w.aanvoerder && !toegestaan.has(w.aanvoerder)) w.aanvoerder = null;
     sluitModal(); bewaarWedstrijd(); renderWedstrijd();
   };
