@@ -1376,7 +1376,7 @@ body{ background:var(--bg); color:var(--ink); }
 .speler-rij:hover,.training-rij:hover,.video-rij:hover{
   border-color:color-mix(in srgb,var(--accent) 50%, transparent);
   box-shadow:0 4px 16px rgba(226,52,47,.18); }
-.speler-rij .mini-shirt{ background:var(--surface-2); }
+.speler-rij .mini-shirt{ background:var(--pitch-ink); color:#fff; }
 .training-rij .ico{ background:color-mix(in srgb,var(--accent) 16%, var(--surface)); color:var(--accent); }
 .training-rij.ongelezen{ border-left:3px solid var(--accent); }
 .training-rij.ongelezen .ico{ background:var(--accent); color:#fff; }
