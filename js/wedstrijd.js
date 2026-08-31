@@ -1023,6 +1023,7 @@ function modalSpeeltijdCorrigeren(pid, opties = {}){
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin:8px 0 14px;line-height:1.5">Overschrijft de automatische berekening voor deze periode — handig als een wissel vergeten is door te voeren.</p>
     <button class="knop vol" id="mCorrOk">Opslaan</button>
     ${heeftCorrectie ? `<button class="knop licht vol" id="mCorrWeg" style="margin-top:8px">Correctie verwijderen</button>` : ''}`);
+  if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
   $('#mCorrOk').onclick = () => {
     const min = parseFloat(($('#mCorrMin').value||'').replace(',','.'));
     if (!(min >= 0)) return meld('Vul een geldig aantal minuten in');
@@ -1084,9 +1085,52 @@ function bindPeriodeKies(veldId, huidig, onKies){
   return () => gek;
 }
 
+/* Laat het kruisje (✕) van openModal terugkeren naar het bijwerk-scherm i.p.v.
+   het hele scherm sluiten. Alleen aanroepen wanneer de modal vanuit het
+   bijwerk-scherm is geopend. */
+function kruisNaarBijwerk(terug){
+  const btn = $('#modalSluitBtn');
+  if (btn) btn.onclick = () => terug();
+  /* Ook de hardware-terugknop en een tik op de achtergrond moeten naar het
+     overzicht terugkeren i.p.v. de wedstrijd. Die sluiten de modal via
+     sluitModal() (in state.js) — we onderscheppen dat hieronder met een
+     observer die reageert zodra de modal daadwerkelijk dichtgaat. */
+  S._bijwerkTerug = terug;
+  startBijwerkModalWacht();
+}
+
+/* Eénmalige observer op de modal-container. Zodra de modal sluit terwijl er een
+   bijwerk-terug openstaat én niets de modal opnieuw heeft geopend, keren we
+   terug naar het overzicht. bijwerkHeropentZelf voorkomt dat een save/terug —
+   die zelf al heropent — een dubbele render veroorzaakt. */
+let _bijwerkObserver = null;
+function startBijwerkModalWacht(){
+  if (_bijwerkObserver) return;
+  const el = document.querySelector('#modalAchter');
+  if (!el) return;
+  _bijwerkObserver = new MutationObserver(() => {
+    const open = el.classList.contains('open');
+    if (open) return;                       // nog/again open — niets doen
+    const terug = S._bijwerkTerug;
+    if (!terug) return;                      // geen bijwerk-context meer
+    S._bijwerkTerug = null;                  // verbruik de context
+    /* microtask: geef een gelijktijdige save/terug de kans de modal te
+       heropenen; is hij daarna nog dicht, dan is dit een back/backdrop-sluiting
+       en keren we terug naar het overzicht. */
+    Promise.resolve().then(() => {
+      if (!el.classList.contains('open')) terug();
+    });
+  });
+  _bijwerkObserver.observe(el, {attributes:true, attributeFilter:['class']});
+}
+
 /* Het hoofdscherm. */
 export function toonBijwerkScherm(){
   const w = S.wedstrijd; if (!w) return;
+  /* Het overzicht zelf is geen sub-modal: sluiten hiervan (back/backdrop) mag
+     gewoon de wedstrijd tonen. Wis daarom de terug-context, zodat de observer
+     de gebruiker niet in het overzicht vasthoudt. */
+  S._bijwerkTerug = null;
   const nrs = periodeNrs(w);
   if (!nrs.includes(String(S.bijwerkKwart))) S.bijwerkKwart = S.kwart && nrs.includes(String(S.kwart)) ? String(S.kwart) : nrs[0];
   const nr = String(S.bijwerkKwart);
@@ -1219,6 +1263,7 @@ function modalWisselAchteraf(startNr, eventIndex = null){
       ${bestaand ? `<button class="knop gevaar vol" id="bwWaWeg" style="margin-top:8px">🗑 Wissel verwijderen</button>` : ''}
       <button class="knop licht vol" id="bwWaTerug" style="margin-top:8px">‹ Terug naar overzicht</button>`);
 
+    kruisNaarBijwerk(() => { S.bijwerkKwart = nr; toonBijwerkScherm(); });
     if (!bestaand) bindPeriodeKies('bwWaPeriode', nr, (gek) => { nr = gek; teken(); });
 
     let reden = bestaand ? (ev.reden || null) : null;
@@ -1293,6 +1338,7 @@ function modalGoalToevoegen(startNr){
       <button class="knop vol" id="bwGtOk">Doelpunt toevoegen</button>
       <button class="knop licht vol" id="bwGtTerug" style="margin-top:8px">‹ Terug naar overzicht</button>`);
 
+    kruisNaarBijwerk(() => { S.bijwerkKwart = nr; toonBijwerkScherm(); });
     bindPeriodeKies('bwGtPeriode', nr, (gek) => { nr = gek; teken(); });
     $$('#bwGtType button').forEach(b => b.onclick = () => { type = b.dataset.t; teken(); });
 
@@ -1386,6 +1432,7 @@ function modalGoalCorrigeren(i, opties = {}){
     const sec = parseInt(($('#mGcSec').value||'0').replace(/\D/g,''),10) || 0;
     return Math.min(min*60 + sec, Math.round((S.wedstrijd.kwartduur||99)*60));
   };
+  if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
   $('#mGcOk').onclick = () => {
     w.goals[i].sec = leesTijd();
     if (g.type === 'voor') w.goals[i].pid = $('#mGcScorer').value || null;
@@ -1437,7 +1484,7 @@ function modalKaart(opties = {}){
       </p>
       <button class="knop vol" id="mKOk">Registreren</button>
       ${achteraf ? `<button class="knop licht vol" id="mKTerug" style="margin-top:8px">‹ Terug naar overzicht</button>` : ''}`);
-    if (achteraf) bindPeriodeKies('mKPeriode', nr, (gek) => { nr = gek; teken(); });
+    if (achteraf) { bindPeriodeKies('mKPeriode', nr, (gek) => { nr = gek; teken(); }); kruisNaarBijwerk(terug); }
     let type = 'geel';
     $$('#mKType button').forEach(b => b.onclick = () => {
       $$('#mKType button').forEach(x=>x.classList.remove('actief')); b.classList.add('actief'); type = b.dataset.t;
@@ -1494,6 +1541,7 @@ function modalKaartCorrigeren(i, opties = {}){
       <button class="knop vol" id="mKcOk">Opslaan</button>
       <button class="knop gevaar vol" id="mKcWeg" style="margin-top:8px">🗑 Kaart verwijderen</button>
     </div>`);
+  if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
   $('#mKcOk').onclick = () => {
     w.kaarten[i].pid = $('#mKcSpeler').value;
     w.kaarten[i].sec = leesMinSec('#mKcMin','#mKcSec');
@@ -2582,11 +2630,11 @@ ${confroHtml}
     </details>
 
     <button class="knop fluo vol" id="wedstrijdKlaar" style="margin-top:16px">${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
-    <button class="knop secundair vol" id="toonVerslag" style="margin-top:10px">📋 Wedstrijdverslag</button>
     <button class="knop secundair vol" id="bijwerkKnop" style="margin-top:10px">✎ Wedstrijd achteraf bijwerken</button>
+    <button class="knop secundair vol" id="toonVerslag" style="margin-top:10px">📋 Wedstrijdverslag</button>
     ${modAan('evaluaties') ? `<button class="knop secundair vol" id="teamEvalKnop" style="margin-top:10px">${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'📈 Team evalueren'}</button>` : ''}
-    <button class="knop secundair vol" id="bewaarSjabloon" style="margin-top:10px">⧉ Opslaan als sjabloon</button>
     <button class="knop secundair vol" id="tactiekbordKnop" style="margin-top:10px">✎ Tactiekbord</button>
+    <button class="knop secundair vol" id="bewaarSjabloon" style="margin-top:10px">⧉ Opslaan als sjabloon</button>
     <button class="knop destructief vol" id="wegWedstrijd" style="margin-top:14px">Wedstrijd verwijderen</button>`;
 
   /* ---- koppelingen ---- */
