@@ -855,7 +855,6 @@ function klokNaarEinde(){
    klok, dan telt hij vanaf de nieuwe tijd verder door. */
 function modalKlokInstellen(){
   const w = S.wedstrijd, k = huidigKwart();
-  const maxSec = Math.round(w.kwartduur*60);
   const nu = Math.round(klokSec(k));
   openModal(`
     <h2>Wedstrijdtijd instellen</h2>
@@ -867,14 +866,12 @@ function modalKlokInstellen(){
         <input class="invoer" id="mKiSec" inputmode="numeric" style="max-width:88px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(22px * var(--fs))" value="${String(nu%60).padStart(2,'0')}">
         <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">sec</span>
       </div>
-      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Nu op <b>${mmss(nu)}</b> · maximaal ${String(w.kwartduur).replace('.',',')} min.</p></div>
+      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Nu op <b>${mmss(nu)}</b> · periode duurt ${String(w.kwartduur).replace('.',',')} min (blessuretijd mag hoger).</p></div>
     <button class="knop vol" id="mKiOk">Klok instellen</button>`);
   $('#mKiOk').onclick = () => {
     const min = parseInt(($('#mKiMin').value||'0').replace(/\D/g,''),10) || 0;
     const sec = parseInt(($('#mKiSec').value||'0').replace(/\D/g,''),10) || 0;
-    let doel = min*60 + sec;
-    if (!(doel >= 0)) return meld('Vul een geldige tijd in');
-    doel = Math.min(doel, maxSec);
+    let doel = Math.max(0, min*60 + sec);
     if (k.klok.running){ k.klok.start = Date.now() - doel*1000; }
     else { k.klok.base = doel; }
     telGebruik('klok_instellen');
@@ -1053,11 +1050,14 @@ function modalSpeeltijdCorrigeren(pid, opties = {}){
    S.bijwerkKwart bewaart welke periode actief is in dit scherm. */
 
 /* Leest een min:sec-paar uit twee invoervelden en begrenst op 0 … kwartduur. */
-function leesMinSec(minId, secId, maxSecFallback){
+/* Leest een min:sec-paar uit twee invoervelden. Alleen ondergrens 0 — geen
+   bovengrens, zodat blessuretijd (bv. 40+3) vrij ingevuld kan worden. De
+   speeltijdberekening (analyseKwart) telt zelf niet verder dan de periodeduur;
+   dit is puur de tijdstempel van de gebeurtenis. */
+function leesMinSec(minId, secId){
   const min = parseInt(($(minId).value||'0').replace(/\D/g,''),10) || 0;
   const sec = parseInt(($(secId).value||'0').replace(/\D/g,''),10) || 0;
-  const max = Math.round((S.wedstrijd?.kwartduur || maxSecFallback || 99)*60);
-  return Math.min(min*60 + sec, max);
+  return Math.max(0, min*60 + sec);
 }
 
 /* Twee gekoppelde min/sec-invoervelden als HTML-fragment. */
@@ -1225,11 +1225,13 @@ export function toonBijwerkScherm(){
 function modalWisselAchteraf(startNr, eventIndex = null){
   const w = S.wedstrijd;
   const bestaand = eventIndex != null;
-  let nr = String(startNr);
+  const origineelNr = String(startNr);   // periode waar het bestaande event nu staat
+  let nr = String(startNr);               // gekozen periode (kan wijzigen)
 
-  const opts = { get k(){ return w.kwarten[nr]; } };
-  const ev = bestaand ? (opts.k.events||[])[eventIndex] : null;
+  /* Snapshot van het bestaande event vóór eventueel verplaatsen. */
+  const ev = bestaand ? (w.kwarten[origineelNr]?.events||[])[eventIndex] : null;
   if (bestaand && !ev) { toonBijwerkScherm(); return; }
+  const opts = { get k(){ return w.kwarten[nr]; } };
 
   /* Bouwt de veld/bank-lijsten voor de huidige periode. Bij bewerken tellen we
      de betrokken spelers altijd mee zodat ze selecteerbaar blijven. */
@@ -1250,7 +1252,7 @@ function modalWisselAchteraf(startNr, eventIndex = null){
     openModal(`
       <h2>${bestaand ? 'Wissel aanpassen' : 'Vergeten wissel toevoegen'}</h2>
       ${bestaand ? '' : `<div class="bijwerk-uitleg">Voor een wissel die je tijdens de wedstrijd niet kon invoeren. “In minuut x ging … eruit en … erin.” De speeltijd wordt automatisch herberekend.</div>`}
-      ${bestaand ? '' : `<div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'bwWaPeriode')}</div>`}
+      <div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'bwWaPeriode')}</div>
       <div class="veldgroep"><label>Eruit (van het veld)</label>
         <select class="invoer" id="bwWaUit">${uitOpties.length ? uitOpties.map(pid => opt(pid, bestaand && pid===ev.uit)).join('') : '<option value="">— niemand op het veld —</option>'}</select></div>
       <div class="veldgroep"><label>Erin (van de bank)</label>
@@ -1259,12 +1261,12 @@ function modalWisselAchteraf(startNr, eventIndex = null){
       <div class="veldgroep"><label>Reden (optioneel)</label>
         <div class="reden-rij" id="bwWaReden">${WISSEL_REDENEN.map(r =>
           `<button class="reden ${bestaand && ev.reden===r.id?'aan':''}" data-reden="${r.id}"><span class="ic">${r.ico?ico(r.ico,18):r.emoji}</span> ${r.label}</button>`).join('')}</div></div>
+      ${bestaand ? `<button class="knop gevaar vol" id="bwWaWeg" style="margin-bottom:8px">🗑 Wissel verwijderen</button>` : ''}
       <button class="knop vol" id="bwWaOk">${bestaand ? 'Opslaan' : 'Wissel toevoegen'}</button>
-      ${bestaand ? `<button class="knop gevaar vol" id="bwWaWeg" style="margin-top:8px">🗑 Wissel verwijderen</button>` : ''}
       <button class="knop licht vol" id="bwWaTerug" style="margin-top:8px">‹ Terug naar overzicht</button>`);
 
     kruisNaarBijwerk(() => { S.bijwerkKwart = nr; toonBijwerkScherm(); });
-    if (!bestaand) bindPeriodeKies('bwWaPeriode', nr, (gek) => { nr = gek; teken(); });
+    bindPeriodeKies('bwWaPeriode', nr, (gek) => { nr = gek; teken(); });
 
     let reden = bestaand ? (ev.reden || null) : null;
     $$('#bwWaReden [data-reden]').forEach(b => b.onclick = () => {
@@ -1279,15 +1281,23 @@ function modalWisselAchteraf(startNr, eventIndex = null){
       if (!uit && !inP) return meld('Kies minstens een speler erin of eruit');
       if (uit && inP && uit === inP) return meld('Erin en eruit kunnen niet dezelfde speler zijn');
       const sec = leesMinSec('#bwWaMin','#bwWaSec');
-      const k = opts.k;
+      const k = w.kwarten[nr];
       if (!k){ meld('Deze periode bestaat niet'); return; }
-      /* slot bepalen aan de hand van de uitgaande speler in de effectieve opstelling */
+      /* slot bepalen aan de hand van de uitgaande speler in de effectieve
+         opstelling van de gekozen periode; valt terug op het oude slot. */
       const l = effectieveLineup(k);
-      const slot = uit ? Object.keys(l).find(s => l[s] === uit) : (bestaand ? ev.slot : null);
-      const nieuw = {in: inP, uit, slot: slot || (bestaand ? ev.slot : null), sec};
+      const slot = (uit && Object.keys(l).find(s => l[s] === uit)) || (bestaand ? ev.slot : null);
+      const nieuw = {in: inP, uit, slot, sec};
       if (reden) nieuw.reden = reden;
       if (bestaand){
-        (k.events ||= [])[eventIndex] = nieuw;
+        if (nr !== origineelNr){
+          /* Verplaatst naar een andere periode: uit de oude events halen en in
+             de nieuwe periode toevoegen. */
+          (w.kwarten[origineelNr].events ||= []).splice(eventIndex, 1);
+          (k.events ||= []).push(nieuw);
+        } else {
+          (k.events ||= [])[eventIndex] = nieuw;
+        }
       } else {
         (k.events ||= []).push(nieuw);
       }
@@ -1298,9 +1308,9 @@ function modalWisselAchteraf(startNr, eventIndex = null){
     };
     const wegBtn = $('#bwWaWeg');
     if (wegBtn) wegBtn.onclick = () => {
-      opts.k.events.splice(eventIndex, 1);
+      (w.kwarten[origineelNr].events||[]).splice(eventIndex, 1);
       bewaarWedstrijd(); meld('Wissel verwijderd');
-      S.bijwerkKwart = nr; toonBijwerkScherm();
+      S.bijwerkKwart = origineelNr; toonBijwerkScherm();
     };
     $('#bwWaTerug').onclick = () => { S.bijwerkKwart = nr; toonBijwerkScherm(); };
   }
@@ -1384,70 +1394,73 @@ function modalGoalVoor(){
   $('#mGoalOnbekend').onclick = () => { sluitModal(); registreerGoal({type:'voor'}); };
 }
 
-/* ---------- Doelpunt corrigeren (verkeerde knop / verkeerde scorer) ---------- */
+/* ---------- Doelpunt corrigeren (verkeerde knop / scorer / periode / minuut) ---------- */
 function modalGoalCorrigeren(i, opties = {}){
   const w = S.wedstrijd;
   const g = (w.goals||[])[i];
   if (!g) return;
-  const nr = g.kwart != null ? String(g.kwart) : S.kwart;
-  const k = w.kwarten[nr] || huidigKwart();
+  let nr = g.kwart != null ? String(g.kwart) : S.kwart;
   const terug = () => { if (opties.terugNaarBijwerk){ S.bijwerkKwart = nr; toonBijwerkScherm(); } else { sluitModal(); renderWedstrijd(); } };
-  const l = effectieveLineup(k);
-  const veldSpelers = Object.values(l).filter(pid => speler(pid));
-  const overig = (w.selectie||[]).filter(pid => speler(pid) && !veldSpelers.includes(pid));
-  const huidigeOmschrijving = g.type === 'voor'
-    ? (g.pid ? spelerNaam(g.pid) : 'doelpunt (onbekende maker)')
-    : 'tegendoelpunt';
-  const scorerOptie = pid => `<option value="${pid}" ${g.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
 
-  openModal(`
-    <h2>Doelpunt corrigeren</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu geregistreerd als <b>${esc(huidigeOmschrijving)}</b> op ${mmss(g.sec||0)}.</p>
-    <div class="veldgroep" style="margin-bottom:12px"><label>Minuut in de periode</label>
-      <div style="display:flex;align-items:center;gap:10px">
-        <input class="invoer" id="mGcMin" inputmode="numeric" style="max-width:80px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs))" value="${Math.floor((g.sec||0)/60)}">
-        <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">min</span>
-        <input class="invoer" id="mGcSec" inputmode="numeric" style="max-width:80px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs))" value="${String((g.sec||0)%60).padStart(2,'0')}">
-        <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">sec</span>
-      </div></div>
-    <div class="correctie-opties">
-      ${g.type === 'voor' ? `
-      <div class="veldgroep" style="margin-bottom:6px"><label>Andere scorer kiezen</label>
-        <select class="invoer" id="mGcScorer">
-          <option value="">Onbekend / geen maker</option>
-          ${veldSpelers.length ? `<optgroup label="Op het veld">${veldSpelers.map(scorerOptie).join('')}</optgroup>` : ''}
-          ${overig.length ? `<optgroup label="Overige selectie">${overig.map(scorerOptie).join('')}</optgroup>` : ''}
-        </select></div>
-      ` : `
-      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink);margin-bottom:8px">Dit staat als doelpunt voor de tegenstander.</p>
-      `}
-      <button class="knop vol" id="mGcOk">Opslaan</button>
-      <button class="knop licht vol" id="mGcKant" style="margin-top:8px">${g.type === 'voor' ? '↔ Toch een tegendoelpunt' : '↔ Maak er een doelpunt vóór '+esc(S.team.naam)+' van'}</button>
-      <button class="knop gevaar vol" id="mGcWeg" style="margin-top:8px">🗑 Doelpunt verwijderen</button>
-    </div>`);
+  function teken(){
+    const g2 = (w.goals||[])[i]; if (!g2) { terug(); return; }
+    const k = w.kwarten[nr] || huidigKwart();
+    const l = effectieveLineup(k);
+    const veldSpelers = Object.values(l).filter(pid => speler(pid));
+    const overig = (w.selectie||[]).filter(pid => speler(pid) && !veldSpelers.includes(pid));
+    const huidigeOmschrijving = g2.type === 'voor'
+      ? (g2.pid ? spelerNaam(g2.pid) : 'doelpunt (onbekende maker)')
+      : 'tegendoelpunt';
+    const scorerOptie = pid => `<option value="${pid}" ${g2.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
 
-  /* Leest de min:sec-velden en begrenst op 0 … kwartduur. */
-  const leesTijd = () => {
-    const min = parseInt(($('#mGcMin').value||'0').replace(/\D/g,''),10) || 0;
-    const sec = parseInt(($('#mGcSec').value||'0').replace(/\D/g,''),10) || 0;
-    return Math.min(min*60 + sec, Math.round((S.wedstrijd.kwartduur||99)*60));
-  };
-  if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
-  $('#mGcOk').onclick = () => {
-    w.goals[i].sec = leesTijd();
-    if (g.type === 'voor') w.goals[i].pid = $('#mGcScorer').value || null;
-    bewaarWedstrijd(); meld('Doelpunt bijgewerkt'); terug();
-  };
-  $('#mGcKant').onclick = () => {
-    w.goals[i].sec = leesTijd();
-    if (g.type === 'voor'){ w.goals[i].type = 'tegen'; w.goals[i].pid = null; }
-    else { w.goals[i].type = 'voor'; }
-    bewaarWedstrijd(); meld('Doelpunt omgezet'); terug();
-  };
-  $('#mGcWeg').onclick = () => {
-    w.goals.splice(i,1);
-    bewaarWedstrijd(); meld('Doelpunt verwijderd'); terug();
-  };
+    openModal(`
+      <h2>Doelpunt corrigeren</h2>
+      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu geregistreerd als <b>${esc(huidigeOmschrijving)}</b> op ${mmss(g2.sec||0)}.</p>
+      <div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'mGcPeriode')}</div>
+      <div class="veldgroep" style="margin-bottom:12px"><label>Minuut in de periode</label>${minSecInvoerHtml('mGcMin','mGcSec', g2.sec||0)}
+        <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.5">Blessuretijd mag: bij een helft van ${String(w.kwartduur).replace('.',',')} min vul je 40+3 in als <b>43</b> min.</p></div>
+      <div class="correctie-opties">
+        ${g2.type === 'voor' ? `
+        <div class="veldgroep" style="margin-bottom:6px"><label>Andere scorer kiezen</label>
+          <select class="invoer" id="mGcScorer">
+            <option value="">Onbekend / geen maker</option>
+            ${veldSpelers.length ? `<optgroup label="Op het veld">${veldSpelers.map(scorerOptie).join('')}</optgroup>` : ''}
+            ${overig.length ? `<optgroup label="Overige selectie">${overig.map(scorerOptie).join('')}</optgroup>` : ''}
+          </select></div>
+        ` : `
+        <p style="font-size:calc(13.5px * var(--fs));color:var(--ink);margin-bottom:8px">Dit staat als doelpunt voor de tegenstander.</p>
+        `}
+        <button class="knop licht vol" id="mGcKant">${g2.type === 'voor' ? '↔ Toch een tegendoelpunt' : '↔ Maak er een doelpunt vóór '+esc(S.team.naam)+' van'}</button>
+        <button class="knop gevaar vol" id="mGcWeg" style="margin-top:8px">🗑 Doelpunt verwijderen</button>
+        <button class="knop vol" id="mGcOk" style="margin-top:8px">Opslaan</button>
+      </div>`);
+
+    if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
+    /* Periodewissel: onthoud eerst de zojuist ingevulde scorer/minuut niet —
+       we her-renderen met de nieuwe periode-context (andere veldspelers). */
+    bindPeriodeKies('mGcPeriode', nr, (gek) => { nr = gek; teken(); });
+
+    const bewaarBasis = () => {
+      w.goals[i].sec = leesMinSec('#mGcMin','#mGcSec');
+      w.goals[i].kwart = nr;
+    };
+    $('#mGcOk').onclick = () => {
+      bewaarBasis();
+      if (w.goals[i].type === 'voor'){ const sc = $('#mGcScorer'); if (sc) w.goals[i].pid = sc.value || null; }
+      bewaarWedstrijd(); meld('Doelpunt bijgewerkt'); terug();
+    };
+    $('#mGcKant').onclick = () => {
+      bewaarBasis();
+      if (w.goals[i].type === 'voor'){ w.goals[i].type = 'tegen'; w.goals[i].pid = null; }
+      else { w.goals[i].type = 'voor'; }
+      bewaarWedstrijd(); meld('Doelpunt omgezet'); terug();
+    };
+    $('#mGcWeg').onclick = () => {
+      w.goals.splice(i,1);
+      bewaarWedstrijd(); meld('Doelpunt verwijderd'); terug();
+    };
+  }
+  teken();
 }
 
 /* ==================== KAARTEN & STRAFFEN ==================== */
@@ -1527,24 +1540,27 @@ function modalKaartCorrigeren(i, opties = {}){
   const w = S.wedstrijd;
   const c = (w.kaarten||[])[i];
   if (!c) return;
-  const nr = c.kwart != null ? String(c.kwart) : S.kwart;
+  let nr = c.kwart != null ? String(c.kwart) : S.kwart;
   const terug = () => { if (opties.terugNaarBijwerk){ S.bijwerkKwart = nr; toonBijwerkScherm(); } else { sluitModal(); renderWedstrijd(); } };
   const alle = (w.selectie||[]).filter(pid => speler(pid));
   const optie = pid => `<option value="${pid}" ${c.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
   openModal(`
     <h2>Kaart corrigeren</h2>
     <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu: <b>${esc(KAART_NAAM[c.type])}</b> voor <b>${esc(spelerNaam(c.pid))}</b> op ${mmss(c.sec||0)}.</p>
+    <div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'mKcPeriode')}</div>
     <div class="veldgroep"><label>Andere speler</label>
       <select class="invoer" id="mKcSpeler">${alle.map(optie).join('')}</select></div>
     <div class="veldgroep"><label>Minuut in de periode</label>${minSecInvoerHtml('mKcMin','mKcSec', c.sec||0)}</div>
     <div class="correctie-opties">
-      <button class="knop vol" id="mKcOk">Opslaan</button>
-      <button class="knop gevaar vol" id="mKcWeg" style="margin-top:8px">🗑 Kaart verwijderen</button>
+      <button class="knop gevaar vol" id="mKcWeg">🗑 Kaart verwijderen</button>
+      <button class="knop vol" id="mKcOk" style="margin-top:8px">Opslaan</button>
     </div>`);
   if (opties.terugNaarBijwerk) kruisNaarBijwerk(terug);
+  bindPeriodeKies('mKcPeriode', nr, (gek) => { nr = gek; });
   $('#mKcOk').onclick = () => {
     w.kaarten[i].pid = $('#mKcSpeler').value;
     w.kaarten[i].sec = leesMinSec('#mKcMin','#mKcSec');
+    w.kaarten[i].kwart = nr;
     bewaarWedstrijd(); meld('Kaart aangepast'); terug();
   };
   $('#mKcWeg').onclick = () => {
