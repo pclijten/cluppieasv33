@@ -1049,7 +1049,6 @@ function modalSpeeltijdCorrigeren(pid, opties = {}){
 
    S.bijwerkKwart bewaart welke periode actief is in dit scherm. */
 
-/* Leest een min:sec-paar uit twee invoervelden en begrenst op 0 … kwartduur. */
 /* Leest een min:sec-paar uit twee invoervelden. Alleen ondergrens 0 — geen
    bovengrens, zodat blessuretijd (bv. 40+3) vrij ingevuld kan worden. De
    speeltijdberekening (analyseKwart) telt zelf niet verder dan de periodeduur;
@@ -1058,6 +1057,20 @@ function leesMinSec(minId, secId){
   const min = parseInt(($(minId).value||'0').replace(/\D/g,''),10) || 0;
   const sec = parseInt(($(secId).value||'0').replace(/\D/g,''),10) || 0;
   return Math.max(0, min*60 + sec);
+}
+
+/* Toont een gebeurtenistijd in voetbalnotatie. Binnen de periodeduur gewoon
+   mm:ss (bv. 12:30). Valt de tijd in de blessuretijd (voorbij de periodeduur),
+   dan tonen we <duur>+<extra minuten> — bv. 40+3 bij een helft van 40 min, of
+   15+2 bij een kwart van 15. De extra tijd rondt naar boven af op hele minuten,
+   zodat 40:01 t/m 41:00 als 40+1 verschijnt. w = wedstrijd (voor kwartduur). */
+function gebeurtenisTijd(sec, w){
+  sec = Math.round(sec || 0);
+  const duurMin = Math.round((w?.kwartduur || 0));
+  const duurSec = duurMin * 60;
+  if (!duurSec || sec <= duurSec) return mmss(sec);
+  const extra = Math.ceil((sec - duurSec) / 60);
+  return `${duurMin}+${extra}`;
 }
 
 /* Twee gekoppelde min/sec-invoervelden als HTML-fragment. */
@@ -1152,16 +1165,16 @@ export function toonBijwerkScherm(){
       ${e.uit ? `<span class="nr uit">▼${esc(spelerNr(e.uit))}</span>` : ''}
       <span class="bw-naam">${e.in ? esc(spelerNaam(e.in)) : ''}${e.in && e.uit ? ' voor ' : ''}${e.uit ? esc(spelerNaam(e.uit)) : ''}</span>
       ${r ? `<span class="bw-badge">${r.emoji} ${esc(r.label)}</span>` : ''}
-      <span class="bw-tijd">${mmss(e.sec||0)} <span class="bw-pen">✎</span></span></div>`;
+      <span class="bw-tijd">${gebeurtenisTijd(e.sec, w)} <span class="bw-pen">✎</span></span></div>`;
   };
   const goalRegel = g => `<div class="bijwerk-regel" data-bw-goal="${g.i}">
       <span class="bw-ico">${g.type==='voor' ? '⚽' : '🥅'}</span>
       <span class="bw-naam"><b>${g.type==='voor' ? (g.pid ? esc(spelerNaam(g.pid)) : 'Doelpunt') : 'Tegendoelpunt'}</b></span>
-      <span class="bw-tijd">${mmss(g.sec||0)} <span class="bw-pen">✎</span></span></div>`;
+      <span class="bw-tijd">${gebeurtenisTijd(g.sec, w)} <span class="bw-pen">✎</span></span></div>`;
   const kaartRegel = c => `<div class="bijwerk-regel${c.auto?' bw-auto':''}" ${c.auto?'':`data-bw-kaart="${c.i}"`}>
       <span class="bw-ico">${KAART_ICOON[c.type]||'🟨'}</span>
       <span class="bw-naam"><b>${esc(spelerNaam(c.pid))}</b> · ${esc(KAART_NAAM[c.type]||c.type)}${c.type==='tijd'&&c.duur?' ('+Math.round(c.duur/60)+' min)':''}${c.auto?' (automatisch)':''}</span>
-      <span class="bw-tijd">${mmss(c.sec||0)}${c.auto?'':' <span class="bw-pen">✎</span>'}</span></div>`;
+      <span class="bw-tijd">${gebeurtenisTijd(c.sec, w)}${c.auto?'':' <span class="bw-pen">✎</span>'}</span></div>`;
 
   const speeltijdRij = pid => {
     const aangepast = k?.correcties && k.correcties[pid] != null;
@@ -1303,7 +1316,7 @@ function modalWisselAchteraf(startNr, eventIndex = null){
       }
       telGebruik(bestaand ? 'wissel_bewerkt_achteraf' : 'wissel_achteraf');
       bewaarWedstrijd();
-      meld(bestaand ? 'Wissel bijgewerkt' : `Wissel toegevoegd · ${mmss(sec)}`);
+      meld(bestaand ? 'Wissel bijgewerkt' : `Wissel toegevoegd · ${gebeurtenisTijd(sec, w)}`);
       S.bijwerkKwart = nr; toonBijwerkScherm();
     };
     const wegBtn = $('#bwWaWeg');
@@ -1358,7 +1371,7 @@ function modalGoalToevoegen(startNr){
       (w.goals ||= []).push({type, pid, kwart: nr, sec});
       telGebruik('doelpunt_achteraf');
       bewaarWedstrijd();
-      meld(type==='voor' ? `⚽ Doelpunt toegevoegd · ${mmss(sec)}` : `Tegendoelpunt toegevoegd · ${mmss(sec)}`);
+      meld(type==='voor' ? `⚽ Doelpunt toegevoegd · ${gebeurtenisTijd(sec, w)}` : `Tegendoelpunt toegevoegd · ${gebeurtenisTijd(sec, w)}`);
       S.bijwerkKwart = nr; toonBijwerkScherm();
     };
     $('#bwGtTerug').onclick = () => { S.bijwerkKwart = nr; toonBijwerkScherm(); };
@@ -1415,7 +1428,7 @@ function modalGoalCorrigeren(i, opties = {}){
 
     openModal(`
       <h2>Doelpunt corrigeren</h2>
-      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu geregistreerd als <b>${esc(huidigeOmschrijving)}</b> op ${mmss(g2.sec||0)}.</p>
+      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu geregistreerd als <b>${esc(huidigeOmschrijving)}</b> op ${gebeurtenisTijd(g2.sec, w)}.</p>
       <div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'mGcPeriode')}</div>
       <div class="veldgroep" style="margin-bottom:12px"><label>Minuut in de periode</label>${minSecInvoerHtml('mGcMin','mGcSec', g2.sec||0)}
         <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.5">Blessuretijd mag: bij een helft van ${String(w.kwartduur).replace('.',',')} min vul je 40+3 in als <b>43</b> min.</p></div>
@@ -1546,7 +1559,7 @@ function modalKaartCorrigeren(i, opties = {}){
   const optie = pid => `<option value="${pid}" ${c.pid===pid?'selected':''}>${esc(spelerNr(pid))} · ${esc(spelerNaam(pid))}</option>`;
   openModal(`
     <h2>Kaart corrigeren</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu: <b>${esc(KAART_NAAM[c.type])}</b> voor <b>${esc(spelerNaam(c.pid))}</b> op ${mmss(c.sec||0)}.</p>
+    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Nu: <b>${esc(KAART_NAAM[c.type])}</b> voor <b>${esc(spelerNaam(c.pid))}</b> op ${gebeurtenisTijd(c.sec, w)}.</p>
     <div class="veldgroep"><label>Periode</label>${periodeKiesHtml(w, nr, 'mKcPeriode')}</div>
     <div class="veldgroep"><label>Andere speler</label>
       <select class="invoer" id="mKcSpeler">${alle.map(optie).join('')}</select></div>
@@ -1633,7 +1646,7 @@ function genereerVerslag(){
       if (!k.events?.length) continue;
       lines.push(`  ${periodeLabel(w, nr)}:`);
       for (const e of [...k.events].sort((a,b)=>a.sec-b.sec)){
-        const t = mmss(e.sec);
+        const t = gebeurtenisTijd(e.sec, w);
         if (e.in && e.uit) lines.push(`  • ${t} — ${spelerNaam(e.in)} in voor ${spelerNaam(e.uit)}`);
         else if (e.in)     lines.push(`  • ${t} — ${spelerNaam(e.in)} erin`);
         else if (e.uit)    lines.push(`  • ${t} — ${spelerNaam(e.uit)} eruit`);
@@ -1647,7 +1660,7 @@ function genereerVerslag(){
     for (const c of [...w.kaarten].filter(c => !c.auto).sort((a,b)=>a.sec-b.sec)){
       const lbl = periodeLabel(w, String(c.kwart));
       const txt = c.type === 'tijd' ? `tijdstraf ${Math.round(c.duur/60)} min` : KAART_NAAM[c.type];
-      lines.push(`• ${spelerNaam(c.pid)} — ${txt} (${lbl}, ${mmss(c.sec)})`);
+      lines.push(`• ${spelerNaam(c.pid)} — ${txt} (${lbl}, ${gebeurtenisTijd(c.sec, w)})`);
     }
     lines.push('');
   }
@@ -2610,7 +2623,7 @@ ${confroHtml}
               ${e.uit ? `<span class="nr uit">▼${esc(spelerNr(e.uit))}</span>` : ''}
               <span>${e.in ? esc(spelerNaam(e.in)) : ''}${e.in && e.uit ? ' ↔ ' : ''}${e.uit ? esc(spelerNaam(e.uit)) : ''}</span>
               ${e.uit ? `<button class="wissel-reden-badge${r?'':' leeg'}${e.disciplinair?' disc':''}" data-reden-ev="${e.i}" title="Wisselreden ${r?'wijzigen':'toevoegen'}">${r ? r.emoji+' '+esc(r.label)+(e.disciplinair?' ⚑':'') : '+ reden'}</button>` : ''}
-              <span class="min">${mmss(e.sec)}</span>
+              <span class="min">${gebeurtenisTijd(e.sec, w)}</span>
               <button class="verwijder" data-weg-ev="${e.i}" title="Wissel verwijderen">✕</button>
             </div>`;
           }
@@ -2618,14 +2631,14 @@ ${confroHtml}
             <div class="log-item bewerkbaar" data-corrigeer-goal="${e.i}" title="Tik om te corrigeren">
               <span class="goal-bal">${e.type==='voor' ? '⚽' : '🥅'}</span>
               <span><b>${e.type==='voor' ? (e.pid ? esc(spelerNaam(e.pid)) : 'Doelpunt') : 'Tegendoelpunt'}</b></span>
-              <span class="min">${mmss(e.sec)}</span>
+              <span class="min">${gebeurtenisTijd(e.sec, w)}</span>
               <span class="bewerk-hint">✎</span>
             </div>`;
           return `
             <div class="log-item kaart bewerkbaar ${e.type==='rood'?'rood':''}" ${e.auto?'':`data-corrigeer-kaart="${e.i}" title="Tik om te corrigeren"`}>
               <span class="goal-bal">${KAART_ICOON[e.type]}</span>
               <span><b>${esc(spelerNaam(e.pid))}</b> · ${esc(KAART_NAAM[e.type])}${e.type==='tijd' ? ' ('+Math.round(e.duur/60)+' min)' : ''}${e.auto?' (automatisch)':''}</span>
-              <span class="min">${mmss(e.sec)}</span>
+              <span class="min">${gebeurtenisTijd(e.sec, w)}</span>
               ${e.auto ? '' : '<span class="bewerk-hint">✎</span>'}
             </div>`;
         }).join('')}
