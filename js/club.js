@@ -29,7 +29,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260831a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260901a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -72,7 +72,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260831a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260901a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -322,6 +322,21 @@ function clubRelevanteUids(teams){
 /* logins van de laatste ~26 weken in één keer ophalen (dekt dag/week/maand-
    weergave zonder opnieuw te hoeven lezen bij het wisselen van periode),
    plus de gebruikers-samenvatting (naam, laatste login, totaal aantal). */
+
+/* Leest het vooraf-geaggregeerde statistiekdocument dat de Cloud Function
+   aggregeerGebruik heeft weggeschreven. Eén read i.p.v. de hele navpaden-
+   collectie: snel en goedkoop, ook als navpaden over het seizoen groeit.
+   Geeft null terug als er nog nooit gesynchroniseerd is. */
+async function gebruikstatsOphalen(clubId){
+  if (!clubId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'gebruikstats', clubId));
+    return snap.exists() ? snap.data() : null;
+  } catch (e){
+    return null;
+  }
+}
+
 async function clubGebruikOphalen(teams){
   const relevantUids = clubRelevanteUids(teams);
   if (!relevantUids.size) return { logins:[], gebruikers:[] };
@@ -809,9 +824,24 @@ function htmlClubHub(teams){
 }
 
 /* De Inzicht-sub-hub: het voormalige dashboard opgesplitst in losse tegels.
-   'signalen' = aantal aandachtspunten (voor de warn-badge op de Aandacht-tegel). */
-function htmlClubInzicht(signalenAantal){
+   'signalen' = aantal aandachtspunten (voor de warn-badge op de Aandacht-tegel).
+   'stats' = het gebruikstats-document (voor de "laatst bijgewerkt"-status). */
+function htmlClubInzicht(signalenAantal, stats){
+  const laatst = stats?.gegenereerd
+    ? new Date(stats.gegenereerd).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+    : null;
+  const syncBalk = isBeheerder() ? `
+    <div class="kaart" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+      <div>
+        <div style="font-weight:600;font-size:calc(13.5px * var(--fs))">Statistieken bijwerken</div>
+        <div style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:2px">
+          ${laatst ? `Laatst bijgewerkt: ${esc(laatst)}` : 'Nog niet gesynchroniseerd'}
+        </div>
+      </div>
+      <button class="knop" id="btnSyncStats" style="flex-shrink:0">↻ Synchroniseer</button>
+    </div>` : '';
   return `
+    ${syncBalk}
     <section class="hub-sectie" style="margin-top:6px">
       <div class="hub-grid">
         ${clubTegel('dash-overzicht',   'Overzicht',  'navigation-dashboard')}
@@ -883,10 +913,15 @@ async function renderClub(){
     inhoud = htmlClubHub(teams);
   }
   else if (isInzicht){
-    // aandacht-signalen voor de warn-badge op de Aandacht-tegel
-    const dash = await clubDashboardOphalen(teams);
+    // aandacht-signalen voor de warn-badge op de Aandacht-tegel, plus de
+    // statistiek-samenvatting voor de "laatst bijgewerkt"-status (parallel).
+    const [dash, stats] = await Promise.all([
+      clubDashboardOphalen(teams),
+      gebruikstatsOphalen(S.clubId),
+    ]);
     S._clubDashCache = dash;   // hergebruik bij het openen van een dash-scherm
-    inhoud = htmlClubInzicht(clubSignalen(dash).length);
+    S._gebruikstats = stats;   // hergebruik in de dash-tabs (Fase 2)
+    inhoud = htmlClubInzicht(clubSignalen(dash).length, stats);
   }
   else if (isDashSub){
     if (tab === 'dash-evaluaties'){
@@ -952,6 +987,25 @@ async function renderClub(){
     telNav('club:' + doel, 'tegel');
     renderClub();
   });
+
+  // statistieken-sync (handmatig): roept de Cloud Function aan die navpaden
+  // aggregeert tot gebruikstats/{clubId}. Zelfde patroon als de Sportlink-sync.
+  const btnSyncStats = v.querySelector('#btnSyncStats');
+  if (btnSyncStats) btnSyncStats.onclick = async () => {
+    btnSyncStats.disabled = true; const orig = btnSyncStats.textContent;
+    btnSyncStats.textContent = '⟳ Bezig met synchroniseren...';
+    try {
+      const fn = httpsCallable(functions, 'aggregeerGebruik');
+      const res = await fn({ clubId: S.clubId });
+      const n = res.data?.sessies ?? 0;
+      S._gebruikstats = null;   // cache legen zodat de verse cijfers geladen worden
+      meld(`Synchronisatie klaar — ${n} sessie${n===1?'':'s'} verwerkt`);
+      renderClub();
+    } catch(e){
+      btnSyncStats.disabled = false; btnSyncStats.textContent = orig;
+      meld('Synchronisatie mislukt: ' + (e.message || e.code || 'onbekende fout'));
+    }
+  };
 
   if (tab === 'content' && contentLijst) koppelClubContent(v);
   if (tab === 'dash-evaluaties' && clubEvalData) koppelClubEvaluaties(v, clubEvalData, () => renderClub());
