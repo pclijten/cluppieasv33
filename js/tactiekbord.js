@@ -23,11 +23,11 @@
    bewerken (zelfde recht als de rest van de wedstrijd).
    ========================================================================== */
 
-import { db, collection, doc, addDoc, updateDoc, deleteDoc,
+import { db, collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260828d';
-import { bouwSlots } from './config.js?v=20260828d';
-import { telNav } from './tracker.js?v=20260828d';
+import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260902b';
+import { bouwSlots } from './config.js?v=20260902b';
+import { telNav } from './tracker.js?v=20260902b';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -75,6 +75,20 @@ function tactiekenRef(wid){
   return collection(db, 'teams', S.teamId, 'wedstrijden', wid, 'tactieken');
 }
 
+/* Team-brede tactiekborden-bibliotheek (los van een wedstrijd). Bereikbaar via
+   de hub-tegel "Tactiek". Valt onder dezelfde /{sub=**}-team-regel, dus geen
+   nieuwe Firestore-rules nodig. */
+function teamBordenRef(){
+  return collection(db, 'teams', S.teamId, 'tactiekborden');
+}
+
+/* Eén bord per oefening van een AI-training. We bewaren het als los doc in een
+   subcollectie onder de training, gekoppeld via het oefening-nummer. Zo blijft
+   de training zelf klein en kan een oefening-bord onafhankelijk bestaan. */
+function oefBordenRef(trainingId){
+  return collection(db, 'trainingen', trainingId, 'tactiekborden');
+}
+
 /* Nieuw leeg board op basis van de huidige opstelling; nog niet opgeslagen. */
 function nieuwBoard(w, periodeNr, naam){
   return {
@@ -94,6 +108,17 @@ function periodeLabelKort(w, nr){
   return (p === 2 ? 'H' : 'K') + nr;
 }
 
+/* De collectie waar het huidige board bij hoort. Bepaald door B.bron:
+   - wedstrijd (default): tactieken-subcollectie van de wedstrijd
+   - team:      team-brede bibliotheek
+   - oefening:  subcollectie onder de training */
+function bronRef(){
+  const bron = B && B.bron;
+  if (bron && bron.type === 'team')     return teamBordenRef();
+  if (bron && bron.type === 'oefening') return oefBordenRef(bron.trainingId);
+  return tactiekenRef(B.wid);
+}
+
 /* Board naar Firestore. Nieuw board -> addDoc, bestaand -> updateDoc. */
 async function bewaarBoard(){
   if (!B) return;
@@ -106,14 +131,21 @@ async function bewaarBoard(){
     tekeningen: B.tekeningen,
     gewijzigdOp: serverTimestamp(),
   };
+  // Oefening-borden dragen het oefening-nummer mee, zodat de training weet welk
+  // bord bij welke oefening hoort.
+  if (B.bron && B.bron.type === 'oefening') data.oefIdx = B.bron.oefIdx;
+  const ref = bronRef();
   try {
     if (B.tactiekId){
-      await updateDoc(doc(tactiekenRef(B.wid), B.tactiekId), data);
+      await updateDoc(doc(ref, B.tactiekId), data);
     } else {
       data.gemaaktDoor = (S.user && S.user.uid) || null;
       data.gemaaktOp = serverTimestamp();
-      const ref = await addDoc(tactiekenRef(B.wid), data);
-      B.tactiekId = ref.id;
+      const nieuw = await addDoc(ref, data);
+      B.tactiekId = nieuw.id;
+      // Meld de nieuwe id terug aan wie het board opende (bv. de oefening-tegel
+      // die de koppeling wil onthouden).
+      if (B.bron && typeof B.bron.opBewaard === 'function') B.bron.opBewaard(nieuw.id);
     }
     meld('Tactiek bewaard');
   } catch (e){
@@ -164,7 +196,7 @@ export function openTactiekLijst(w){
   if (toonLeerplein){
     host.querySelector('#tbLeerplein').onclick = () => {
       sluit();
-      import('./leerplein.js?v=20260828d').then(m => m.openLeerplein(w));
+      import('./leerplein.js?v=20260902b').then(m => m.openLeerplein(w));
     };
   }
 
@@ -301,6 +333,11 @@ export function openBordMet(w, objecten, tekeningen, naam){
 }
 
 function tekenBoard(w){
+  // Ondertitel hangt af van de bron: bij een wedstrijd tonen we periode +
+  // formatie, bij een los/oefening-bord een neutrale omschrijving.
+  const sub = (B.bron && B.bron.subtitel)
+    ? B.bron.subtitel
+    : `${esc(periodeLabelKort(w, B.periode))} · ${esc(B.formatie || '')}`;
   const host = document.createElement('div');
   host.className = 'tb-board';
   host.innerHTML = `
@@ -308,7 +345,7 @@ function tekenBoard(w){
       <button class="tb-top-btn ghost" id="tbTerug" aria-label="Terug">‹</button>
       <div class="tb-titel-wrap">
         <input class="tb-naam" id="tbNaam" value="${esc(B.naam)}" maxlength="40">
-        <div class="tb-sub2">${esc(periodeLabelKort(w, B.periode))} · ${esc(B.formatie)}</div>
+        <div class="tb-sub2">${sub}</div>
       </div>
       <button class="tb-top-btn" id="tbUndo" aria-label="Ongedaan maken">↶</button>
       <button class="tb-top-btn" id="tbDeel" aria-label="Delen">⇪</button>
@@ -342,7 +379,10 @@ function tekenBoard(w){
       <button class="tb-tool" data-tool="potlood">✎<span>Potlood</span></button>
       <button class="tb-tool" data-tool="gum">⌫<span>Gum</span></button>
       <span class="tb-verdeler"></span>
-      <button class="tb-tool" data-add="tegen">◉<span>Tegenstander</span></button>
+      <button class="tb-tool" data-add="eigen">🔴<span>Eigen</span></button>
+      <button class="tb-tool" data-add="tegen">🔵<span>Tegen</span></button>
+      <button class="tb-tool" data-add="pion">🔺<span>Pion</span></button>
+      <button class="tb-tool" data-add="goaltje">⊓<span>Goaltje</span></button>
       <button class="tb-tool" data-add="bal">⚪<span>Bal</span></button>
       <span class="tb-verdeler"></span>
       <span class="tb-kleuren" id="tbKleuren">
@@ -382,6 +422,12 @@ function tekenBoard(w){
     objLaag.innerHTML = B.objecten.map((o, i) => {
       if (o.soort === 'bal'){
         return `<div class="tb-obj" data-i="${i}" style="left:${o.x}%;top:${o.y}%"><div class="tb-bal"></div></div>`;
+      }
+      if (o.soort === 'pion'){
+        return `<div class="tb-obj" data-i="${i}" style="left:${o.x}%;top:${o.y}%"><div class="tb-pion"></div></div>`;
+      }
+      if (o.soort === 'goaltje'){
+        return `<div class="tb-obj" data-i="${i}" style="left:${o.x}%;top:${o.y}%"><div class="tb-goaltje"></div></div>`;
       }
       const cls = o.soort === 'tegen' ? 'tegen' : (o.keeper ? 'keeper' : 'eigen');
       return `<div class="tb-obj" data-i="${i}" style="left:${o.x}%;top:${o.y}%">
@@ -537,16 +583,40 @@ function tekenBoard(w){
   });
   host.querySelectorAll('.tb-tool[data-add]').forEach(b => {
     b.onclick = () => {
-      if (b.dataset.add === 'bal'){
-        B.objecten.push({ soort:'bal', x:50, y:50 }); renderObjecten(); pushUndo();
+      const soort = b.dataset.add;
+      // Volgend rugnummer voor een team: hoogste bestaande + 1 (min. 1). Zo blijft
+      // nummering logisch doorlopen, ook na verwijderen.
+      const volgNr = s => {
+        const nrs = B.objecten.filter(o => o.soort === s).map(o => Number(o.nr) || 0);
+        return (nrs.length ? Math.max(...nrs) : 0) + 1;
+      };
+      // Lichte spreiding zodat opeenvolgend geplaatste objecten niet exact
+      // op elkaar landen.
+      const spreid = s => {
+        const n = B.objecten.filter(o => o.soort === s).length;
+        return { x: 34 + (n % 5) * 8, dy: Math.floor(n / 5) * 9 };
+      };
+      if (soort === 'bal'){
+        B.objecten.push({ soort:'bal', x:50, y:50 });
         hint('Bal geplaatst — sleep hem waar je wilt');
-      } else {
-        // Tegenstander wordt meteen neergezet als effen pion, zonder rugnummer
-        // te hoeven kiezen. Meerdere tikken = meerdere pionnen, licht gespreid.
-        const n = B.objecten.filter(o => o.soort === 'tegen').length;
-        B.objecten.push({ soort:'tegen', nr:'', x: 38 + (n%4)*8, y: 30 + Math.floor(n/4)*10 });
-        renderObjecten(); pushUndo(); hint('Tegenstander geplaatst — sleep hem waar je wilt');
+      } else if (soort === 'eigen'){
+        const p = spreid('eigen');
+        B.objecten.push({ soort:'eigen', nr: volgNr('eigen'), x: p.x, y: 66 + p.dy });
+        hint('Eigen speler geplaatst — sleep hem waar je wilt');
+      } else if (soort === 'tegen'){
+        const p = spreid('tegen');
+        B.objecten.push({ soort:'tegen', nr: volgNr('tegen'), x: p.x, y: 30 + p.dy });
+        hint('Tegenstander geplaatst — sleep hem waar je wilt');
+      } else if (soort === 'pion'){
+        const p = spreid('pion');
+        B.objecten.push({ soort:'pion', x: 20 + p.x * 0.5, y: 50 + p.dy });
+        hint('Pion geplaatst — sleep hem waar je wilt');
+      } else if (soort === 'goaltje'){
+        const bestaat = B.objecten.some(o => o.soort === 'goaltje');
+        B.objecten.push({ soort:'goaltje', x: 50, y: bestaat ? 90 : 10 });
+        hint('Goaltje geplaatst — sleep het waar je wilt');
       }
+      renderObjecten(); pushUndo();
     };
   });
   host.querySelectorAll('.tb-kleur').forEach(k => {
@@ -583,6 +653,149 @@ export function sluitTactiekbord(){
   if (_board){ _board.remove(); _board = null; }
   B = null; undoStack = [];
   vangnetStilTerugAlsNodig(wasOpen);
+}
+
+/* ==================== LOSSE / OEFENING-BORDEN ====================
+   Twee nieuwe ingangen naast het wedstrijd-tactiekbord:
+   - openTactiekBibliotheek(): team-brede borden (hub-tegel "Tactiek").
+   - openOefeningBord(): één bord gekoppeld aan een oefening van een training.
+   Beide gebruiken hetzelfde fullscreen-board; alleen de bron (opslaglocatie en
+   ondertitel) verschilt. Er is geen wedstrijd, dus we geven een minimaal
+   "w-achtig" object mee voor het veld (format/formatie puur cosmetisch). */
+
+function leegBoard(bron, naam){
+  return {
+    wid: null,
+    tactiekId: null,
+    naam: naam || 'Nieuw bord',
+    periode: '1',
+    format: '8-tal',
+    formatie: '',
+    objecten: [],
+    tekeningen: [],
+    bron,
+  };
+}
+
+/* Minimaal veld-object voor tekenBoard() als er geen echte wedstrijd is. */
+const LOS_VELD = { format:'8-tal', formatie:'', periodes:4 };
+
+/* --- Team-brede bibliotheek (hub-tegel) --- */
+export function openTactiekBibliotheek(){
+  telNav('team:tactiek', 'open');
+  const host = document.createElement('div');
+  host.className = 'tb-sheet-bg';
+  host.innerHTML = `
+    <div class="tb-sheet">
+      <div class="tb-sheet-kop">
+        <h3>Tactiekborden</h3>
+        <button class="tb-sluit" aria-label="Sluiten">✕</button>
+      </div>
+      <button class="tb-nieuw" id="tbNieuw">
+        <span class="tb-nieuw-ico">✎</span>
+        <span><strong>Nieuw tactiekbord</strong><br>
+          <span class="tb-sub">Begin met een leeg veld</span></span>
+      </button>
+      <div class="tb-lijst" id="tbLijst"><div class="tb-laden">Laden…</div></div>
+    </div>`;
+  document.body.appendChild(host);
+
+  const sluit = () => { if (unsubLijst){ unsubLijst(); unsubLijst = null; } host.remove(); };
+  host.querySelector('.tb-sluit').onclick = sluit;
+  host.onclick = e => { if (e.target === host) sluit(); };
+
+  host.querySelector('#tbNieuw').onclick = () => {
+    sluit();
+    B = leegBoard({ type:'team', subtitel:'Vrij tactiekbord' }, null);
+    tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
+    telNav('tactiek:bord', 'nieuw-team');
+    tekenBoard(LOS_VELD);
+  };
+
+  const lijstEl = host.querySelector('#tbLijst');
+  unsubLijst = onSnapshot(teamBordenRef(), snap => {
+    const items = [];
+    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    items.sort((a,b) => (b.gewijzigdOp?.seconds||0) - (a.gewijzigdOp?.seconds||0) || (a.naam||'').localeCompare(b.naam||''));
+    if (!items.length){
+      lijstEl.innerHTML = `<div class="tb-leeg">Nog geen tactiekborden. Maak er één aan met de knop hierboven.</div>`;
+      return;
+    }
+    lijstEl.innerHTML = items.map(it => `
+      <div class="tb-rij" data-id="${esc(it.id)}">
+        <div class="tb-rij-mini">${miniVeldSvg(it)}</div>
+        <div class="tb-rij-tekst">
+          <div class="tb-rij-naam">${esc(it.naam || 'Tactiek')}</div>
+          <div class="tb-rij-meta">${(it.objecten||[]).length} objecten · ${(it.tekeningen||[]).length} tekening${(it.tekeningen||[]).length===1?'':'en'}</div>
+        </div>
+        <button class="tb-rij-verwijder" data-verwijder="${esc(it.id)}" aria-label="Verwijderen">🗑</button>
+      </div>`).join('');
+    lijstEl.querySelectorAll('.tb-rij').forEach(rij => {
+      const openRij = () => {
+        const it = items.find(x => x.id === rij.dataset.id);
+        sluit();
+        B = {
+          wid:null, tactiekId: it.id, naam: it.naam || 'Tactiek',
+          periode: it.periode || '1', format: it.format || '8-tal', formatie: it.formatie || '',
+          objecten: (it.objecten || []).map(o => ({...o})),
+          tekeningen: (it.tekeningen || []).map(t => ({...t, punten: (t.punten||[]).map(p => [...p])})),
+          bron: { type:'team', subtitel:'Vrij tactiekbord' },
+        };
+        tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
+        telNav('tactiek:bord', 'team');
+        tekenBoard(LOS_VELD);
+      };
+      rij.querySelector('.tb-rij-tekst').onclick = openRij;
+      rij.querySelector('.tb-rij-mini').onclick = openRij;
+    });
+    lijstEl.querySelectorAll('[data-verwijder]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Dit tactiekbord verwijderen?')) return;
+        try { await deleteDoc(doc(teamBordenRef(), b.dataset.verwijder)); meld('Tactiek verwijderd'); }
+        catch(e){ meld('Verwijderen mislukt'); }
+      };
+    });
+  });
+}
+
+/* --- Eén bord per oefening ---
+   trainingId + oefIdx identificeren de oefening. bordId (optioneel) is een al
+   gekoppeld bord. onKoppel(id) wordt aangeroepen zodra een nieuw bord voor het
+   eerst wordt bewaard, zodat de oefening-weergave de koppeling kan onthouden. */
+export function openOefeningBord({ trainingId, oefIdx, bordId, oefTitel, onKoppel }){
+  const bron = {
+    type:'oefening', trainingId, oefIdx,
+    subtitel: oefTitel ? esc(oefTitel) : 'Tactiekbord bij oefening',
+    opBewaard: id => { if (typeof onKoppel === 'function') onKoppel(id); },
+  };
+  const start = () => {
+    tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
+    tekenBoard(LOS_VELD);
+  };
+  if (bordId){
+    // bestaand bord laden
+    (async () => {
+      try {
+        const snap = await getDoc(doc(oefBordenRef(trainingId), bordId));
+        const it = snap.exists() ? snap.data() : null;
+        B = it ? {
+          wid:null, tactiekId: bordId, naam: it.naam || (oefTitel || 'Tactiekbord'),
+          periode: it.periode || '1', format: it.format || '8-tal', formatie: it.formatie || '',
+          objecten: (it.objecten || []).map(o => ({...o})),
+          tekeningen: (it.tekeningen || []).map(t => ({...t, punten: (t.punten||[]).map(p => [...p])})),
+          bron,
+        } : leegBoard(bron, oefTitel);
+        telNav('tactiek:bord', 'oefening');
+        start();
+      } catch(e){
+        B = leegBoard(bron, oefTitel); telNav('tactiek:bord', 'oefening-nieuw'); start();
+      }
+    })();
+  } else {
+    B = leegBoard(bron, oefTitel);
+    telNav('tactiek:bord', 'oefening-nieuw');
+    start();
+  }
 }
 
 /* ==================== DELEN ALS AFBEELDING ====================
@@ -641,6 +854,24 @@ async function deelAlsAfbeelding(w){
     if (o.soort === 'bal'){
       c.fillStyle = '#f2f2f0'; c.strokeStyle = '#222'; c.lineWidth = 3;
       c.beginPath(); c.arc(x, y, 15, 0, Math.PI*2); c.fill(); c.stroke();
+      continue;
+    }
+    if (o.soort === 'pion'){
+      // gele driehoek (pion)
+      c.fillStyle = '#F2C94C'; c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(x, y-16); c.lineTo(x+14, y+12); c.lineTo(x-14, y+12);
+      c.closePath(); c.fill(); c.stroke();
+      continue;
+    }
+    if (o.soort === 'goaltje'){
+      // klein doeltje: witte U-vorm
+      c.strokeStyle = '#fff'; c.lineWidth = 5;
+      const gw = 46, gh = 24;
+      c.beginPath();
+      c.moveTo(x-gw/2, y-gh/2); c.lineTo(x-gw/2, y+gh/2);
+      c.lineTo(x+gw/2, y+gh/2); c.lineTo(x+gw/2, y-gh/2);
+      c.stroke();
       continue;
     }
     c.fillStyle = o.soort === 'tegen' ? '#2B6FD6' : (o.keeper ? '#F2A33C' : '#E20613');
