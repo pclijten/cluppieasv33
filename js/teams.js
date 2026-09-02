@@ -767,7 +767,8 @@ export function openTeam(teamId, beginTab = 'hub', opties = {}){
   // presentie altijd ingeklapt openen bij elke teamopening (alle maanden dicht)
   S._presentieOpen = new Set();
   S._presentieToonAlles = new Set();
-  stopUnsubs('team','spelers','wedstrijden','presentie','planning','poule','beoordelingen','teamevaluaties','seizoen','sjablonen');
+  S.uitleningenUit = []; S.uitleningenIn = [];   // leeg starten: nieuwe listeners vullen deze per team
+  stopUnsubs('team','spelers','wedstrijden','presentie','planning','poule','beoordelingen','teamevaluaties','seizoen','sjablonen','uitleningen','uitleningenIn');
   const luisterfout = (naam) => (err) => {
     console.error(`[Cluppie] Listener "${naam}" kon niet lezen (teamId=${teamId}):`, err.code, err.message);
     if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}" — controleer de Firestore-rules`);
