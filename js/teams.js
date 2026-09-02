@@ -34,14 +34,15 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260901a')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260902a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
-  htmlSpelers, htmlLeenProfiel, htmlProfiel,
+  htmlSpelers, htmlProfiel,
   modalSnelBeoordeling, startSnelRonde, modalVolledigeBeoordeling,
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
-  modalUitlenen, trekUitleningIn, modalNotitie,
-} from './teams-spelers.js?v=20260901a';
+  modalUitlenen, trekUitleningIn, modalLeenOverlay, definitiefOverzetten,
+  modalGast, verwijderGast, modalKoppelGast, modalNotitie,
+} from './teams-spelers.js?v=20260902a';
 import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260828d';
 import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260901a';
 import {
@@ -60,7 +61,7 @@ import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBeri
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20260901a' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20260902a' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -126,7 +127,7 @@ export function teamTabTerug(){
     S._presentieOpen = new Set([new Date().toISOString().slice(0,7)]);
     S._presentieToonAlles = new Set();
   }
-  S._beoordeelProfiel = null; S._leenProfiel = null;
+  S._beoordeelProfiel = null;
   S.teamTab = vorige;
   telNav('team:' + vorige, 'terug');
   bewaarPositie();
@@ -790,8 +791,8 @@ export function openTeam(teamId, beginTab = 'hub', opties = {}){
     if (!S.wedstrijdId) renderTeam();
   }, luisterfout('team'));
   S.unsub.spelers = onSnapshot(collection(db,'teams',teamId,'spelers'), snap => {
-    S.spelers = snap.docs.map(d => ({id:d.id, ...d.data()}))
-      .sort((a,b) => (a.nummer ?? 999) - (b.nummer ?? 999) || a.naam.localeCompare(b.naam));
+    S._eigenSpelers = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    herbouwSpelers();
     if (!S.wedstrijdId) renderTeam(); else renderWedstrijd();
   }, luisterfout('spelers'));
   S.unsub.wedstrijden = onSnapshot(collection(db,'teams',teamId,'wedstrijden'), snap => {
@@ -884,7 +885,11 @@ function startUitleningenListener(teamId){
   if (!clubId){ return; }              // los team zonder club: geen uitleningen
   if (S.unsub.uitleningen){ S.unsub.uitleningen(); delete S.unsub.uitleningen; }
   if (S.unsub.uitleningenIn){ S.unsub.uitleningenIn(); delete S.unsub.uitleningenIn; }
-  const herteken = () => { if (!S.wedstrijdId && (S.teamTab === 'spelers' || S._beoordeelProfiel)) renderTeam(); };
+  const herteken = () => {
+    herbouwSpelers();
+    if (S.wedstrijdId) renderWedstrijd();
+    else renderTeam();
+  };
   const foutmelding = (err) => {
     console.error(`[Cluppie] Listener "uitleningen" kon niet lezen (clubId=${clubId}):`, err.code, err.message);
     if (err.code === 'permission-denied') meld('Kon uitleningen niet laden — controleer de Firestore-rules');
@@ -905,10 +910,90 @@ function startUitleningenListener(teamId){
     foutmelding
   );
 }
+
+/* ==================== herbouwSpelers — de merge bij de bron ====================
+   Eén plek waar S.spelers wordt samengesteld, zodat elke consument (opstelling,
+   presentie, evaluatie, wedstrijd) automatisch de juiste lijst leest zonder
+   zelf iets te hoeven mengen. Samenstelling:
+
+   1. Eigen spelers (teams/{teamId}/spelers), MINUS wie is uitgeleend (die
+      verdwijnt uit de bruikbare lijst; hij blijft vaag zichtbaar via
+      S.uitleningenUit in htmlSpelers) en MINUS gast-documenten (die krijgen
+      hun eigen behandeling hieronder).
+   2. Ingeleende spelers (S.uitleningenIn zonder gast-koppeling): opgebouwd uit
+      de meegereisde snapshot + overlay, gemarkeerd met _ingeleend.
+   3. Gast-documenten (eigen docs met gast===true):
+      - niet-geadopteerd: kale placeholder, _gast + _gekoppeld:false;
+      - geadopteerd door een uitlening: toont de echte naam/herkomst uit de
+        snapshot, id blijft het gast-id (opstellingen intact), _ingeleend + _gast.
+
+   Merge-bij-bron betekent: verandert er iets aan eigen spelers, uitleningen of
+   gasten, dan roept de betreffende listener herbouwSpelers() aan. */
+function herbouwSpelers(){
+  const eigenDocs = S._eigenSpelers || [];
+  const uitleningenIn  = S.uitleningenIn  || [];
+  const uitleningenUit = S.uitleningenUit || [];
+
+  // ids die zijn uitgeleend → uit de bruikbare lijst
+  const uitgeleendIds = new Set(uitleningenUit.map(u => u.spelerId));
+  // welke uitleningen hebben een gast geadopteerd
+  const leenPerGast = new Map();
+  for (const u of uitleningenIn) if (u.adopteertGast) leenPerGast.set(u.adopteertGast, u);
+
+  const lijst = [];
+
+  // 1) eigen spelers (geen gast, niet uitgeleend)
+  for (const p of eigenDocs){
+    if (p.gast) continue;
+    if (uitgeleendIds.has(p.id)) continue;
+    lijst.push({ ...p, _ingeleend:false });
+  }
+
+  // 2) ingeleende spelers zonder gast-koppeling
+  for (const u of uitleningenIn){
+    if (u.adopteertGast) continue;   // die verschijnt via de gast hieronder
+    const s = u.snapshot || {};
+    lijst.push({
+      id: u.spelerId,
+      naam: s.naam || 'Speler',
+      achternaam: s.achternaam || null,
+      nummer: u.overlay?.nummer ?? s.nummer ?? null,
+      positie: u.overlay?.positie ?? s.positie ?? null,
+      _ingeleend: true,
+      _bronTeam: u.vanTeam,
+      _bronTeamNaam: u.vanTeamNaam,
+      _leenId: u.id,
+    });
+  }
+
+  // 3) gast-documenten
+  for (const p of eigenDocs){
+    if (!p.gast) continue;
+    const u = leenPerGast.get(p.id);
+    if (u){
+      const s = u.snapshot || {};
+      lijst.push({
+        ...p,
+        naam: s.naam || p.naam,
+        achternaam: s.achternaam || null,
+        nummer: u.overlay?.nummer ?? p.nummer ?? null,
+        positie: u.overlay?.positie ?? p.positie ?? null,
+        _ingeleend: true, _gast: true, _gekoppeld: true,
+        _bronTeam: u.vanTeam, _bronTeamNaam: u.vanTeamNaam, _leenId: u.id,
+      });
+    } else {
+      lijst.push({ ...p, _ingeleend:false, _gast:true, _gekoppeld:false });
+    }
+  }
+
+  lijst.sort((a,b) => (a.nummer ?? 999) - (b.nummer ?? 999) || (a.naam||'').localeCompare(b.naam||''));
+  S.spelers = lijst;
+}
+
 export function verlaatTeamView(){
   stopUnsubs('team','spelers','wedstrijden','presentie','planning','poule','beoordelingen','uitleningen','uitleningenIn','teamevaluaties','seizoen','sjablonen');
   S._teamTabStack = [];
-  S.teamId = null; S.team = null; S.spelers = []; S.wedstrijden = []; S.planning = [];
+  S.teamId = null; S.team = null; S.spelers = []; S._eigenSpelers = []; S.wedstrijden = []; S.planning = [];
   S._planningToonEerder = false; S._planningDichteMaanden = null;
   S.uitleningenUit = []; S.uitleningenIn = []; S.teamEvaluaties = [];
   wisPositie();
@@ -924,6 +1009,17 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
+  { datum:'2026-09-02', titel:'Spelers uitlenen tussen teams — vernieuwd', punten:[
+      'Leen je een speler uit aan een ander team, dan doet die daar nu volwaardig mee: de ontvangende coach kan hem opstellen, presentie bijhouden en beoordelen, precies als bij een eigen speler. Open een speler en tik onderaan op “⇄ Uitlenen aan ander team”.',
+      'Bij jou wordt een uitgeleende speler grijs weergegeven onder “Uitgeleend” en verdwijnt hij uit je opstellingen, presenties en evaluaties — tot hij terugkomt. Je eigen speler blijft altijd van jou: met “Terughalen” zet je hem meteen terug in je selectie.',
+      'De ontvangende coach mag het rugnummer en de voorkeurspositie van een ingeleende speler bij zich aanpassen (via “Nummer/positie bij jou”). Dat geldt alleen in zijn eigen team; jouw origineel blijft ongemoeid.',
+      'Nog niet bekend wie je precies inleent, maar wil je alvast opstellen? Maak een gastspeler aan (“+ Gastspeler aanmaken”). Zodra bekend is wie het wordt, koppel je de gast aan de echte uitleen — je bestaande opstellingen en presenties blijven behouden.',
+      'Terugzetten kan door beide coaches. De clubadmin kan een uitleen bovendien definitief maken (de speler verhuist dan echt naar het nieuwe team) of terugzetten naar het oorspronkelijke team.',
+    ]},
+  { datum:'2026-09-02', titel:'Positie in de spelerslijst', punten:[
+      'In de spelerslijst zie je nu onder elke naam de meest gespeelde positie staan, zodat je in één oogopslag ziet wie waar speelt.',
+      'Heeft een speler nog geen wedstrijdhistorie, dan tonen we zijn ingestelde voorkeurspositie. Zodra hij wedstrijden speelt, past de positie zich vanzelf aan op waar hij het vaakst stond.',
+    ]},
   { datum:'2026-08-28', titel:'Tactiekbord: teken je plan op het veld', punten:[
       'Open bij een wedstrijd het nieuwe Tactiekbord (onderaan het wedstrijdscherm). Het veld verschijnt schermvullend met de spelers uit de opstelling van de gekozen periode.',
       'Teken loopwegen (gestreepte pijl), passes (doorgetrokken pijl) of vrij met het potlood, en versleep spelers, tegenstanders en een bal precies waar je ze wilt hebben.',
@@ -1263,7 +1359,7 @@ export function renderTeam(){
 
   let inhoud = '';
   if (tab === 'wedstrijden') inhoud = htmlWedstrijden();
-  if (tab === 'spelers')     inhoud = S._leenProfiel ? htmlLeenProfiel() : (S._beoordeelProfiel ? htmlProfiel() : htmlSpelers());
+  if (tab === 'spelers')     inhoud = S._beoordeelProfiel ? htmlProfiel() : htmlSpelers();
   if (tab === 'trainingen')  inhoud = htmlTeamTrainingen();
   if (tab === 'presentietraining') inhoud = htmlPresentieTraining();
   if (tab === 'preswedstrijd') inhoud = htmlPresWedstrijd();
@@ -1294,7 +1390,7 @@ export function renderTeam(){
     help:'Help', updates:'Updates',
   };
 
-  const profielOpen = (tab === 'spelers' && (S._beoordeelProfiel || S._leenProfiel));
+  const profielOpen = (tab === 'spelers' && S._beoordeelProfiel);
   v.innerHTML = `
     ${profielOpen ? '' : `<div class="kop"><button class="terug" id="naarTeams">‹</button>
       <h1>${esc(TAB_TITEL[tab] || S.team.naam)}<span class="sub">${esc(S.team.naam)}</span></h1>
@@ -1660,7 +1756,7 @@ function koppelTeamTab(v, tab){
   if (tab === 'hub'){
     // tegels → tabbladen (zetTeamTab regelt de vaste beginstand per tab)
     v.querySelectorAll('[data-hub-open]').forEach(b => b.onclick = () => {
-      S._beoordeelProfiel = null; S._leenProfiel = null;
+      S._beoordeelProfiel = null;
       zetTeamTab(b.dataset.hubOpen);
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
@@ -2006,23 +2102,24 @@ function koppelTeamTab(v, tab){
       renderTeam();
     });
   }
-  if (tab === 'spelers' && S._leenProfiel){
-    // --- read-only leen-profiel ---
-    const t = v.querySelector('#leenTerug');
-    if (t) t.onclick = () => history.back();
-  }
-  else if (tab === 'spelers' && S._beoordeelProfiel){
+  if (tab === 'spelers' && S._beoordeelProfiel){
     // --- profielscherm ---
     v.querySelector('#profielTerug').onclick = () => history.back();
     v.querySelectorAll('[data-ptab]').forEach(b => b.onclick = () => { S._profielTab = b.dataset.ptab; if (b.dataset.ptab === 'leerlijn') telGebruik('leerlijn'); renderTeam(); });
     v.querySelectorAll('[data-snel-speler]').forEach(b => b.onclick = () => modalSnelBeoordeling(b.dataset.snelSpeler));
     v.querySelectorAll('[data-volledig-speler]').forEach(b => b.onclick = () => modalVolledigeBeoordeling(b.dataset.volledigSpeler));
     v.querySelectorAll('[data-bewerk-speler]').forEach(b => b.onclick = () => modalSpeler(speler(b.dataset.bewerkSpeler)));
+    v.querySelectorAll('[data-leen-overlay]').forEach(b => b.onclick = () => modalLeenOverlay(b.dataset.leenOverlay));
     v.querySelectorAll('[data-notitie]').forEach(b => b.onclick = () => modalNotitie(b.dataset.notitie));
     v.querySelectorAll('[data-uitleen-speler]').forEach(b => b.onclick = () => modalUitlenen(b.dataset.uitleenSpeler));
-    v.querySelectorAll('[data-uitleen-intrek]').forEach(b => b.onclick = () => trekUitleningIn(b.dataset.uitleenIntrek));
+    v.querySelectorAll('[data-uitleen-terug]').forEach(b => b.onclick = () => trekUitleningIn(b.dataset.uitleenTerug));
+    v.querySelectorAll('[data-uitleen-definitief]').forEach(b => b.onclick = () => definitiefOverzetten(b.dataset.uitleenDefinitief));
+    v.querySelectorAll('[data-gast-bewerk]').forEach(b => b.onclick = () => modalGast(b.dataset.gastBewerk));
+    v.querySelectorAll('[data-gast-koppel]').forEach(b => b.onclick = () => modalKoppelGast(b.dataset.gastKoppel));
+    v.querySelectorAll('[data-gast-weg]').forEach(b => b.onclick = () => verwijderGast(b.dataset.gastWeg));
     v.querySelectorAll('[data-weg-speler]').forEach(b => b.onclick = async () => {
       const p = speler(b.dataset.wegSpeler);
+      if (p?._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen — zet hem terug naar het bronteam');
       if (p && confirm(`${p.naam} verwijderen uit de selectie? Beoordelingen en leerpunten gaan ook verloren.`)){
         await deleteDoc(doc(db,'teams',S.teamId,'spelers',p.id));
         S._beoordeelProfiel = null; renderTeam();
@@ -2040,12 +2137,11 @@ function koppelTeamTab(v, tab){
   }
   else if (tab === 'spelers'){
     v.querySelector('#nieuweSpeler').onclick = () => modalSpeler();
+    const gb = v.querySelector('#nieuweGast'); if (gb) gb.onclick = () => modalGast();
     v.querySelectorAll('[data-open-profiel]').forEach(b => b.onclick = () => {
       S._beoordeelProfiel = b.dataset.openProfiel; S._profielTab = 'overzicht'; telNav('spelerprofiel', 'tegel'); renderTeam();
     });
-    v.querySelectorAll('[data-open-leen]').forEach(b => b.onclick = () => {
-      S._leenProfiel = b.dataset.openLeen; renderTeam();
-    });
+    v.querySelectorAll('[data-uitleen-terug]').forEach(b => b.onclick = () => trekUitleningIn(b.dataset.uitleenTerug));
     v.querySelectorAll('#spelersModus [data-modus]').forEach(b => b.onclick = () => {
       if (b.dataset.modus === 'snel') startSnelRonde();
     });
