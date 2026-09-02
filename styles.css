@@ -3641,3 +3641,66 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .bijwerk-seg{display:flex;gap:6px}
 .bijwerk-seg button{flex:1;padding:10px 4px;border-radius:10px;background:var(--op-vlak);font-weight:700;font-size:calc(13px * var(--fs));color:var(--ink-2)}
 .bijwerk-seg button.aan{background:var(--pitch-ink);color:var(--fluo)}
+
+/* ==================== INZICHT: statistiek-tabs & rapporten ==================== */
+.segment.inzicht-tabs{margin-bottom:calc(12px * var(--fs));overflow-x:auto;}
+.segment.inzicht-tabs button{white-space:nowrap;}
+
+.inz-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(8px * var(--fs));margin-bottom:calc(12px * var(--fs));}
+.inz-kpi{background:var(--surface);border:1px solid var(--lijn,var(--rand));border-radius:calc(11px * var(--fs));padding:calc(12px * var(--fs)) calc(6px * var(--fs));text-align:center;}
+.inz-kpi .g{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(26px * var(--fs));color:var(--accent);line-height:1;}
+.inz-kpi .l{font-size:calc(9.5px * var(--fs));color:var(--ink-2);margin-top:calc(4px * var(--fs));}
+.inz-sub{font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:calc(-6px * var(--fs));margin-bottom:calc(11px * var(--fs));}
+
+.inz-trij{display:flex;align-items:center;gap:calc(9px * var(--fs));padding:calc(4px * var(--fs)) 0;font-size:calc(12px * var(--fs));}
+.inz-trij .tn{width:calc(64px * var(--fs));flex-shrink:0;text-align:right;font-weight:600;}
+.inz-trij .ts{flex:1;height:calc(14px * var(--fs));background:var(--surface-2);border-radius:calc(7px * var(--fs));overflow:hidden;}
+.inz-trij .tv{display:block;height:100%;background:var(--accent);border-radius:calc(7px * var(--fs));}
+.inz-trij .tw{font-size:calc(9.5px * var(--fs));color:var(--ink-2);white-space:nowrap;}
+
+.inz-prij{margin-bottom:calc(10px * var(--fs));}
+.inz-prij .pn{font-size:calc(11.5px * var(--fs));font-weight:600;margin-bottom:calc(4px * var(--fs));display:flex;gap:calc(6px * var(--fs));align-items:center;flex-wrap:wrap;}
+.inz-badge{font-size:calc(9px * var(--fs));font-weight:600;padding:calc(2px * var(--fs)) calc(7px * var(--fs));border-radius:999px;background:var(--surface-2);color:var(--ink-2);}
+.inz-pbalk{display:flex;height:calc(14px * var(--fs));border-radius:calc(5px * var(--fs));overflow:hidden;background:var(--surface-2);}
+.inz-seg{height:100%;}
+.inz-legenda{display:flex;flex-wrap:wrap;gap:calc(9px * var(--fs));margin-top:calc(11px * var(--fs));font-size:calc(10px * var(--fs));color:var(--ink-2);}
+.inz-legenda span{display:flex;align-items:center;gap:calc(5px * var(--fs));}
+.inz-legenda i{width:calc(9px * var(--fs));height:calc(9px * var(--fs));border-radius:calc(3px * var(--fs));}
+
+.inz-dagrij{display:flex;align-items:center;gap:calc(9px * var(--fs));padding:calc(4px * var(--fs)) 0;font-size:calc(12px * var(--fs));}
+.inz-dagrij .dn{width:calc(74px * var(--fs));color:var(--ink-2);}
+.inz-dagrij .ds{flex:1;height:calc(13px * var(--fs));background:var(--surface-2);border-radius:calc(7px * var(--fs));overflow:hidden;}
+.inz-dagrij .dv{display:block;height:100%;background:var(--accent);border-radius:calc(7px * var(--fs));}
+.inz-dagrij .dw{width:calc(34px * var(--fs));text-align:right;font-weight:700;font-size:calc(11px * var(--fs));}
+
+.inz-vgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:calc(8px * var(--fs));text-align:center;}
+.inz-vc{background:var(--surface-2);border-radius:calc(10px * var(--fs));padding:calc(11px * var(--fs)) calc(6px * var(--fs));}
+.inz-vc .g{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22px * var(--fs));color:var(--accent);}
+.inz-vc .l{font-size:calc(9.5px * var(--fs));color:var(--ink-2);margin-top:calc(3px * var(--fs));}
+
+.inz-ptab{width:100%;font-size:calc(11px * var(--fs));border-collapse:collapse;}
+.inz-ptab th{text-align:left;color:var(--ink-2);font-weight:600;font-size:calc(9.5px * var(--fs));text-transform:uppercase;letter-spacing:.03em;padding:calc(5px * var(--fs)) calc(3px * var(--fs));border-bottom:1px solid var(--surface-2);}
+.inz-ptab td{padding:calc(6px * var(--fs)) calc(3px * var(--fs));border-bottom:1px solid var(--surface-2);}
+.inz-ptab td.num,.inz-ptab th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.inz-mono{font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--accent);}
+
+.inz-hmwrap{overflow-x:auto;}
+.inz-hm{width:100%;border-collapse:collapse;}
+.inz-hm th{color:var(--ink-2);font-weight:500;font-size:calc(7.5px * var(--fs));height:calc(14px * var(--fs));text-align:center;}
+.inz-hm .rl{text-align:right;padding-right:calc(4px * var(--fs));color:var(--ink-2);font-weight:600;font-size:calc(9px * var(--fs));width:calc(22px * var(--fs));}
+.inz-hm td{padding:1px;}
+.inz-hc{width:calc(13px * var(--fs));height:calc(15px * var(--fs));border-radius:2px;}
+
+.inz-rapportknop{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--surface-2);border:1px solid var(--lijn,var(--rand));border-radius:calc(11px * var(--fs));padding:calc(14px * var(--fs));margin-bottom:calc(9px * var(--fs));cursor:pointer;color:var(--ink);text-align:left;}
+.inz-rapportknop .rt{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(15px * var(--fs));}
+.inz-rapportknop .rs{font-size:calc(10.5px * var(--fs));color:var(--ink-2);margin-top:calc(2px * var(--fs));}
+.inz-rapportknop .rp{color:var(--accent);display:flex;align-items:center;}
+
+/* schermvullende rapport-viewer */
+.rapport-achter{position:fixed;inset:0;z-index:9000;background:#fff;display:none;flex-direction:column;}
+.rapport-achter.open{display:flex;}
+.rapport-kop{display:flex;align-items:center;gap:calc(12px * var(--fs));padding:calc(10px * var(--fs)) calc(14px * var(--fs));background:#161a20;color:#fff;flex-shrink:0;}
+.rapport-kop .rapport-titel{flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(18px * var(--fs));}
+.rapport-kop button{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:calc(8px * var(--fs));padding:calc(8px * var(--fs)) calc(12px * var(--fs));font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.rapport-kop .rapport-sluit{padding:calc(8px * var(--fs)) calc(12px * var(--fs));}
+.rapport-frame{flex:1;border:none;width:100%;background:#fff;}
