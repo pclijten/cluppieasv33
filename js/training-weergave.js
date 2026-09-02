@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260902b';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260902d';
 
 let _overlay = null;
 
@@ -39,9 +39,9 @@ export function sluitTrainingWeergave(){
   // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
   const nb = _overlay.querySelector('.trw-notitie-knop');
   if (nb) nb.remove();
-  import('./training-aantekeningen.js?v=20260902b').then(m => m.resetAantekeningen()).catch(() => {});
-  import('./training-video.js?v=20260902b').then(m => m.resetTrainingVideos()).catch(() => {});
-  import('./training-tactiek.js?v=20260902b').then(m => m.resetTrainingTactiek()).catch(() => {});
+  import('./training-aantekeningen.js?v=20260902d').then(m => m.resetAantekeningen()).catch(() => {});
+  import('./training-video.js?v=20260902d').then(m => m.resetTrainingVideos()).catch(() => {});
+  import('./training-tactiek.js?v=20260902d').then(m => m.resetTrainingTactiek()).catch(() => {});
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -133,7 +133,7 @@ function oefHtml(idx, oef, diagramUrls){
    - diagramUrls: { pagina: url }
    - oefeningen: de AI-structuur
    - onOrigineel: callback die de PDF-viewer opent */
-export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId, oefeningVideos, tactiekKoppelingen, trainingClub }){
+export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId, oefeningVideos, oefeningTactiek, trainingClub }){
   const el = bouwOverlay();
   el.querySelector('.trw-titel').textContent = titel || 'Training';
   el.querySelector('.trw-meta').textContent = meta || '';
@@ -177,7 +177,7 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
   // Aantekeningen-laag (additief): notitie-knop in de balk + tik-op-regel.
   // Alleen als er een trainingId is om notities aan te koppelen.
   if (trainingId){
-    import('./training-aantekeningen.js?v=20260902b').then(mod => {
+    import('./training-aantekeningen.js?v=20260902d').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initAantekeningen({ stage, balk, trainingId });
       mod.bindItemKlik(stage);
@@ -185,15 +185,15 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
 
     // Video-uitleg-laag (additief): 🎬-knop in de balk die de zichtbare oefening
     // volgt + afspeeltegel per oefening; beheerder kan uploaden/vervangen/wissen.
-    import('./training-video.js?v=20260902b').then(mod => {
+    import('./training-video.js?v=20260902d').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initTrainingVideos({ stage, balk, trainingId, videos: oefeningVideos || {}, trainingClub });
     }).catch(() => {});
 
     // Tactiekbord-laag (additief): compact tactiekbord-icoon per oefening, op één
     // lijn met het video-icoon. Koppelt een bord aan de oefening.
-    import('./training-tactiek.js?v=20260902b').then(mod => {
-      mod.initTrainingTactiek({ stage, trainingId, koppelingen: tactiekKoppelingen || {} });
+    import('./training-tactiek.js?v=20260902d').then(mod => {
+      mod.initTrainingTactiek({ stage, trainingId, borden: oefeningTactiek || {} });
     }).catch(() => {});
   }
 }

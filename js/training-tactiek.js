@@ -6,25 +6,20 @@
    - Elke coach ziet een klein tactiekbord-icoon per oefening.
    - Is er al een bord gekoppeld, dan kleurt het icoon rood met een vinkje.
    - Tik = het bord openen (bestaand bewerken of leeg beginnen).
-   - Het bord wordt bewaard in trainingen/{trainingId}/tactiekborden en de
-     koppeling (oefIdx → bordId) staat in het trainingsdoc onder
-     `tactiekborden` zodat de weergave weet welk bord bij welke oefening hoort.
 
-   Deze module hangt bewust NIET aan de brede video-tegel: hij plaatst een eigen
-   compacte icoon-rij (`.trw-oef-acties`) direct na de oefening-kop. Als
-   training-video.js later óók een compacte icoon-variant krijgt, kan die in
-   dezelfde rij landen. Voor nu blijft de video-UI ongemoeid. */
-
-import { db, doc, getDoc, setDoc } from './firebase.js?v=20260811a';
-import { meld } from './state.js?v=20260902b';
+   Opslag: het bord staat als veld op het trainingsdoc zelf, onder
+   `oefeningTactiek.{oefIdx}` — precies zoals oefeningVideos. Zo zijn er GEEN
+   nieuwe Firestore-rules nodig (schrijven naar het trainingsdoc werkt al) en
+   hoeven we geen aparte subcollectie te lezen. tactiekbord.js schrijft het bord
+   in één keer weg; deze module houdt alleen de lokale map + het icoon bij. */
 
 let _ctx = null;
 
-/* opties: { stage, trainingId, koppelingen } waarbij koppelingen = { [oefIdx]: bordId } */
-export function initTrainingTactiek({ stage, trainingId, koppelingen }){
+/* opties: { stage, trainingId, borden } waarbij borden = { [oefIdx]: bordData } */
+export function initTrainingTactiek({ stage, trainingId, borden }){
   _ctx = {
     trainingId,
-    koppelingen: { ...(koppelingen || {}) },
+    borden: { ...(borden || {}) },
     stage,
     secties: [...stage.querySelectorAll('.trw-oef')],
   };
@@ -33,18 +28,6 @@ export function initTrainingTactiek({ stage, trainingId, koppelingen }){
 
 export function resetTrainingTactiek(){
   _ctx = null;
-}
-
-/* De koppeling oefIdx → bordId in het trainingsdoc bijwerken. We bewaren dit als
-   map `tactiekborden` op het trainingsdoc (klein, één veld). */
-async function bewaarKoppeling(oefIdx, bordId){
-  _ctx.koppelingen[oefIdx] = bordId;
-  try {
-    await setDoc(doc(db, 'trainingen', _ctx.trainingId),
-      { tactiekborden: { [oefIdx]: bordId } }, { merge: true });
-  } catch(e){
-    meld('Koppeling bewaren mislukt');
-  }
 }
 
 function tekenPerOefening(){
@@ -60,8 +43,8 @@ function tekenPerOefening(){
     const rij = document.createElement('div');
     rij.className = 'trw-oef-acties';
 
-    const bordId = _ctx.koppelingen[idx] || null;
-    const gevuld = !!bordId;
+    const bord = _ctx.borden[idx] || null;
+    const gevuld = !!bord;
 
     const tegel = document.createElement('button');
     tegel.className = 'trw-oef-tegel tactiek' + (gevuld ? ' gevuld' : '');
@@ -85,16 +68,17 @@ function tekenPerOefening(){
 }
 
 function openBord(oefIdx, oefTitel){
-  const bordId = _ctx.koppelingen[oefIdx] || null;
-  import('./tactiekbord.js?v=20260902b').then(m => {
+  const bord = _ctx.borden[oefIdx] || null;
+  import('./tactiekbord.js?v=20260902d').then(m => {
     m.openOefeningBord({
       trainingId: _ctx.trainingId,
       oefIdx,
-      bordId,
+      bord,                 // volledige bord-data (of null) — geen extra read nodig
       oefTitel,
-      onKoppel: (nieuwId) => {
-        // eerste keer bewaren → koppeling onthouden en het icoon bijwerken
-        bewaarKoppeling(oefIdx, nieuwId).then(() => tekenPerOefening());
+      onKoppel: (bordData) => {
+        // net bewaard → lokaal onthouden en het icoon bijwerken
+        _ctx.borden[oefIdx] = bordData;
+        tekenPerOefening();
       },
     });
   });

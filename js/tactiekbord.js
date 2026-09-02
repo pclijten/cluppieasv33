@@ -23,11 +23,11 @@
    bewerken (zelfde recht als de rest van de wedstrijd).
    ========================================================================== */
 
-import { db, collection, doc, addDoc, updateDoc, deleteDoc, getDoc,
+import { db, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
-import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260902b';
-import { bouwSlots } from './config.js?v=20260902b';
-import { telNav } from './tracker.js?v=20260902b';
+import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260902d';
+import { bouwSlots } from './config.js?v=20260902d';
+import { telNav } from './tracker.js?v=20260902d';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -43,6 +43,7 @@ let volgAan = false;              // "volg-loopweg": sleep een speler, loopweg t
 let undoStack = [];
 let unsubLijst = null;
 let _board = null;                // het fullscreen-overlay-element (of null)
+let _boardHint = null;            // in-board hint-functie (zichtbaar bovenop het board)
 
 /* ---------- helpers ---------- */
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -82,13 +83,6 @@ function teamBordenRef(){
   return collection(db, 'teams', S.teamId, 'tactiekborden');
 }
 
-/* Eén bord per oefening van een AI-training. We bewaren het als los doc in een
-   subcollectie onder de training, gekoppeld via het oefening-nummer. Zo blijft
-   de training zelf klein en kan een oefening-bord onafhankelijk bestaan. */
-function oefBordenRef(trainingId){
-  return collection(db, 'trainingen', trainingId, 'tactiekborden');
-}
-
 /* Nieuw leeg board op basis van de huidige opstelling; nog niet opgeslagen. */
 function nieuwBoard(w, periodeNr, naam){
   return {
@@ -111,11 +105,11 @@ function periodeLabelKort(w, nr){
 /* De collectie waar het huidige board bij hoort. Bepaald door B.bron:
    - wedstrijd (default): tactieken-subcollectie van de wedstrijd
    - team:      team-brede bibliotheek
-   - oefening:  subcollectie onder de training */
+   Oefening-borden gaan NIET via deze ref: die worden als veld op het
+   trainingsdoc bewaard (zie bewaarBoard). */
 function bronRef(){
   const bron = B && B.bron;
-  if (bron && bron.type === 'team')     return teamBordenRef();
-  if (bron && bron.type === 'oefening') return oefBordenRef(bron.trainingId);
+  if (bron && bron.type === 'team') return teamBordenRef();
   return tactiekenRef(B.wid);
 }
 
@@ -131,9 +125,33 @@ async function bewaarBoard(){
     tekeningen: B.tekeningen,
     gewijzigdOp: serverTimestamp(),
   };
-  // Oefening-borden dragen het oefening-nummer mee, zodat de training weet welk
-  // bord bij welke oefening hoort.
-  if (B.bron && B.bron.type === 'oefening') data.oefIdx = B.bron.oefIdx;
+
+  // Oefening-borden slaan we NIET in een aparte subcollectie op (die zou nieuwe
+  // Firestore-rules vereisen), maar als veld op het trainingsdoc zelf — precies
+  // zoals oefeningVideos al doet. Eén bord per oefening, gekoppeld op oefIdx.
+  if (B.bron && B.bron.type === 'oefening'){
+    const trainingId = B.bron.trainingId;
+    const idx = B.bron.oefIdx;
+    const bordData = { ...data };
+    if (!B.tactiekId){
+      bordData.gemaaktDoor = (S.user && S.user.uid) || null;
+      bordData.gemaaktOp = serverTimestamp();
+      B.tactiekId = String(idx);   // stabiele id = oefening-index
+    }
+    try {
+      await setDoc(doc(db, 'trainingen', trainingId),
+        { oefeningTactiek: { [idx]: bordData } }, { merge: true });
+      if (B.bron && typeof B.bron.opBewaard === 'function') B.bron.opBewaard(bordData);
+      if (_boardHint) _boardHint('Tactiekbord bewaard');
+      meld('Tactiekbord bewaard');
+    } catch (e){
+      console.error('[tactiek] oefening-bord bewaren mislukt:', e && e.code, e && e.message);
+      if (_boardHint) _boardHint('Bewaren mislukt — probeer opnieuw');
+      meld('Bewaren mislukt — probeer opnieuw');
+    }
+    return;
+  }
+
   const ref = bronRef();
   try {
     if (B.tactiekId){
@@ -149,6 +167,7 @@ async function bewaarBoard(){
     }
     meld('Tactiek bewaard');
   } catch (e){
+    console.error('[tactiek] bord bewaren mislukt:', e && e.code, e && e.message);
     meld('Bewaren mislukt — probeer opnieuw');
   }
 }
@@ -196,7 +215,7 @@ export function openTactiekLijst(w){
   if (toonLeerplein){
     host.querySelector('#tbLeerplein').onclick = () => {
       sluit();
-      import('./leerplein.js?v=20260902b').then(m => m.openLeerplein(w));
+      import('./leerplein.js?v=20260902d').then(m => m.openLeerplein(w));
     };
   }
 
@@ -411,6 +430,7 @@ function tekenBoard(w){
     hintEl.textContent = t; hintEl.classList.remove('weg');
     clearTimeout(hint._t); hint._t = setTimeout(() => hintEl.classList.add('weg'), 2200);
   }
+  _boardHint = hint;
   function pushUndo(){
     undoStack.push(JSON.stringify({ objecten: B.objecten, tekeningen: B.tekeningen }));
     if (undoStack.length > 40) undoStack.shift();
@@ -651,6 +671,7 @@ function tekenBoard(w){
 export function sluitTactiekbord(){
   const wasOpen = !!_board;
   if (_board){ _board.remove(); _board = null; }
+  _boardHint = null;
   B = null; undoStack = [];
   vangnetStilTerugAlsNodig(wasOpen);
 }
@@ -762,40 +783,27 @@ export function openTactiekBibliotheek(){
    trainingId + oefIdx identificeren de oefening. bordId (optioneel) is een al
    gekoppeld bord. onKoppel(id) wordt aangeroepen zodra een nieuw bord voor het
    eerst wordt bewaard, zodat de oefening-weergave de koppeling kan onthouden. */
-export function openOefeningBord({ trainingId, oefIdx, bordId, oefTitel, onKoppel }){
+export function openOefeningBord({ trainingId, oefIdx, bord, oefTitel, onKoppel }){
   const bron = {
     type:'oefening', trainingId, oefIdx,
     subtitel: oefTitel ? esc(oefTitel) : 'Tactiekbord bij oefening',
-    opBewaard: id => { if (typeof onKoppel === 'function') onKoppel(id); },
+    opBewaard: bordData => { if (typeof onKoppel === 'function') onKoppel(bordData); },
   };
-  const start = () => {
-    tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
-    tekenBoard(LOS_VELD);
-  };
-  if (bordId){
-    // bestaand bord laden
-    (async () => {
-      try {
-        const snap = await getDoc(doc(oefBordenRef(trainingId), bordId));
-        const it = snap.exists() ? snap.data() : null;
-        B = it ? {
-          wid:null, tactiekId: bordId, naam: it.naam || (oefTitel || 'Tactiekbord'),
-          periode: it.periode || '1', format: it.format || '8-tal', formatie: it.formatie || '',
-          objecten: (it.objecten || []).map(o => ({...o})),
-          tekeningen: (it.tekeningen || []).map(t => ({...t, punten: (t.punten||[]).map(p => [...p])})),
-          bron,
-        } : leegBoard(bron, oefTitel);
-        telNav('tactiek:bord', 'oefening');
-        start();
-      } catch(e){
-        B = leegBoard(bron, oefTitel); telNav('tactiek:bord', 'oefening-nieuw'); start();
-      }
-    })();
+  if (bord){
+    B = {
+      wid:null, tactiekId: String(oefIdx), naam: bord.naam || (oefTitel || 'Tactiekbord'),
+      periode: bord.periode || '1', format: bord.format || '8-tal', formatie: bord.formatie || '',
+      objecten: (bord.objecten || []).map(o => ({...o})),
+      tekeningen: (bord.tekeningen || []).map(t => ({...t, punten: (t.punten||[]).map(p => [...p])})),
+      bron,
+    };
+    telNav('tactiek:bord', 'oefening');
   } else {
     B = leegBoard(bron, oefTitel);
     telNav('tactiek:bord', 'oefening-nieuw');
-    start();
   }
+  tool = 'select'; volgAan = false; kleur = KLEUREN[0]; undoStack = [];
+  tekenBoard(LOS_VELD);
 }
 
 /* ==================== DELEN ALS AFBEELDING ====================

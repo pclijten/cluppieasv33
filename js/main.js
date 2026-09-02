@@ -1,17 +1,17 @@
 import { auth, onAuthStateChanged } from './firebase.js?v=20260811a';
-import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260902b';
+import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260902d';
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
-} from './auth.js?v=20260902b';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260902c';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260902c';
-import { initChatbot } from './chatbot.js?v=20260902c';
+} from './auth.js?v=20260902d';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260902d';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260902d';
+import { initChatbot } from './chatbot.js?v=20260902d';
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20260902c').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260902d').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -41,8 +41,8 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20260902c').then(m => m.verlaatClubView());
-S._navClubTerug      = () => import('./club.js?v=20260902c').then(m => m.clubTerugEen());
+S._navVerlaatClub    = () => import('./club.js?v=20260902d').then(m => m.verlaatClubView());
+S._navClubTerug      = () => import('./club.js?v=20260902d').then(m => m.clubTerugEen());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
