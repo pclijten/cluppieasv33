@@ -11,6 +11,7 @@ import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bou
 import { analyseWedstrijd } from './analyse.js?v=20260828d';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260828d';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260828d';
+import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20260901a';
 import { telGebruik, telNav } from './tracker.js?v=20260828d';
 import { ico } from './icons.js?v=20260825b';
 
@@ -823,10 +824,17 @@ function htmlClubHub(teams){
     </section>`).join('');
 }
 
-/* De Inzicht-sub-hub: het voormalige dashboard opgesplitst in losse tegels.
-   'signalen' = aantal aandachtspunten (voor de warn-badge op de Aandacht-tegel).
-   'stats' = het gebruikstats-document (voor de "laatst bijgewerkt"-status). */
-function htmlClubInzicht(signalenAantal, stats){
+/* Koppelt de rapport-knoppen (in de Rapporten-tab) aan de schermvullende viewer. */
+function koppelInzichtRapporten(v){
+  v.querySelectorAll('[data-rapport]').forEach(btn => {
+    btn.onclick = () => openRapport(btn.getAttribute('data-rapport'), S._gebruikstats);
+  });
+}
+
+/* De Inzicht-sub-hub: sync-knop + de statistiek-tabs (Teams/Gebruik/Pagina's/
+   Tijd/Rapporten), plus de resterende losse tegels (Overzicht/Aandacht/
+   Evaluaties). 'stats' = het gebruikstats-document; 'inzTab' = actieve tab. */
+function htmlClubInzicht(signalenAantal, stats, inzTab){
   const laatst = stats?.gegenereerd
     ? new Date(stats.gegenereerd).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
     : null;
@@ -840,14 +848,15 @@ function htmlClubInzicht(signalenAantal, stats){
       </div>
       <button class="knop" id="btnSyncStats" style="flex-shrink:0">↻ Synchroniseer</button>
     </div>` : '';
+  const tab = inzTab || 'teams';
   return `
     ${syncBalk}
-    <section class="hub-sectie" style="margin-top:6px">
+    ${htmlInzichtTabs(tab)}
+    <div id="inzichtInhoud">${htmlInzichtTab(tab, stats)}</div>
+    <section class="hub-sectie" style="margin-top:14px">
       <div class="hub-grid">
         ${clubTegel('dash-overzicht',   'Overzicht',  'navigation-dashboard')}
         ${clubTegelWarn('dash-aandacht','Aandacht',   'action-warning', signalenAantal || null)}
-        ${clubTegel('dash-gebruik',     'Gebruik',    'stats-bars')}
-        ${clubTegel('dash-navigatie',   'Navigatie',  'football-competition')}
         ${clubTegel('dash-evaluaties',  'Evaluaties', 'attendance-evaluatie')}
       </div>
     </section>`;
@@ -920,8 +929,9 @@ async function renderClub(){
       gebruikstatsOphalen(S.clubId),
     ]);
     S._clubDashCache = dash;   // hergebruik bij het openen van een dash-scherm
-    S._gebruikstats = stats;   // hergebruik in de dash-tabs (Fase 2)
-    inhoud = htmlClubInzicht(clubSignalen(dash).length, stats);
+    S._gebruikstats = stats;   // hergebruik in de dash-tabs
+    const inzTab = S.clubInzichtTab || 'teams';
+    inhoud = htmlClubInzicht(clubSignalen(dash).length, stats, inzTab);
   }
   else if (isDashSub){
     if (tab === 'dash-evaluaties'){
@@ -1006,6 +1016,19 @@ async function renderClub(){
       meld('Synchronisatie mislukt: ' + (e.message || e.code || 'onbekende fout'));
     }
   };
+
+  // statistieken-tabs (Teams/Gebruik/Pagina's/Tijd/Rapporten): wissel zonder
+  // opnieuw te lezen — de stats zitten al in S._gebruikstats.
+  v.querySelectorAll('.inzicht-tabs [data-inztab]').forEach(btn => {
+    btn.onclick = () => {
+      const nieuw = btn.getAttribute('data-inztab');
+      S.clubInzichtTab = nieuw;
+      v.querySelectorAll('.inzicht-tabs [data-inztab]').forEach(b => b.classList.toggle('actief', b === btn));
+      const bak = v.querySelector('#inzichtInhoud');
+      if (bak){ bak.innerHTML = htmlInzichtTab(nieuw, S._gebruikstats); koppelInzichtRapporten(v); }
+    };
+  });
+  koppelInzichtRapporten(v);
 
   if (tab === 'content' && contentLijst) koppelClubContent(v);
   if (tab === 'dash-evaluaties' && clubEvalData) koppelClubEvaluaties(v, clubEvalData, () => renderClub());
