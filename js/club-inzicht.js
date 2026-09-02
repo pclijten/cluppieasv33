@@ -43,6 +43,15 @@ const SCHERM_LABELS = {
 };
 function schermLabel(s){ return SCHERM_LABELS[s] || s; }
 
+// De Cloud Function schrijft de heatmap plat weg (168 getallen, index = dag*24+uur),
+// omdat Firestore geen geneste arrays toestaat. Hier vouwen we terug naar 7x24.
+// Robuust: accepteert ook de oude geneste vorm, mocht die ergens voorkomen.
+function heatmapMatrix(h){
+  if (Array.isArray(h) && h.length === 7 && Array.isArray(h[0])) return h;
+  const plat = Array.isArray(h) ? h : [];
+  return Array.from({length:7}, (_, d) => Array.from({length:24}, (_, u) => plat[d*24+u] || 0));
+}
+
 // categoriekleuren (consistent met de rapporten)
 const CAT_KLEUR = { Trainingen:'#e2342f', Wedstrijden:'#2b6cb0', Spelers:'#3fb950', Media:'#d69e2e', Clubbeheer:'#a371f7', Overig:'#8b949e', Navigatie:'#5b6472' };
 
@@ -196,7 +205,7 @@ function htmlCoachLijst(stats){
 /* ---------- TAB: TIJD (heatmap, nerds) ---------- */
 export function htmlInzichtTijd(stats){
   if (!stats) return htmlGeenData();
-  const heat = stats.heatmap || Array.from({length:7},()=>new Array(24).fill(0));
+  const heat = heatmapMatrix(stats.heatmap);
   let maxCel = 0; for (const rij of heat) for (const v of rij) if (v>maxCel) maxCel=v;
   maxCel = Math.max(1, maxCel);
 
@@ -419,7 +428,7 @@ function rapportWedstrijd(stats){
 }
 
 function rapportTijd(stats){
-  const heat = stats.heatmap||Array.from({length:7},()=>new Array(24).fill(0));
+  const heat = heatmapMatrix(stats.heatmap);
   let maxCel=0; for(const r of heat) for(const v of r) if(v>maxCel)maxCel=v; maxCel=Math.max(1,maxCel);
   const dagN=['Ma','Di','Wo','Do','Vr','Za','Zo'];
   const uurKop=Array.from({length:24},(_,u)=>u%3===0?`<th>${u}</th>`:'<th></th>').join('');
