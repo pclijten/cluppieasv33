@@ -445,6 +445,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .speler-rij{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:11px;padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow)}
 .speler-rij .mini-shirt{width:36px;height:36px;border-radius:50%;background:var(--pitch-ink);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(17px * var(--fs));flex-shrink:0}
 .speler-rij .n{font-weight:600;font-size:calc(14.5px * var(--fs));flex:1}
+.speler-rij .speler-sub{font-weight:400;font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:1px}
 .speler-rij .actie{color:var(--ink-2);padding:6px;font-size:calc(15px * var(--fs))}
 
 /* ---------- Statistiek-tabel ---------- */
