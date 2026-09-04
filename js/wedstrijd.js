@@ -18,7 +18,7 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260902d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260902d';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260904a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -485,7 +485,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260902d').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260904a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -531,13 +531,36 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260902d').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260904a').then(m => { m.renderTeam(); toon('team'); });
 }
+/* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
+   leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
+   bronteam — dat geen leesrecht heeft op onze wedstrijddata — toch kan zien
+   hoeveel de speler elders speelde. Per-wedstrijd-key (i.p.v. optellen) zodat
+   herhaald opslaan van dezelfde wedstrijd niet dubbel telt en correcties
+   gewoon overschrijven. Alleen actief zolang de uitlening bestaat; bij
+   terughalen verdwijnt dit totaal mee met het leen-record (bekende
+   beperking — geen seizoenslange archivering van uitgeleende speeltijd). */
+function bijwerkLeenSpeeltijd(){
+  const clubId = S.team?.club;
+  if (!clubId || !S.wedstrijdId || !S.wedstrijd) return;
+  const ingeleend = (S.spelers||[]).filter(p => p._ingeleend && p._leenId);
+  if (!ingeleend.length) return;
+  const a = analyseWedstrijd(S.wedstrijd);
+  for (const p of ingeleend){
+    const sec = a.tijd[p.id] || 0;
+    updateDoc(doc(db,'clubs',clubId,'uitleningen',p._leenId), {
+      [`speeltijdPerWedstrijd.${S.wedstrijdId}`]: sec,
+    }).catch(() => {}); // uitlening kan net teruggezet zijn — stil negeren
+  }
+}
+
 function bewaarWedstrijd(){
   S.lokaalTot = Date.now();
   clearTimeout(S.saveTimer);
   S.saveTimer = setTimeout(() => {
     setDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId), S.wedstrijd)
+      .then(bijwerkLeenSpeeltijd)
       .catch(e => meld('Opslaan mislukt: ' + e.code));
   }, 600);
 }
@@ -2143,20 +2166,35 @@ export function htmlStats(){
     return `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button>${badge}</td>`;
   };
 
+  // Uitgeleende speeltijd: opgeteld uit speeltijdPerWedstrijd op elk actief
+  // uitgaand leen-record van deze speler (zie bijwerkLeenSpeeltijd in
+  // wedstrijd.js). Alleen tonen zolang de uitlening loopt — zie de
+  // beperking hierboven bij bijwerkLeenSpeeltijd.
+  const leenSpeeltijd = {}; // pid -> seconden elders gespeeld
+  for (const u of (S.uitleningenUit||[])){
+    const per = u.speeltijdPerWedstrijd || {};
+    const sec = Object.values(per).reduce((a,b) => a + (b||0), 0);
+    if (sec > 0) leenSpeeltijd[u.spelerId] = sec;
+  }
+  const heeftUitleen = Object.keys(leenSpeeltijd).length > 0;
+  const minSec = s => `${Math.floor(s/3600)}u ${Math.round((s%3600)/60)}m`;
+
   const speelBlad = () => overzichtKaart() + `
     <table class="stat-tabel">
-      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th></tr></thead>
+      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th>${heeftUitleen?'<th>Uitgeleend</th>':''}</tr></thead>
       <tbody>${rijen.map(p => {
         const ps = pctSpeeltijd[p.id], pr = pctReserve[p.id];
+        const ls = leenSpeeltijd[p.id];
         return `<tr>
           ${naamCelDisc(p)}
           <td>${tot.wedstrijden[p.id]||0}</td>
           <td class="pct-cel">${ps!=null?`<span style="font-weight:700;color:${pctKleur(ps)}">${ps}%</span><span class="pct-bar"><span style="width:${ps}%;background:${pctKleur(ps)}"></span></span>`:'—'}</td>
-          <td class="res-cel">${pr!=null?pr+'%':''}</td></tr>`;
+          <td class="res-cel">${pr!=null?pr+'%':''}</td>
+          ${heeftUitleen ? `<td class="res-cel" style="color:var(--accent);font-weight:700">${ls?minSec(ls):'—'}</td>` : ''}</tr>`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.</p>`;
+      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.${heeftUitleen ? ' <b>Uitgeleend</b> = tijd die een speler bij een ander team speelde terwijl hij bij jullie stond uitgeleend; telt niet mee in jullie eerlijkheidsscore hierboven, en verdwijnt zodra de uitlening wordt teruggezet.' : ''}</p>`;
 
   const wedBlad = () => `
     <table class="stat-tabel">
@@ -2236,7 +2274,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260902d').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260904a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2699,7 +2737,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260902d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260904a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

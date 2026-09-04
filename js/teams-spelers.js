@@ -28,7 +28,7 @@ import { telGebruik } from './tracker.js?v=20260902d';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260902d');
+  const m = await import('./teams.js?v=20260904a');
   m.renderTeam();
 }
 
@@ -64,9 +64,13 @@ export function htmlSpelers(){
         const lp = openLeerpunten(p.id);
         const heeftNotitie = !!(p.notitie && p.notitie.trim());
         const pos = meestGespeeldePositie(p);
-        // Subregel onder de naam: herkomst (ingeleend) en/of positie, subtiel grijs.
+        // Subregel onder de naam: herkomst (ingeleend), uitgeleend-aan, en/of
+        // positie, subtiel grijs. Een uitgeleende speler blijft gewoon
+        // opstelbaar bij ons — het label maakt alleen zichtbaar dat hij ook
+        // elders speelt, zodat je dat zelf tegen de klok kan houden.
         const subDelen = [];
         if (ingeleend) subDelen.push(`ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
+        if (p._uitgeleendAan) subDelen.push(`⇄ ook bij ${esc(p._uitgeleendAan)}`);
         if (pos) subDelen.push(esc(pos));
         const sub = subDelen.length
           ? `<div class="speler-sub">${subDelen.join(' · ')}</div>` : '';
@@ -77,6 +81,7 @@ export function htmlSpelers(){
           ${lp ? `<span class="chip-info">${lp} leerpunt${lp===1?'':'en'}</span>` : ''}
           ${heeftNotitie ? `<span class="notitie-vlag" title="Heeft een coach-notitie">!</span>` : ''}
           ${ingeleend ? `<span class="chip-info" style="background:rgba(53,196,122,.15);color:var(--ok)">ingeleend</span>` : ''}
+          ${p._uitgeleendAan ? `<span class="chip-info" style="cursor:pointer" data-uitleen-terug="${p._leenIdUit}" title="Terughalen">⇄ terug</span>` : ''}
           ${stip}
           <span class="pijl">›</span>
         </button>`;
@@ -85,20 +90,6 @@ export function htmlSpelers(){
       let h = eigen.length
         ? eigen.map(p => spelerRij(p, false)).join('')
         : `<div class="kaart leeg">Nog geen spelers.<br>Voeg je selectie toe — naam en rugnummer is genoeg.</div>`;
-
-      // Uitgeleende eigen spelers: vaag zichtbaar, uit de bruikbare lijst.
-      const uit = S.uitleningenUit || [];
-      if (uit.length){
-        h += `<div class="sectie-kop">⇄ Uitgeleend</div>`;
-        h += uit.map(u => {
-          const s = u.snapshot || {};
-          return `<div class="speler-rij" style="opacity:.5;cursor:default">
-            <div class="mini-shirt">${esc(s.nummer ?? '·')}</div>
-            <div class="n">${esc(s.naam || 'Speler')}<div style="font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400">uitgeleend aan ${esc(u.naarTeamNaam||'ander team')}</div></div>
-            <button class="knop klein licht" style="width:auto;margin:0" data-uitleen-terug="${u.id}">Terughalen</button>
-          </div>`;
-        }).join('');
-      }
 
       // Ingeleende spelers (zonder gast-koppeling): draaien volwaardig mee.
       const in_ = S.spelers.filter(p => p._ingeleend && !p._gast);
@@ -911,8 +902,13 @@ export function modalNotitie(spelerId){
  * Model 1a (spiegel): het echte spelerdocument BLIJFT in teams/{vanTeam}/spelers.
  * Het ontvangende team krijgt de speler via een merge in S.spelers (zie
  * herbouwSpelers in teams.js) en laat hem volwaardig meedraaien in opstelling,
- * presentie en evaluatie. Er is GEEN tijdvenster: de uitleen loopt door tot
- * coach A óf coach B hem terugzet, of tot de clubadmin hem definitief overzet.
+ * presentie en evaluatie. Bij het bronteam blijft de speler EVENEENS gewoon
+ * bruikbaar (sinds 2026-09-04 geen blokkade meer) — dekt het geval waarin
+ * dezelfde speler dezelfde dag voor beide teams speelt (bv. 9:00 bij ons,
+ * 11:00 elders). Een chip "⇄ ook bij {team}" bij zijn naam maakt dat
+ * zichtbaar; de coach houdt zelf de klok in de gaten. Er is GEEN tijdvenster:
+ * de uitleen loopt door tot coach A óf coach B hem terugzet, of tot de
+ * clubadmin hem definitief overzet.
  *
  * Recordvorm:
  *   { spelerId, vanTeam, vanTeamNaam, naarTeam, naarTeamNaam,
@@ -949,7 +945,7 @@ export async function modalUitlenen(spelerId){
     <div class="veldgroep"><label>Aan welk team?</label>
       <select class="invoer" id="mUlTeam"><option value="">Teams laden…</option></select></div>
     <div class="avg-balk"><span class="slot">🔒</span>
-      <span>De speler doet vanaf nu volwaardig mee bij het gekozen team: opstelling, presentie en evaluatie. Bij jou wordt hij grijs en onbruikbaar tot terugzetten. Er zit geen einddatum op — jij of de andere coach zet hem terug.</span></div>
+      <span>De speler doet vanaf nu volwaardig mee bij het gekozen team: opstelling, presentie en evaluatie. Bij jou blijft hij ook gewoon bruikbaar — handig als hij dezelfde dag voor beide teams speelt. Er zit geen einddatum op — jij of de andere coach zet hem terug.</span></div>
     <button class="knop vol" id="mUlOk" disabled>Uitlenen bevestigen</button>`);
 
   // Doelteams ophalen: alle teams van de club behalve het eigen team.
