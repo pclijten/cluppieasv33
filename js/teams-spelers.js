@@ -39,7 +39,10 @@ export function htmlSpelers(){
     if (b.soort !== 'snel') continue;
     if (!laatsteSnel[b.spelerId]) laatsteSnel[b.spelerId] = b;   // lijst is al op datum gesorteerd
   }
-  const openLeerpunten = pid => ((speler(pid)?.leerpunten)||[]).filter(l => !l.klaar).length;
+  const openLeerpunten = pid => {
+    const p = speler(pid);
+    return ((p?.leerpunten)||[]).filter(l => !l.klaar).length + ((p?._bronLeerpunten)||[]).length;
+  };
   const evalAan = modAan('evaluaties');
 
   return `
@@ -69,7 +72,7 @@ export function htmlSpelers(){
         // opstelbaar bij ons — het label maakt alleen zichtbaar dat hij ook
         // elders speelt, zodat je dat zelf tegen de klok kan houden.
         const subDelen = [];
-        if (ingeleend) subDelen.push(`ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
+        if (ingeleend) subDelen.push(p._gast ? `gast · gekoppeld aan uitleen van ${esc(p._bronTeamNaam||'ander team')}` : `ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
         if (p._uitgeleendAan) subDelen.push(`⇄ ook bij ${esc(p._uitgeleendAan)}`);
         if (pos) subDelen.push(esc(pos));
         const sub = subDelen.length
@@ -103,14 +106,7 @@ export function htmlSpelers(){
       if (gasten.length){
         h += `<div class="sectie-kop">👤 Gastspelers</div>`;
         h += gasten.map(g => {
-          if (g._gekoppeld){
-            return `<button class="speler-rij" data-open-profiel="${g.id}">
-              <div class="mini-shirt" style="background:var(--ink-2)">${esc(g.nummer ?? '·')}</div>
-              <div class="n">${esc(g.naam)}<div style="font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400">gast · gekoppeld aan uitleen van ${esc(g._bronTeamNaam||'ander team')}</div></div>
-              <span class="chip-info" style="background:rgba(53,196,122,.15);color:var(--ok)">ingeleend</span>
-              <span class="pijl">›</span>
-            </button>`;
-          }
+          if (g._gekoppeld) return spelerRij(g, true);   // zelfde rij als 'Ingeleend' → toont ook positie + leerpunten
           return `<button class="speler-rij" data-open-profiel="${g.id}" style="border-style:dashed">
             <div class="mini-shirt" style="background:transparent;border:1px dashed var(--ink-2)">${esc(g.nummer ?? '?')}</div>
             <div class="n">${esc(g.naam)}<div style="font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400">gast · nog te koppelen</div></div>
@@ -437,11 +433,53 @@ export function htmlProfiel(){
       </div>` : ''}`;
 }
 
+// Alleen-lezen leerpunt-item: geen toggle/verwijder-knop (die zou bij een
+// ingeleende speler naar het verkeerde team proberen te schrijven).
+function leerpuntItemReadOnly(l){
+  const d = skillDomein(l.domein);
+  return `
+    <div class="leerpunt">
+      <div class="lp-check" style="cursor:default"></div>
+      <div class="lp-tekst">
+        <div class="lp-domein">${d ? esc(d.naam) : 'Algemeen'}</div>
+        <div class="t">${esc(l.tekst)}</div>
+        ${l.sinds ? `<div class="d">Sinds ${datumNL(l.sinds)}</div>` : ''}
+      </div>
+    </div>`;
+}
+
 function htmlLeerlijn(p){
+  // Rechtstreeks ingeleende speler (geen gast): het spelerdocument leeft bij
+  // het bronteam, dus hier alleen een alleen-lezen momentopname tonen —
+  // toggle/verwijderen/toevoegen zou bij het verkeerde team proberen te
+  // schrijven. Wordt automatisch bijgewerkt zolang de uitlening loopt
+  // (syncLeerpuntenNaarUitlening bij elke wijziging aan de bronkant).
+  if (p._ingeleend && !p._gast){
+    const lp = p.leerpunten || [];
+    return `
+      <div class="avg-balk"><span class="slot">🔒</span>
+        <span>Leerpunten van ${esc(p._bronTeamNaam||'het bronteam')} — alleen-lezen, blijft vanzelf bij zolang de uitlening loopt.</span></div>
+      <div class="kaart">
+        <div class="veldlabel" style="margin-top:0">Leerpunten</div>
+        ${lp.length ? lp.map(leerpuntItemReadOnly).join('')
+          : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Geen open leerpunten bij ${esc(p._bronTeamNaam||'het bronteam')}.</p>`}
+      </div>`;
+  }
+
   const lp = (p.leerpunten || []).slice().sort((a,b) => (a.klaar?1:0)-(b.klaar?1:0) || (b.sinds||'').localeCompare(a.sinds||''));
+  // Gekoppelde gast: eigen (bewerkbare) leerpunten zoals gewoonlijk, plus
+  // een losse alleen-lezen sectie met de leerpunten van het bronteam.
+  const bronLp = p._bronLeerpunten || [];
+  const bronSectie = (p._gast && p._gekoppeld && bronLp.length) ? `
+    <div class="avg-balk"><span class="slot">🔒</span>
+      <span>Hieronder ook de leerpunten van ${esc(p._bronTeamNaam||'het bronteam')} — alleen-lezen.</span></div>
+    <div class="kaart">
+      <div class="veldlabel" style="margin-top:0">Leerpunten bij ${esc(p._bronTeamNaam||'bronteam')}</div>
+      ${bronLp.map(leerpuntItemReadOnly).join('')}
+    </div>` : '';
   return `
     <div class="kaart">
-      <div class="veldlabel" style="margin-top:0">Leerpunten</div>
+      <div class="veldlabel" style="margin-top:0">Leerpunten${p._gast && p._gekoppeld ? ` bij ons` : ''}</div>
       ${lp.length ? lp.map(l => {
         const d = skillDomein(l.domein);
         const thema = leercurveThema(l.tekst);
@@ -460,7 +498,8 @@ function htmlLeerlijn(p){
       : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0 10px">Nog geen leerpunten. Voeg een concreet, observeerbaar ontwikkeldoel toe.</p>`}
       <button class="knop licht klein" style="width:100%;margin-top:6px" data-lp-nieuw="${p.id}">+ Leerpunt toevoegen</button>
     </div>
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>`;
+    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>
+    ${bronSectie}`;
 }
 
 function htmlTijdlijnItem(b){
@@ -764,6 +803,7 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
     const lp = [...(p.leerpunten||[]), nieuw];
     try {
       await updateDoc(doc(db,'teams',S.teamId,'spelers',spelerId), {leerpunten: lp});
+      syncLeerpuntenNaarUitlening(spelerId, lp);
       telGebruik('leerpunt_nieuw');
       sluitModal(); herrenderTeam(); meld('Leerpunt toegevoegd');
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
@@ -776,6 +816,7 @@ export async function toggleLeerpunt(lpId){
   const lp = (p.leerpunten||[]).map(l => l.id === lpId
     ? {...l, klaar:!l.klaar, klaarOp: !l.klaar ? vandaagISO() : null} : l);
   await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), {leerpunten: lp});
+  syncLeerpuntenNaarUitlening(p.id, lp);
   if (wordtKlaar) telGebruik('leerpunt_klaar');
 }
 export async function verwijderLeerpunt(lpId){
@@ -783,6 +824,7 @@ export async function verwijderLeerpunt(lpId){
   if (!confirm('Dit leerpunt verwijderen?')) return;
   const lp = (p.leerpunten||[]).filter(l => l.id !== lpId);
   await updateDoc(doc(db,'teams',S.teamId,'spelers',p.id), {leerpunten: lp});
+  syncLeerpuntenNaarUitlening(p.id, lp);
 }
 
 function meestGespeeldHtml(top){
@@ -913,13 +955,27 @@ export function modalNotitie(spelerId){
  * Recordvorm:
  *   { spelerId, vanTeam, vanTeamNaam, naarTeam, naarTeamNaam,
  *     overlay:{nummer?,positie?},   // door ontvangend team aanpasbaar; origineel blijft ongemoeid
- *     snapshot:{naam,nummer,positie,achternaam},  // basisgegevens reizen mee (B heeft geen leesrecht op A's spelers)
+ *     snapshot:{naam,nummer,positie,achternaam,leerpunten},  // basisgegevens + open leerpunten
+ *                                    // reizen mee (B heeft geen leesrecht op A's spelers)
  *     door, gemaakt }
- */
+ *
+ * snapshot.leerpunten is een momentopname (alleen niet-afgeronde leerpunten,
+ * ontdaan van id/domein — puur leestekst voor de ontvangende coach). Bij elke
+ * leerpunt-wijziging bij het bronteam (voegLeerpuntToe/toggleLeerpunt/
+ * verwijderLeerpunt) wordt syncLeerpuntenNaarUitlening() aangeroepen zodat
+ * een actieve uitlening automatisch bijblijft — geen losse "ververs"-knop
+ * nodig. Stopt met bijwerken zodra de uitlening wordt teruggezet (record
+ * bestaat dan niet meer). */
 
 // Actieve UITGAANDE uitlening voor een speler van het eigen team (of null).
 function actieveUitleningVoor(spelerId){
   return (S.uitleningenUit||[]).find(u => u.spelerId === spelerId) || null;
+}
+
+// Open (niet-afgeronde) leerpunten, ontdaan van interne velden — dit is wat
+// er in het snapshot terechtkomt en dus zichtbaar wordt bij het andere team.
+function openLeerpuntenVoorSnapshot(leerpunten){
+  return (leerpunten||[]).filter(l => !l.klaar).map(l => ({tekst:l.tekst, domein:l.domein||null, sinds:l.sinds||null}));
 }
 
 // Basisgegevens die met het leen-record meereizen zodat het ontvangende team
@@ -930,7 +986,20 @@ function bouwLeenSnapshot(p){
     achternaam: p.achternaam || null,
     nummer: p.nummer ?? null,
     positie: p.positie || null,
+    leerpunten: openLeerpuntenVoorSnapshot(p.leerpunten),
   };
+}
+
+// Als er een actieve uitgaande uitlening voor deze speler loopt, het
+// leerpunten-deel van het snapshot verversen. Stil falen (bv. net
+// teruggezet) — dit mag nooit de eigenlijke leerpunt-actie blokkeren.
+function syncLeerpuntenNaarUitlening(spelerId, leerpunten){
+  const u = actieveUitleningVoor(spelerId);
+  if (!u) return;
+  const clubId = S.team?.club; if (!clubId) return;
+  updateDoc(doc(db,'clubs',clubId,'uitleningen',u.id), {
+    'snapshot.leerpunten': openLeerpuntenVoorSnapshot(leerpunten),
+  }).catch(() => {});
 }
 
 export async function modalUitlenen(spelerId){

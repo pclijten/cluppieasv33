@@ -967,6 +967,7 @@ function herbouwSpelers(){
       achternaam: s.achternaam || null,
       nummer: u.overlay?.nummer ?? s.nummer ?? null,
       positie: u.overlay?.positie ?? s.positie ?? null,
+      leerpunten: s.leerpunten || [],   // read-only momentopname, zie htmlLeerlijn
       _ingeleend: true,
       _bronTeam: u.vanTeam,
       _bronTeamNaam: u.vanTeamNaam,
@@ -986,6 +987,7 @@ function herbouwSpelers(){
         achternaam: s.achternaam || null,
         nummer: u.overlay?.nummer ?? p.nummer ?? null,
         positie: u.overlay?.positie ?? p.positie ?? null,
+        _bronLeerpunten: s.leerpunten || [],   // alleen-lezen momentopname van het bronteam; p.leerpunten (eigen gast-notities) blijft ongemoeid
         _ingeleend: true, _gast: true, _gekoppeld: true,
         _bronTeam: u.vanTeam, _bronTeamNaam: u.vanTeamNaam, _leenId: u.id,
       });
