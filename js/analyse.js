@@ -23,9 +23,15 @@ export function effectieveLineup(k){
 function klokSecRaw(k){
   return k.klok.base + (k.klok.running ? (Date.now() - k.klok.start)/1000 : 0);
 }
+/* Duur van een periode in seconden. De ingestelde kwartduur is de ONDERGRENS:
+   de klok kan een periode alleen verlengen (blessuretijd), nooit verkorten.
+   Voorheen gold de klokstand zodra die boven 5 sec lag, waardoor een klok die
+   halverwege gepauzeerd werd en niet hervat de hele periode inkortte — alle
+   spelers verloren dan tijd en de invaller kwam op 0:00 uit. */
 function kwartDuurSec(w, k){
   const e = klokSecRaw(k);
-  return e > 5 ? Math.round(e) : Math.round(w.kwartduur*60);
+  const ingesteld = Math.round((w.kwartduur || 0) * 60);
+  return Math.max(ingesteld, e > 5 ? Math.round(e) : 0);
 }
 
 export function analyseKwart(w, k){
@@ -44,9 +50,21 @@ export function analyseKwart(w, k){
   }
   for (const e of [...(k.events||[])].sort((a,b) => a.sec - b.sec)){
     const sec = Math.min(e.sec, D);
-    if (e.uit && aan[e.uit] != null){
-      res.tijd[e.uit] = (res.tijd[e.uit]||0) + Math.max(0, sec - aan[e.uit]);
-      delete aan[e.uit];
+    if (e.uit){
+      if (aan[e.uit] != null){
+        res.tijd[e.uit] = (res.tijd[e.uit]||0) + Math.max(0, sec - aan[e.uit]);
+        delete aan[e.uit];
+      } else if (res.tijd[e.uit] == null){
+        /* Hij is eruit gewisseld, maar staat niet in de startopstelling en kreeg
+           ook geen 'in'-event: dat gebeurt als de opstelling pas na het starten
+           van de klok is neergezet, of als een wissel achteraf is toegevoegd.
+           Voorheen viel zijn gespeelde tijd dan volledig weg; nu telt hij vanaf
+           het begin van de periode. De voorwaarde res.tijd == null voorkomt
+           dubbeltelling bij een tweede 'uit' zonder 'in' ertussen. */
+        res.tijd[e.uit] = Math.max(0, sec);
+        telLijn(e.uit, e.slot);
+        if (e.slot === 'K') res.keeper.add(e.uit);
+      }
     }
     if (e.in){
       aan[e.in] = sec; telLijn(e.in, e.slot);
