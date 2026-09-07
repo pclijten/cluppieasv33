@@ -482,6 +482,35 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .stat-tabel td.bewerkbaar.aangepast{color:var(--grass);font-weight:700}
 .stat-tabel td.bewerkbaar.aangepast .bewerk-hint{color:var(--grass);opacity:.9}
 
+/* ---------- Speeltijdtabel met alle periodes (wedstrijdscherm) ----------
+   Elke periode krijgt een eigen kolom. De spelernaam blijft links staan en het
+   wedstrijdtotaal rechts; alleen de periodekolommen schuiven mee bij horizontaal
+   scrollen, wat nodig is bij een toernooi met veel periodes. */
+.st-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)}
+/* radius/schaduw verhuizen naar .st-scroll: een overflow op de tabel zelf zou
+   position:sticky op de cellen breken. */
+.st-periodes{border-radius:0;overflow:visible;box-shadow:none}
+.st-periodes th,.st-periodes td{padding:9px 3px;white-space:nowrap}
+.st-periodes th:first-child,.st-periodes td:first-child{
+  position:sticky;left:0;z-index:2;background:var(--card);
+  padding-left:14px;padding-right:6px;box-shadow:1px 0 0 var(--hair);
+  max-width:86px;overflow:hidden;text-overflow:ellipsis}
+.st-periodes th.tot,.st-periodes td.tot{
+  position:sticky;right:0;z-index:2;background:var(--card);
+  padding-left:7px;padding-right:12px;box-shadow:-1px 0 0 var(--hair)}
+.st-periodes td.tot{font-size:calc(15px * var(--fs))}
+.st-periodes .p-cel{font-family:'Barlow Condensed';font-weight:600;font-size:calc(14px * var(--fs))}
+.st-periodes .p-cel.leeg{color:var(--ink-2);font-weight:500}
+.st-periodes td.p-cel.aangepast{color:var(--ok);font-weight:700}
+.st-periodes td.p-cel.aangepast .bewerk-hint{color:var(--ok);opacity:.9}
+.st-periodes .p-cel .bewerk-hint{display:none}      /* potlood alleen op de actieve periode */
+.st-periodes .p-cel.nu .bewerk-hint{display:inline;margin-left:1px;font-size:calc(10px * var(--fs))}
+.st-periodes th.nu{color:var(--accent)}
+.st-periodes td.nu{background:color-mix(in srgb, var(--accent) 10%, transparent);font-weight:700}
+.st-periodes .keep{color:var(--keeper);font-size:calc(10px * var(--fs));font-weight:700;vertical-align:super;margin-left:1px}
+.st-legenda{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin:8px 14px 0}
+.st-uitleg{font-size:calc(12px * var(--fs));color:var(--ink-2);margin:6px 14px 0;line-height:1.5}
+
 /* ---------- Correctie-menu (goal / kaart) ---------- */
 .correctie-opties{display:flex;flex-direction:column;gap:8px}
 .correctie-opties .knop{justify-content:flex-start}
@@ -1387,8 +1416,6 @@ body{ background:var(--bg); color:var(--ink); }
 .stat-tabel{ background:var(--surface); border:1px solid var(--line-d); box-shadow:none; }
 .stat-tabel th{ color:var(--ink-2); border-bottom-color:var(--line-d); }
 .stat-tabel td{ border-bottom-color:var(--line-d); color:var(--ink); }
-.stat-tabel td.leeg-cel{ color:color-mix(in srgb, var(--ink-2) 55%, transparent); }
-.stat-tabel tr.stats-laag td{ background:color-mix(in srgb, var(--n1) 12%, transparent); }
 .opkomst-cel.goed{ color:var(--ok); }
 .opkomst-cel.matig{ color:var(--warn); }
 .opkomst-cel.laag{ color:var(--warn); }
@@ -2418,16 +2445,6 @@ body::before{
   overflow:hidden;max-width:46px;margin:3px auto 0}
 .stat-tabel .pct-bar span{display:block;height:100%;border-radius:2px}
 .stat-tabel td.res-cel{color:var(--ink-2);font-size:calc(12px * var(--fs))}
-
-/* Samengevoegd spelers-blad: een 0 in een kolom die verder wél gevuld is,
-   staat gedempt zodat het oog naar de betekenisvolle cellen gaat. */
-.stat-tabel td.leeg-cel{color:color-mix(in srgb, var(--ink-2) 45%, transparent)}
-/* Rij van een speler onder de speeltijd-drempel: subtiele tint als extra
-   marker, los van de sorteervolgorde (de tabel staat op naam). */
-.stat-tabel tr.stats-laag td{background:color-mix(in srgb, var(--n1) 6%, transparent)}
-/* Ontwikkellijntje achter de naam, uit de beoordelingen. */
-.stat-tabel .stats-spark{display:inline-flex;align-items:center;gap:3px;vertical-align:middle;margin-left:5px}
-.stat-tabel .stats-spark .pijl{font-size:calc(9.5px * var(--fs));font-weight:700;line-height:1}
 
 /* ==================== STATS: team-overzicht + aandacht-blad ==================== */
 /* teller-badge op de Aandacht-blad-knop */
