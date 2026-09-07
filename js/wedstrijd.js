@@ -18,7 +18,7 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260902d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260905a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260905b';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -473,6 +473,24 @@ function normaliseerWedstrijd(w){
   if (!Array.isArray(w.goals)){ w.goals = []; veranderd = true; }
   if (!Array.isArray(w.kaarten)){ w.kaarten = []; veranderd = true; }
   if (!Array.isArray(w.selectie) || !w.selectie.length){ w.selectie = S.spelers.map(p => p.id); veranderd = true; }
+  /* Ingeleende spelers die pas ná het aanmaken van deze wedstrijd binnenkwamen,
+     staan niet in w.selectie en verschijnen daardoor als afwezig — terwijl je
+     iemand juist leent om hem te laten spelen. Zet ze er één keer bij, zodat
+     een geleende speler meteen op de bank staat. w.leenErbij onthoudt wie we
+     al hebben aangevuld, zodat een speler die de coach er daarna bewust
+     uithaalt niet bij elke render terugkeert. Alleen zolang er in deze
+     wedstrijd nog niet gespeeld is: een afgeronde wedstrijd laten we met rust. */
+  else if (!Object.values(w.kwarten || {}).some(kwartGespeeld)){
+    const alGehad = Array.isArray(w.leenErbij) ? w.leenErbij : [];
+    const nieuw = S.spelers
+      .filter(p => p._ingeleend && !w.selectie.includes(p.id) && !alGehad.includes(p.id))
+      .map(p => p.id);
+    if (nieuw.length){
+      w.selectie  = [...w.selectie, ...nieuw];
+      w.leenErbij = [...alGehad, ...nieuw];
+      veranderd = true;
+    }
+  }
   if (typeof w.opzetGedaan !== 'boolean'){ w.opzetGedaan = true; veranderd = true; }
   return veranderd;
 }
@@ -485,7 +503,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260905a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260905b').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -531,7 +549,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260905a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260905b').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2030,9 +2048,54 @@ export function htmlStats(){
       pctReserve[pid]   = 100 - pctSpeeltijd[pid];
     }
   }
-  const rijen = [...S.spelers].sort((a,b) => (pctSpeeltijd[b.id]??-1) - (pctSpeeltijd[a.id]??-1) || (tot.tijd[b.id]||0) - (tot.tijd[a.id]||0));
+  /* Sortering: alfabetisch op naam. De tabel is een naslagtabel — een coach
+     zoekt er een specifieke speler in op, en dan is een vaste volgorde die niet
+     verschuift zodra iemand een wedstrijd meer speelt het prettigst. Wie te
+     weinig speelt wordt gesignaleerd via de eerlijkheidskaart erboven, de
+     tint op de rij en het Aandacht-blad — niet via de sorteervolgorde. */
+  const rijen = [...S.spelers].sort((a,b) =>
+    (a.naam||'').localeCompare(b.naam||'', 'nl', {sensitivity:'base'}));
   const heeftData = Object.keys(tot.tijd).length > 0;
   const pctKleur = p => p==null ? 'var(--ink-2)' : p>=60?'var(--n5)':p>=45?'var(--n4)':p>=30?'var(--n3)':'var(--n2)';
+
+  /* --- Ontwikkelreeks per speler, voor het lijntje achter de naam ---
+     Bron: S.beoordelingen (teams/{teamId}/beoordelingen). Een snelle
+     beoordeling levert zijn niveau 1..5, een volledige het gemiddelde van de
+     ingevulde domeinscores — beide op dezelfde 1..5-schaal, zodat ze in één
+     lijn passen. Oud → nieuw, want S.beoordelingen staat nieuwste eerst.
+     Geen extra Firestore-lees: deze lijst staat al in de state. */
+  const ontwikkelReeks = {};
+  for (const b of [...(S.beoordelingen||[])].reverse()){
+    let v = null;
+    if (b.soort === 'snel' && b.niveau) v = Number(b.niveau);
+    else if (b.soort === 'volledig'){
+      const s = Object.values(b.scores || {}).filter(n => Number(n) > 0).map(Number);
+      if (s.length) v = s.reduce((a,n) => a+n, 0) / s.length;
+    }
+    if (v > 0) (ontwikkelReeks[b.spelerId] ||= []).push(v);
+  }
+  /* Mini-grafiekje achter de naam. Alleen bij ≥2 metingen — met één punt valt
+     er niets te zien — en alleen als het team de evaluatiemodule gebruikt. */
+  const spark = pid => {
+    const r = ontwikkelReeks[pid];
+    if (!modAan('evaluaties') || !r || r.length < 2) return '';
+    const B = 38, H = 13, MIN = 1, MAX = 5;
+    const xy = v => [null, Math.max(0, Math.min(1, (v-MIN)/(MAX-MIN)))];
+    const punten = r.map((v,i) => {
+      const x = (i/(r.length-1))*(B-2)+1;
+      const y = H - 1.5 - xy(v)[1]*(H-3);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const delta = r[r.length-1] - r[0];
+    const kl = delta > 0.15 ? 'var(--n5)' : delta < -0.15 ? 'var(--n2)' : 'var(--ink-2)';
+    const pijl = delta > 0.15 ? '▲' : delta < -0.15 ? '▼' : '=';
+    const ly = (H - 1.5 - xy(r[r.length-1])[1]*(H-3)).toFixed(1);
+    return `<span class="stats-spark" title="Ontwikkeling uit ${r.length} beoordelingen">`
+      + `<svg width="${B}" height="${H}" viewBox="0 0 ${B} ${H}" fill="none" aria-hidden="true">`
+      + `<polyline points="${punten}" stroke="${kl}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+      + `<circle cx="${B-1}" cy="${ly}" r="1.8" fill="${kl}"/></svg>`
+      + `<span class="pijl" style="color:${kl}">${pijl}</span></span>`;
+  };
 
   // Opkomst training: aanwezig = niet in de afwezig-lijst van een sessie
   const totTrainingen = presentieLijst.length;
@@ -2144,14 +2207,16 @@ export function htmlStats(){
 
   // Vier bladen: het nieuwe 'aandacht'-blad staat vooraan met een teller-badge,
   // daarna speelminuten, wedstrijdstatistiek en trainingsopkomst. De actieve
-  // keuze staat in S.statsBlad (default 'speel'); koppeling in koppelStatsBlad().
-  const blad = S.statsBlad || 'speel';
+  // keuze staat in S.statsBlad (default 'spelers'); koppeling in koppelStatsBlad().
+  /* 'speel' en 'wed' waren tot 20260905b twee losse bladen; een coach kan die
+     waarde nog in S hebben staan (of in een oude sessie). Beide wijzen nu naar
+     het samengevoegde spelers-blad. */
+  const blad = ({speel:'spelers', wed:'spelers'})[S.statsBlad] || S.statsBlad || 'spelers';
   const aandachtBadge = aandachtAantal ? `<span class="stats-blad-badge">${aandachtAantal}</span>` : '';
   const bladBalk = `
     <div class="segment stats-blad" id="statsBlad" style="margin-bottom:14px">
       <button data-statsblad="aandacht" class="${blad==='aandacht'?'actief':''}">⚠ Aandacht${aandachtBadge}</button>
-      <button data-statsblad="speel" class="${blad==='speel'?'actief':''}">⏱ Speel</button>
-      <button data-statsblad="wed" class="${blad==='wed'?'actief':''}">📋 Wed</button>
+      <button data-statsblad="spelers" class="${blad==='spelers'?'actief':''}">👕 Spelers</button>
       <button data-statsblad="tr" class="${blad==='tr'?'actief':''}">🏃 Train</button>
     </div>`;
 
@@ -2163,7 +2228,7 @@ export function htmlStats(){
   const naamCelDisc = p => {
     const dsec = Math.round((sr[p.id]?.disciplinair || 0));
     const badge = dsec > 0 ? ` <span class="disc-badge" title="Disciplinaire reservebeurt(en) — niet meegeteld in %">disc.</span>` : '';
-    return `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button>${badge}</td>`;
+    return `<td class="naam-cel"><button type="button" class="stats-naam" data-statsprofiel="${p.id}">${esc(p.naam)}</button>${badge}${spark(p.id)}</td>`;
   };
 
   // Uitgeleende speeltijd: opgeteld uit speeltijdPerWedstrijd op elk actief
@@ -2179,36 +2244,54 @@ export function htmlStats(){
   const heeftUitleen = Object.keys(leenSpeeltijd).length > 0;
   const minSec = s => `${Math.floor(s/3600)}u ${Math.round((s%3600)/60)}m`;
 
-  const speelBlad = () => overzichtKaart() + `
+  /* ==================== SPELERS-BLAD ====================
+     Speeltijd én wedstrijdcijfers in één tabel: een coach die naar een speler
+     kijkt wil beide tegelijk zien, en twee losse bladen dwongen tot heen en
+     weer schakelen. Om de tabel op een telefoon leesbaar te houden vallen
+     kolommen weg waarin het hele team op nul staat — een elftal zonder kaarten
+     krijgt geen twee kolommen vol nullen te zien. Een 0 in een wél getoonde
+     kolom staat gedempt, zodat het oog naar de gevulde cellen gaat. */
+  const spelersBlad = () => {
+    const mogelijk = [
+      {th:'⚽',  titel:'Doelpunten',           val:p => tot.goals[p.id]||0,     nadruk:true},
+      {th:'C',   titel:'Aanvoerdersbeurten',   val:p => tot.aanv[p.id]||0,      fmt:n => n+'×'},
+      {th:'K',   titel:'Periodes als keeper',  val:p => tot.keeper[p.id]||0},
+      {th:'🟨',  titel:'Gele kaarten',         val:p => tot.geel[p.id]||0},
+      {th:'🟥',  titel:'Rode kaarten',         val:p => tot.rood[p.id]||0},
+      {th:'⇄',   titel:'Elders gespeeld terwijl uitgeleend',
+                                               val:p => leenSpeeltijd[p.id]||0, fmt:n => minSec(n), accent:true},
+    ];
+    const kol = mogelijk.filter(k => rijen.some(p => k.val(p) > 0));
+    const cel = (p, k) => {
+      const n = k.val(p);
+      if (!n) return `<td class="leeg-cel">0</td>`;
+      const stijl = k.nadruk ? ' style="font-weight:700"'
+        : k.accent ? ' style="color:var(--accent);font-weight:700"' : '';
+      return `<td${stijl}>${k.fmt ? k.fmt(n) : n}</td>`;
+    };
+    return overzichtKaart() + `
     <table class="stat-tabel">
-      <thead><tr><th>Speler</th><th>Wed.</th><th>Speeltijd</th><th>Res.</th>${heeftUitleen?'<th>Uitgeleend</th>':''}</tr></thead>
+      <thead><tr><th>Speler</th><th>Speeltijd</th><th>Wed.</th><th>Res.</th>
+        ${kol.map(k => `<th title="${esc(k.titel)}">${k.th}</th>`).join('')}</tr></thead>
       <tbody>${rijen.map(p => {
         const ps = pctSpeeltijd[p.id], pr = pctReserve[p.id];
-        const ls = leenSpeeltijd[p.id];
-        return `<tr>
+        const laag = ps != null && ps < DREMPEL_SPEEL;
+        return `<tr${laag ? ' class="stats-laag"' : ''}>
           ${naamCelDisc(p)}
+          <td class="pct-cel">${ps!=null
+            ? `<span style="font-weight:700;color:${pctKleur(ps)}">${ps}%</span><span class="pct-bar"><span style="width:${ps}%;background:${pctKleur(ps)}"></span></span>`
+            : '—'}</td>
           <td>${tot.wedstrijden[p.id]||0}</td>
-          <td class="pct-cel">${ps!=null?`<span style="font-weight:700;color:${pctKleur(ps)}">${ps}%</span><span class="pct-bar"><span style="width:${ps}%;background:${pctKleur(ps)}"></span></span>`:'—'}</td>
-          <td class="res-cel">${pr!=null?pr+'%':''}</td>
-          ${heeftUitleen ? `<td class="res-cel" style="color:var(--accent);font-weight:700">${ls?minSec(ls):'—'}</td>` : ''}</tr>`;
+          <td class="res-cel${pr ? '' : ' leeg-cel'}">${pr!=null?pr+'%':'—'}</td>
+          ${kol.map(k => cel(p, k)).join('')}</tr>`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.${heeftUitleen ? ' <b>Uitgeleend</b> = tijd die een speler bij een ander team speelde terwijl hij bij jullie stond uitgeleend; telt niet mee in jullie eerlijkheidsscore hierboven, en verdwijnt zodra de uitlening wordt teruggezet.' : ''}</p>`;
-
-  const wedBlad = () => `
-    <table class="stat-tabel">
-      <thead><tr><th>Speler</th><th>⚽</th><th>C</th><th>K</th><th>🟨</th><th>🟥</th></tr></thead>
-      <tbody>${rijen.map(p => `<tr>
-        ${naamCel(p)}
-        <td style="font-weight:700">${tot.goals[p.id]||0}</td>
-        <td>${tot.aanv[p.id] ? tot.aanv[p.id]+'×' : ''}</td>
-        <td>${tot.keeper[p.id]||0}</td>
-        <td>${tot.geel[p.id]||0}</td>
-        <td>${tot.rood[p.id]||0}</td></tr>`).join('')}</tbody>
-    </table>
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">
-      ⚽ doelpunten · <b>C</b> aanvoerdersbeurten · <b>K</b> periodes als keeper · 🟨 gele kaarten · 🟥 rode kaarten.</p>`;
+      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.
+      ${kol.length ? '<br>' + kol.map(k => `${k.th} ${k.titel.toLowerCase()}`).join(' · ') + '.' : ''}
+      ${heeftUitleen ? ' Uitgeleende tijd telt niet mee in de eerlijkheidsscore hierboven, en verdwijnt zodra de uitlening wordt teruggezet.' : ''}
+      ${modAan('evaluaties') ? '<br>Het lijntje achter een naam is zijn ontwikkeling uit de beoordelingen — oudste meting links.' : ''}</p>`;
+  };
 
   const redenLabel = id => (AFWEZIG_REDENEN.find(r => r.id === id) || {emoji:'❓',label:'Anders'});
   const trBlad = () => toonOpkomst ? `
@@ -2262,19 +2345,18 @@ export function htmlStats(){
 
   let inhoud;
   if (blad === 'aandacht') inhoud = aandachtBlad();
-  else if (blad === 'speel') inhoud = (heeftData ? '' : leegWed) + speelBlad();
-  else if (blad === 'wed') inhoud = (heeftData ? '' : leegWed) + wedBlad();
+  else if (blad === 'spelers') inhoud = (heeftData ? '' : leegWed) + spelersBlad();
   else inhoud = trBlad();
 
   return bladBalk + inhoud;
 }
 
-/* Koppelt de drie stats-blad-knoppen (speelminuten / wedstrijd / training).
+/* Koppelt de stats-blad-knoppen (aandacht / spelers / training).
    Aangeroepen vanuit teams.js nadat de Stats-tab is getekend. */
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260905a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260905b').then(m => m.renderTeam?.());
   });
 }
 
@@ -2737,7 +2819,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260905a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260905b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
