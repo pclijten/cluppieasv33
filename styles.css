@@ -1416,6 +1416,8 @@ body{ background:var(--bg); color:var(--ink); }
 .stat-tabel{ background:var(--surface); border:1px solid var(--line-d); box-shadow:none; }
 .stat-tabel th{ color:var(--ink-2); border-bottom-color:var(--line-d); }
 .stat-tabel td{ border-bottom-color:var(--line-d); color:var(--ink); }
+.stat-tabel td.leeg-cel{ color:color-mix(in srgb, var(--ink-2) 55%, transparent); }
+.stat-tabel tr.stats-laag td{ background:color-mix(in srgb, var(--n1) 12%, transparent); }
 .opkomst-cel.goed{ color:var(--ok); }
 .opkomst-cel.matig{ color:var(--warn); }
 .opkomst-cel.laag{ color:var(--warn); }
@@ -2445,6 +2447,16 @@ body::before{
   overflow:hidden;max-width:46px;margin:3px auto 0}
 .stat-tabel .pct-bar span{display:block;height:100%;border-radius:2px}
 .stat-tabel td.res-cel{color:var(--ink-2);font-size:calc(12px * var(--fs))}
+
+/* Samengevoegd spelers-blad: een 0 in een kolom die verder wél gevuld is,
+   staat gedempt zodat het oog naar de betekenisvolle cellen gaat. */
+.stat-tabel td.leeg-cel{color:color-mix(in srgb, var(--ink-2) 45%, transparent)}
+/* Rij van een speler onder de speeltijd-drempel: subtiele tint als extra
+   marker, los van de sorteervolgorde (de tabel staat op naam). */
+.stat-tabel tr.stats-laag td{background:color-mix(in srgb, var(--n1) 6%, transparent)}
+/* Ontwikkellijntje achter de naam, uit de beoordelingen. */
+.stat-tabel .stats-spark{display:inline-flex;align-items:center;gap:3px;vertical-align:middle;margin-left:5px}
+.stat-tabel .stats-spark .pijl{font-size:calc(9.5px * var(--fs));font-weight:700;line-height:1}
 
 /* ==================== STATS: team-overzicht + aandacht-blad ==================== */
 /* teller-badge op de Aandacht-blad-knop */
