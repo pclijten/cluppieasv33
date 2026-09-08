@@ -3004,23 +3004,26 @@ body::before{
 .pw-pijl{ width:17px; height:17px; color:var(--ink-2); flex-shrink:0; }
 .pw-tel{ font-size:calc(12px * var(--fs)); color:var(--ink-2); font-weight:600; margin-bottom:10px; }
 
-/* ---------- Leerlijn-overzicht: spelerblokken met leerpunt-chips ---------- */
-.lp-blok{
+/* ---------- Leerlijn-overzicht: spelerblokken met leerpunt-chips ----------
+   Eigen lpl-* prefix: de veld-teken-CSS verderop hergebruikt .lp-blok/.lp-chip/
+   .lp-dom voor ronde spelerpionnen op een tactiekveld en overschreef anders
+   deze lijst-styling (chips werden 34px-cirkels → tekst puilde uit de kaart). */
+.lpl-blok{
   display:block; width:100%; background:var(--card); border:1px solid var(--hair);
   border-radius:13px; padding:12px 14px; margin-bottom:10px; cursor:pointer;
   text-align:left; box-shadow:var(--shadow); color:var(--ink);
 }
-.lp-kop{ display:flex; align-items:center; gap:10px; }
-.lp-naam{ font-weight:700; font-size:calc(14.5px * var(--fs)); flex:1; }
-.lp-tel{ font-size:calc(11px * var(--fs)); color:var(--ink-2); font-weight:600; }
-.lp-wrap{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
-.lp-chip{
+.lpl-kop{ display:flex; align-items:center; gap:10px; }
+.lpl-naam{ font-weight:700; font-size:calc(14.5px * var(--fs)); flex:1; }
+.lpl-tel{ font-size:calc(11px * var(--fs)); color:var(--ink-2); font-weight:600; }
+.lpl-wrap{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.lpl-chip{
   font-size:calc(11.5px * var(--fs)); font-weight:600; line-height:1.35;
   background:var(--surface-2); border:1px solid var(--hair); border-radius:20px;
   padding:4px 11px; color:var(--ink);
 }
-.lp-chip.klaar{ opacity:.45; text-decoration:line-through; }
-.lp-dom{ color:var(--accent); font-weight:700; margin-right:5px; }
+.lpl-chip.klaar{ opacity:.45; text-decoration:line-through; }
+.lpl-dom{ color:var(--accent); font-weight:700; margin-right:5px; }
 
 /* ==================== UI-FIXES (v20260818d) ====================
    1) Modal: vh-fallback voor oudere Android-WebViews zonder dvh-ondersteuning
