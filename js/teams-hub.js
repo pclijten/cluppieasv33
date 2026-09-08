@@ -317,14 +317,14 @@ export function htmlLeerlijnOverzicht(){
     const open = lps.filter(l => !l.klaar).length;
     const gesorteerd = [...lps].sort((a,b) => (a.klaar?1:0)-(b.klaar?1:0) || (b.sinds||'').localeCompare(a.sinds||''));
     return `
-      <button class="lp-blok" data-lp-profiel="${p.id}">
-        <div class="lp-kop">
+      <button class="lpl-blok" data-lp-profiel="${p.id}">
+        <div class="lpl-kop">
           <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
-          <span class="lp-naam">${esc(p.naam)}</span>
-          <span class="lp-tel">${open ? `${open} open` : 'alles behaald ✓'}</span>
+          <span class="lpl-naam">${esc(p.naam)}</span>
+          <span class="lpl-tel">${open ? `${open} open` : 'alles behaald ✓'}</span>
         </div>
-        <div class="lp-wrap">${gesorteerd.map(l =>
-          `<span class="lp-chip ${l.klaar ? 'klaar' : ''}">${l.domein ? `<span class="lp-dom">${esc(l.domein)}</span>` : ''}${esc(l.tekst || '')}</span>`).join('')}</div>
+        <div class="lpl-wrap">${gesorteerd.map(l =>
+          `<span class="lpl-chip ${l.klaar ? 'klaar' : ''}">${l.domein ? `<span class="lpl-dom">${esc(l.domein)}</span>` : ''}${esc(l.tekst || '')}</span>`).join('')}</div>
       </button>`;
   };
   const totOpen = metPunten.reduce((n,x) => n + x.lps.filter(l=>!l.klaar).length, 0);
