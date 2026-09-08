@@ -18,7 +18,8 @@ import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speelt
 import { ico } from './icons.js?v=20260825b';
 
 import { telGebruik, telNav } from './tracker.js?v=20260902d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260907b';
+import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260908a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260908a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -503,7 +504,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260907b').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260908a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -549,7 +550,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260907b').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260908a').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2100,26 +2101,27 @@ export function htmlStats(){
       + `<span class="pijl" style="color:${kl}">${pijl}</span></span>`;
   };
 
-  // Opkomst training: aanwezig = niet in de afwezig-lijst van een sessie
+  // Opkomst training: per speler geteld over alleen de trainingen die voor
+  // hem meetellen — zie js/opkomst.js. Een later ingestroomde speler kreeg
+  // anders 100% over trainingen waar hij nog niet bij het team was.
+  // opkomst[pid] = {aanwezig, totaal, pct, overgeslagen}
   const totTrainingen = presentieLijst.length;
   const opkomst = {};
-  if (totTrainingen){
-    for (const p of S.spelers){
-      let aanwezig = 0;
-      for (const sessie of presentieLijst){
-        if (!(sessie.afwezig || []).includes(p.id)) aanwezig++;
-      }
-      opkomst[p.id] = Math.round((aanwezig / totTrainingen) * 100);
-    }
-  }
+  if (totTrainingen) for (const p of S.spelers) opkomst[p.id] = opkomstVoor(p, presentieLijst);
   const toonOpkomst = totTrainingen > 0;
 
   // Reden-uitsplitsing van afwezigheid per speler (training), voor inzicht onder
   // de opkomst. Telt per reden-type; oude vrije notities vallen onder 'anders'.
   const afwezigTelling = {}; // pid -> {redenId: aantal}
   if (totTrainingen){
+    const spelerPerId = new Map(S.spelers.map(p => [p.id, p]));
     for (const sessie of presentieLijst){
       for (const pid of (sessie.afwezig || [])){
+        // Sessies die niet voor deze speler meetellen leveren ook geen
+        // afwezigheidsreden op — anders staat er een chip onder een training
+        // die nergens in zijn percentage terugkomt.
+        const sp = spelerPerId.get(pid);
+        if (sp && !teltMee(sessie, sp)) continue;
         const rec = (sessie.afwezigRedenen || {})[pid];
         const info = rec ? afwezigRedenInfo(rec) : null;
         const id = info?.id || 'anders';
@@ -2164,7 +2166,10 @@ export function htmlStats(){
   const aandachtSignalen = [];
   for (const p of S.spelers){
     const ps = pctSpeeltijd[p.id];
-    const op = toonOpkomst ? opkomst[p.id] : null;
+    // Pas signaleren vanaf een handvol meetellende trainingen: één gemiste
+    // training van een net ingestroomde speler is geen patroon.
+    const o = toonOpkomst ? opkomst[p.id] : null;
+    const op = (o && o.totaal >= MIN_OPKOMST_TRAININGEN) ? o.pct : null;
     const disc = Math.round(sr[p.id]?.disciplinair || 0) > 0;
     const redenen = [], tags = [];
     let gewicht = 0;
@@ -2181,7 +2186,8 @@ export function htmlStats(){
   const overzichtKaart = () => {
     const totWed = wedstrijdenLijst.length;
     const totGoals = Object.values(tot.goals).reduce((a,b)=>a+b, 0);
-    const opkomstVals = toonOpkomst ? Object.values(opkomst) : [];
+    const opkomstVals = (toonOpkomst ? Object.values(opkomst) : [])
+      .map(o => o.pct).filter(v => v != null);
     const gemOpkomst = opkomstVals.length ? Math.round(opkomstVals.reduce((a,b)=>a+b,0)/opkomstVals.length) : null;
     if (!eerlijk && !totWed) return '';
     return `
@@ -2301,22 +2307,33 @@ export function htmlStats(){
     <table class="stat-tabel">
       <thead><tr><th>Speler</th><th>Aanwezig</th><th>Opkomst</th></tr></thead>
       <tbody>${rijen.map(p => {
-        const pct = opkomst[p.id] ?? 0;
-        const aanw = Math.round((pct/100) * totTrainingen);
+        const o = opkomst[p.id] || {aanwezig:0, totaal:0, pct:null, overgeslagen:0};
+        const pct = o.pct;
+        // Te weinig meetellende trainingen voor een oordeel: het percentage
+        // staat er wel, maar gedempt in plaats van in rood/groen.
+        const pril = o.totaal > 0 && o.totaal < MIN_OPKOMST_TRAININGEN;
+        const kleurKlasse = pct == null ? '' : pct>=80?'goed':pct>=50?'matig':'laag';
+        const chips = [];
+        // Trainingen van vóór zijn komst: benoemen waarom zijn noemer lager is,
+        // anders leest 1/1 als een registratiefout.
+        if (o.overgeslagen){
+          chips.push(`<span class="reden-tel-chip" style="border-style:dashed">📅 ${p.meetelVanaf
+            ? `Meegeteld vanaf ${esc(datumNL(p.meetelVanaf))}` : 'Later ingestroomd'} <b>${o.overgeslagen}× niet</b></span>`);
+        }
         const tel = afwezigTelling[p.id] || {};
-        const redenChips = Object.entries(tel).sort((a,b) => b[1]-a[1]).map(([id,n]) => {
+        for (const [id,n] of Object.entries(tel).sort((a,b) => b[1]-a[1])){
           const r = redenLabel(id);
-          return `<span class="reden-tel-chip">${r.emoji} ${esc(r.label)} <b>${n}×</b></span>`;
-        }).join('');
+          chips.push(`<span class="reden-tel-chip">${r.emoji} ${esc(r.label)} <b>${n}×</b></span>`);
+        }
         return `<tr>
           ${naamCel(p)}
-          <td>${aanw} / ${totTrainingen}</td>
-          <td class="opkomst-cel ${pct>=80?'goed':pct>=50?'matig':'laag'}">${pct}%</td></tr>
-          ${redenChips ? `<tr class="reden-tel-rij"><td colspan="3"><div class="reden-tel">${redenChips}</div></td></tr>` : ''}`;
+          <td>${o.aanwezig} / ${o.totaal}</td>
+          <td class="opkomst-cel ${kleurKlasse}"${pril ? ' style="color:var(--ink-2);font-weight:600"' : ''}>${pct != null ? pct+'%' : '—'}</td></tr>
+          ${chips.length ? `<tr class="reden-tel-rij"><td colspan="3"><div class="reden-tel">${chips.join('')}</div></td></tr>` : ''}`;
       }).join('')}</tbody>
     </table>
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Opkomst</b> = % aanwezig van de ${totTrainingen} geregistreerde training${totTrainingen>1?'en':''}. Onder elke speler zie je waarom hij afwezig was.</p>`
+      <b>Opkomst</b> = % aanwezig van de trainingen waarvoor de speler in de selectie zat — er staan er ${totTrainingen} geregistreerd. Onder elke speler zie je waarom hij afwezig was. Een gedempt percentage betekent: nog te weinig trainingen voor een conclusie.</p>`
     : `<div class="kaart leeg">Nog geen trainingsopkomst geregistreerd.<br>Zodra je op de Training-tab presentie bijhoudt, verschijnt hier per speler het opkomstpercentage.</div>`;
 
   // Aandacht-blad: de gecombineerde signalenlijst. Elke kaart is klikbaar en
@@ -2359,7 +2376,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260907b').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260908a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2420,19 +2437,14 @@ function statsExportData(){
     }
   }
 
+  // Zelfde telling als het Train-blad: per speler alleen de trainingen die
+  // voor hem meetellen (js/opkomst.js), zodat export en scherm gelijk lopen.
   const totTrainingen = presentieLijst.length;
-  const opkomst = {}, aanwezigAantal = {};
-  if (totTrainingen){
-    for (const p of S.spelers){
-      let aanwezig = 0;
-      for (const sessie of presentieLijst) if (!(sessie.afwezig || []).includes(p.id)) aanwezig++;
-      aanwezigAantal[p.id] = aanwezig;
-      opkomst[p.id] = Math.round((aanwezig / totTrainingen) * 100);
-    }
-  }
+  const opkomstTot = {};
+  if (totTrainingen) for (const p of S.spelers) opkomstTot[p.id] = opkomstVoor(p, presentieLijst);
 
   const rijen = [...S.spelers].sort((a,b) => (pctSpeeltijd[b.id]??-1) - (pctSpeeltijd[a.id]??-1) || (tot.tijd[b.id]||0) - (tot.tijd[a.id]||0));
-  return { rijen, tot, sr, pctSpeeltijd, pctReserve, totTrainingen, opkomst, aanwezigAantal };
+  return { rijen, tot, sr, pctSpeeltijd, pctReserve, totTrainingen, opkomstTot };
 }
 
 export async function exportStatsExcel(knop){
@@ -2496,17 +2508,20 @@ export async function exportStatsExcel(knop){
     ws3.columns = [
       {header:'Speler', key:'speler', width:22},
       {header:'Aanwezig', key:'aanw', width:10},
-      {header:'Totaal trainingen', key:'totaal', width:16},
+      {header:'Meegeteld', key:'totaal', width:11},
       {header:'Opkomst %', key:'opkomst', width:11},
+      {header:'Niet meegeteld', key:'over', width:14},
     ];
     ws3.getRow(1).font = {bold:true};
     if (d.totTrainingen){
       for (const p of d.rijen){
+        const o = d.opkomstTot[p.id] || {aanwezig:0, totaal:0, pct:null, overgeslagen:0};
         ws3.addRow({
           speler: p.naam,
-          aanw: d.aanwezigAantal[p.id] ?? 0,
-          totaal: d.totTrainingen,
-          opkomst: d.opkomst[p.id] ?? 0,
+          aanw: o.aanwezig,
+          totaal: o.totaal,
+          opkomst: o.pct ?? '',
+          over: o.overgeslagen || '',
         });
       }
     } else {
@@ -2844,7 +2859,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260907b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260908a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

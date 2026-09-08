@@ -22,13 +22,14 @@ import { ico } from './icons.js?v=20260825b';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260902d';
 import { telGebruik } from './tracker.js?v=20260902d';
+import { opkomstVoor, teltMee } from './opkomst.js?v=20260908a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260907b');
+  const m = await import('./teams.js?v=20260908a');
   m.renderTeam();
 }
 
@@ -164,25 +165,28 @@ function spelerStats(pid){
     if (a.keeper[pid]) keeper += a.keeper[pid];
     if (a.lijn[pid]) for (const [naam, n] of Object.entries(a.lijn[pid])) posities[naam] = (posities[naam]||0) + n;
   }
-  const totTr = (S.presentie||[]).length;
-  let aanwezig = 0;
+  // Opkomst over alleen de trainingen die voor deze speler meetellen — zie
+  // js/opkomst.js. `overTr` is wat daarbuiten viel (vóór zijn instroom).
+  const sp = speler(pid) || {id:pid};
+  const o = opkomstVoor(sp, S.presentie||[]);
+  const totTr = o.totaal, overTr = o.overgeslagen;
   const afwPerReden = {}; // redenId -> aantal
   for (const sessie of (S.presentie||[])){
-    const afw = (sessie.afwezig||[]).includes(pid);
-    if (!afw){ aanwezig++; continue; }
+    if (!teltMee(sessie, sp)) continue;
+    if (!(sessie.afwezig||[]).includes(pid)) continue;
     const rec = (sessie.afwezigRedenen||{})[pid];
     const info = rec ? afwezigRedenInfo(rec) : null;
     const id = info?.id || 'geen';
     afwPerReden[id] = (afwPerReden[id]||0) + 1;
   }
-  const opkomst = totTr ? Math.round((aanwezig/totTr)*100) : null;
+  const opkomst = o.pct;
   // reserve/speelbaar + percentages over wedstrijden waarin de speler in de selectie zat
   const sr = speeltijdReserve(S.wedstrijden)[pid] || {speeltijd:0, reserve:0, speelbaar:0};
   const reserve = sr.reserve;
   const speelbaar = sr.speelbaar;
   const pctSpeeltijd = speelbaar > 0 ? Math.round((sr.speeltijd/speelbaar)*100) : null;
   const pctReserve   = pctSpeeltijd != null ? 100 - pctSpeeltijd : null;
-  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, afwPerReden, posities,
+  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, overTr, afwPerReden, posities,
     reserve, speelbaar, pctSpeeltijd, pctReserve, disciplinair: sr.disciplinair||0};
 }
 
@@ -421,15 +425,23 @@ export function htmlProfiel(){
       </div>
       <div class="kaart">
         <div class="veldlabel" style="margin-top:0">Presentie training</div>
-        ${S.presentie.length ? S.presentie.map(ses => {
-          const afw = (ses.afwezig||[]).includes(p.id);
-          const reden = (ses.afwezigRedenen||{})[p.id];
-          const info = afw && reden ? afwezigRedenInfo(reden) : null;
-          const statusTxt = !afw ? 'Aanwezig'
-            : info ? `${info.emoji} ${info.label}${info.notitie ? ' · '+esc(info.notitie) : ''}`
-            : '❔ Zonder reden';
-          return `<div class="presentie-hist-rij"><span>${datumNL(ses.datum)}</span><span class="phr-status ${afw?'afw':'aanw'}">${statusTxt}</span></div>`;
-        }).join('') : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd.</p>`}
+        ${(() => {
+          // Alleen de trainingen die voor deze speler meetellen; trainingen van
+          // vóór zijn instroom staan niet in zijn lijst maar worden er wel
+          // onder benoemd, zodat het aantal klopt met zijn percentage.
+          const eigen = S.presentie.filter(ses => teltMee(ses, p));
+          const buiten = S.presentie.length - eigen.length;
+          if (!eigen.length) return `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd${buiten ? ' sinds hij bij het team kwam' : ''}.</p>`;
+          return eigen.map(ses => {
+            const afw = (ses.afwezig||[]).includes(p.id);
+            const reden = (ses.afwezigRedenen||{})[p.id];
+            const info = afw && reden ? afwezigRedenInfo(reden) : null;
+            const statusTxt = !afw ? 'Aanwezig'
+              : info ? `${info.emoji} ${info.label}${info.notitie ? ' · '+esc(info.notitie) : ''}`
+              : '❔ Zonder reden';
+            return `<div class="presentie-hist-rij"><span>${datumNL(ses.datum)}</span><span class="phr-status ${afw?'afw':'aanw'}">${statusTxt}</span></div>`;
+          }).join('') + (buiten ? `<p style="font-size:calc(12px * var(--fs));color:var(--ink-2);padding:8px 0 0;line-height:1.5">${buiten} training${buiten>1?'en':''} van vóór zijn komst tellen niet mee.</p>` : '');
+        })()}
       </div>` : ''}`;
 }
 

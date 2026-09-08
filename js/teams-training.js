@@ -637,6 +637,11 @@ export function modalPresentie(bestaande = null, opties = {}){
       afwezig: Array.from(afwezig),
       telaat: Array.from(telaat),
       afwezigRedenen: redenen,
+      /* Wie zat er op dit moment in de selectie? Zonder deze lijst geldt
+         "niet afwezig" als aanwezig, en krijgt een speler die later
+         instroomt met terugwerkende kracht 100% over trainingen waar hij
+         nog niet bij het team was. Zie js/opkomst.js. */
+      selectie: S.spelers.map(p => p.id),
       aantalAanwezig: S.spelers.length - afwezig.size,
       aantalTeLaat: telaat.size,
       aantalSpelers: S.spelers.length,

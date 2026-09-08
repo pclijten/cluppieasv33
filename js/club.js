@@ -8,6 +8,7 @@ import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
 } from './state.js?v=20260902d';
 import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260902d';
+import { teltMee } from './opkomst.js?v=20260908a';
 import { analyseWedstrijd } from './analyse.js?v=20260905a';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260902d';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260902d';
@@ -30,7 +31,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260907b'); }
+async function teamsModule(){ return await import('./teams.js?v=20260908a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -73,7 +74,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260907b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260908a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -181,14 +182,25 @@ async function clubDashboardOphalen(teams){
       getDocs(query(collection(db,'teams',t.id,'presentie'), ...seizoenFilter)),
     ]);
     const spelersAantal = spelersSnap.size;
+    const spelersDocs = spelersSnap.docs.map(d => ({id:d.id, ...d.data()}));
     const wedstrijden = wedstrijdenSnap.docs.map(d => d.data());
     const presentie = presentieSnap.docs.map(d => d.data());
 
+    // Opkomst per speler-per-sessie optellen in plaats van
+    // spelersAantal × sessies: een speler die later instroomde telde anders
+    // als aanwezig bij trainingen waar hij nog niet bij het team was, wat het
+    // clubgemiddelde omhoog trok. Zie js/opkomst.js.
     let opkomstPct = null;
     if (presentie.length && spelersAantal){
-      let totAanwezig = 0;
-      for (const p of presentie) totAanwezig += spelersAantal - (p.afwezig||[]).length;
-      opkomstPct = Math.round((totAanwezig / (presentie.length * spelersAantal)) * 100);
+      let totAanwezig = 0, totMogelijk = 0;
+      for (const ses of presentie){
+        for (const sp of spelersDocs){
+          if (!teltMee(ses, sp)) continue;
+          totMogelijk++;
+          if (!(ses.afwezig||[]).includes(sp.id)) totAanwezig++;
+        }
+      }
+      opkomstPct = totMogelijk ? Math.round((totAanwezig / totMogelijk) * 100) : null;
     }
 
     const activiteiten = [];
