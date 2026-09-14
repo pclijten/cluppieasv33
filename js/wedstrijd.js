@@ -328,7 +328,7 @@ export function modalNieuweWedstrijd(){
       <div class="veldgroep" id="mWThuisWrap"><label>Thuis of uit</label>
         <div class="segment" id="mWThuis"><button data-t="1" class="actief">Thuis</button><button data-t="0">Uit</button></div></div>
       <div class="veldgroep"><label>Aantal spelers</label>
-        <div class="segment" id="mWFormat">${['4','6','8','9','11'].map(f =>
+        <div class="segment" id="mWFormat">${['4','5','6','7','8','9','10','11'].map(f =>
           `<button data-f="${f}" class="${format===f?'actief':''}">${f}</button>`).join('')}</div></div>
     </div>
 
@@ -705,7 +705,7 @@ function toonWedstrijdWizard(){
      <h2>Hoeveel spelers per team?</h2>
      <p class="wz-uitleg">Dit bepaalt het speelformat van de wedstrijd.</p>
      <div class="wz-tegels" id="wzFormatTegels">
-       ${['4','6','8','9','11'].map(f => `<div class="wz-tegel ${gekFormat===f?'wz-actief':''}" data-f="${f}"><span class="wz-cijfer">${f}×${f}</span></div>`).join('')}
+       ${['4','5','6','7','8','9','10','11'].map(f => `<div class="wz-tegel ${gekFormat===f?'wz-actief':''}" data-f="${f}"><span class="wz-cijfer">${f}×${f}</span></div>`).join('')}
      </div>`,
     `<div class="wz-icoon">📐</div>
      <h2>Welke speelwijze?</h2>
@@ -3014,7 +3014,7 @@ function toonWijzigOpzet(sectie){
     <div class="wo-sectiekop" id="woSecSpeelwijze"><span class="ico">⚽</span><span>Speelwijze & formatie</span><div class="wo-lijn"></div></div>
     <div class="veldgroep"><label>Aantal spelers</label>
       <span class="wo-opg" data-opg="format"></span>
-      <div class="segment" id="woFormat">${['4','6','8','9','11'].map(f =>
+      <div class="segment" id="woFormat">${['4','5','6','7','8','9','10','11'].map(f =>
         `<button data-f="${f}" class="${w.format===f?'actief':''}">${f}×${f}</button>`).join('')}</div></div>
     <div class="veldgroep"><label>Formatie (excl. keeper)</label>
       <span class="wo-opg" data-opg="formatie"></span>

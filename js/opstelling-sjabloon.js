@@ -271,7 +271,7 @@ function tekenEditor(){
     <div class="sj-veldgroep">
       <label>Aantal spelers</label>
       <div class="sj-segment" id="sjFormat">
-        ${['4','6','8','9','11'].map(f => `<button data-f="${f}" class="${ed.format===f?'actief':''}">${f}×${f}</button>`).join('')}
+        ${['4','5','6','7','8','9','10','11'].map(f => `<button data-f="${f}" class="${ed.format===f?'actief':''}">${f}×${f}</button>`).join('')}
       </div>
     </div>
 
