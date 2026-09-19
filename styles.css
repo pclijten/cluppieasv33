@@ -3770,7 +3770,7 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .rapport-kop .rapport-sluit{padding:calc(8px * var(--fs)) calc(12px * var(--fs));}
 .rapport-frame{flex:1;border:none;width:100%;background:#fff;}
 
-/* ==================== RESPONSIEF: TABLET & DESKTOP (v20260919a) ====================
+/* ==================== RESPONSIEF: TABLET & DESKTOP (v20260919b) ====================
    Uitgangspunt: telefoon (portret én landscape) blijft exact zoals hij is. De tokens
    hieronder hebben als basiswaarde de oude vaste getallen (540 / 520), en alle
    lay-outwijzigingen zitten achter media-queries op breedte én hoogte. Dit blok staat als LAATSTE in styles.css, zodat het
@@ -3863,9 +3863,12 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 /* ---------- Desktop (≥ 1100 px) ---------- */
 @media (min-width:1100px) and (min-height:520px){
   .view{ padding:26px 32px 96px; }
-  /* Tabbladen met lijsten en tabellen: leesbare breedte, gecentreerd
-     (de hub en het wedstrijdscherm gebruiken wél de volle breedte). */
-  #view-team:not(:has(> .hub-sectie)) > *{
-    max-width:var(--stage-w); margin-left:auto; margin-right:auto;
+  /* Tabbladen met lijsten en tabellen: leesbare breedte, gecentreerd via padding
+     op de view zelf (de hub en het wedstrijdscherm gebruiken wél de volle breedte).
+     Bewust géén margin:auto op de kinderen: bestaande !important-marges (bv. op
+     .sectie-kop) winnen daarvan en liggen dan uit de pas met de rest. */
+  #view-team:not(:has(> .hub-sectie)){
+    padding-left:max(32px, calc((100% - var(--stage-w)) / 2));
+    padding-right:max(32px, calc((100% - var(--stage-w)) / 2));
   }
 }
