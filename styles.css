@@ -3805,15 +3805,15 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 
   /* Team-hub: de vijf tegelsecties in 2 kolommen. :has() → oudere browsers vallen
      terug op de 1-koloms weergave (niets kapot, alleen minder benut). */
-  #view-team:has(> .hub-sectie){
+  #view-team.actief:has(> .hub-sectie){
     display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
     column-gap:32px; align-content:start;
   }
-  #view-team:has(> .hub-sectie) > *{ grid-column:1 / -1; }
-  #view-team:has(> .hub-sectie) > .hub-sectie{ grid-column:auto; }
+  #view-team.actief:has(> .hub-sectie) > *{ grid-column:1 / -1; }
+  #view-team.actief:has(> .hub-sectie) > .hub-sectie{ grid-column:auto; }
   /* 'Meer' (laatste sectie, tot 6 tegels) loopt over de volle breedte. */
-  #view-team:has(> .hub-sectie) > .hub-sectie:last-of-type{ grid-column:1 / -1; }
-  #view-team:has(> .hub-sectie) > .hub-sectie:last-of-type .hub-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+  #view-team.actief:has(> .hub-sectie) > .hub-sectie:last-of-type{ grid-column:1 / -1; }
+  #view-team.actief:has(> .hub-sectie) > .hub-sectie:last-of-type .hub-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); }
 
   /* Schermvullende overlays: balk en inhoud op leesbare breedte centreren,
      scrollbalk blijft aan de schermrand. */
@@ -3867,7 +3867,7 @@ textarea.trw-vel-in{min-height:80px;resize:none}
      op de view zelf (de hub en het wedstrijdscherm gebruiken wél de volle breedte).
      Bewust géén margin:auto op de kinderen: bestaande !important-marges (bv. op
      .sectie-kop) winnen daarvan en liggen dan uit de pas met de rest. */
-  #view-team:not(:has(> .hub-sectie)){
+  #view-team.actief:not(:has(> .hub-sectie)){
     padding-left:max(32px, calc((100% - var(--stage-w)) / 2));
     padding-right:max(32px, calc((100% - var(--stage-w)) / 2));
   }
