@@ -3769,3 +3769,103 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .rapport-kop button{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:calc(8px * var(--fs));padding:calc(8px * var(--fs)) calc(12px * var(--fs));font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
 .rapport-kop .rapport-sluit{padding:calc(8px * var(--fs)) calc(12px * var(--fs));}
 .rapport-frame{flex:1;border:none;width:100%;background:#fff;}
+
+/* ==================== RESPONSIEF: TABLET & DESKTOP (v20260919a) ====================
+   Uitgangspunt: telefoon (portret én landscape) blijft exact zoals hij is. De tokens
+   hieronder hebben als basiswaarde de oude vaste getallen (540 / 520), en alle
+   lay-outwijzigingen zitten achter media-queries op breedte én hoogte. Dit blok staat als LAATSTE in styles.css, zodat het
+   makkelijk terug te draaien is (blok verwijderen = terug naar de oude situatie). */
+
+:root{
+  --app-w:540px;      /* breedte van de app-kolom (.app) */
+  --maxw:520px;       /* sheets/schermen die al var(--maxw,520px) gebruiken (was nergens gedefinieerd) */
+  --stage-w:540px;    /* inhoudsbreedte binnen schermvullende overlays */
+}
+@media (min-width:700px) and (min-height:520px){
+  :root{ --app-w:800px; --maxw:640px; --stage-w:720px; }
+}
+@media (min-width:1100px) and (min-height:520px){
+  :root{ --app-w:1040px; --maxw:640px; --stage-w:760px; }
+}
+.app{ max-width:var(--app-w); }
+
+/* ---------- Tablet en groter: ≥ 700 px breed én ≥ 520 px hoog ----------
+   (de hoogte-eis houdt een telefoon in landscape, bv. 844×390, op de telefoon-lay-out) */
+@media (min-width:700px) and (min-height:520px){
+  .view{ padding:22px 28px 96px; }
+
+  /* Teamlijst (startscherm): teams/clubs naast elkaar in 2 kolommen,
+     kop, banners en knoppen blijven over de volle breedte. */
+  #view-teams.actief{
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:14px; align-content:start;
+  }
+  #view-teams.actief > *{ grid-column:1 / -1; }
+  #view-teams.actief > .lijst-item{ grid-column:auto; }
+
+  /* Team-hub: de vijf tegelsecties in 2 kolommen. :has() → oudere browsers vallen
+     terug op de 1-koloms weergave (niets kapot, alleen minder benut). */
+  #view-team:has(> .hub-sectie){
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    column-gap:32px; align-content:start;
+  }
+  #view-team:has(> .hub-sectie) > *{ grid-column:1 / -1; }
+  #view-team:has(> .hub-sectie) > .hub-sectie{ grid-column:auto; }
+  /* 'Meer' (laatste sectie, tot 6 tegels) loopt over de volle breedte. */
+  #view-team:has(> .hub-sectie) > .hub-sectie:last-of-type{ grid-column:1 / -1; }
+  #view-team:has(> .hub-sectie) > .hub-sectie:last-of-type .hub-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+
+  /* Schermvullende overlays: balk en inhoud op leesbare breedte centreren,
+     scrollbalk blijft aan de schermrand. */
+  .trw-balk,.trb-balk,.tnb-balk,.sj-balk{
+    padding-left:max(14px, calc((100% - var(--stage-w)) / 2 + 14px));
+    padding-right:max(14px, calc((100% - var(--stage-w)) / 2 + 14px));
+  }
+  .trw-stage,.trb-stage,.tnb-stage,.sj-stage{
+    padding-left:max(14px, calc((100% - var(--stage-w)) / 2));
+    padding-right:max(14px, calc((100% - var(--stage-w)) / 2));
+  }
+  /* Oefendiagrammen (bitmaps uit de pdf, ca. 500–800 px breed) en videoblokken:
+     niet groter dan 640 px, anders worden ze op desktop uitgerekt en wazig. */
+  .trw-diagram,.trw-filmblok{ max-width:640px; }
+
+  .wz-body,.wz-topbar{
+    padding-left:max(22px, calc((100% - var(--stage-w)) / 2));
+    padding-right:max(22px, calc((100% - var(--stage-w)) / 2));
+  }
+}
+
+/* Wedstrijdscherm: veld links (blijft in beeld), klok/wissels/log rechts.
+   Bediening is tik-gebaseerd (geen slepen), dus twee kolommen raakt de
+   interactie niet. */
+@media (min-width:700px) and (min-height:520px){
+  #view-wedstrijd.actief{
+    display:grid; grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);
+    grid-template-rows:repeat(11,auto) 1fr;   /* laatste rij slokt de veldhoogte op */
+    column-gap:26px; align-content:start;
+  }
+  #view-wedstrijd.actief > *{ grid-column:2; }
+  #view-wedstrijd.actief > .kop{ grid-column:1 / -1; }
+  #view-wedstrijd.actief > .veld-wrap{
+    grid-column:1; grid-row:2 / 13; align-self:start;
+    position:sticky; top:16px;
+  }
+}
+
+/* Tactiekbord / loopscherm op een liggend scherm: het veld behoudt zijn 4:3
+   in plaats van uit te rekken tot de volle breedte. */
+@media (min-width:700px) and (min-height:520px) and (orientation:landscape){
+  .tb-veld-wrap,.lp-veld-wrap{
+    width:auto; height:100%; max-width:100%; max-height:100%; aspect-ratio:4/3;
+  }
+}
+
+/* ---------- Desktop (≥ 1100 px) ---------- */
+@media (min-width:1100px) and (min-height:520px){
+  .view{ padding:26px 32px 96px; }
+  /* Tabbladen met lijsten en tabellen: leesbare breedte, gecentreerd
+     (de hub en het wedstrijdscherm gebruiken wél de volle breedte). */
+  #view-team:not(:has(> .hub-sectie)) > *{
+    max-width:var(--stage-w); margin-left:auto; margin-right:auto;
+  }
+}
