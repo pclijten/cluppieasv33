@@ -3803,15 +3803,20 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   #view-teams.actief > *{ grid-column:1 / -1; }
   #view-teams.actief > .lijst-item{ grid-column:auto; }
 
-  /* Team-hub: de vijf tegelsecties in 2 kolommen. :has() → oudere browsers vallen
-     terug op de 1-koloms weergave (niets kapot, alleen minder benut). */
-  #view-team.actief:has(> .hub-sectie){
+  /* Team-hub én club-hub (Beheer-overzicht): dezelfde .hub-sectie/.hub-grid
+     structuur, dus dezelfde 2-koloms behandeling — anders blijft de
+     club-hub op tablet/desktop hangen in de mobiele 3-koloms .hub-grid
+     uitgerekt over de volle (nu bredere) view-breedte, met veel te grote
+     vierkante tegels tot gevolg. :has() → oudere browsers vallen terug op
+     de 1-koloms weergave (niets kapot, alleen minder benut). */
+  #view-team.actief:has(> .hub-sectie), #view-club.actief:has(> .hub-sectie){
     display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
     column-gap:32px; align-content:start;
   }
-  #view-team.actief:has(> .hub-sectie) > *{ grid-column:1 / -1; }
-  #view-team.actief:has(> .hub-sectie) > .hub-sectie{ grid-column:auto; }
-  /* 'Meer' (laatste sectie, tot 6 tegels) loopt over de volle breedte. */
+  #view-team.actief:has(> .hub-sectie) > *, #view-club.actief:has(> .hub-sectie) > *{ grid-column:1 / -1; }
+  #view-team.actief:has(> .hub-sectie) > .hub-sectie, #view-club.actief:has(> .hub-sectie) > .hub-sectie{ grid-column:auto; }
+  /* 'Meer' (laatste sectie, tot 6 tegels) loopt over de volle breedte — alleen
+     relevant voor de team-hub, de club-hub heeft geen sectie met zoveel tegels. */
   #view-team.actief:has(> .hub-sectie) > .hub-sectie:last-of-type{ grid-column:1 / -1; }
   #view-team.actief:has(> .hub-sectie) > .hub-sectie:last-of-type .hub-grid{ grid-template-columns:repeat(6,minmax(0,1fr)); }
 
@@ -3866,8 +3871,11 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   /* Tabbladen met lijsten en tabellen: leesbare breedte, gecentreerd via padding
      op de view zelf (de hub en het wedstrijdscherm gebruiken wél de volle breedte).
      Bewust géén margin:auto op de kinderen: bestaande !important-marges (bv. op
-     .sectie-kop) winnen daarvan en liggen dan uit de pas met de rest. */
-  #view-team.actief:not(:has(> .hub-sectie)){
+     .sectie-kop) winnen daarvan en liggen dan uit de pas met de rest.
+     [20260921] #view-club had deze centrering nog niet — club-tabs als Teams,
+     Trainingen, Berichten, Instellingen bleven daardoor tot nu toe over de volle
+     (nu bredere) breedte uitgerekt op desktop. */
+  #view-team.actief:not(:has(> .hub-sectie)), #view-club.actief:not(:has(> .hub-sectie)){
     padding-left:max(32px, calc((100% - var(--stage-w)) / 2));
     padding-right:max(32px, calc((100% - var(--stage-w)) / 2));
   }
