@@ -10,6 +10,7 @@ import {
 import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20260902d';
 import { teltMee } from './opkomst.js?v=20260908a';
 import { analyseWedstrijd } from './analyse.js?v=20260905a';
+import { htmlCoordinatorenBeheer, koppelCoordinatorenBeheer } from './coordinatoren.js?v=20260918a';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260902d';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260902d';
 import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20260902d';
@@ -31,7 +32,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260908a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260918a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -74,7 +75,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260908a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260918a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1698,6 +1699,7 @@ function htmlClubInstel(teams = [], syncStatus = {}){
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5;margin-top:10px">Nieuwe wedstrijden, trainingen, beoordelingen en teamevaluaties van alle teams tellen vanaf dat moment mee voor het nieuwe seizoen. Oude data blijft bewaard en is terug te zien via het seizoenfilter in de statistieken (⏱).</p>
       <button class="knop licht vol" id="migreerSeizoen" style="margin-top:10px">🗂️ Migreer bestaande data naar dit seizoen</button>
     </div>
+    ${htmlCoordinatorenBeheer(teams)}
     ${(() => {
       const modus = S.club.themaModus || 'coachKiest';
       const opt = (waarde, titel, sub) => `
@@ -2087,6 +2089,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     if (nieuwSeizoenBtn) nieuwSeizoenBtn.onclick = () => modalNieuwSeizoen();
     const migreerBtn = v.querySelector('#migreerSeizoen');
     if (migreerBtn) migreerBtn.onclick = () => migreerSeizoenData(teams);
+    koppelCoordinatorenBeheer(v, teams);
     // Clubbreed thema: 'donker'|'licht' forceren, of 'coachKiest' vrijlaten.
     // Wegschrijven naar het clubdocument; de seizoen-listener bij elke coach
     // pikt de wijziging live op en past het thema toe (clubdwang overschrijft
@@ -2382,6 +2385,7 @@ function modalImportPreview(geparseerd){
       gebruikt.push(code);
       const teamRef = await addDoc(collection(db,'teams'), {
         naam: t.naam, categorie: cat, geslacht, format, code,
+        bouw: bouwVanCategorie(cat),
         club: S.clubId, clubNaam: S.club.naam,
         leden: {[S.user.uid]: true},
         ledenInfo: {[S.user.uid]: {naam: S.user.displayName || S.user.email}},

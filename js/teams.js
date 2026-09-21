@@ -8,7 +8,7 @@ import {
   bewaarPositie, leesPositie, wisPositie
 } from './state.js?v=20260902d';
 import {
-  CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo,
+  CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, bouwVanCategorie, BOUWEN,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek, afwezigRedenInfo
 } from './config.js?v=20260902d';
@@ -21,8 +21,8 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202609
 import { tekenPwaBanner } from './pwa.js?v=20260811a';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20260908a';
-import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20260908a';
+} from './wedstrijd.js?v=20260918a';
+import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20260918a';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -34,7 +34,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20260908a')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20260918a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlProfiel,
@@ -42,9 +42,9 @@ import {
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn, modalLeenOverlay, definitiefOverzetten,
   modalGast, verwijderGast, modalKoppelGast, modalNotitie,
-} from './teams-spelers.js?v=20260908a';
+} from './teams-spelers.js?v=20260918a';
 import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20260902d';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260908a';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20260918a';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalEigenDag, modalPlanDag,
@@ -55,13 +55,13 @@ import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
 } from './teams-hub.js?v=20260905a';
-import { htmlHandleiding } from './teams-handleiding.js?v=20260908a';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20260908a';
+import { htmlHandleiding } from './teams-handleiding.js?v=20260918a';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20260918a';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20260902d';
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260818e';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20260908a' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20260918a' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -137,7 +137,7 @@ export function teamTabTerug(){
 
 /* ==================== TEAMS-OVERZICHT ==================== */
 export function startTeams(){
-  stopUnsubs('teams','clubs','gelezen');
+  stopUnsubs('teams','clubs','gelezen','coord_onder','coord_midden','coord_boven');
   if (!S.unsub.content) S.unsub.content = startContentListener();
   const meldFout = (naam) => (err) => {
     console.error(`[Cluppie] Listener "${naam}" kon niet lezen:`, err.code, err.message);
@@ -172,7 +172,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20260908a').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20260918a').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -193,6 +193,20 @@ export function startTeams(){
     snap.docs.forEach(d => S.trainingenGelezen[d.id] = true);
     if (S.team) renderTeam();
   }, meldFout('gelezen'));
+  // [20260918] Bouwcoördinator-toegang: los van S.teams (waar je alleen in
+  // zit als je zelf coach bent), 3 losse queries — één per bouw — zodat ook
+  // een coördinator die zelf geen team coacht meteen zijn bouw(en) ziet.
+  // Firestore ondersteunt geen OR over verschillende mapkeys in één query,
+  // vandaar drie kleine losse listeners i.p.v. één grote.
+  S.coordinatorBouwen = S.coordinatorBouwen || [];
+  BOUWEN.forEach(b => {
+    const qb = query(collection(db,'clubs'), where(`bouwCoordinatoren.${b.id}.${S.user.uid}`, '==', true));
+    S.unsub['coord_'+b.id] = onSnapshot(qb, snap => {
+      S.coordinatorBouwen = S.coordinatorBouwen.filter(x => x.bouw !== b.id)
+        .concat(snap.docs.map(d => ({clubId:d.id, clubNaam:d.data().naam, bouw:b.id, bouwNaam:b.naam})));
+      if (!S.teamId && !S.clubId) renderTeams();
+    }, meldFout('coordinator-'+b.id));
+  });
   renderTeams(); toon('teams');
 }
 
@@ -557,6 +571,15 @@ export function renderTeams(){
           <span class="pijl">›</span>
         </button>`).join('')}` : ''}
 
+    ${S.coordinatorBouwen.length ? `<div class="sectie-kop" style="margin-top:4px">Bouwen die je coördineert</div>
+      ${S.coordinatorBouwen.map(b => `
+        <button class="lijst-item" data-open-bouw="${b.clubId}|${b.bouw}">
+          <div class="club-shirt"><img src="icons/asv-schild.png" alt="" class="club-schild"></div>
+          <div class="li-tekst"><div class="titel">${esc(b.bouwNaam)} <span class="club-badge">coördinator</span></div>
+          <div class="meta">${esc(b.clubNaam || 'club')}</div></div>
+          <span class="pijl">›</span>
+        </button>`).join('')}` : ''}
+
     ${S.teams.length ? `<div class="sectie-kop">Mijn teams</div>
       ${S.teams.map(t => `
         <button class="lijst-item" data-open-team="${t.id}">
@@ -580,10 +603,14 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260908a').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20260918a').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-bouw]').forEach(b => b.onclick = () => {
+    const [clubId, bouw] = b.dataset.openBouw.split('|');
+    import('./bouw-hub.js?v=20260918a').then(m => m.openBouwHub(clubId, bouw));
+  });
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260908a').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20260918a').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -677,6 +704,7 @@ export function modalNieuwTeam(clubId = null){
     const bestaande = [...S.teams.map(t => t.code), ...(S.clubTeams||[]).map(t => t.code)].filter(Boolean);
     const data = {
       naam, categorie: cat, geslacht, format: catInfo(cat).format,
+      bouw: bouwVanCategorie(cat),
       code: teamCode(naam, afk, bestaande),
       leden: {[S.user.uid]: true},
       ledenInfo: {[S.user.uid]: {naam: S.user.displayName || S.user.email}},
@@ -686,7 +714,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20260908a').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20260918a').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -763,6 +791,11 @@ export function openTeam(teamId, beginTab = 'hub', opties = {}){
   try { localStorage.setItem('cluppie_laatste_team', teamId); } catch(e){}
   bewaarPositie();
   S._pendingNieuweWedstrijd = !!opties.nieuweWedstrijd;
+  // [20260918] Vanuit de bouw-hub (coördinator) kan een speler direct naar
+  // zijn profiel navigeren — maar S._beoordeelProfiel pas zetten zodra de
+  // spelers-listener daadwerkelijk data heeft, anders valt htmlProfiel()'s
+  // eigen guard er meteen weer overheen (zie de spelers-listener hieronder).
+  S._pendingBeoordeelProfiel = opties.beoordeelProfiel || null;
   S._kompasIdx = null; // vers willekeurig startpunt voor het leerlijn-blok
   // presentie altijd ingeklapt openen bij elke teamopening (alle maanden dicht)
   S._presentieOpen = new Set();
@@ -794,6 +827,10 @@ export function openTeam(teamId, beginTab = 'hub', opties = {}){
   S.unsub.spelers = onSnapshot(collection(db,'teams',teamId,'spelers'), snap => {
     S._eigenSpelers = snap.docs.map(d => ({id:d.id, ...d.data()}));
     herbouwSpelers();
+    if (S._pendingBeoordeelProfiel){
+      const pid = S._pendingBeoordeelProfiel; S._pendingBeoordeelProfiel = null;
+      if (speler(pid)) { S._beoordeelProfiel = pid; S.teamTab = 'spelers'; }
+    }
     if (!S.wedstrijdId) renderTeam(); else renderWedstrijd();
   }, luisterfout('spelers'));
   S.unsub.wedstrijden = onSnapshot(collection(db,'teams',teamId,'wedstrijden'), snap => {
@@ -1799,7 +1836,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260908a').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260918a').then(m => m.openChatbot());
     const tactiekKnop = v.querySelector('[data-open-tactiek]');
     if (tactiekKnop) tactiekKnop.onclick = () =>
       import('./tactiekbord.js?v=20260902d').then(m => m.openTactiekBibliotheek());
@@ -1914,7 +1951,7 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20260908a').then(m => m.openChatbot());
+      import('./chatbot.js?v=20260918a').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
@@ -2195,7 +2232,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260908a').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20260918a').then(m => m.modalUitnodig(S.team));
     v.querySelector('#wijzigCode').onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     v.querySelector('#iNaamOk').onclick = async () => {
@@ -2238,7 +2275,7 @@ function koppelTeamTab(v, tab){
     });
     v.querySelector('#iCategorie').onchange = async e => {
       const cat = e.target.value;
-      const data = cat ? {categorie: cat, format: catInfo(cat).format} : {categorie: null};
+      const data = cat ? {categorie: cat, format: catInfo(cat).format, bouw: bouwVanCategorie(cat)} : {categorie: null, bouw: null};
       await updateDoc(doc(db,'teams',S.teamId), data);
       meld(cat ? cat + ' ingesteld' : 'Categorie verwijderd');
     };

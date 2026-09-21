@@ -18,6 +18,7 @@ import {
   wisselReden, isToernooi
 } from './config.js?v=20260902d';
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260905a';
+import { isBouwCoordinator } from './coordinatoren.js?v=20260918a';
 import { ico } from './icons.js?v=20260825b';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260902d';
@@ -29,7 +30,7 @@ import { opkomstVoor, teltMee } from './opkomst.js?v=20260908a';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260908a');
+  const m = await import('./teams.js?v=20260918a');
   m.renderTeam();
 }
 
@@ -305,7 +306,7 @@ export function htmlProfiel(){
           <span class="tx">Ingeleend van <b>${esc(p._bronTeamNaam||'ander team')}</b>.${gastNoot}</span>
           <button data-uitleen-terug="${p._leenId}">Terugzetten</button>
         </div>
-        ${isBeheerder() ? `<button class="knop vol" style="margin-bottom:12px" data-uitleen-definitief="${p._leenId}">Definitief toevoegen aan ${esc(S.team.naam)}</button>` : ''}`;
+        ${(isBeheerder() || isBouwCoordinator(S.team.bouw)) ? `<button class="knop vol" style="margin-bottom:12px" data-uitleen-definitief="${p._leenId}">Definitief toevoegen aan ${esc(S.team.naam)}</button>` : ''}`;
       }
       const u = actieveUitleningVoor(p.id);
       if (!u) return '';
@@ -711,6 +712,7 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   const scores = {...(bestaande?.scores || {})};
   const notities = {...(bestaande?.notities || {})};
   const moment = bestaande?.bron?.label || '';
+  const officieel = bestaande?.officieel === true;
 
   const domeinKaart = (d) => `
     <div class="kaart">
@@ -726,6 +728,10 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</p>
     <div class="veldgroep"><label>Moment</label>
       <input class="invoer" id="mVbMoment" value="${esc(moment)}" placeholder="Bijv. Kwartaalmeting Q3"></div>
+    <label class="lid-rij" style="cursor:pointer;align-items:flex-start;gap:10px;padding:10px 12px">
+      <input type="checkbox" id="mVbOfficieel" ${officieel ? 'checked' : ''} style="margin-top:3px">
+      <span style="font-size:calc(13px * var(--fs))">Dit is de <b>officiële halfjaarevaluatie</b> — telt mee in het voortgangsoverzicht van de bouwcoördinator en wordt in het ontwikkelprofiel bovenaan getoond.</span>
+    </label>
     ${SKILLS.map(domeinKaart).join('')}
     <button class="knop vol fluo" id="mVbOk" style="margin-top:6px">${bestaande?'Bijwerken':'Beoordeling opslaan'}</button>
     ${bestaande?`<button class="knop vol gevaar" id="mVbWeg" style="margin-top:8px">Verwijderen</button>`:''}
@@ -745,6 +751,7 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
     const data = {
       soort:'volledig', spelerId, datum:bestaande?.datum || vandaagISO(),
       bron:{type:'los', label:$('#mVbMoment').value.trim() || 'Periodieke meting'},
+      officieel: $('#mVbOfficieel').checked,
       scores, notities, door:deelnemer(), gemaaktMs:Date.now(),
     };
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
@@ -992,7 +999,9 @@ function openLeerpuntenVoorSnapshot(leerpunten){
 
 // Basisgegevens die met het leen-record meereizen zodat het ontvangende team
 // de speler kan tonen zonder leesrecht op de spelers-collectie van het bronteam.
-function bouwLeenSnapshot(p){
+// Geëxporteerd zodat bouw-hub.js (coördinator, cross-team uitlenen) exact
+// hetzelfde snapshot bouwt als de reguliere coach-flow hierboven.
+export function bouwLeenSnapshot(p){
   return {
     naam: p.naam,
     achternaam: p.achternaam || null,
@@ -1088,29 +1097,42 @@ export async function modalUitlenen(spelerId){
    (naarTeam): het leen-record wordt verwijderd. Alles wat team B tijdens de
    uitleen op de speler bouwde (presentie/opstelling/evaluatie in teams/B/…)
    blijft in team B staan — bewuste keuze: beide teams houden hun historie. */
-export async function trekUitleningIn(uitleenId){
-  const clubId = S.team?.club;
-  if (!clubId) return;
-  const u = (S.uitleningenUit||[]).find(x => x.id === uitleenId)
-         || (S.uitleningenIn ||[]).find(x => x.id === uitleenId);
-  const naam = u?.snapshot?.naam || 'De speler';
-  const naarEigen = u ? (u.vanTeam === S.teamId ? u.vanTeamNaam : u.vanTeamNaam) : 'het eigen team';
-  const vraag = u && u.naarTeam === S.teamId
+/* [20260918] Generalisatie: accepteert nu ook een volledig uitlening-object
+   (i.p.v. alleen een id) plus een expliciete clubId, zodat dit ook buiten
+   teamcontext werkt — de bouw-hub (coördinator, meerdere teams tegelijk)
+   heeft geen S.team/S.uitleningenIn/S.uitleningenUit beschikbaar. Bestaande
+   aanroepen met alleen een id-string blijven ongewijzigd werken. */
+export async function trekUitleningIn(uitleenIdOfObject, clubIdOverride){
+  const u = typeof uitleenIdOfObject === 'string'
+    ? (S.uitleningenUit||[]).find(x => x.id === uitleenIdOfObject) || (S.uitleningenIn||[]).find(x => x.id === uitleenIdOfObject)
+    : uitleenIdOfObject;
+  const clubId = clubIdOverride || S.team?.club;
+  if (!clubId || !u) return meld('Uitlening niet gevonden');
+  const naam = u.snapshot?.naam || 'De speler';
+  const vraag = (S.teamId && u.naarTeam === S.teamId)
     ? `${naam} terugzetten naar ${u.vanTeamNaam}? Hij verdwijnt dan uit jouw selectie.`
-    : `${naam} terughalen? Hij verdwijnt direct bij ${u?.naarTeamNaam || 'het andere team'} en komt terug in jouw selectie.`;
+    : `${naam} terughalen? Hij verdwijnt direct bij ${u.naarTeamNaam} en komt terug bij ${u.vanTeamNaam}.`;
   if (!confirm(vraag)) return;
   try {
-    await deleteDoc(doc(db,'clubs',clubId,'uitleningen',uitleenId));
+    await deleteDoc(doc(db,'clubs',clubId,'uitleningen',u.id));
     telGebruik('uitlenen_intrek');
     // Lokale lijsten meteen bijwerken zodat de UI klopt ook als de
     // listener-snapshot voor deze eigen delete (tijdelijk) uitblijft.
-    S.uitleningenUit = (S.uitleningenUit||[]).filter(u => u.id !== uitleenId);
-    S.uitleningenIn  = (S.uitleningenIn ||[]).filter(u => u.id !== uitleenId);
+    // Alleen relevant/gevuld als we in teamcontext zitten — buiten teams.js
+    // om (bouw-hub) zijn dit sowieso lege arrays, dus onschuldig.
+    S.uitleningenUit = (S.uitleningenUit||[]).filter(x => x.id !== u.id);
+    S.uitleningenIn  = (S.uitleningenIn ||[]).filter(x => x.id !== u.id);
     S._beoordeelProfiel = null;
-    herrenderTeam();
+    if (S.teamId) herrenderTeam();
     meld('Speler teruggezet');
+    return true;
   } catch(e){
-    meld('Terugzetten mislukt: ' + (e.code||e.message));
+    if (e.code === 'permission-denied'){
+      meld('Terugzetten mislukt: je hebt geen toegang (meer) tot een van de betrokken teams.');
+    } else {
+      meld('Terugzetten mislukt: ' + (e.code||e.message));
+    }
+    return false;
   }
 }
 
@@ -1170,17 +1192,25 @@ export function modalLeenOverlay(spelerId){
   };
 }
 
-/* Definitief overzetten — ALLEEN clubadmin. Echte verhuizing: het
+/* Definitief overzetten — clubadmin, of de bouwcoördinator van het
+   ontvangende team. Echte verhuizing: het
    spelerdocument wordt naar het ontvangende team gekopieerd (met de overlay
    als nieuwe basiswaarde), daarna bij het bronteam verwijderd en het
    leen-record opgeruimd. De speler-id verandert bewust NIET, zodat de
-   historie in beide teams intact blijft. */
-export async function definitiefOverzetten(uitleenId){
-  const clubId = S.team?.club;
+   historie in beide teams intact blijft.
+   [20260918] Zelfde generalisatie als trekUitleningIn hierboven: accepteert
+   nu ook een volledig uitlening-object + expliciete clubId/bouwHint, voor
+   gebruik buiten teamcontext (bouw-hub). `bouwHint` is de bouw waarin de
+   actie wordt geïnitieerd — bij ontbreken valt dit terug op S.team.bouw
+   (ongewijzigd gedrag voor bestaande aanroepen). */
+export async function definitiefOverzetten(uitleenIdOfObject, clubIdOverride, bouwHint){
+  const u = typeof uitleenIdOfObject === 'string'
+    ? (S.uitleningenIn||[]).find(x => x.id === uitleenIdOfObject) || (S.uitleningenUit||[]).find(x => x.id === uitleenIdOfObject)
+    : uitleenIdOfObject;
+  const clubId = clubIdOverride || S.team?.club;
   if (!clubId) return meld('Geen club-context');
-  if (!isBeheerder()) return meld('Alleen de clubadmin kan een speler definitief overzetten');
-  const u = (S.uitleningenIn||[]).find(x => x.id === uitleenId)
-         || (S.uitleningenUit||[]).find(x => x.id === uitleenId);
+  const bouw = bouwHint || S.team?.bouw;
+  if (!isBeheerder() && !isBouwCoordinator(bouw)) return meld('Alleen de clubadmin of de bouwcoördinator kan een speler definitief overzetten');
   if (!u) return meld('Uitlening niet gevonden');
   const naam = u.snapshot?.naam || 'De speler';
   if (!confirm(`${naam} definitief toevoegen aan ${u.naarTeamNaam}? De speler verhuist echt: weg bij ${u.vanTeamNaam}, voortaan eigendom van ${u.naarTeamNaam}. De historie in beide teams blijft behouden.`)) return;
@@ -1207,12 +1237,18 @@ export async function definitiefOverzetten(uitleenId){
     }
     // origineel bij bronteam verwijderen + leen-record opruimen
     await deleteDoc(bronRef);
-    await deleteDoc(doc(db,'clubs',clubId,'uitleningen',uitleenId));
+    await deleteDoc(doc(db,'clubs',clubId,'uitleningen',u.id));
     telGebruik('uitlenen_definitief');
     meld(`${naam} nu definitief bij ${u.naarTeamNaam}`);
-    herrenderTeam();
+    if (S.teamId) herrenderTeam();
+    return true;
   } catch(e){
-    meld('Overzetten mislukt: ' + (e.code||e.message));
+    if (e.code === 'permission-denied'){
+      meld('Overzetten mislukt: je hebt niet over beide teams (coach- of coördinatorrechten) genoeg toegang.');
+    } else {
+      meld('Overzetten mislukt: ' + (e.code||e.message));
+    }
+    return false;
   }
 }
 
