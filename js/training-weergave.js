@@ -37,7 +37,11 @@ export function sluitTrainingWeergave(){
   _overlay.classList.remove('open');
   _overlay.querySelector('.trw-stage').innerHTML = '';
   // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
-  const nb = _overlay.querySelector('.trw-notitie-knop');
+  // ("not(.trw-deel-knop)": de deel-knop hergebruikt dezelfde stijl-klasse,
+  // dus zonder deze uitzondering kon deze regel per ongeluk de deel-knop
+  // verwijderen i.p.v. de notitie-knop — resetTrainingDelen() hieronder
+  // ruimt de deel-knop al op zijn eigen manier op).
+  const nb = _overlay.querySelector('.trw-notitie-knop:not(.trw-deel-knop)');
   if (nb) nb.remove();
   import('./training-aantekeningen.js?v=20260922c').then(m => m.resetAantekeningen()).catch(() => {});
   import('./training-video.js?v=20260922c').then(m => m.resetTrainingVideos()).catch(() => {});

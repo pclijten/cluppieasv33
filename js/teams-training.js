@@ -167,7 +167,7 @@ export function htmlPresentieTraining(){
             ? `<span class="pr-afw">${aanwezig} aanwezig${laat.length?` · ${laat.length} te laat`:''} · ${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
             : `<span class="pr-allen">✓ Iedereen aanwezig (${aanwezig})${laat.length?` · ${laat.length} te laat`:''}</span>`}
         </div>
-        <span class="acties"><button title="Aanpassen">✏️</button></span>
+        <span class="acties"><button title="Aanpassen">${ico('admin-edit', 16)}</button></span>
       </div>`;
   };
 
@@ -777,6 +777,16 @@ export function modalPresentie(bestaande = null, opties = {}){
   if (kanDatumWijzigen){
     werkMeldingBij();
     const seg = $('#mPresDatumSeg'), input = $('#mPresDatumInput');
+    // [20260922] Bugfix: input.focus()/showPicker() werden synchroon aangeroepen
+    // in dezelfde klik die het veld net van display:none naar zichtbaar zette —
+    // op mobiel is dat element dan nog niet "geschilderd", waardoor de
+    // datumkiezer niet opende en Paul een tweede keer moest tikken. Een frame
+    // laten verstrijken (requestAnimationFrame) voordat de picker geopend wordt
+    // lost dat op.
+    const openPicker = () => {
+      input.focus();
+      if (input.showPicker){ try { input.showPicker(); } catch(e){} }
+    };
     seg.querySelectorAll('button').forEach(b => b.onclick = () => {
       seg.querySelectorAll('button').forEach(x=>x.classList.remove('actief'));
       b.classList.add('actief');
@@ -784,15 +794,14 @@ export function modalPresentie(bestaande = null, opties = {}){
       else {
         input.style.display = '';
         input.value = datum;
-        input.focus();
-        if (input.showPicker){ try { input.showPicker(); } catch(e){} }
+        requestAnimationFrame(openPicker);
       }
     });
     input.onchange = () => { if (input.value) zetDatum(input.value); };
     // Geopend via de knop "Andere datum invullen": meteen de datumkiezer tonen.
     if (startAnder){
       input.value = datum;
-      if (input.showPicker){ try { input.showPicker(); } catch(e){} }
+      requestAnimationFrame(openPicker);
     }
   }
 

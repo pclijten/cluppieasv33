@@ -99,6 +99,17 @@ export async function initAantekeningen({ stage, balk, trainingId }){
 
   _actief = { teamId, trainingId, stage, laagAan: false, notities, actiefItem: null };
 
+  // [20260922] Bugfix: hierboven wordt eerst op Firestore gewacht
+  // (laadNotities), dus als initAantekeningen() twee keer kort na elkaar
+  // wordt aangeroepen (bv. een training snel opnieuw geopend) konden er twee
+  // knoppen naast elkaar ontstaan — Paul zag dan 2 potloden in de balk.
+  // video-knop/deel-knop checken al op een bestaande knop voordat ze er een
+  // aanmaken; dat ontbrak hier. Eerst een eventuele oude knop opruimen.
+  // (":not(.trw-deel-knop)" is nodig omdat de deel-knop deze klasse alleen
+  // voor zijn styling hergebruikt — anders zouden we per ongeluk de deel-
+  // knop kunnen verwijderen in plaats van een oude notitie-knop.)
+  balk.querySelector('.trw-notitie-knop:not(.trw-deel-knop)')?.remove();
+
   // Knop in de balk
   const knop = document.createElement('button');
   knop.className = 'trw-notitie-knop';
