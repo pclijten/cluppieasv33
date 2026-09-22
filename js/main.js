@@ -1,11 +1,11 @@
-import { auth, onAuthStateChanged } from './firebase.js?v=20260922b';
-import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260922b';
+import { auth, onAuthStateChanged } from './firebase.js?v=20260922c';
+import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260922c';
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
-} from './auth.js?v=20260922b';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260922b';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260922b';
-import { initChatbot } from './chatbot.js?v=20260922b';
+} from './auth.js?v=20260922c';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260922c';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260922c';
+import { initChatbot } from './chatbot.js?v=20260922c';
 
 /* [20260921] Training gedeeld met een ouder (?deel=<id>): volledig losse,
    sterk vereenvoudigde flow — geen normale login, geen navigatie, alleen de
@@ -15,14 +15,14 @@ import { initChatbot } from './chatbot.js?v=20260922b';
 const _deelId = new URLSearchParams(location.search).get('deel');
 if (_deelId){
   document.getElementById('opstart')?.remove();
-  import('./deel-boot.js?v=20260922b').then(m => m.bootDeelPagina(_deelId));
+  import('./deel-boot.js?v=20260922c').then(m => m.bootDeelPagina(_deelId));
 } else {
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20260922b').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260922c').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -52,8 +52,8 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20260922b').then(m => m.verlaatClubView());
-S._navClubTerug      = () => import('./club.js?v=20260922b').then(m => m.clubTerugEen());
+S._navVerlaatClub    = () => import('./club.js?v=20260922c').then(m => m.verlaatClubView());
+S._navClubTerug      = () => import('./club.js?v=20260922c').then(m => m.clubTerugEen());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 

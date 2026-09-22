@@ -20,16 +20,16 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260922b';
+import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260922c';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
-} from './firebase.js?v=20260922b';
-import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922b';
-import { ico } from './icons.js?v=20260922b';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260922b';
-import { telGebruik } from './tracker.js?v=20260922b';
-import { analyseWedstrijd } from './analyse.js?v=20260922b';
-import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922b';
+} from './firebase.js?v=20260922c';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
+import { ico } from './icons.js?v=20260922c';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260922c';
+import { telGebruik } from './tracker.js?v=20260922c';
+import { analyseWedstrijd } from './analyse.js?v=20260922c';
+import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
 
 let laag = null;           // DOM-referentie naar de pagina, één instantie tegelijk
 let huidigeContext = null; // {clubId, bouw, teams, data: Map(teamId -> {...}), uitleningen}
@@ -322,10 +322,16 @@ function cijferSpeler(p, beoordelingen){
 const DOM = SKILLS.map(s => s.id);
 const DOM_LABEL = Object.fromEntries(SKILLS.map(s => [s.id, s.kort]));
 
+// [20260922] Gefixt: gebruikte alleen officiële (halfjaar)evaluaties, dus
+// een team met uitsluitend losse-maar-wél-volledige (5-domeinen) metingen
+// toonde hier "nog geen evaluaties" terwijl er gewoon data was. Nu: per
+// speler zijn laatste VOLLEDIGE meting (met domeinscores), ongeacht of hij
+// als officiële halfjaarevaluatie is aangevinkt.
 function teamRadarGemiddelde(team){
   const d = huidigeContext.data.get(team.id);
-  const perSpeler = {}; // spelerId -> laatste officiële meting
-  d.beoordelingen.forEach(b => { if (b.officieel) perSpeler[b.spelerId] = b; });
+  const perSpeler = {}; // spelerId -> laatste volledige meting (chronologisch)
+  [...d.beoordelingen].filter(b => b.scores).sort((a,b) => (a.datum||'').localeCompare(b.datum||''))
+    .forEach(b => { perSpeler[b.spelerId] = b; });
   const metingen = Object.values(perSpeler);
   if (!metingen.length) return null;
   return DOM.map(dom => metingen.reduce((s,m) => s + (m.scores[dom]||0), 0) / metingen.length);
@@ -349,6 +355,19 @@ function teamEvalStatsTeam(team){
   const laatsteVals = Object.values(laatste.scores||{});
   const laatsteGem = laatsteVals.length ? laatsteVals.reduce((s,x)=>s+x,0)/laatsteVals.length : null;
   return { count: evals.length, gemiddeld, laatsteGem, laatsteTegenstander: laatste.tegenstander||'', laatsteDatum: laatste.datum||'' };
+}
+
+// Korte assenlabels voor de 8-categorieën teamevaluatie-radar — TEAM_CATEGORIEEN
+// zelf heeft alleen de volledige naam (te lang voor 8 assen op een kleine radar).
+const TEAM_CAT_KORT = {
+  inzet:'Inzet', samenwerking:'Samen', taken:'Taken', opbouw:'Opbouw',
+  omschakeling:'Omschak.', druk:'Druk', plezier:'Plezier', coachbaar:'Coachb.',
+};
+function teamEvalRadarWaarden(evals){
+  return TEAM_CATEGORIEEN.map(c => {
+    const vals = evals.map(e => e.scores?.[c.id]).filter(v => v != null);
+    return vals.length ? vals.reduce((s,x)=>s+x,0)/vals.length : 0;
+  });
 }
 
 function uitleningenVoorTeam(teamId){
@@ -394,14 +413,15 @@ function aandachtSignalen(){
 
 /* ==================== Radar (gedeeld door dashboard + evaluaties) ==================== */
 const RADAR_KLEUREN = ['var(--accent)','var(--ok)','var(--warn)','#5B8DEF','#B47CE5','#E56CA5'];
-function radarSVG(values, {size=150, labels=true, color='var(--accent)', compare=null, compareColor='var(--ink-2)', gestippeld=true} = {}){
+function radarSVGAssen(values, asLabels, {size=150, labels=true, color='var(--accent)', compare=null, compareColor='var(--ink-2)', gestippeld=true} = {}){
+  const n = asLabels.length;
   const R = size/2 - (labels?26:4), cx=size/2, cy=size/2;
-  const pt=(i,f)=>{ const a=(-90+i*(360/DOM.length))*Math.PI/180; return [cx+R*f*Math.cos(a), cy+R*f*Math.sin(a)]; };
+  const pt=(i,f)=>{ const a=(-90+i*(360/n))*Math.PI/180; return [cx+R*f*Math.cos(a), cy+R*f*Math.sin(a)]; };
   let grid = '';
-  [0.33,0.66,1].forEach(f => { grid += `<polygon points="${DOM.map((_,i)=>pt(i,f).join(',')).join(' ')}" fill="none" stroke="var(--line-d)" stroke-width="1"/>`; });
-  DOM.forEach((_,i) => { const [x,y]=pt(i,1); grid += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--line-d)" stroke-width="1"/>`; });
+  [0.33,0.66,1].forEach(f => { grid += `<polygon points="${asLabels.map((_,i)=>pt(i,f).join(',')).join(' ')}" fill="none" stroke="var(--line-d)" stroke-width="1"/>`; });
+  asLabels.forEach((_,i) => { const [x,y]=pt(i,1); grid += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--line-d)" stroke-width="1"/>`; });
   let lab = '';
-  if (labels) DOM.forEach((d,i) => { const [x,y]=pt(i,1.18); lab += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="700" fill="var(--ink-2)">${esc(DOM_LABEL[d])}</text>`; });
+  if (labels) asLabels.forEach((d,i) => { const [x,y]=pt(i,1.18); lab += `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-size="9" font-weight="700" fill="var(--ink-2)">${esc(d)}</text>`; });
   let compareLaag = '';
   if (compare){
     const cpts = compare.map((v,i) => pt(i,v/5).join(',')).join(' ');
@@ -409,6 +429,13 @@ function radarSVG(values, {size=150, labels=true, color='var(--accent)', compare
   }
   const data = values.map((v,i) => pt(i,v/5).join(',')).join(' ');
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${grid}${compareLaag}<polygon points="${data}" fill="${color}" fill-opacity=".35" stroke="${color}" stroke-width="2"/>${lab}</svg>`;
+}
+// Bestaande 5-domeinen speler-radar blijft z'n eigen naam/aanroepvorm houden
+// (overal elders al zo gebruikt) — is nu gewoon een dunne laag bovenop de
+// generieke functie hierboven, die ook de 8-categorieën teamevaluatie-radar
+// bedient (zie TEAM_CAT_KORT/radarTeamEval verderop).
+function radarSVG(values, opts={}){
+  return radarSVGAssen(values, DOM.map(d => DOM_LABEL[d]), opts);
 }
 function radarLegende(a, b){
   return `<div style="display:flex;justify-content:center;gap:16px;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:-2px">
@@ -523,22 +550,22 @@ function renderDashboard(){
       const radarLaatste = w.evalRadar ? teamRadarLaatste(t) : null;
       const radarGem = w.evalRadar ? teamRadarGemiddelde(t) : null;
       const radarHtml = w.evalRadar ? (radarLaatste
-        ? `<div style="text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:170, compare: radarGem})}</div>`
-        : `<div style="text-align:center;color:var(--ink-2);font-size:calc(11.5px * var(--fs));padding:8px 0">Nog geen evaluaties</div>`) : '';
+        ? `<button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:170, compare: radarGem})}</button>`
+        : `<div style="text-align:center;color:var(--ink-2);font-size:calc(11.5px * var(--fs));padding:8px 0">Nog geen evaluaties met domeinscores</div>`) : '';
 
       const teStats = w.teamEval ? teamEvalStatsTeam(t) : null;
       const teKleur = teStats?.laatsteGem ? niveauKleur(Math.max(1, Math.round(teStats.laatsteGem))) : 'var(--surface-2)';
       const teamEvalHtml = w.teamEval ? (teStats ? `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2)">
+        <button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;text-align:left;background:none;border:none;padding:0;margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2);cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">Teamevaluaties · na de wedstrijd</span>
-            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">${teStats.count}×</span>
+            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">${teStats.count}× ›</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
             <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
             <span style="font-size:calc(12px * var(--fs));color:var(--ink-2)">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?` · gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
           </div>
-        </div>` : `
+        </button>` : `
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2);color:var(--ink-2);font-size:calc(11.5px * var(--fs))">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
 
       const leningen = w.uitleningen ? uitleningenVoorTeam(t.id) : [];
@@ -601,6 +628,9 @@ function renderDashboard(){
       else renderEvaluatiesScherm();
     };
   });
+  inhoud.querySelectorAll('[data-bh-team-eval]').forEach(b => {
+    b.onclick = () => renderEvaluatieTeamDetail(b.dataset.bhTeamEval);
+  });
 }
 
 /* ==================== NIVEAU 1 — Teams ==================== */
@@ -622,7 +652,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260922b');
+      const m = await import('./teams.js?v=20260922c');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -730,7 +760,7 @@ function tekenSpelersLijst(filterTeamId){
   inhoud.querySelectorAll('[data-bh-open-speler]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260922b');
+      const m = await import('./teams.js?v=20260922c');
       m.openTeam(b.dataset.bhTeam, 'spelers', {beoordeelProfiel: b.dataset.bhOpenSpeler});
     };
   });
@@ -936,6 +966,11 @@ function renderEvaluatiesScherm(){
   inhoud.querySelectorAll('[data-bh-eval-team]').forEach(b => b.onclick = () => renderEvaluatieTeamDetail(b.dataset.bhEvalTeam));
 }
 
+function volledigLaatste(p){
+  const vol = volledigeMetingen(p);
+  return vol.length ? vol[vol.length-1] : null;
+}
+
 function renderEvaluatieTeamDetail(teamId){
   const team = huidigeContext.teams.find(t => t.id === teamId);
   zetKop(team?.naam || 'Team', renderEvaluatiesScherm);
@@ -945,26 +980,60 @@ function renderEvaluatieTeamDetail(teamId){
   d.beoordelingen.forEach(b => { (perSpeler[b.spelerId] ||= []).push(b); });
   const spelers = d.spelers.map(p => ({...p, metingen: (perSpeler[p.id]||[]).sort((a,b) => (a.datum||'').localeCompare(b.datum||''))}));
 
-  const metData = spelers.filter(p => pinned(p));
-  let radar = `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0;text-align:center">Nog geen officiële evaluaties in dit team.</div>`;
-  if (metData.length){
-    const gem = DOM.map(dom => metData.reduce((s,p) => s + (pinned(p).scores[dom]||0), 0) / metData.length);
-    radar = `<div style="text-align:center">${radarSVG(gem, {size:170})}</div>`;
-  }
+  // [20260922] TWEE radars, zoals gevraagd: de gemiddelde individuele
+  // evaluatie (ongeacht officieel/halfjaar of niet — elke meting mét
+  // domeinscores telt mee) en de wedstrijd-teamevaluatie (8 categorieën,
+  // andere assen dan de 5 speler-domeinen). Beide gemiddelde-licht +
+  // laatste-donker, dezelfde vergelijkstijl als bij een spelerprofiel.
+  const indivGem = teamRadarGemiddelde(team);
+  const indivLaatste = teamRadarLaatste(team);
+  const losseCijfers = spelers.map(p => cijferSpeler(p, p.metingen)).filter(Boolean);
+  const losGem = losseCijfers.length ? (losseCijfers.reduce((s,c)=>s+c.cijfer,0)/losseCijfers.length).toFixed(1).replace('.',',') : null;
+  const indivRadarHtml = indivLaatste
+    ? `<div style="text-align:center">${radarSVG(indivLaatste, {size:170, compare:indivGem})}${indivGem?radarLegende('laatste meting','gemiddelde'):''}</div>`
+    : `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:20px 0;text-align:center">Nog geen volledige (5-domeinen) evaluatie in dit team.${losGem?`<br>Wel ${losseCijfers.length} losse beoordeling${losseCijfers.length===1?'':'en'}, gemiddeld cijfer ${losGem}.`:''}</div>`;
+
+  const evals = d.teamevaluaties || [];
+  const evalsChron = [...evals].sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  const teGem = evals.length ? teamEvalRadarWaarden(evals) : null;
+  const teLaatste = evalsChron.length ? teamEvalRadarWaarden([evalsChron[evalsChron.length-1]]) : null;
+  const teAsLabels = TEAM_CATEGORIEEN.map(c => TEAM_CAT_KORT[c.id] || c.naam.slice(0,6));
+  const teRadarHtml = teLaatste
+    ? `<div style="text-align:center">${radarSVGAssen(teLaatste, teAsLabels, {size:170, compare:teGem})}${radarLegende('laatste wedstrijd','gemiddelde')}</div>`
+    : `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:20px 0;text-align:center">Nog geen teamevaluatie na een wedstrijd.</div>`;
+  const teHistorieHtml = evalsChron.length ? `
+    <div class="sectie-kop">Historie — na de wedstrijd</div>
+    ${[...evalsChron].reverse().map(ev => {
+      const vals = Object.values(ev.scores||{});
+      const gem = vals.length ? (vals.reduce((s,x)=>s+x,0)/vals.length) : null;
+      return `<button class="lijst-item" data-bh-open-teameval="${ev.wedstrijdId||''}">
+        <div class="team-shirt" style="background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
+        <div class="li-tekst">
+          <div class="titel">${esc(ev.tegenstander||'Onbekend')}</div>
+          <div class="meta">${esc(ev.datum||'')}</div>
+        </div>
+        <span class="pijl">›</span>
+      </button>`;
+    }).join('')}` : '';
 
   inhoud.innerHTML = `
     <div class="kaart">
-      <div class="sectie-kop" style="margin:0 0 4px">Teamprofiel — halfjaarevaluatie</div>
-      ${radar}
+      <div class="sectie-kop" style="margin:0 0 4px">Teamprofiel — individuele evaluaties</div>
+      ${indivRadarHtml}
     </div>
+    <div class="kaart" style="margin-top:10px">
+      <div class="sectie-kop" style="margin:0 0 4px">Teamprofiel — na de wedstrijd</div>
+      ${teRadarHtml}
+    </div>
+    ${teHistorieHtml}
     <div class="sectie-kop">Spelers</div>
     ${spelers.map(p => {
-      const m = pinned(p);
+      const m = volledigLaatste(p);
       if (m){
         const extra = p.metingen.length > 1 ? ` · ${p.metingen.length}×` : '';
         return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
           <div class="li-tekst" style="flex:1">
-            <div class="titel">${esc(p.naam)}${esc(extra)}</div>
+            <div class="titel">${esc(p.naam)}${esc(extra)}${m.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
             <div class="meta" style="display:flex;gap:5px;margin-top:4px">
               ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${KLEUR_CIJFER[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
             </div>
@@ -972,7 +1041,7 @@ function renderEvaluatieTeamDetail(teamId){
           <span class="pijl">›</span>
         </button>`;
       }
-      // Geen officiële (halfjaar)evaluatie, maar mogelijk wel losse
+      // Geen volledige (5-domeinen) evaluatie, maar mogelijk wel losse
       // beoordelingen tussendoor — die dan tonen i.p.v. stilzwijgend
       // "nog niet geëvalueerd" te zeggen terwijl er wel degelijk iets is.
       const cijfer = cijferSpeler(p, p.metingen);
@@ -987,6 +1056,46 @@ function renderEvaluatieTeamDetail(teamId){
   inhoud.querySelectorAll('[data-bh-open-profiel]').forEach(b => {
     b.onclick = () => renderSpelerprofielScherm(teamId, spelers.find(x => x.id === b.dataset.bhOpenProfiel));
   });
+  inhoud.querySelectorAll('[data-bh-open-teameval]').forEach(b => {
+    b.onclick = () => renderTeamEvaluatieDetail(teamId, evals.find(e => e.wedstrijdId === b.dataset.bhOpenTeameval));
+  });
+}
+
+/* Alleen-lezen detail van één teamevaluatie (na de wedstrijd): score per
+   categorie, tags en de twee notitievelden. Bewust geen edit hier — dat
+   blijft in de normale teamhub (modalTeamEvaluatie), dit is de
+   coördinator-blik over meerdere teams heen. */
+function renderTeamEvaluatieDetail(teamId, ev){
+  zetKop(ev?.tegenstander || 'Teamevaluatie', () => renderEvaluatieTeamDetail(teamId));
+  const inhoud = laag.querySelector('#bouwhubInhoud');
+  if (!ev){ inhoud.innerHTML = `<div class="kaart leeg">Deze evaluatie kon niet gevonden worden.</div>`; return; }
+  const vals = Object.values(ev.scores||{});
+  const gem = vals.length ? (vals.reduce((s,x)=>s+x,0)/vals.length) : null;
+
+  inhoud.innerHTML = `
+    <div class="kaart">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <div style="font-weight:700;font-size:calc(15px * var(--fs))">${esc(ev.tegenstander||'Onbekend')}</div>
+          <div style="color:var(--ink-2);font-size:calc(12px * var(--fs))">${esc(ev.datum||'')}</div>
+        </div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f;font-weight:800">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
+      </div>
+    </div>
+    <div class="sectie-kop">Per categorie</div>
+    <div class="kaart">
+      ${TEAM_CATEGORIEEN.map(c => {
+        const s = ev.scores?.[c.id];
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--surface-2)">
+          <span style="font-size:calc(13px * var(--fs))">${esc(c.naam)}</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:7px;background:${s?niveauKleur(s):'var(--surface-2)'};color:#12140f;font-weight:700;font-size:calc(12px * var(--fs))">${s||'–'}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:6px">${ev.tags.map(t => `<span class="tag aan">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${ev.notitieGoed ? `<div class="sectie-kop">Wat ging het beste?</div><div class="kaart" style="font-size:calc(13px * var(--fs))">${esc(ev.notitieGoed)}</div>` : ''}
+    ${ev.notitieAandacht ? `<div class="sectie-kop">Aandachtspunt</div><div class="kaart" style="font-size:calc(13px * var(--fs))">${esc(ev.notitieAandacht)}</div>` : ''}
+  `;
 }
 
 function metingLabel(m){

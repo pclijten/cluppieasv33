@@ -20,8 +20,8 @@
    toestemming te delen. Er gaan geen speler- of persoonsgegevens naar de AI of
    naar een export. */
 
-import { db, doc, updateDoc, storage, sRef, uploadBytes, getDownloadURL, deleteObject } from './firebase.js?v=20260922b';
-import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260922b';
+import { db, doc, updateDoc, storage, sRef, uploadBytes, getDownloadURL, deleteObject } from './firebase.js?v=20260922c';
+import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20260922c';
 
 const MAX_BYTES = 100 * 1024 * 1024;   // 100 MB
 const TOEGESTAAN = ['video/mp4', 'video/quicktime', 'video/webm'];   // mp4, mov, webm
