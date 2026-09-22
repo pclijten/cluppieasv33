@@ -7,30 +7,30 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc,
   getDoc, getDocs, query, where, serverTimestamp, documentId
-} from './firebase.js?v=20260811a';
+} from './firebase.js?v=20260922a';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan, isBeheerder
-} from './state.js?v=20260902d';
+} from './state.js?v=20260922a';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20260902d';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260905a';
-import { isBouwCoordinator } from './coordinatoren.js?v=20260921c';
-import { ico } from './icons.js?v=20260825b';
+} from './config.js?v=20260922a';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260922a';
+import { isBouwCoordinator } from './coordinatoren.js?v=20260922a';
+import { ico } from './icons.js?v=20260922a';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260902d';
-import { telGebruik } from './tracker.js?v=20260902d';
-import { opkomstVoor, teltMee } from './opkomst.js?v=20260908a';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20260922a';
+import { telGebruik } from './tracker.js?v=20260922a';
+import { opkomstVoor, teltMee } from './opkomst.js?v=20260922a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260921c');
+  const m = await import('./teams.js?v=20260922a');
   m.renderTeam();
 }
 

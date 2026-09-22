@@ -5,19 +5,19 @@
    (naam wijzigen, teamcode, uitnodigen — modalUitnodig komt uit club.js). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
-} from './firebase.js?v=20260811a';
+} from './firebase.js?v=20260922a';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260902d';
-import { telGebruik } from './tracker.js?v=20260902d';
-import { ico } from './icons.js?v=20260825b';
+} from './state.js?v=20260922a';
+import { telGebruik } from './tracker.js?v=20260922a';
+import { ico } from './icons.js?v=20260922a';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20260902d';
-import { htmlKompas } from './teams-leerlijn.js?v=20260902d';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260818e';
+} from './config.js?v=20260922a';
+import { htmlKompas } from './teams-leerlijn.js?v=20260922a';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922a';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -131,7 +131,6 @@ function dagChipTekst(datum){
    in-/uitklapbaar, plus de afgelast-banner als die geldt. */
 export function htmlPresentieTraining(){
   const vandaag = new Date().toISOString().slice(0,10);
-  const alGeregistreerd = S.presentie.find(p => p.datum === vandaag);
 
   // afgelasting: toon banner als die geldt (geen aflast-knop hier; dat doet de beheerder op het clubscherm)
   const afg = afgelastGeldig();
@@ -156,7 +155,8 @@ export function htmlPresentieTraining(){
           const sp = S.spelers.find(s => s.id === id); if (!sp) return null;
           const reden = (p.afwezigRedenen||{})[id];
           const icoon = reden?.type === 'blessure' ? ' 🩹' : reden?.type === 'reden' ? ' 📋' : '';
-          return esc(sp.naam) + icoon;
+          const opm = reden?.notitie ? ` <span style="color:var(--ink-2);font-style:italic">“${esc(reden.notitie)}”</span>` : '';
+          return esc(sp.naam) + icoon + opm;
         }).filter(Boolean).join(', ')
       : '';
     return `
@@ -171,13 +171,28 @@ export function htmlPresentieTraining(){
       </div>`;
   };
 
-  // groepeer presentie per maand (S.presentie is al gesorteerd nieuw → oud)
+  // [20260921] De eerstvolgende geregistreerde training (vandaag óf een
+  // vooraf ingevulde afmelding voor een latere datum) apart bovenaan, los
+  // van de "nieuw → oud"-geschiedenislijst hieronder. Zonder dit zakte een
+  // net ingevulde afmelding voor vanavond onder een langer geleden ingevulde
+  // afmelding voor bv. woensdag — puur omdat die datum later valt en de
+  // geschiedenis nu eenmaal aflopend sorteert. Feedback van Paul: de
+  // dienstdoende trainer kijkt naar het bovenste blok en moet daar dus
+  // altijd de eerstvolgende training zien, niet de verst-vooruit-geplande.
+  const toekomstig = S.presentie
+    .filter(p => (p.datum||'') >= vandaag)
+    .sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  const eerstvolgende = toekomstig[0] || null;
+
+  // groepeer presentie per maand (S.presentie is al gesorteerd nieuw → oud) —
+  // de eerstvolgende (hierboven al apart getoond) blijft hier buiten beeld.
   let presentieLijst;
-  if (!S.presentie.length){
-    presentieLijst = `<div class="kaart leeg" style="margin-bottom:14px">Nog geen presentie geregistreerd.</div>`;
+  const historie = eerstvolgende ? S.presentie.filter(p => p.id !== eerstvolgende.id) : S.presentie;
+  if (!historie.length){
+    presentieLijst = eerstvolgende ? '' : `<div class="kaart leeg" style="margin-bottom:14px">Nog geen presentie geregistreerd.</div>`;
   } else {
     const perMaand = new Map();
-    for (const p of S.presentie){
+    for (const p of historie){
       const ym = (p.datum||'').slice(0,7);
       if (!perMaand.has(ym)) perMaand.set(ym, []);
       perMaand.get(ym).push(p);
@@ -204,15 +219,15 @@ export function htmlPresentieTraining(){
     }).join('');
   }
 
-  const alGeregAanwezig = alGeregistreerd ? Math.max(0, S.spelers.length - (alGeregistreerd.afwezig||[]).length) : 0;
-  const alGeregAfwezig = alGeregistreerd ? (alGeregistreerd.afwezig||[]).length : 0;
-  const alGeregTeLaat = alGeregistreerd ? (alGeregistreerd.telaat||[]).length : 0;
+  const eerstvolgendeSectie = eerstvolgende ? `
+    <div class="sectie-kop" style="margin-top:0">${eerstvolgende.datum===vandaag ? 'Vandaag' : 'Eerstvolgende training'}</div>
+    <div class="kaart" style="padding:0;margin-bottom:14px;overflow:hidden">${rijHtml(eerstvolgende)}</div>
+    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:16px">${ico('planning-calendar',18)} Andere datum invullen</button>`
+    : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>
+    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:12px">${ico('planning-calendar',18)} Andere datum invullen</button>`;
 
   return `${afgelastSectie}
-    ${alGeregistreerd
-      ? `<div class="kaart" style="background:rgba(226,6,19,.07);border-left:3px solid var(--grass);font-size:calc(13px * var(--fs));margin-bottom:10px">Vandaag al geregistreerd. ${alGeregAanwezig} aanwezig${alGeregTeLaat?` (waarvan ${alGeregTeLaat} te laat)`:''} en ${alGeregAfwezig} afwezig.</div>`
-      : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>`}
-    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:12px">${ico('planning-calendar',18)} Andere datum invullen</button>
+    ${eerstvolgendeSectie}
     ${presentieLijst}`;
 }
 
@@ -557,7 +572,7 @@ export function modalPresentie(bestaande = null, opties = {}){
       ${isAfw ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
         `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-telaat="${p.id}">⏱ Te laat</button></div>
-      ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ${info ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel) — bv. 'last van hamstring' of 'trein gemist'" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ` : isLaat ? `
       <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
       ` : ''}

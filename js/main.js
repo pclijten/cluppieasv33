@@ -1,17 +1,28 @@
-import { auth, onAuthStateChanged } from './firebase.js?v=20260811a';
-import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260902d';
+import { auth, onAuthStateChanged } from './firebase.js?v=20260922a';
+import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling } from './state.js?v=20260922a';
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
-} from './auth.js?v=20260902d';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260921c';
-import { sluitWedstrijd } from './wedstrijd.js?v=20260921c';
-import { initChatbot } from './chatbot.js?v=20260921c';
+} from './auth.js?v=20260922a';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20260922a';
+import { sluitWedstrijd } from './wedstrijd.js?v=20260922a';
+import { initChatbot } from './chatbot.js?v=20260922a';
+
+/* [20260921] Training gedeeld met een ouder (?deel=<id>): volledig losse,
+   sterk vereenvoudigde flow — geen normale login, geen navigatie, alleen de
+   ene gedeelde training + de presentie ervan. Zie js/deel-boot.js voor de
+   uitwerking (anonieme login, link inwisselen, tonen). Deze tak stopt hier:
+   de rest van dit bestand (normale coach-login/app-boot) draait dan niet. */
+const _deelId = new URLSearchParams(location.search).get('deel');
+if (_deelId){
+  document.getElementById('opstart')?.remove();
+  import('./deel-boot.js?v=20260922a').then(m => m.bootDeelPagina(_deelId));
+} else {
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20260921c').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20260922a').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -41,8 +52,8 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20260921c').then(m => m.verlaatClubView());
-S._navClubTerug      = () => import('./club.js?v=20260921c').then(m => m.clubTerugEen());
+S._navVerlaatClub    = () => import('./club.js?v=20260922a').then(m => m.verlaatClubView());
+S._navClubTerug      = () => import('./club.js?v=20260922a').then(m => m.clubTerugEen());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
@@ -85,3 +96,5 @@ onAuthStateChanged(auth, async user => {
     verbergOpstart();
   }
 });
+
+} // einde van de normale (niet-?deel=) boot-tak

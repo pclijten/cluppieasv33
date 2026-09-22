@@ -20,53 +20,100 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260902d';
+import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260922a';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
-} from './firebase.js?v=20260811a';
-import { BOUWEN, bouwNaam, SKILLS } from './config.js?v=20260902d';
-import { ico } from './icons.js?v=20260825b';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260921c';
-import { telGebruik } from './tracker.js?v=20260902d';
-import { analyseWedstrijd } from './analyse.js?v=20260905a';
-import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260908a';
+} from './firebase.js?v=20260922a';
+import { BOUWEN, bouwNaam, SKILLS } from './config.js?v=20260922a';
+import { ico } from './icons.js?v=20260922a';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260922a';
+import { telGebruik } from './tracker.js?v=20260922a';
+import { analyseWedstrijd } from './analyse.js?v=20260922a';
+import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922a';
 
-let laag = null;           // DOM-referentie naar het paneel, één instantie tegelijk
+let laag = null;           // DOM-referentie naar de pagina, één instantie tegelijk
 let huidigeContext = null; // {clubId, bouw, teams, data: Map(teamId -> {...}), uitleningen}
-let terugPil = null;       // zwevend "↩ Terug naar {bouw}"-knopje, buiten het paneel
+let terugPil = null;       // zwevend "↩ Terug naar {bouw}"-knopje, buiten de pagina
 
-/* ==================== Paneel-skelet ==================== */
+/* ==================== Paginaskelet ====================
+   [20260921] Op verzoek van Paul geen "popup" meer (dim-achtergrond + los
+   zwevend paneel), maar een echte volledige pagina — zelfde opmaak als
+   club-hub/teamhub (.kop/.terug, effen achtergrond, volle hoogte). Eigen,
+   bij body geplaatst element (geen router-integratie nodig), maar visueel
+   niet meer te onderscheiden van een "echt" scherm. z-index bewust ONDER
+   .modal-achter (50) — zo stapelt een normale openModal()-sheet (bv. bij
+   het uitlenen) daar vanzelf overheen, zonder trucjes. */
 function bouwLaag(){
   if (laag) return laag;
   const el = document.createElement('div');
-  el.className = 'wo-achter';
-  el.id = 'bouwhubAchter';
+  el.id = 'bouwhubPagina';
+  el.style.cssText = 'position:fixed;inset:0;z-index:45;background:var(--bg);display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;';
   el.innerHTML = `
-    <div class="wo-paneel" id="bouwhubPaneel">
-      <div class="wo-topbar">
-        <button class="terug" id="bouwhubTerugStap" style="display:none">‹</button>
-        <h2 id="bouwhubTitel" style="flex:1">Bouw</h2>
-        <button class="wo-sluit" id="bouwhubSluit" aria-label="Sluiten">${ico('navigation-close', 18) || '✕'}</button>
+    <div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:16px 16px 96px;box-sizing:border-box;">
+      <div class="kop">
+        <button class="terug" id="bouwhubTerugStap">‹</button>
+        <h1 id="bouwhubTitel">Bouw</h1>
+        <button class="terug" id="bouwhubInstellingen" style="display:none" aria-label="Dashboard-onderdelen">${ico('navigation-settings',19)}</button>
       </div>
       <div id="bouwhubInhoud"></div>
     </div>`;
   document.body.appendChild(el);
-  el.addEventListener('click', e => { if (e.target === el) sluitBouwHub(); });
-  el.querySelector('#bouwhubSluit').onclick = sluitBouwHub;
   laag = el;
   return el;
 }
-export function sluitBouwHub(){ if (laag) laag.classList.remove('open'); }
-function verbergTijdelijk(){ if (laag) laag.classList.remove('open'); } // vlak vóór openModal() — zie onder
-function toonWeerOp(){ if (laag) laag.classList.add('open'); }
+export function sluitBouwHub(){ if (laag) laag.style.display = 'none'; }
 
-/* Titel + terug-knop van het paneel zetten. `terugFn` is null op het
-   dashboard (niveau 0, geen terug-knop nodig — sluiten kan altijd via ✕). */
-function zetKop(titel, terugFn){
-  const t = laag.querySelector('#bouwhubTitel'); t.textContent = titel;
-  const b = laag.querySelector('#bouwhubTerugStap');
-  if (terugFn){ b.style.display = ''; b.onclick = terugFn; }
-  else { b.style.display = 'none'; b.onclick = null; }
+/* Titel + terug-knop. Op het dashboard (niveau 0) gaat de terug-knop naar
+   de teamsoverzicht-pagina zelf (de pagina volledig sluiten) — overal
+   daaronder gaat hij naar het opgegeven scherm. Het instellingen-tandwiel
+   rechts is alleen zichtbaar op het dashboard zelf (toonInstellingen=true). */
+function zetKop(titel, terugFn, toonInstellingen){
+  laag.querySelector('#bouwhubTitel').textContent = titel;
+  laag.querySelector('#bouwhubTerugStap').onclick = terugFn || sluitBouwHub;
+  const instelKnop = laag.querySelector('#bouwhubInstellingen');
+  instelKnop.style.display = toonInstellingen ? '' : 'none';
+  instelKnop.onclick = toonInstellingen ? openWidgetInstellingen : null;
+}
+
+/* ==================== Instellingen: welke onderdelen op de teamkaart ====================
+   [20260922] Op verzoek van Paul: zelf kunnen kiezen welke onderdelen op
+   elke teamkaart staan. Puur een weergavevoorkeur (geen teamdata), dus
+   bewust in localStorage i.p.v. Firestore — geldt per toestel, geen
+   rules/sync nodig. Alles staat standaard AAN. */
+const WIDGET_DEFS = [
+  { id:'sportlink',         label:'Laatste Sportlink-uitslag + vorm' },
+  { id:'presentieTraining', label:'Presentie — trainingen' },
+  { id:'presentieWedstrijd',label:'Presentie — wedstrijden' },
+  { id:'evalRadar',         label:'Evaluatie-radar (gemiddelde + laatste)' },
+  { id:'evalVoortgang',     label:'Evaluatie-voortgang (najaar)' },
+  { id:'uitleningen',       label:'Uitleningen die dit team raken' },
+];
+const WIDGET_KEY = 'cluppieBouwhubWidgets';
+function widgetVoorkeuren(){
+  let opgeslagen = {};
+  try { opgeslagen = JSON.parse(localStorage.getItem(WIDGET_KEY) || '{}'); } catch(e){ /* negeren, alles blijft aan */ }
+  const v = {};
+  WIDGET_DEFS.forEach(w => { v[w.id] = opgeslagen[w.id] !== false; });
+  return v;
+}
+function openWidgetInstellingen(){
+  const huidig = widgetVoorkeuren();
+  openModal(`
+    <h2>Dashboard-onderdelen</h2>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:8px">Kies welke onderdelen je op elke teamkaart wilt zien. Geldt alleen op dit toestel.</p>
+    ${WIDGET_DEFS.map(w => `
+      <label style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--surface-2)">
+        <input type="checkbox" data-bh-w="${w.id}" ${huidig[w.id]?'checked':''} style="width:19px;height:19px;flex-shrink:0;accent-color:var(--accent)">
+        <span style="font-size:calc(14px * var(--fs))">${esc(w.label)}</span>
+      </label>`).join('')}
+    <button class="knop vol" id="mWidgetOk" style="margin-top:16px">Klaar</button>`);
+  document.getElementById('mWidgetOk').onclick = () => {
+    const v = {};
+    document.querySelectorAll('[data-bh-w]').forEach(cb => { v[cb.dataset.bhW] = cb.checked; });
+    try { localStorage.setItem(WIDGET_KEY, JSON.stringify(v)); } catch(e){ /* privé-modus e.d. — negeren */ }
+    sluitModal();
+    renderDashboard();
+  };
 }
 
 /* ==================== Zwevende "terug naar bouw"-pil ====================
@@ -92,26 +139,43 @@ function toonTerugPil(){
 }
 function verbergTerugPil(){ if (terugPil){ terugPil.remove(); terugPil = null; } }
 
-/* ==================== Data ophalen (één keer per team) ==================== */
+/* ==================== Data ophalen (één keer per team) ====================
+   [20260921] Elke deel-fetch heeft nu zijn eigen catch die duidelijk logt
+   WELK team en WELKE subcollectie faalde — zonder dat had de generieke
+   "Gegevens ophalen mislukt"-melding geen aanknopingspunt in de console. */
 async function haalTeamData(team){
-  const [ssnap, wsnap, psnap, poulesnap, bsnap] = await Promise.all([
-    getDocs(collection(db,'teams',team.id,'spelers')),
-    getDocs(collection(db,'teams',team.id,'wedstrijden')),
-    getDocs(collection(db,'teams',team.id,'presentie')),
-    getDoc(doc(db,'teams',team.id,'poule','stand')),
-    getDocs(collection(db,'teams',team.id,'beoordelingen')),
+  const veilig = async (label, promise) => {
+    try { return await promise; }
+    catch(e){
+      console.error(`[Cluppie] bouw-hub: "${label}" ophalen mislukt voor team ${team.naam} (${team.id}):`, e.code, e.message);
+      throw e;
+    }
+  };
+  const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap] = await Promise.all([
+    veilig('spelers', getDocs(collection(db,'teams',team.id,'spelers'))),
+    veilig('wedstrijden', getDocs(collection(db,'teams',team.id,'wedstrijden'))),
+    veilig('presentie', getDocs(collection(db,'teams',team.id,'presentie'))),
+    veilig('poule/stand', getDoc(doc(db,'teams',team.id,'poule','stand'))),
+    veilig('poule/uitslagen', getDoc(doc(db,'teams',team.id,'poule','uitslagen'))),
+    veilig('beoordelingen', getDocs(collection(db,'teams',team.id,'beoordelingen'))),
   ]);
   const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend);
   const wedstrijden = wsnap.docs.map(d => d.data()).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
   const presentie = psnap.docs.map(d => d.data()).filter(s => s.datum);
   const stand = poulesnap.exists() ? poulesnap.data() : null;
-  const beoordelingen = bsnap.docs.map(d => d.data()).filter(b => b.soort === 'volledig' && b.spelerId && b.scores);
-  return { spelers, wedstrijden, presentie, stand, beoordelingen };
+  const uitslagen = uitslagensnap.exists() ? uitslagensnap.data() : null;
+  // [20260922] NIET meer filteren op soort==='volledig': een team kan ook
+  // "snelle" beoordelingen hebben (tussendoor bij een wedstrijd/training,
+  // zonder de 5-domeinen-structuur) — die moeten wél zichtbaar zijn in het
+  // evaluatie-overzicht, ook al passen ze niet in de radar (die heeft de
+  // domeinscores nodig en werkt dus verderop alsnog alleen met 'volledig').
+  const beoordelingen = bsnap.docs.map(d => d.data()).filter(b => b.spelerId && (b.scores || b.niveau != null));
+  return { spelers, wedstrijden, presentie, stand, uitslagen, beoordelingen };
 }
 
 export async function openBouwHub(clubId, bouw, isHerbezoek){
   const el = bouwLaag();
-  el.classList.add('open');
+  el.style.display = 'block';
   verbergTerugPil();
 
   // Herbezoek via de terug-pil met dezelfde bouw → cache hergebruiken, geen herfetch.
@@ -129,6 +193,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
     const snap = await getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw)));
     teams = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
   } catch(e){
+    console.error('[Cluppie] bouw-hub: teams ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Teams ophalen mislukt: ${esc(e.code||e.message)}</p>`;
     return;
   }
@@ -146,6 +211,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
     const uitleningen = usnap.docs.map(d => ({id:d.id, ...d.data()})).filter(u => teamIds.has(u.vanTeam) || teamIds.has(u.naarTeam));
     huidigeContext = {clubId, bouw, teams, data, uitleningen};
   } catch(e){
+    console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
     return;
   }
@@ -163,20 +229,77 @@ function presentiePctTeam(team){
   return Math.round(pcts.reduce((s,x) => s+x, 0) / pcts.length);
 }
 
+/* [20260922] Presentie bij WEDSTRIJDEN — een aparte metriek van
+   trainingspresentie hierboven. Er is geen los "aanwezig/afwezig"-veld per
+   wedstrijd; de selectie ZELF is dat al (een coach haalt een afwezige
+   speler eruit). Percentage = gemiddeld over alle daadwerkelijk gespeelde
+   wedstrijden (kwarten>0) van selectiegrootte t.o.v. het volledige team. */
+function presentiePctWedstrijdTeam(team){
+  const d = huidigeContext.data.get(team.id);
+  if (!d.spelers.length) return null;
+  // Oudere wedstrijden hebben soms nog geen selectie-veld (van vóór die
+  // functionaliteit) — die tellen niet mee als "0% aanwezig", maar worden
+  // gewoon overgeslagen; er is dan simpelweg geen data voor die wedstrijd.
+  const gespeeld = d.wedstrijden.filter(w => (analyseWedstrijd(w).kwarten||0) > 0 && Array.isArray(w.selectie));
+  if (!gespeeld.length) return null;
+  const pcts = gespeeld.map(w => Math.min(100, Math.round(w.selectie.length / d.spelers.length * 100)));
+  return Math.round(pcts.reduce((s,x) => s+x, 0) / pcts.length);
+}
+
+/* [20260921] Herschreven om de ECHTE Sportlink-uitslagen te gebruiken
+   (teams/{id}/poule/uitslagen) i.p.v. alleen wat er zelf in de app is
+   gelogd — dat laatste dekte maar een deel van de wedstrijden en miste dus
+   regelmatig doelpunten/uitslagen die Sportlink wél had. */
 function uitslagenTeam(team){
   const d = huidigeContext.data.get(team.id);
-  const gespeeld = d.wedstrijden.filter(w => { const a = analyseWedstrijd(w); return a.kwarten > 0 && Array.isArray(w.goals); });
-  let w=0, g=0, v=0, voor=0, tegen=0, laatste=null;
-  for (const wed of gespeeld){
-    const vv = (wed.goals||[]).filter(x => x.type==='voor').length;
-    const tt = (wed.goals||[]).filter(x => x.type==='tegen').length;
-    voor += vv; tegen += tt;
-    if (vv>tt) w++; else if (vv<tt) v++; else g++;
-    laatste = {tegenstander: wed.tegenstander||'?', voor:vv, tegen:tt, datum:wed.datum};
-  }
   const eigenRij = d.stand?.rijen?.find(r => r.eigen) || null;
-  return { w, g, v, voor, tegen, gespeeld: gespeeld.length, laatste, stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null };
+  const eigenNaam = eigenRij?.team || null;
+  const gespeeld = (d.uitslagen?.rijen || [])
+    .filter(r => r.eigenErin && r.uitslag && eigenNaam)
+    .map(r => {
+      const [a, b] = String(r.uitslag).split('-').map(x => parseInt(x, 10));
+      const thuis = r.thuis === eigenNaam;
+      const voor = thuis ? a : b, tegen = thuis ? b : a;
+      return { datum: r.datum, tegenstander: thuis ? r.uit : r.thuis, voor, tegen, thuis };
+    })
+    .filter(r => Number.isFinite(r.voor) && Number.isFinite(r.tegen))
+    .sort((x,y) => (x.datum||'').localeCompare(y.datum||''));
+  let w=0, g=0, v=0, voorTot=0, tegenTot=0;
+  gespeeld.forEach(r => {
+    voorTot += r.voor; tegenTot += r.tegen;
+    if (r.voor > r.tegen) w++; else if (r.voor < r.tegen) v++; else g++;
+  });
+  const vorm = gespeeld.slice(-5).map(r => r.voor > r.tegen ? 'w' : r.voor < r.tegen ? 'v' : 'g');
+  const laatste = gespeeld[gespeeld.length - 1] || null;
+  return { w, g, v, voor: voorTot, tegen: tegenTot, gespeeld: gespeeld.length, laatste, vorm, stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null };
 }
+
+/* Eén "cijfer" voor een meting, ongeacht het type: bij een volledige
+   evaluatie het gemiddelde van de 5 domeinen, bij een snelle beoordeling
+   gewoon het niveau (dezelfde 1–5-schaal, alleen zonder domein-uitsplitsing). */
+function cijferVan(m){
+  if (m.scores) return DOM.reduce((s,d) => s + (m.scores[d]||0), 0) / DOM.length;
+  if (m.niveau != null) return m.niveau;
+  return null;
+}
+/* Meest recente 2 metingen van een speler (volledig óf snel, door elkaar op
+   datum gesorteerd) → cijfer + trend t.o.v. de voorgaande meting. */
+function cijferSpeler(p, beoordelingen){
+  const metingen = beoordelingen.filter(b => b.spelerId === p.id && cijferVan(b) != null)
+    .sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  if (!metingen.length) return null;
+  const laatste = metingen[metingen.length-1];
+  const vorige = metingen[metingen.length-2];
+  const cijfer = cijferVan(laatste);
+  let trend = null;
+  if (vorige){
+    const vorigCijfer = cijferVan(vorige);
+    if (cijfer > vorigCijfer + 0.15) trend = 'up';
+    else if (cijfer < vorigCijfer - 0.15) trend = 'down';
+  }
+  return { cijfer: Math.round(cijfer*10)/10, trend };
+}
+
 
 const DOM = SKILLS.map(s => s.id);
 const DOM_LABEL = Object.fromEntries(SKILLS.map(s => [s.id, s.kort]));
@@ -190,6 +313,13 @@ function teamRadarGemiddelde(team){
   return DOM.map(dom => metingen.reduce((s,m) => s + (m.scores[dom]||0), 0) / metingen.length);
 }
 
+function uitleningenVoorTeam(teamId){
+  return huidigeContext.uitleningen.filter(u => u.vanTeam === teamId || u.naarTeam === teamId).map(u => ({
+    naam: u.snapshot?.naam || 'Speler',
+    richting: u.vanTeam === teamId ? 'uit' : 'in',
+    ander: teamNaam(u.vanTeam === teamId ? u.naarTeam : u.vanTeam),
+  }));
+}
 function uitgeleendeSpelersBouw(){
   return huidigeContext.uitleningen.map(u => ({
     naam: u.snapshot?.naam || 'Speler', van: u.vanTeamNaam||'?', naar: u.naarTeamNaam||'?',
@@ -268,11 +398,31 @@ function radarOverlaySVG(reeksen, {size=190} = {}){
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${grid}${lagen}${lab}</svg>`;
 }
 
+/* Meest recente vólledige (dus radar-geschikte) evaluatie van het hele team,
+   ongeacht welke speler — samen met teamRadarGemiddelde() hierboven vult dit
+   de "gemiddelde licht, laatste donker"-radar op de teamkaart. */
+function teamRadarLaatste(team){
+  const d = huidigeContext.data.get(team.id);
+  const vol = d.beoordelingen.filter(b => b.scores).sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  if (!vol.length) return null;
+  const m = vol[vol.length-1];
+  return DOM.map(dom => m.scores[dom]||0);
+}
+
 /* ==================== NIVEAU 0 — Dashboard ==================== */
+/* [20260922] Teamkaart verder uitgebreid op verzoek van Paul: naast Sportlink
+   + trainingspresentie nu ook wedstrijdpresentie, een compacte teamradar
+   (gemiddelde vs. meest recente meting — incl. losse beoordelingen in de
+   telling), en de uitleningen die dit specifieke team raken. Welke van deze
+   blokken zichtbaar zijn is instelbaar via het tandwiel rechtsboven
+   (widgetVoorkeuren(), per toestel in localStorage). De losse "Teams
+   vergelijken"-overlay-radar is vervallen: elk team heeft nu zijn eigen
+   radar in de kaart, dat maakte de aparte sectie overbodig. */
 function renderDashboard(){
-  zetKop(bouwNaam(huidigeContext.bouw), null);
+  zetKop(bouwNaam(huidigeContext.bouw), null, true);
   const inhoud = laag.querySelector('#bouwhubInhoud');
   const { teams } = huidigeContext;
+  const w = widgetVoorkeuren();
 
   const signalen = aandachtSignalen();
   const aandachtHtml = signalen.length ? `
@@ -287,55 +437,91 @@ function renderDashboard(){
         </div>`).join('')}
     </div>` : '';
 
-  const presentieHtml = `
-    <div class="sectie-kop">Presentie</div>
-    <div class="kaart">
-      ${teams.map(t => {
-        const pct = presentiePctTeam(t);
-        const kleur = pct==null ? 'var(--ink-2)' : pct>=85 ? 'var(--ok)' : pct>=70 ? 'var(--warn)' : 'var(--uit)';
-        return `<div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;font-size:calc(13px * var(--fs));margin-bottom:4px">
-            <b>${esc(t.naam)}</b><span style="color:${kleur};font-weight:700">${pct==null?'–':pct+'%'}</span>
-          </div>
-          ${pct!=null ? `<div style="height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:${kleur};border-radius:4px"></div></div>` : ''}
-        </div>`;
-      }).join('')}
+  const VORMKLEUR = {w:'var(--ok)', g:'var(--warn)', v:'var(--uit)'};
+  const VORMLETTER = {w:'W', g:'G', v:'V'};
+  const balkje = (label, pct, kleur) => `
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
+        <span>${label}</span><span style="font-weight:700;color:${kleur}">${pct==null?'–':pct+'%'}</span>
+      </div>
+      <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${pct||0}%;background:${kleur};border-radius:3px"></div>
+      </div>
     </div>`;
 
-  const uitslagenHtml = `
-    <div class="sectie-kop">Uitslagen & stand</div>
+  const teamKaartenHtml = `
+    <div class="sectie-kop" style="margin-top:0">Teams in het kort</div>
     ${teams.map(t => {
       const u = uitslagenTeam(t);
-      const positie = u.stand ? `${u.stand.positie}${u.totaalTeams?' van '+u.totaalTeams:''}` : 'nog geen stand';
-      const laatsteTxt = u.laatste ? `Laatst: vs ${esc(u.laatste.tegenstander)} ${u.laatste.voor}-${u.laatste.tegen}` : 'Nog geen wedstrijd gelogd';
-      return `<div class="kaart" style="margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <b style="font-size:calc(14px * var(--fs))">${esc(t.naam)}</b>
-          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));color:var(--accent)">${esc(positie)}</span>
+      const positie = u.stand ? `${u.stand.positie}${u.totaalTeams?'<span style="font-size:.6em;font-weight:600;opacity:.7"> / '+u.totaalTeams+'</span>':''}` : '–';
+      const d = huidigeContext.data.get(t.id);
+
+      const pctTraining = presentiePctTeam(t);
+      const pctTrainingKleur = pctTraining==null ? 'var(--ink-2)' : pctTraining>=85 ? 'var(--ok)' : pctTraining>=70 ? 'var(--warn)' : 'var(--uit)';
+      const pctWedstrijd = presentiePctWedstrijdTeam(t);
+      const pctWedstrijdKleur = pctWedstrijd==null ? 'var(--ink-2)' : pctWedstrijd>=85 ? 'var(--ok)' : pctWedstrijd>=70 ? 'var(--warn)' : 'var(--uit)';
+
+      const officieelCount = new Set(d.beoordelingen.filter(b=>b.officieel).map(b=>b.spelerId)).size;
+      const losseCount = d.beoordelingen.filter(b => !b.officieel).length;
+      const evalTotaal = d.spelers.length;
+      const evalPct = evalTotaal ? Math.round(officieelCount/evalTotaal*100) : 0;
+      const evalKleur = evalPct===100 ? 'var(--ok)' : evalPct>=50 ? 'var(--warn)' : 'var(--uit)';
+
+      const vormDots = u.vorm.length
+        ? `<div style="display:flex;gap:4px">${u.vorm.map(x => `<span style="width:9px;height:9px;border-radius:50%;background:${VORMKLEUR[x]}"></span>`).join('')}</div>`
+        : '';
+      const laatsteHtml = u.laatste
+        ? (() => { const uitk = u.laatste.voor>u.laatste.tegen?'w':u.laatste.voor<u.laatste.tegen?'v':'g';
+            return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)">
+              <span style="background:${VORMKLEUR[uitk]};color:#12140f;font-weight:800;font-size:10px;border-radius:5px;padding:1px 5px">${VORMLETTER[uitk]}</span>
+              vs ${esc(u.laatste.tegenstander)} ${u.laatste.voor}-${u.laatste.tegen}</span>`; })()
+        : `<span style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog geen Sportlink-uitslag</span>`;
+
+      const balkjesRij = [
+        w.presentieTraining ? balkje('Training', pctTraining, pctTrainingKleur) : '',
+        w.presentieWedstrijd ? balkje('Wedstrijd', pctWedstrijd, pctWedstrijdKleur) : '',
+      ].filter(Boolean);
+
+      const radarLaatste = w.evalRadar ? teamRadarLaatste(t) : null;
+      const radarGem = w.evalRadar ? teamRadarGemiddelde(t) : null;
+      const radarHtml = w.evalRadar ? (radarLaatste
+        ? `<div style="text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:130, labels:false, compare: radarGem})}</div>`
+        : `<div style="text-align:center;color:var(--ink-2);font-size:calc(11.5px * var(--fs));padding:8px 0">Nog geen evaluaties</div>`) : '';
+
+      const leningen = w.uitleningen ? uitleningenVoorTeam(t.id) : [];
+      const leningHtml = (w.uitleningen && leningen.length) ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2)">
+          ${leningen.map(l => `<div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:2px">
+            <b style="color:var(--ink)">${esc(l.naam)}</b> ${l.richting==='uit'?'uitgeleend aan':'ingeleend van'} ${esc(l.ander)}
+          </div>`).join('')}
+        </div>` : '';
+
+      return `<div class="kaart" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b style="font-size:calc(15px * var(--fs))">${esc(t.naam)}</b>
+          <span style="font-family:'Barlow Condensed';font-weight:800;font-size:calc(19px * var(--fs));color:var(--accent);line-height:1">${positie}</span>
         </div>
-        <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:4px">
-          ${u.gespeeld} gespeeld · ${u.w}W ${u.g}G ${u.v}V · ${u.voor}-${u.tegen} doelpunten (gelogd)
-        </div>
-        <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:2px">${esc(laatsteTxt)}</div>
+        ${w.sportlink ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px">
+          ${laatsteHtml}
+          ${vormDots}
+        </div>` : ''}
+        ${balkjesRij.length ? `<div style="display:flex;gap:14px;margin-top:12px">${balkjesRij.join('')}</div>` : ''}
+        ${w.evalVoortgang ? `<div style="margin-top:${balkjesRij.length?'8':'12'}px">
+          <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
+            <span>Najaarsevaluatie${losseCount>0?` · +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
+          </div>
+          <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${evalPct}%;background:${evalKleur};border-radius:3px"></div>
+          </div>
+        </div>` : ''}
+        ${radarHtml}
+        ${leningHtml}
       </div>`;
     }).join('')}`;
 
-  const reeksen = teams.map(t => ({naam:t.naam, waarden: teamRadarGemiddelde(t)})).filter(r => r.waarden);
-  const radarHtml = `
-    <div class="sectie-kop">Ontwikkeling — alle teams</div>
-    <div class="kaart" style="text-align:center">
-      ${reeksen.length ? `
-        ${radarOverlaySVG(reeksen)}
-        <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:8px">
-          ${reeksen.map((r,i) => `<span style="font-size:calc(11px * var(--fs));color:var(--ink-2)"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${RADAR_KLEUREN[i%RADAR_KLEUREN.length]};margin-right:4px"></span>${esc(r.naam)}</span>`).join('')}
-        </div>`
-      : `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:14px 0">Nog geen officiële evaluaties in deze bouw.</div>`}
-    </div>`;
-
   const uitgeleend = uitgeleendeSpelersBouw();
   const uitleenHtml = `
-    <div class="sectie-kop">Actuele uitleningen</div>
+    <div class="sectie-kop">Actuele uitleningen — hele bouw</div>
     <div class="kaart">
       ${uitgeleend.length ? uitgeleend.map(u => `<div style="margin-bottom:6px;font-size:calc(13px * var(--fs))"><b>${esc(u.naam)}</b><span style="color:var(--ink-2);font-size:calc(12px * var(--fs))"> · ${esc(u.van)} → ${esc(u.naar)}</span></div>`).join('')
         : `<span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Niemand momenteel uitgeleend.</span>`}
@@ -350,7 +536,7 @@ function renderDashboard(){
       <button class="hub-tegel" data-bh-open="evaluaties">${ico('attendance-evaluatie',34)}<span class="hub-tnaam">Evaluaties</span></button>
     </div>`;
 
-  inhoud.innerHTML = aandachtHtml + presentieHtml + uitslagenHtml + radarHtml + uitleenHtml + tegelsHtml;
+  inhoud.innerHTML = aandachtHtml + teamKaartenHtml + uitleenHtml + tegelsHtml;
 
   inhoud.querySelectorAll('[data-bh-open]').forEach(b => {
     b.onclick = () => {
@@ -382,7 +568,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260921c');
+      const m = await import('./teams.js?v=20260922a');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -440,7 +626,10 @@ function renderSpelersScherm(){
       const d = huidigeContext.data.get(t.id);
       d.spelers.forEach(p => {
         const top = posities[p.id] || (p.positie ? [{naam:p.positie, trend:null}] : []);
-        alles.push({...p, teamId:t.id, teamNaam:t.naam, topPosities:top});
+        const opk = opkomstVoor(p, d.presentie);
+        const opkomstPct = opk.totaal >= MIN_OPKOMST_TRAININGEN ? opk.pct : null;
+        const cijfer = cijferSpeler(p, d.beoordelingen);
+        alles.push({...p, teamId:t.id, teamNaam:t.naam, topPosities:top, opkomstPct, cijfer});
       });
     }
     alles.sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
@@ -448,21 +637,38 @@ function renderSpelersScherm(){
   }
   tekenSpelersLijst('alle');
 }
+/* [20260921] Badge-rij per speler i.p.v. platte tekst: positie+trend,
+   opkomst% (kleurgecodeerd) en evaluatiecijfer+trend — op verzoek van Paul,
+   zodat je in één blik ziet waar een speler staat, hoe vaak hij er is en hoe
+   hij scoort, i.p.v. dat apart te moeten opzoeken. */
+function badgeRij(p){
+  const stukjes = [];
+  if (p.topPosities.length) stukjes.push(`<span>${esc(p.topPosities.map(x => x.naam).join(', '))}${trendPijl(p.topPosities[0]?.trend)}</span>`);
+  if (p.opkomstPct != null){
+    const kleur = p.opkomstPct>=85 ? 'var(--ok)' : p.opkomstPct>=70 ? 'var(--warn)' : 'var(--uit)';
+    stukjes.push(`<span style="color:${kleur};font-weight:700">${p.opkomstPct}% opkomst</span>`);
+  }
+  if (p.cijfer){
+    const kleur = p.cijfer.cijfer>=4 ? 'var(--ok)' : p.cijfer.cijfer>=2.5 ? 'var(--warn)' : 'var(--uit)';
+    stukjes.push(`<span style="color:${kleur};font-weight:700">${p.cijfer.cijfer.toFixed(1)}${trendPijl(p.cijfer.trend)}</span>`);
+  }
+  return stukjes.length ? stukjes.join(' <span style="color:var(--line-d)">·</span> ') : 'Nog geen gegevens';
+}
 function tekenSpelersLijst(filterTeamId){
   const inhoud = laag.querySelector('#bouwhubInhoud');
   const { teams, spelersLijst } = huidigeContext;
   const items = filterTeamId === 'alle' ? spelersLijst : spelersLijst.filter(p => p.teamId === filterTeamId);
   inhoud.innerHTML = `
     <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:12px">
-      <button class="knop klein ${filterTeamId==='alle'?'vol':'licht'}" data-bh-filter="alle" style="white-space:nowrap">Alle teams</button>
-      ${teams.map(t => `<button class="knop klein ${filterTeamId===t.id?'vol':'licht'}" data-bh-filter="${t.id}" style="white-space:nowrap">${esc(t.naam)}</button>`).join('')}
+      <button class="knop klein" data-bh-filter="alle" style="white-space:nowrap${filterTeamId==='alle'?';background:var(--accent);color:#fff':';background:var(--card);color:var(--ink)'}">Alle teams</button>
+      ${teams.map(t => `<button class="knop klein" data-bh-filter="${t.id}" style="white-space:nowrap${filterTeamId===t.id?';background:var(--accent);color:#fff':';background:var(--card);color:var(--ink)'}">${esc(t.naam)}</button>`).join('')}
     </div>
     ${items.length ? items.map(p => `
       <button class="lijst-item" data-bh-open-speler="${p.id}" data-bh-team="${p.teamId}">
         <div class="team-shirt">${p.nummer!=null&&p.nummer!==''?esc(String(p.nummer)):'?'}</div>
         <div class="li-tekst">
-          <div class="titel">${esc(p.naam)}</div>
-          <div class="meta">${esc(p.teamNaam)}${p.topPosities.length ? ' · ' + p.topPosities.map(x => esc(x.naam) + trendPijl(x.trend)).join(', ') : ''}</div>
+          <div class="titel">${esc(p.naam)} <span style="font-weight:400;color:var(--ink-2);font-size:.85em">· ${esc(p.teamNaam)}</span></div>
+          <div class="meta" style="font-size:calc(12px * var(--fs));margin-top:3px">${badgeRij(p)}</div>
         </div>
         <span class="pijl">›</span>
       </button>`).join('') : `<div class="kaart leeg">Geen spelers gevonden.</div>`}`;
@@ -470,7 +676,7 @@ function tekenSpelersLijst(filterTeamId){
   inhoud.querySelectorAll('[data-bh-open-speler]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260921c');
+      const m = await import('./teams.js?v=20260922a');
       m.openTeam(b.dataset.bhTeam, 'spelers', {beoordeelProfiel: b.dataset.bhOpenSpeler});
     };
   });
@@ -542,7 +748,6 @@ function renderUitleningenScherm(){
 
 async function modalNieuweUitleningVanuitBouw(verversScherm){
   const { clubId, teams } = huidigeContext;
-  verbergTijdelijk();
 
   openModal(`
     <h2>Speler uitlenen</h2>
@@ -559,7 +764,7 @@ async function modalNieuweUitleningVanuitBouw(verversScherm){
     <button class="knop licht vol" id="bhUlAnnuleer" style="margin-top:8px">Annuleren</button>`);
 
   const $ = sel => document.getElementById(sel);
-  $('bhUlAnnuleer').onclick = () => { sluitModal(); toonWeerOp(); };
+  $('bhUlAnnuleer').onclick = () => sluitModal();
   const check = () => { $('bhUlOk').disabled = !($('bhUlVanTeam').value && $('bhUlSpeler').value && $('bhUlNaarTeam').value); };
 
   $('bhUlVanTeam').onchange = async () => {
@@ -624,7 +829,7 @@ async function modalNieuweUitleningVanuitBouw(verversScherm){
         door: S.user?.uid || null, gemaakt: serverTimestamp(),
       });
       huidigeContext.uitleningen.push({id:nieuweRef.id, spelerId:p.id, vanTeam, vanTeamNaam, naarTeam, naarTeamNaam, snapshot:bouwLeenSnapshot(p)});
-      sluitModal(); toonWeerOp();
+      sluitModal();
       meld(`${p.naam} uitgeleend aan ${naarTeamNaam}`);
       if (verversScherm) verversScherm();
     } catch(e){
@@ -636,7 +841,15 @@ async function modalNieuweUitleningVanuitBouw(verversScherm){
 
 /* ==================== NIVEAU 1 → 2 — Evaluaties ==================== */
 function pinned(p){ return p.metingen.find(m => m.officieel) || null; }
-function vorigeMeting(p, meting){ const i = p.metingen.indexOf(meting); return i > 0 ? p.metingen[i-1] : null; }
+// Alleen volledige evaluaties hebben domeinscores en kunnen dus ooit in een
+// radar getoond worden — een snelle beoordeling (niveau, geen scores) niet.
+function volledigeMetingen(p){ return p.metingen.filter(m => m.scores); }
+function vorigeVolledigeMeting(p, meting){
+  const vol = volledigeMetingen(p);
+  const i = vol.indexOf(meting);
+  return i > 0 ? vol[i-1] : null;
+}
+const KLEUR_CIJFER = {1:'var(--uit)', 2:'#F59C4A', 3:'#F2C94C', 4:'#7DCB6A', 5:'var(--ok)'};
 
 function renderEvaluatiesScherm(){
   zetKop('Evaluaties', renderDashboard);
@@ -647,12 +860,13 @@ function renderEvaluatiesScherm(){
     d.beoordelingen.forEach(b => { (perSpeler[b.spelerId] ||= []).push(b); });
     const spelersMetOfficieel = Object.values(perSpeler).filter(ms => ms.some(m=>m.officieel)).length;
     const totaalMetingen = d.beoordelingen.length;
-    const extra = totaalMetingen - spelersMetOfficieel;
-    return { team:t, officieel:spelersMetOfficieel, totaal:d.spelers.length, extra };
+    const losseMetingen = d.beoordelingen.filter(b => !b.officieel).length;
+    return { team:t, officieel:spelersMetOfficieel, totaal:d.spelers.length, totaalMetingen, losseMetingen };
   }).sort((a,b) => (a.totaal ? a.officieel/a.totaal : 1) - (b.totaal ? b.officieel/b.totaal : 1));
 
   inhoud.innerHTML = `
     <div class="sectie-kop" style="margin-top:0">Halfjaarevaluatie · per team</div>
+    <p style="color:var(--ink-2);font-size:calc(12px * var(--fs));margin:-6px 0 12px">Inclusief losse beoordelingen tussendoor (bij wedstrijden/trainingen) — tik een team voor het volledige overzicht.</p>
     ${rijen.map(r => {
       const ratio = r.totaal ? r.officieel/r.totaal : 0;
       const kleur = ratio===1 ? 'var(--ok)' : ratio<0.5 ? 'var(--uit)' : 'var(--warn)';
@@ -660,7 +874,7 @@ function renderEvaluatiesScherm(){
         <div class="team-shirt" style="background:${kleur};color:#12140f">${r.officieel}/${r.totaal}</div>
         <div class="li-tekst">
           <div class="titel">${esc(r.team.naam)}</div>
-          <div class="meta">officiële evaluatie ingevuld${r.extra>0?` · +${r.extra} losse meting${r.extra===1?'':'en'}`:''}</div>
+          <div class="meta">officiële halfjaarevaluatie${r.losseMetingen>0?` · +${r.losseMetingen} losse beoordeling${r.losseMetingen===1?'':'en'}`:''}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;
@@ -678,7 +892,7 @@ function renderEvaluatieTeamDetail(teamId){
   const spelers = d.spelers.map(p => ({...p, metingen: (perSpeler[p.id]||[]).sort((a,b) => (a.datum||'').localeCompare(b.datum||''))}));
 
   const metData = spelers.filter(p => pinned(p));
-  let radar = `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0;text-align:center">Nog geen evaluaties in dit team.</div>`;
+  let radar = `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0;text-align:center">Nog geen officiële evaluaties in dit team.</div>`;
   if (metData.length){
     const gem = DOM.map(dom => metData.reduce((s,p) => s + (pinned(p).scores[dom]||0), 0) / metData.length);
     radar = `<div style="text-align:center">${radarSVG(gem, {size:170})}</div>`;
@@ -692,14 +906,26 @@ function renderEvaluatieTeamDetail(teamId){
     <div class="sectie-kop">Spelers</div>
     ${spelers.map(p => {
       const m = pinned(p);
-      if (!m) return `<div class="lijst-item" style="cursor:default"><div class="li-tekst"><div class="titel">${esc(p.naam)}</div><div class="meta">nog niet geëvalueerd${p.metingen.length?` · ${p.metingen.length} losse meting${p.metingen.length===1?'':'en'}`:''}</div></div></div>`;
-      const extra = p.metingen.length > 1 ? ` · ${p.metingen.length}×` : '';
+      if (m){
+        const extra = p.metingen.length > 1 ? ` · ${p.metingen.length}×` : '';
+        return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
+          <div class="li-tekst" style="flex:1">
+            <div class="titel">${esc(p.naam)}${esc(extra)}</div>
+            <div class="meta" style="display:flex;gap:5px;margin-top:4px">
+              ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${KLEUR_CIJFER[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
+            </div>
+          </div>
+          <span class="pijl">›</span>
+        </button>`;
+      }
+      // Geen officiële (halfjaar)evaluatie, maar mogelijk wel losse
+      // beoordelingen tussendoor — die dan tonen i.p.v. stilzwijgend
+      // "nog niet geëvalueerd" te zeggen terwijl er wel degelijk iets is.
+      const cijfer = cijferSpeler(p, p.metingen);
       return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
         <div class="li-tekst" style="flex:1">
-          <div class="titel">${esc(p.naam)}${esc(extra)}</div>
-          <div class="meta" style="display:flex;gap:5px;margin-top:4px">
-            ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${{1:'var(--uit)',2:'#F59C4A',3:'#F2C94C',4:'#7DCB6A',5:'var(--ok)'}[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
-          </div>
+          <div class="titel">${esc(p.naam)}</div>
+          <div class="meta">${cijfer ? `Losse beoordeling: cijfer ${cijfer.cijfer}${trendPijl(cijfer.trend)} · ${p.metingen.length} meting${p.metingen.length===1?'':'en'}` : 'Nog niet geëvalueerd'}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;
@@ -709,26 +935,45 @@ function renderEvaluatieTeamDetail(teamId){
   });
 }
 
+function metingLabel(m){
+  if (m.soort === 'snel') return `Losse beoordeling${m.bron?.label ? ' · '+esc(m.bron.label) : ''}`;
+  return esc(m.bron?.label || 'Meting');
+}
+
 function renderSpelerprofielScherm(teamId, p, actieveMeting){
   zetKop(p.naam, () => renderEvaluatieTeamDetail(teamId));
   const inhoud = laag.querySelector('#bouwhubInhoud');
-  const m = actieveMeting || pinned(p) || p.metingen[p.metingen.length-1];
-  const v = vorigeMeting(p, m);
+  // Alleen een meting mét domeinscores kan ooit de radar vullen — bij een
+  // losse (snelle) beoordeling valt terug op de laatst-bekende volledige
+  // meting, of anders helemaal geen radar (wel de lijst met losse metingen).
+  const vol = volledigeMetingen(p);
+  const m = (actieveMeting?.scores ? actieveMeting : null) || pinned(p) || vol[vol.length-1] || null;
+  const v = m ? vorigeVolledigeMeting(p, m) : null;
   const historie = [...p.metingen].reverse();
 
-  inhoud.innerHTML = `
+  const radarBlok = m ? `
     <div class="kaart" style="text-align:center">
       <div class="sectie-kop" style="margin:0 0 4px;text-align:left">${esc(m.bron?.label || 'meting')} · ${esc(m.datum||'')}</div>
       ${radarSVG(DOM.map(dom => m.scores[dom]||0), {size:170, compare: v ? DOM.map(dom => v.scores[dom]||0) : null})}
       ${v ? radarLegende(m.bron?.label||'huidig', v.bron?.label||'vorige') : ''}
-    </div>
+    </div>`
+    : `<div class="kaart" style="text-align:center;color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0">Nog geen volledige evaluatie — wel losse beoordeling(en) hieronder.</div>`;
+
+  inhoud.innerHTML = `
+    ${radarBlok}
     ${historie.length > 1 ? `
       <div class="sectie-kop">Alle metingen dit seizoen</div>
-      ${historie.map(x => `
-        <div class="lijst-item" data-bh-meting="${p.metingen.indexOf(x)}" style="cursor:pointer${x===m?';border-left:3px solid var(--accent)':''}">
-          <div class="li-tekst"><div class="titel">${esc(x.bron?.label||'Meting')}${x.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div></div>
+      ${historie.map(x => {
+        const isVolledig = !!x.scores;
+        const klikbaar = isVolledig;
+        return `<div class="lijst-item" ${klikbaar?`data-bh-meting="${p.metingen.indexOf(x)}"`:''} style="${klikbaar?'cursor:pointer':'cursor:default'}${x===m?';border-left:3px solid var(--accent)':''}">
+          <div class="li-tekst">
+            <div class="titel">${metingLabel(x)}${x.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
+            ${!isVolledig ? `<div class="meta">Cijfer ${x.niveau ?? '–'}${x.notities?.algemeen ? ' · “'+esc(x.notities.algemeen)+'”' : ''}</div>` : ''}
+          </div>
           <div class="meta">${esc(x.datum||'')}</div>
-        </div>`).join('')}` : ''}`;
+        </div>`;
+      }).join('')}` : ''}`;
 
   inhoud.querySelectorAll('[data-bh-meting]').forEach(row => {
     row.onclick = () => renderSpelerprofielScherm(teamId, p, p.metingen[Number(row.dataset.bhMeting)]);

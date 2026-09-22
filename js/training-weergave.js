@@ -8,7 +8,7 @@
    Gebruikt dezelfde overlay-aanpak en terug-bewaking als pdf-viewer.js, zodat de
    Android-terugknop / veeg-terug de weergave sluit i.p.v. de app te verlaten. */
 
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260902d';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc } from './state.js?v=20260922a';
 
 let _overlay = null;
 
@@ -39,9 +39,10 @@ export function sluitTrainingWeergave(){
   // notitie-knop uit de balk verwijderen zodat een volgende training schoon start
   const nb = _overlay.querySelector('.trw-notitie-knop');
   if (nb) nb.remove();
-  import('./training-aantekeningen.js?v=20260902d').then(m => m.resetAantekeningen()).catch(() => {});
-  import('./training-video.js?v=20260902d').then(m => m.resetTrainingVideos()).catch(() => {});
-  import('./training-tactiek.js?v=20260902d').then(m => m.resetTrainingTactiek()).catch(() => {});
+  import('./training-aantekeningen.js?v=20260922a').then(m => m.resetAantekeningen()).catch(() => {});
+  import('./training-video.js?v=20260922a').then(m => m.resetTrainingVideos()).catch(() => {});
+  import('./training-tactiek.js?v=20260922a').then(m => m.resetTrainingTactiek()).catch(() => {});
+  import('./training-delen.js?v=20260922a').then(m => m.resetTrainingDelen()).catch(() => {});
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
@@ -96,7 +97,7 @@ export function sluitLightbox(){
   vangnetStilTerugAlsNodig(wasOpen);
 }
 
-function blokHtml(blok){
+export function blokHtml(blok){
   const kop = blok.kop ? `<h3>${esc(blok.kop)}</h3>` : '';
   if (blok.type === 'lijst' && Array.isArray(blok.items)){
     const items = blok.items.map(x => `<li>${esc(x)}</li>`).join('');
@@ -105,7 +106,7 @@ function blokHtml(blok){
   return `${kop}<p>${esc(blok.tekst || '')}</p>`;
 }
 
-function oefHtml(idx, oef, diagramUrls){
+export function oefHtml(idx, oef, diagramUrls){
   // Koppel diagram aan oefening. Nieuwe trainingen: diagrammen zijn doorlopend
   // genummerd (diagram1,2,3…) zodat oefening N ↔ diagram N — dus de index is
   // leidend. Oudere trainingen waren per pagina genummerd; als de index niets
@@ -133,7 +134,7 @@ function oefHtml(idx, oef, diagramUrls){
    - diagramUrls: { pagina: url }
    - oefeningen: de AI-structuur
    - onOrigineel: callback die de PDF-viewer opent */
-export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId, oefeningVideos, oefeningTactiek, trainingClub }){
+export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onOrigineel, trainingId, oefeningVideos, oefeningTactiek, trainingClub, teamId, teamNaam, clubNaam }){
   const el = bouwOverlay();
   el.querySelector('.trw-titel').textContent = titel || 'Training';
   el.querySelector('.trw-meta').textContent = meta || '';
@@ -177,7 +178,7 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
   // Aantekeningen-laag (additief): notitie-knop in de balk + tik-op-regel.
   // Alleen als er een trainingId is om notities aan te koppelen.
   if (trainingId){
-    import('./training-aantekeningen.js?v=20260902d').then(mod => {
+    import('./training-aantekeningen.js?v=20260922a').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initAantekeningen({ stage, balk, trainingId });
       mod.bindItemKlik(stage);
@@ -185,15 +186,22 @@ export function openTrainingWeergave({ titel, meta, oefeningen, diagramUrls, onO
 
     // Video-uitleg-laag (additief): 🎬-knop in de balk die de zichtbare oefening
     // volgt + afspeeltegel per oefening; beheerder kan uploaden/vervangen/wissen.
-    import('./training-video.js?v=20260902d').then(mod => {
+    import('./training-video.js?v=20260922a').then(mod => {
       const balk = el.querySelector('.trw-balk');
       mod.initTrainingVideos({ stage, balk, trainingId, videos: oefeningVideos || {}, trainingClub });
     }).catch(() => {});
 
     // Tactiekbord-laag (additief): compact tactiekbord-icoon per oefening, op één
     // lijn met het video-icoon. Koppelt een bord aan de oefening.
-    import('./training-tactiek.js?v=20260902d').then(mod => {
+    import('./training-tactiek.js?v=20260922a').then(mod => {
       mod.initTrainingTactiek({ stage, trainingId, borden: oefeningTactiek || {} });
+    }).catch(() => {});
+
+    // Deel-knop (additief): 📤-knop rechts in de balk waarmee een coach deze
+    // training + de presentie ervan tijdelijk deelt met een meehelpende ouder.
+    import('./training-delen.js?v=20260922a').then(mod => {
+      const balk = el.querySelector('.trw-balk');
+      mod.initTrainingDelen({ balk, trainingId, teamId, teamNaam, clubNaam, titel });
     }).catch(() => {});
   }
 }

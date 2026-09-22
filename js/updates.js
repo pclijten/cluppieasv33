@@ -14,7 +14,7 @@
 // dan tonen we een neutraal 'ster'-icoon.
 // ================================================================
 
-import { ico } from './icons.js?v=20260825b';
+import { ico } from './icons.js?v=20260922a';
 
 /* Elke release: { maand, tag?, items:[ [icoon, titel, categorie, nieuw, tekst], ... ] }
    - icoon:     naam uit icons.js (bv. 'wedstrijd', 'training', 'grafiek')
@@ -22,7 +22,18 @@ import { ico } from './icons.js?v=20260825b';
    - nieuw:     true → groene NIEUW-badge (spaarzaam gebruiken)
    - tekst:     coach-uitleg, 1–3 zinnen */
 const RELEASES = [
-  { maand: 'Augustus 2026', tag: 'Nieuwste', items: [
+  { maand: 'September 2026', tag: 'Nieuwste', items: [
+    ['team-coach', 'Bouwcoördinatoren', 'ALGEMEEN', true,
+      'Nieuwe rol voor wie meerdere teams binnen een bouw (onder/midden/boven) overziet: een clubadmin wijst coördinatoren aan onder Instellingen. Een coördinator krijgt op het startscherm een eigen dashboard voor zijn bouw — met een teamkaart per team (poulestand, vorm, presentie, evaluatie-voortgang), spelers over de hele bouw met positie/opkomst/cijfer, uitleningen (incl. zelf een speler uitlenen), en alle evaluaties per team.'],
+    ['action-share', 'Training delen met een ouder', 'TRAINING', true,
+      'Helpt er vandaag een ouder mee bij de training? Deel de training via het knopje rechtsboven in de oefenstof-weergave: kies hoelang de link geldig is, en de ouder kan — zonder eigen account — de training bekijken én de presentie invullen. Verder krijgt hij nergens toegang toe.'],
+    ['attendance-overview', 'Eerstvolgende training altijd bovenaan', 'TRAINING', false,
+      'Op het presentie-tabblad stond een vooraf ingevulde afmelding voor een latere datum soms boven een net ingevulde afmelding voor vanavond. De eerstvolgende training staat nu altijd apart bovenaan, los van de geschiedenis.'],
+    ['attendance-injured', 'Toelichting bij elke afmeld-reden', 'TRAINING', false,
+      'Bij het afmelden van een speler kun je nu bij elke reden een korte toelichting typen — niet meer alleen bij "Anders". Handig voor de trainer die later terugleest waarom iemand er niet was.'],
+  ]},
+
+  { maand: 'Augustus 2026', items: [
     ['instel', 'Lettergrootte zelf instellen', 'DESIGN', true,
       'Vind je de tekst te klein (of juist te groot)? Onder Meer \u2192 Instellingen \u2192 Weergave kies je nu zelf Klein, Normaal of Groot. De keuze geldt op je eigen toestel en wordt onthouden \u2014 handig als je langs de lijn snel iets wilt kunnen lezen.'],
     ['admin-edit', 'Overzichtelijker & sneller clubdashboard', 'DESIGN', true,

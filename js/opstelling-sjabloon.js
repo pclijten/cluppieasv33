@@ -20,16 +20,16 @@
    De module gebruikt dezelfde fullscreen-overlay-aanpak als training-weergave.js
    (met bewaakTerug/vangnet), los van de gedeelde modal-structuur. */
 
-import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js?v=20260811a';
+import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js?v=20260922a';
 import {
   S, esc, meld, speler, spelerNaam, spelerNr,
   bewaakTerug, vangnetStilTerugAlsNodig
-} from './state.js?v=20260902d';
+} from './state.js?v=20260922a';
 import {
   FORMATIES, bouwSlots, LIJN_NAAM, parseFormatie,
   formatieBestaat, formatieNamen
-} from './config.js?v=20260902d';
-import { telGebruik, telNav } from './tracker.js?v=20260902d';
+} from './config.js?v=20260922a';
+import { telGebruik, telNav } from './tracker.js?v=20260922a';
 
 /* ---------- helpers ---------- */
 
@@ -605,7 +605,7 @@ function bevestigToepassen(sj, wid){
     // sluit het sjabloonscherm zodat de coach de bijgewerkte wedstrijd ziet
     sluitOverlay();
     // open de wedstrijd zodat het resultaat direct zichtbaar is
-    import('./wedstrijd.js?v=20260921c').then(m => m.openWedstrijd(wid)).catch(() => {});
+    import('./wedstrijd.js?v=20260922a').then(m => m.openWedstrijd(wid)).catch(() => {});
   }).catch(e => meld('Opslaan mislukt: ' + (e.code || e.message)));
 }
 

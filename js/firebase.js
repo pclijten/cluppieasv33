@@ -28,7 +28,7 @@ import { getAuth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInAnon
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
          collection, doc, addDoc, setDoc, updateDoc, deleteDoc, deleteField, writeBatch,
-         getDoc, getDocs, query, where, onSnapshot, serverTimestamp, documentId, increment }
+         getDoc, getDocs, query, where, onSnapshot, serverTimestamp, documentId, increment, Timestamp }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
@@ -60,7 +60,7 @@ export {
   GoogleAuthProvider, OAuthProvider, signInWithPopup, signInAnonymously, updateProfile, signOut, onAuthStateChanged,  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, fetchSignInMethodsForEmail,
   /* firestore */
   collection, doc, addDoc, setDoc, updateDoc, deleteDoc, deleteField, writeBatch,
-  getDoc, getDocs, query, where, onSnapshot, serverTimestamp, documentId, increment,
+  getDoc, getDocs, query, where, onSnapshot, serverTimestamp, documentId, increment, Timestamp,
   /* storage */
   sRef, uploadBytes, getDownloadURL, deleteObject,
   /* functions */
