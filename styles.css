@@ -2273,7 +2273,12 @@ body::before{
    verticaal scrolbaar toont in het donkere thema. Hergebruikt .hl voor de
    tekstblokken; hieronder alleen de overlay, oefenkaart, nav en origineel-knop. */
 
-.trw-overlay{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column}
+/* [20260922] Bugfix: stond op z-index 60, dus BOVEN .modal-achter (50) — een
+   modal die vanuit deze weergave werd geopend (bv. "Training delen") ging dus
+   wél open, maar bleef onzichtbaar áchter deze overlay tot je 'm sloot. Zelfde
+   afspraak als bij #bouwhubPagina (bouw-hub.js): een volledige-pagina-overlay
+   blijft ONDER .modal-achter, zodat een modal er altijd overheen verschijnt. */
+.trw-overlay{position:fixed;inset:0;background:var(--bg);z-index:45;display:none;flex-direction:column}
 .trw-overlay.open{display:flex}
 .trw-balk{display:flex;align-items:center;gap:10px;padding:12px 14px calc(12px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--hair);flex-shrink:0}
 .trw-terug{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:calc(20px * var(--fs));flex-shrink:0}
