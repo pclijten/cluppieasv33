@@ -289,7 +289,9 @@ function uitslagenTeam(team){
   });
   const vorm = gespeeld.slice(-5).map(r => r.voor > r.tegen ? 'w' : r.voor < r.tegen ? 'v' : 'g');
   const laatste = gespeeld[gespeeld.length - 1] || null;
-  return { w, g, v, voor: voorTot, tegen: tegenTot, gespeeld: gespeeld.length, laatste, vorm, stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null };
+  // [20260922] "lijst" toegevoegd (naast het bestaande aantal) zodat een
+  // apart scherm alle bekende uitslagen kan tonen i.p.v. alleen de laatste.
+  return { w, g, v, voor: voorTot, tegen: tegenTot, gespeeld: gespeeld.length, laatste, vorm, lijst: gespeeld, stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null };
 }
 
 /* Eén "cijfer" voor een meting, ongeacht het type: bij een volledige
@@ -581,10 +583,15 @@ function renderDashboard(){
           <b style="font-size:calc(15px * var(--fs))">${esc(t.naam)}</b>
           <span style="font-family:'Barlow Condensed';font-weight:800;font-size:calc(19px * var(--fs));color:var(--accent);line-height:1">${positie}</span>
         </div>
-        ${w.sportlink ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px">
-          ${laatsteHtml}
-          ${vormDots}
-        </div>` : ''}
+        ${w.sportlink ? (u.gespeeld > 0
+          ? `<button type="button" data-bh-uitslagen="${t.id}" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:6px;flex-wrap:wrap;gap:6px;background:none;border:none;padding:0;cursor:pointer;text-align:left">
+              ${laatsteHtml}
+              <span style="display:flex;align-items:center;gap:6px">${vormDots}<span class="pijl">›</span></span>
+            </button>`
+          : `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px">
+              ${laatsteHtml}
+              ${vormDots}
+            </div>`) : ''}
         ${balkjesRij.length ? `<div style="display:flex;gap:14px;margin-top:12px">${balkjesRij.join('')}</div>` : ''}
         ${w.evalVoortgang ? `<div style="margin-top:${balkjesRij.length?'8':'12'}px">
           <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
@@ -631,6 +638,44 @@ function renderDashboard(){
   inhoud.querySelectorAll('[data-bh-team-eval]').forEach(b => {
     b.onclick = () => renderEvaluatieTeamDetail(b.dataset.bhTeamEval);
   });
+  inhoud.querySelectorAll('[data-bh-uitslagen]').forEach(b => {
+    b.onclick = () => renderUitslagenScherm(b.dataset.bhUitslagen);
+  });
+}
+
+/* [20260922] Op verzoek van Paul: niet alleen de laatste Sportlink-uitslag op
+   de teamkaart, maar ook alle bekende uitslagen van dat team terug te vinden
+   (tik op de uitslag-regel op het dashboard). Gebruikt dezelfde poule-data
+   die al voor de teamkaart wordt opgehaald — geen extra Firestore-call. */
+function renderUitslagenScherm(teamId){
+  const team = huidigeContext.teams.find(t => t.id === teamId);
+  zetKop(team?.naam || 'Uitslagen', renderDashboard);
+  const inhoud = laag.querySelector('#bouwhubInhoud');
+  const u = uitslagenTeam(team);
+  const lijst = [...u.lijst].reverse();
+  const VORMKLEUR = {w:'var(--ok)', g:'var(--warn)', v:'var(--uit)'};
+  const VORMLETTER = {w:'W', g:'G', v:'V'};
+  const uitkomst = r => r.voor > r.tegen ? 'w' : r.voor < r.tegen ? 'v' : 'g';
+
+  inhoud.innerHTML = `
+    <div class="sectie-kop" style="margin-top:0">${u.gespeeld} bekende uitslag${u.gespeeld===1?'':'en'}${u.stand ? ` · ${esc(String(u.stand.positie))}${u.totaalTeams?'/'+u.totaalTeams:''} in de poule` : ''}</div>
+    <div class="kaart" style="display:flex;justify-content:space-around;text-align:center">
+      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--ok)">${u.w}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">W</div></div>
+      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--warn)">${u.g}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">G</div></div>
+      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--uit)">${u.v}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">V</div></div>
+      <div><div style="font-size:calc(20px * var(--fs));font-weight:800">${u.voor}-${u.tegen}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">doelpunten</div></div>
+    </div>
+    <div class="sectie-kop">Wedstrijden</div>
+    ${lijst.length ? lijst.map(r => {
+      const uitk = uitkomst(r);
+      return `<div class="lijst-item" style="cursor:default">
+        <div class="team-shirt" style="background:${VORMKLEUR[uitk]};color:#12140f">${VORMLETTER[uitk]}</div>
+        <div class="li-tekst">
+          <div class="titel">${esc(r.tegenstander)} <span style="color:var(--ink-2);font-weight:600">${r.voor}-${r.tegen}</span></div>
+          <div class="meta">${r.thuis?'Thuis':'Uit'} · ${esc(r.datum||'')}</div>
+        </div>
+      </div>`;
+    }).join('') : `<div class="kaart leeg">Nog geen bekende uitslagen.</div>`}`;
 }
 
 /* ==================== NIVEAU 1 — Teams ==================== */
@@ -758,11 +803,7 @@ function tekenSpelersLijst(filterTeamId){
       </button>`).join('') : `<div class="kaart leeg">Geen spelers gevonden.</div>`}`;
   inhoud.querySelectorAll('[data-bh-filter]').forEach(b => b.onclick = () => tekenSpelersLijst(b.dataset.bhFilter));
   inhoud.querySelectorAll('[data-bh-open-speler]').forEach(b => {
-    b.onclick = async () => {
-      sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260922c');
-      m.openTeam(b.dataset.bhTeam, 'spelers', {beoordeelProfiel: b.dataset.bhOpenSpeler});
-    };
+    b.onclick = () => renderSpelerCoordinatorProfiel(b.dataset.bhTeam, b.dataset.bhOpenSpeler);
   });
 }
 
@@ -1103,8 +1144,13 @@ function metingLabel(m){
   return esc(m.bron?.label || 'Meting');
 }
 
-function renderSpelerprofielScherm(teamId, p, actieveMeting){
-  zetKop(p.naam, () => renderEvaluatieTeamDetail(teamId));
+/* [20260922] "opties.overzicht"/"opties.terug" toegevoegd zodat dit scherm
+   ook los van de Evaluaties-flow bruikbaar is: vanuit de Spelers-tegel wordt
+   hier nu ook een basisoverzicht (positie/opkomst/cijfer) bovenaan getoond
+   en gaat "terug" naar de spelerslijst i.p.v. het teamevaluatie-detail. */
+function renderSpelerprofielScherm(teamId, p, actieveMeting, opties = {}){
+  const terug = opties.terug || (() => renderEvaluatieTeamDetail(teamId));
+  zetKop(p.naam, terug);
   const inhoud = laag.querySelector('#bouwhubInhoud');
   // Alleen een meting mét domeinscores kan ooit de radar vullen — bij een
   // losse (snelle) beoordeling valt terug op de laatst-bekende volledige
@@ -1122,9 +1168,18 @@ function renderSpelerprofielScherm(teamId, p, actieveMeting){
     </div>`
     : `<div class="kaart" style="text-align:center;color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0">Nog geen volledige evaluatie — wel losse beoordeling(en) hieronder.</div>`;
 
+  // [20260922] Bugfix: bij precies 1 losse (niet-volledige) meting toonde
+  // "historie.length > 1" hier niets, terwijl de tekst hierboven al zegt
+  // "wel losse beoordeling(en) hieronder" — die belofte klopte dan niet.
+  // De radar toont zelf al 1 volledige meting (m), dus die mag hier
+  // vervallen als het de énige is; een losse meting (geen radar, m===null)
+  // moet altijd zichtbaar zijn, ook als het er maar 1 is.
+  const toonHistorie = historie.length > (m ? 1 : 0);
+
   inhoud.innerHTML = `
+    ${opties.overzicht ? spelerOverzichtHtml(p) : ''}
     ${radarBlok}
-    ${historie.length > 1 ? `
+    ${toonHistorie ? `
       <div class="sectie-kop">Alle metingen dit seizoen</div>
       ${historie.map(x => {
         const isVolledig = !!x.scores;
@@ -1139,6 +1194,40 @@ function renderSpelerprofielScherm(teamId, p, actieveMeting){
       }).join('')}` : ''}`;
 
   inhoud.querySelectorAll('[data-bh-meting]').forEach(row => {
-    row.onclick = () => renderSpelerprofielScherm(teamId, p, p.metingen[Number(row.dataset.bhMeting)]);
+    row.onclick = () => renderSpelerprofielScherm(teamId, p, p.metingen[Number(row.dataset.bhMeting)], opties);
   });
+}
+
+/* Compact basisoverzicht (positie, opkomst, evaluatiecijfer, open
+   leerpunten) — dezelfde badges als in de spelerslijst, nu bovenaan het
+   profiel zodat een coördinator niet naar de teamhub hoeft voor het geheel. */
+function spelerOverzichtHtml(p){
+  const leerpuntenOpen = ((p.leerpunten)||[]).filter(l => !l.klaar).length + ((p._bronLeerpunten)||[]).length;
+  return `<div class="kaart">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="color:var(--ink-2);font-size:calc(12px * var(--fs))">${esc(p.teamNaam||'')}${p.nummer!=null&&p.nummer!==''?' · #'+esc(String(p.nummer)):''}</div>
+      </div>
+      <div class="team-shirt">${p.nummer!=null&&p.nummer!==''?esc(String(p.nummer)):'?'}</div>
+    </div>
+    <div style="margin-top:8px;font-size:calc(13px * var(--fs))">${badgeRij(p)}</div>
+    ${leerpuntenOpen>0 ? `<div style="margin-top:6px;font-size:calc(12px * var(--fs));color:var(--ink-2)">${leerpuntenOpen} open leerpunt${leerpuntenOpen===1?'':'en'}</div>` : ''}
+  </div>`;
+}
+
+/* [20260922] Op verzoek van Paul: een klik op een speler vanuit de
+   Spelers-tegel blijft nu binnen de coördinator-omgeving (alleen-lezen —
+   bewerken blijft in de teamhub, zelfde afspraak als bij
+   renderTeamEvaluatieDetail hierboven) i.p.v. dat teams.js werd geopend en
+   "terug" je tussen teams kon laten verdwalen. */
+function renderSpelerCoordinatorProfiel(teamId, spelerId){
+  const d = huidigeContext.data.get(teamId);
+  const item = (huidigeContext.spelersLijst || []).find(x => x.id === spelerId && x.teamId === teamId);
+  const basis = item || {
+    ...(d.spelers.find(x => x.id === spelerId) || {id: spelerId, naam: '?'}),
+    teamId, teamNaam: huidigeContext.teams.find(t => t.id === teamId)?.naam || '',
+    topPosities: [], opkomstPct: null, cijfer: null,
+  };
+  const metingen = d.beoordelingen.filter(b => b.spelerId === spelerId).sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  renderSpelerprofielScherm(teamId, {...basis, metingen}, null, {overzicht:true, terug: renderSpelersScherm});
 }
