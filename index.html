@@ -128,6 +128,13 @@
   </div>
 </div>
 
+<!-- [20260921] Openbare pagina voor een ouder die een training-deel-link opent
+     (?deel=<id>) — volledig los van de normale login/app-flow, geen navigatie,
+     geen toegang tot iets anders dan die ene gedeelde training. Zie
+     js/deel-boot.js. Standaard leeg/verborgen; main.js vult 'm alleen als de
+     URL een ?deel=-parameter bevat. -->
+<div id="deel" style="display:none;position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+
 <div class="app" id="app" style="display:none">
   <div id="view-teams" class="view"></div>
   <div id="view-team" class="view"></div>
@@ -141,6 +148,6 @@
 <div class="wo-achter" id="woAchter"><div class="wo-paneel" id="woPaneel"></div></div>
 <div class="melding" id="melding"></div>
 
-<script type="module" src="js/main.js?v=20260921c"></script>
+<script type="module" src="js/main.js?v=20260922a"></script>
 </body>
 </html>
