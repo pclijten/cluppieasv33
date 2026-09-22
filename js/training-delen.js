@@ -10,9 +10,9 @@
    pagina stuurt: alleen die ene training + de presentie ervan. Zie
    deel-boot.js voor de kant van de ouder, en firestore.rules voor hoe die
    toegang precies is afgebakend (trainingDeel + trainingToegang). */
-import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20260922a';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20260922a';
-import { ico } from './icons.js?v=20260922a';
+import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20260922b';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20260922b';
+import { ico } from './icons.js?v=20260922b';
 
 let _ctx = null;
 
@@ -73,7 +73,7 @@ function openDeelModal(){
     <h2>Training delen</h2>
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">
       Deel <b>${esc(gegevens.titel)}</b> met een ouder die vandaag meehelpt. Die krijgt een
-      link waarmee hij de training kan bekijken én de presentie kan invullen — verder niets
+      link waarmee hij de training kan bekijken én kan zien wie er is (presentie, alleen-lezen) — verder niets
       van de app.
     </p>
     <div class="veldgroep">
@@ -131,7 +131,7 @@ function openDeelModal(){
         catch(e){ $('mDeelLinkVeld').select(); document.execCommand('copy'); meld('Link gekopieerd'); }
       };
       $('mDeelWhatsapp').onclick = () => {
-        const tekst = `Hoi! Je helpt vandaag mee bij de training van ${gegevens.teamNaam || 'het team'}. Via deze link zie je de training en kun je de presentie invullen: ${url}`;
+        const tekst = `Hoi! Je helpt vandaag mee bij de training van ${gegevens.teamNaam || 'het team'}. Via deze link zie je de training: ${url}`;
         window.open('https://wa.me/?text=' + encodeURIComponent(tekst), '_blank');
       };
     } catch(e){

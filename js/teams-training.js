@@ -5,19 +5,19 @@
    (naam wijzigen, teamcode, uitnodigen — modalUitnodig komt uit club.js). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
-} from './firebase.js?v=20260922a';
+} from './firebase.js?v=20260922b';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
-} from './state.js?v=20260922a';
-import { telGebruik } from './tracker.js?v=20260922a';
-import { ico } from './icons.js?v=20260922a';
+} from './state.js?v=20260922b';
+import { telGebruik } from './tracker.js?v=20260922b';
+import { ico } from './icons.js?v=20260922b';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20260922a';
-import { htmlKompas } from './teams-leerlijn.js?v=20260922a';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922a';
+} from './config.js?v=20260922b';
+import { htmlKompas } from './teams-leerlijn.js?v=20260922b';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922b';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de

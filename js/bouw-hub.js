@@ -20,16 +20,16 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260922a';
+import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20260922b';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
-} from './firebase.js?v=20260922a';
-import { BOUWEN, bouwNaam, SKILLS } from './config.js?v=20260922a';
-import { ico } from './icons.js?v=20260922a';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260922a';
-import { telGebruik } from './tracker.js?v=20260922a';
-import { analyseWedstrijd } from './analyse.js?v=20260922a';
-import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922a';
+} from './firebase.js?v=20260922b';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922b';
+import { ico } from './icons.js?v=20260922b';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260922b';
+import { telGebruik } from './tracker.js?v=20260922b';
+import { analyseWedstrijd } from './analyse.js?v=20260922b';
+import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922b';
 
 let laag = null;           // DOM-referentie naar de pagina, één instantie tegelijk
 let huidigeContext = null; // {clubId, bouw, teams, data: Map(teamId -> {...}), uitleningen}
@@ -86,6 +86,7 @@ const WIDGET_DEFS = [
   { id:'presentieWedstrijd',label:'Presentie — wedstrijden' },
   { id:'evalRadar',         label:'Evaluatie-radar (gemiddelde + laatste)' },
   { id:'evalVoortgang',     label:'Evaluatie-voortgang (najaar)' },
+  { id:'teamEval',          label:'Teamevaluaties (na de wedstrijd)' },
   { id:'uitleningen',       label:'Uitleningen die dit team raken' },
 ];
 const WIDGET_KEY = 'cluppieBouwhubWidgets';
@@ -142,8 +143,13 @@ function verbergTerugPil(){ if (terugPil){ terugPil.remove(); terugPil = null; }
 /* ==================== Data ophalen (één keer per team) ====================
    [20260921] Elke deel-fetch heeft nu zijn eigen catch die duidelijk logt
    WELK team en WELKE subcollectie faalde — zonder dat had de generieke
-   "Gegevens ophalen mislukt"-melding geen aanknopingspunt in de console. */
-async function haalTeamData(team){
+   "Gegevens ophalen mislukt"-melding geen aanknopingspunt in de console.
+   [20260922] Wedstrijden/presentie/beoordelingen/teamevaluaties worden nu
+   gefilterd op het HUIDIGE seizoen i.p.v. de volledige historie van het
+   team op te halen — bij meerdere seizoenen scheelde dat flink in
+   laadtijd. Ook teamevaluaties (na de wedstrijd, apart van de losse
+   spelersbeoordelingen) worden nu meegenomen — die ontbraken volledig. */
+async function haalTeamData(team, seizoen){
   const veilig = async (label, promise) => {
     try { return await promise; }
     catch(e){
@@ -151,26 +157,28 @@ async function haalTeamData(team){
       throw e;
     }
   };
-  const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap] = await Promise.all([
+  const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap, tesnap] = await Promise.all([
     veilig('spelers', getDocs(collection(db,'teams',team.id,'spelers'))),
-    veilig('wedstrijden', getDocs(collection(db,'teams',team.id,'wedstrijden'))),
-    veilig('presentie', getDocs(collection(db,'teams',team.id,'presentie'))),
+    veilig('wedstrijden', getDocs(query(collection(db,'teams',team.id,'wedstrijden'), where('seizoen','==',seizoen)))),
+    veilig('presentie', getDocs(query(collection(db,'teams',team.id,'presentie'), where('seizoen','==',seizoen)))),
     veilig('poule/stand', getDoc(doc(db,'teams',team.id,'poule','stand'))),
     veilig('poule/uitslagen', getDoc(doc(db,'teams',team.id,'poule','uitslagen'))),
-    veilig('beoordelingen', getDocs(collection(db,'teams',team.id,'beoordelingen'))),
+    veilig('beoordelingen', getDocs(query(collection(db,'teams',team.id,'beoordelingen'), where('seizoen','==',seizoen)))),
+    veilig('teamevaluaties', getDocs(query(collection(db,'teams',team.id,'teamevaluaties'), where('seizoen','==',seizoen)))),
   ]);
   const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend);
   const wedstrijden = wsnap.docs.map(d => d.data()).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
   const presentie = psnap.docs.map(d => d.data()).filter(s => s.datum);
   const stand = poulesnap.exists() ? poulesnap.data() : null;
   const uitslagen = uitslagensnap.exists() ? uitslagensnap.data() : null;
-  // [20260922] NIET meer filteren op soort==='volledig': een team kan ook
-  // "snelle" beoordelingen hebben (tussendoor bij een wedstrijd/training,
-  // zonder de 5-domeinen-structuur) — die moeten wél zichtbaar zijn in het
+  // NIET meer filteren op soort==='volledig': een team kan ook "snelle"
+  // beoordelingen hebben (tussendoor bij een wedstrijd/training, zonder de
+  // 5-domeinen-structuur) — die moeten wél zichtbaar zijn in het
   // evaluatie-overzicht, ook al passen ze niet in de radar (die heeft de
   // domeinscores nodig en werkt dus verderop alsnog alleen met 'volledig').
   const beoordelingen = bsnap.docs.map(d => d.data()).filter(b => b.spelerId && (b.scores || b.niveau != null));
-  return { spelers, wedstrijden, presentie, stand, uitslagen, beoordelingen };
+  const teamevaluaties = tesnap.docs.map(d => d.data()).filter(e => e.scores);
+  return { spelers, wedstrijden, presentie, stand, uitslagen, beoordelingen, teamevaluaties };
 }
 
 export async function openBouwHub(clubId, bouw, isHerbezoek){
@@ -188,10 +196,16 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   const inhoud = el.querySelector('#bouwhubInhoud');
   inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);text-align:center;padding:30px 0">Dashboard laden…</p>`;
 
-  let teams = [];
+  let teams = [], seizoen = SEIZOEN_FALLBACK;
   try {
-    const snap = await getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw)));
+    // Teams-query en het huidige seizoen van de club tegelijk ophalen i.p.v.
+    // na elkaar — scheelt één rondje wachten bij elke keer openen.
+    const [snap, clubSnap] = await Promise.all([
+      getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))),
+      getDoc(doc(db,'clubs',clubId)),
+    ]);
     teams = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
+    seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
   } catch(e){
     console.error('[Cluppie] bouw-hub: teams ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Teams ophalen mislukt: ${esc(e.code||e.message)}</p>`;
@@ -204,12 +218,16 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   }
 
   try {
-    const dataLijst = await Promise.all(teams.map(t => haalTeamData(t)));
+    // Teamdata van alle teams ÉN de club-uitleningen tegelijk ophalen i.p.v.
+    // de uitleningen pas na afloop van alle teamdata op te halen.
+    const [dataLijst, usnap] = await Promise.all([
+      Promise.all(teams.map(t => haalTeamData(t, seizoen))),
+      getDocs(collection(db,'clubs',clubId,'uitleningen')),
+    ]);
     const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
     const teamIds = new Set(teams.map(t => t.id));
-    const usnap = await getDocs(collection(db,'clubs',clubId,'uitleningen'));
     const uitleningen = usnap.docs.map(d => ({id:d.id, ...d.data()})).filter(u => teamIds.has(u.vanTeam) || teamIds.has(u.naarTeam));
-    huidigeContext = {clubId, bouw, teams, data, uitleningen};
+    huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen};
   } catch(e){
     console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
@@ -311,6 +329,26 @@ function teamRadarGemiddelde(team){
   const metingen = Object.values(perSpeler);
   if (!metingen.length) return null;
   return DOM.map(dom => metingen.reduce((s,m) => s + (m.scores[dom]||0), 0) / metingen.length);
+}
+
+/* [20260922] Teamevaluaties (na de wedstrijd, 8 categorieën) — een compleet
+   ANDERE collectie dan de losse spelersbeoordelingen hierboven, die tot nu
+   toe nergens in dit dashboard terugkwam. Geeft geen radar (andere
+   assen/aantal categorieën dan de 5-domeinen speler-radar, en radarSVG is
+   daar hard op gebouwd) maar wel een duidelijk cijfer + telling. */
+function teamEvalStatsTeam(team){
+  const d = huidigeContext.data.get(team.id);
+  const evals = d.teamevaluaties || [];
+  if (!evals.length) return null;
+  const laatste = [...evals].sort((a,b) => (a.datum||'').localeCompare(b.datum||'')).pop();
+  const gemPerCat = TEAM_CATEGORIEEN.map(c => {
+    const vals = evals.map(e => e.scores?.[c.id]).filter(v => v != null);
+    return vals.length ? vals.reduce((s,x)=>s+x,0)/vals.length : null;
+  }).filter(v => v != null);
+  const gemiddeld = gemPerCat.length ? gemPerCat.reduce((s,x)=>s+x,0)/gemPerCat.length : null;
+  const laatsteVals = Object.values(laatste.scores||{});
+  const laatsteGem = laatsteVals.length ? laatsteVals.reduce((s,x)=>s+x,0)/laatsteVals.length : null;
+  return { count: evals.length, gemiddeld, laatsteGem, laatsteTegenstander: laatste.tegenstander||'', laatsteDatum: laatste.datum||'' };
 }
 
 function uitleningenVoorTeam(teamId){
@@ -485,8 +523,23 @@ function renderDashboard(){
       const radarLaatste = w.evalRadar ? teamRadarLaatste(t) : null;
       const radarGem = w.evalRadar ? teamRadarGemiddelde(t) : null;
       const radarHtml = w.evalRadar ? (radarLaatste
-        ? `<div style="text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:130, labels:false, compare: radarGem})}</div>`
+        ? `<div style="text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:170, compare: radarGem})}</div>`
         : `<div style="text-align:center;color:var(--ink-2);font-size:calc(11.5px * var(--fs));padding:8px 0">Nog geen evaluaties</div>`) : '';
+
+      const teStats = w.teamEval ? teamEvalStatsTeam(t) : null;
+      const teKleur = teStats?.laatsteGem ? niveauKleur(Math.max(1, Math.round(teStats.laatsteGem))) : 'var(--surface-2)';
+      const teamEvalHtml = w.teamEval ? (teStats ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">Teamevaluaties · na de wedstrijd</span>
+            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">${teStats.count}×</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
+            <span style="font-size:calc(12px * var(--fs));color:var(--ink-2)">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?` · gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
+          </div>
+        </div>` : `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2);color:var(--ink-2);font-size:calc(11.5px * var(--fs))">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
 
       const leningen = w.uitleningen ? uitleningenVoorTeam(t.id) : [];
       const leningHtml = (w.uitleningen && leningen.length) ? `
@@ -515,6 +568,7 @@ function renderDashboard(){
           </div>
         </div>` : ''}
         ${radarHtml}
+        ${teamEvalHtml}
         ${leningHtml}
       </div>`;
     }).join('')}`;
@@ -568,7 +622,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260922a');
+      const m = await import('./teams.js?v=20260922b');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -676,7 +730,7 @@ function tekenSpelersLijst(filterTeamId){
   inhoud.querySelectorAll('[data-bh-open-speler]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260922a');
+      const m = await import('./teams.js?v=20260922b');
       m.openTeam(b.dataset.bhTeam, 'spelers', {beoordeelProfiel: b.dataset.bhOpenSpeler});
     };
   });

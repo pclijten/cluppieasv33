@@ -5,12 +5,17 @@
    firestore.rules: trainingDeel + trainingToegang), en toont een sterk
    vereenvoudigde pagina: alleen de gedeelde training + de presentie ervan.
    Geen navigatie, geen toegang tot iets anders — dat is met opzet, dit
-   scherm is voor een niet-ingelogde ouder die soms meehelpt. */
-import { auth, db, signInAnonymously, doc, getDoc, setDoc, addDoc, updateDoc,
-         collection, getDocs, query, where, serverTimestamp } from './firebase.js?v=20260922a';
-import { esc } from './state.js?v=20260922a';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20260922a';
-import { oefHtml } from './training-weergave.js?v=20260922a';
+   scherm is voor een niet-ingelogde ouder die soms meehelpt.
+   [20260922] Op verzoek van Paul: de presentie is hier ALLEEN-LEZEN — een
+   ouder mag zien wie er is, maar niet zelf iets aanvinken (dat blijft aan
+   de coach). De sectie staat bovendien standaard ingeklapt; tikken toont de
+   lijst. firestore.rules staat schrijven op presentie voor een
+   trainingToegang-sessie dan ook niet meer toe. */
+import { auth, db, signInAnonymously, doc, getDoc, setDoc,
+         collection, getDocs, query, where } from './firebase.js?v=20260922b';
+import { esc } from './state.js?v=20260922b';
+import { afwezigRedenInfo } from './config.js?v=20260922b';
+import { oefHtml } from './training-weergave.js?v=20260922b';
 
 function schermHtml(inhoud){
   return `<div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:20px 16px calc(40px + env(safe-area-inset-bottom));box-sizing:border-box">${inhoud}</div>`;
@@ -91,39 +96,37 @@ export async function bootDeelPagina(deelId){
     return;
   }
 
-  // 5) Bestaande presentie van vandaag (indien de coach al iets invulde).
+  // 5) Bestaande presentie van vandaag (indien de coach al iets invulde) —
+  // puur om te TONEN; de ouder kan hier niets meer in wijzigen.
   const vandaag = new Date().toISOString().slice(0,10);
   let presentieDoc = null;
   try {
     const psnap = await getDocs(query(collection(db,'teams',deel.teamId,'presentie'), where('datum','==',vandaag)));
     if (!psnap.empty) presentieDoc = { id: psnap.docs[0].id, ...psnap.docs[0].data() };
-  } catch(e){ /* niet fataal — presentie start dan gewoon leeg */ }
+  } catch(e){ /* niet fataal — presentie toont dan gewoon "nog niet ingevuld" */ }
 
   renderDeelPagina(el, { deel, training, spelers, presentieDoc, vandaag, teamId: deel.teamId });
 }
 
 function renderDeelPagina(el, ctx){
-  const { deel, training, spelers, vandaag } = ctx;
-  const afwezig = new Set(ctx.presentieDoc?.afwezig || []);
-  const redenen = ctx.presentieDoc ? JSON.parse(JSON.stringify(ctx.presentieDoc.afwezigRedenen || {})) : {};
+  const { deel, training, spelers, presentieDoc } = ctx;
+  const afwezig = new Set(presentieDoc?.afwezig || []);
+  const redenen = presentieDoc?.afwezigRedenen || {};
   const vervaltTekst = new Date(deel.vervaltOp.toMillis()).toLocaleString('nl-NL', {weekday:'long', day:'numeric', month:'long', hour:'2-digit', minute:'2-digit'});
   const oefeningen = Array.isArray(training.oefeningen) ? training.oefeningen : [];
+  const aantalAanwezig = spelers.length - afwezig.size;
 
   const speciaal = (p) => {
     const isAfw = afwezig.has(p.id);
     const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
     return `
-    <div class="pres-speler ${isAfw?'afwezig':'aanwezig'}" data-deel-speler="${p.id}">
-      <button type="button" class="pres-speler-kop" data-deel-toggle="${p.id}">
+    <div class="pres-speler ${isAfw?'afwezig':'aanwezig'}" style="cursor:default">
+      <div class="pres-speler-kop" style="cursor:default">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${isAfw?'Afwezig':'Aanwezig'}</span>
-      </button>
-      ${isAfw ? `
-      <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-deel-reden="${r.id}" data-deel-pid="${p.id}">${r.emoji} ${r.label}</button>`).join('')}</div>
-      ${info ? `<input class="invoer pres-reden-notitie" data-deel-notitie="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
-      ` : ''}
+        <span class="pres-status">${isAfw?(info?`Afwezig · ${esc(info.label)}`:'Afwezig'):'Aanwezig'}</span>
+      </div>
+      ${isAfw && redenen[p.id]?.notitie ? `<p style="margin:2px 0 0 44px;color:var(--ink-2);font-size:calc(12px * var(--fs))">“${esc(redenen[p.id].notitie)}”</p>` : ''}
     </div>`;
   };
 
@@ -138,84 +141,24 @@ function renderDeelPagina(el, ctx){
       ${oefeningen.length ? `<p style="color:var(--ink-2);font-size:calc(12.5px * var(--fs))">${oefeningen.length} oefening${oefeningen.length===1?'':'en'} — scrol naar beneden voor de details.</p>` : `<p style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Nog geen gestructureerde oefenstof bij deze training.</p>`}
     </div>
 
-    <div class="sectie-kop">Presentie — vandaag</div>
-    <p style="color:var(--ink-2);font-size:calc(12.5px * var(--fs));margin-bottom:10px">Iedereen staat op <b>aanwezig</b>. Tik op een naam om iemand als afwezig te markeren.</p>
-    <div class="pres-lijst" id="deelPresLijst">${spelers.map(speciaal).join('')}</div>
-    <div class="pres-opslag rust" id="deelPresOpslag" style="margin-top:10px" aria-live="polite">
-      <span class="pres-opslag-stip"></span><span id="deelPresOpslagTekst">Nog niet opgeslagen</span>
-    </div>
-    <button class="knop vol" id="deelPresOpslaan" style="margin-top:10px;margin-bottom:28px">Presentie opslaan</button>
+    <button type="button" class="lijst-item" id="deelPresToggle" style="margin-bottom:0">
+      <div class="li-tekst">
+        <div class="titel">Presentie — vandaag</div>
+        <div class="meta">${presentieDoc ? `${aantalAanwezig} van ${spelers.length} aanwezig` : 'Nog niet ingevuld door de coach'}</div>
+      </div>
+      <span class="pijl" id="deelPresPijl">›</span>
+    </button>
+    <div class="pres-lijst" id="deelPresLijst" style="display:none;margin-top:10px;margin-bottom:28px">${spelers.map(speciaal).join('')}</div>
 
     ${oefeningen.length ? `<div class="hl">${oefeningen.map((o,i) => oefHtml(i+1, o, training.diagramUrls||{})).join('')}</div>` : ''}
   `);
 
   const lijst = el.querySelector('#deelPresLijst');
-  lijst.querySelectorAll('[data-deel-toggle]').forEach(b => b.onclick = () => {
-    const id = b.dataset.deelToggle;
-    if (afwezig.has(id)){ afwezig.delete(id); delete redenen[id]; }
-    else afwezig.add(id);
-    herteken();
-  });
-  const koppelRedenKnoppen = () => {
-    lijst.querySelectorAll('[data-deel-reden]').forEach(b => b.onclick = () => {
-      const id = b.dataset.deelPid, type = b.dataset.deelReden;
-      const huidig = redenen[id];
-      if (huidig && afwezigRedenInfo(huidig).id === type) delete redenen[id];
-      else redenen[id] = { type, notitie: huidig?.notitie || '' };
-      herteken();
-    });
-    lijst.querySelectorAll('[data-deel-notitie]').forEach(inp => inp.oninput = () => {
-      const id = inp.dataset.deelNotitie;
-      if (redenen[id]) redenen[id].notitie = inp.value;
-    });
-  };
-  function herteken(){
-    lijst.innerHTML = spelers.map(speciaal).join('');
-    lijst.querySelectorAll('[data-deel-toggle]').forEach(b => b.onclick = () => {
-      const id = b.dataset.deelToggle;
-      if (afwezig.has(id)){ afwezig.delete(id); delete redenen[id]; }
-      else afwezig.add(id);
-      herteken();
-    });
-    koppelRedenKnoppen();
-  }
-  koppelRedenKnoppen();
-
-  const zetStatus = (klasse, tekst) => {
-    const b = el.querySelector('#deelPresOpslag'); if (!b) return;
-    b.className = 'pres-opslag ' + klasse;
-    el.querySelector('#deelPresOpslagTekst').textContent = tekst;
-  };
-
-  el.querySelector('#deelPresOpslaan').onclick = async () => {
-    const knop = el.querySelector('#deelPresOpslaan');
-    knop.disabled = true;
-    zetStatus('bezig', 'Bewaren…');
-    const data = {
-      datum: vandaag,
-      afwezig: Array.from(afwezig),
-      telaat: [],
-      afwezigRedenen: redenen,
-      selectie: spelers.map(p => p.id),
-      aantalAanwezig: spelers.length - afwezig.size,
-      aantalTeLaat: 0,
-      aantalSpelers: spelers.length,
-      door: 'Ouder (gedeelde training)',
-      gewijzigd: serverTimestamp(),
-    };
-    try {
-      if (ctx.presentieDoc){
-        await updateDoc(doc(db,'teams',ctx.teamId,'presentie',ctx.presentieDoc.id), data);
-      } else {
-        const ref = await addDoc(collection(db,'teams',ctx.teamId,'presentie'), { ...data, gemaakt: serverTimestamp() });
-        ctx.presentieDoc = { id: ref.id };
-      }
-      zetStatus('klaar', 'Bewaard — bedankt!');
-    } catch(e){
-      zetStatus('fout', 'Bewaren mislukt: ' + (e.code||e.message));
-    } finally {
-      knop.disabled = false;
-    }
+  const pijl = el.querySelector('#deelPresPijl');
+  el.querySelector('#deelPresToggle').onclick = () => {
+    const open = lijst.style.display !== 'none';
+    lijst.style.display = open ? 'none' : '';
+    pijl.style.transform = open ? '' : 'rotate(90deg)';
   };
 }
 

@@ -21,8 +21,8 @@
 
 import {
   db, collection, doc, addDoc, deleteDoc, query, where, getDocs, serverTimestamp
-} from './firebase.js?v=20260922a';
-import { S, esc, meld } from './state.js?v=20260922a';
+} from './firebase.js?v=20260922b';
+import { S, esc, meld } from './state.js?v=20260922b';
 
 /* Interne toestand voor de op dit moment geopende training. */
 let _actief = null;   // { teamId, trainingId, stage, laagAan, notities:[], actiefItem, veldRefs }
