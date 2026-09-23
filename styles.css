@@ -4555,3 +4555,17 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .eb-snel{ display:flex; gap:8px; margin-top:10px; }
 .eb-knoppen{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
 .zb-ickleur{ display:inline-flex; }
+
+/* ══════════════════════════════════════════════════════════════════
+   [20260923e] staf in Selectie + uitleenrichting (desktop)
+================================================================== */
+@media (min-width:1100px) and (min-height:520px){
+  .dk-staf{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:10px 14px; margin-bottom:12px; border-radius:12px; background:var(--surface); border:1px solid var(--line-d); font-size:13.5px; }
+  .dk-staf > b{ font-size:12.5px; color:var(--ink-2); font-weight:600; }
+  .dk-staf-p{ display:inline-flex; align-items:center; gap:7px; font-weight:600; }
+  .dk-staf-p i{ width:26px; height:26px; border-radius:50%; background:var(--op-vlak-2); display:grid; place-items:center; font-style:normal; font-size:12px; font-weight:700; }
+  .dk-staf-p small{ color:var(--ink-2); font-weight:500; }
+  .dk-staf-uitleg{ margin-left:auto; font-size:12px; color:var(--ink-2); }
+  .dk-pill.dkb-in{ background:color-mix(in srgb,#3b82f6 22%,transparent); color:var(--ink); }
+  .dkb-rij .dk-pill{ flex-shrink:0; }
+}
