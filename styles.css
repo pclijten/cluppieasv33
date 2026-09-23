@@ -4536,3 +4536,22 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   .dk-meekijk .dk-scherm{ min-height:0; }
   .dk-meekijk .dk-drie{ height:calc(100dvh - 60px - 50px); }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   EIGEN BOUWEN — [20260923d] beheer in Club → Instellingen (telefoon én desktop)
+================================================================== */
+.eb-kop{ display:flex; align-items:center; gap:10px; }
+.eb-kleur{ width:14px; height:14px; border-radius:4px; flex-shrink:0; }
+.eb-naam{ flex:1; min-width:0; font-weight:700; font-size:calc(15px * var(--fs)); }
+.eb-naam small{ display:block; font-weight:500; font-size:calc(12px * var(--fs)); color:var(--ink-2); }
+.eb-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+.eb-tags span{ font-size:calc(11.5px * var(--fs)); font-weight:600; padding:3px 8px; border-radius:99px; background:var(--surface-2); color:var(--ink-2); }
+.eb-kleuren{ display:flex; gap:8px; }
+.eb-kleurknop{ width:30px; height:30px; border-radius:8px; border:0; cursor:pointer; }
+.eb-kleurknop.aan{ outline:2px solid var(--ink); outline-offset:2px; }
+.eb-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+.eb-chip{ padding:7px 11px; border-radius:99px; font-size:calc(13px * var(--fs)); font-weight:600; background:var(--surface-2); color:var(--ink); border:1px solid var(--line-d); cursor:pointer; }
+.eb-chip.aan{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.eb-snel{ display:flex; gap:8px; margin-top:10px; }
+.eb-knoppen{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+.zb-ickleur{ display:inline-flex; }
