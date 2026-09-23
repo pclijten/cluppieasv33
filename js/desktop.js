@@ -1,25 +1,28 @@
 /* ==================== DESKTOP-SCHIL (≥ 1100 × 520 px) ====================
-   [20260922d] Stap 1 van de desktop-herinrichting (goedgekeurde mockup
+   [20260922d] Stap 1 van de desktop-herinrichting (sinds [20260922e] met eigen
+   schermen in desktop-schermen.js; de zijbalk hieronder is ongewijzigd) (goedgekeurde mockup
    "zijbalk + paspoortstijl"). Deze module:
      • wordt ALLEEN geladen door main.js als het scherm breed genoeg is — een
        telefoon downloadt/parset dit bestand nooit;
      • tekent een vaste zijbalk links (teamwissel, zoeken, menu per ruimte);
      • stuurt alle klikken door naar de BESTAANDE navigatie (openTeam,
-       zetTeamTab, openClub, openWedstrijd, …). Er worden geen eigen schermen
-       getekend; de bestaande views draaien ongewijzigd rechts van de zijbalk.
+       zetTeamTab, openClub, openWedstrijd, …). De zijbalk tekent zelf geen
+       schermen; vijf team-tabbladen krijgen een eigen desktopweergave via
+       desktop-schermen.js, de rest draait ongewijzigd rechts van de zijbalk.
    Bewust géén wijziging in state.js of teams.js: de zijbalk leest S en volgt
    de DOM (MutationObserver op #app) om te weten welk scherm actief is.
    Stijl: blok "DESKTOP-SCHIL" achteraan in styles.css (html.desk).
 ========================================================================== */
 import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo } from './teams.js?v=20260922c';
+import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260922e';
+import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260922e';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { evaluatieOpen } from './teams-hub.js?v=20260922c';
 import { telNav } from './tracker.js?v=20260922c';
 
 const K_KLEIN = 'cluppie_zijbalk_klein';
-let mq = null, zij = null, pal = null, laatsteHtml = '', gepland = false, teamKeuzeOpen = false;
+let mq = null, zij = null, pal = null, laatsteHtml = '', gepland = false, teamKeuzeOpen = false, wasDesk = null;
 
 /* ---------- hulpjes ---------- */
 const probeer = (f, dflt) => { try { return f(); } catch(e){ return dflt; } };
@@ -49,9 +52,9 @@ function rolNaam(){
    loopt onze vervolgstap gegarandeerd ná die render. */
 async function sluitOpenWedstrijd(){
   if (huidigeView() !== 'wedstrijd' && !S.wedstrijdId) return;
-  const w = await import('./wedstrijd.js?v=20260922c');
+  const w = await import('./wedstrijd.js?v=20260922e');
   w.sluitWedstrijd();
-  await import('./teams.js?v=20260922c');
+  await import('./teams.js?v=20260922e');
   await new Promise(r => requestAnimationFrame(() => r()));
 }
 /* Club-view verlaten zónder terug te springen naar het teamoverzicht
@@ -67,7 +70,7 @@ async function gaNaarTab(tab, opties = {}){
   telNav('desk:' + tab, 'zijbalk');
   const view = huidigeView();
   if (view === 'wedstrijd'){
-    const w = await import('./wedstrijd.js?v=20260922c');
+    const w = await import('./wedstrijd.js?v=20260922e');
     if (opties.profiel) S._beoordeelProfiel = opties.profiel;
     w.sluitWedstrijd(tab);
     return;
@@ -93,16 +96,16 @@ async function naarOverzicht(){
   teamKeuzeOpen = false;
   await sluitOpenWedstrijd();
   if (S.teamId){ verlaatTeamView(); return; }
-  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260922c'); c.verlaatClubView(); }
+  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260922e'); c.verlaatClubView(); }
 }
 async function openClubDesk(id){
   await sluitOpenWedstrijd();
   if (S.teamId) verlaatTeamView();
-  const c = await import('./club.js?v=20260922c');
+  const c = await import('./club.js?v=20260922e');
   c.openClub(id);
 }
 async function openBouwDesk(clubId, bouw){
-  const b = await import('./bouw-hub.js?v=20260922c');
+  const b = await import('./bouw-hub.js?v=20260922e');
   b.openBouwHub(clubId, bouw);
 }
 async function voerActieUit(actie, data = {}){
@@ -111,7 +114,7 @@ async function voerActieUit(actie, data = {}){
   if (actie === 'overzicht')  return naarOverzicht();
   if (actie === 'club')       return openClubDesk(data.id);
   if (actie === 'bouw')       return openBouwDesk(data.club, data.bouw);
-  if (actie === 'chat')       return import('./chatbot.js?v=20260922c').then(m => m.openChatbot());
+  if (actie === 'chat')       return import('./chatbot.js?v=20260922e').then(m => m.openChatbot());
   if (actie === 'tactiek'){
     if (!S.teamId){ const tid = laatsteTeamId(); if (tid) openTeam(tid); }
     return import('./tactiekbord.js?v=20260922c').then(m => m.openTactiekBibliotheek());
@@ -119,7 +122,7 @@ async function voerActieUit(actie, data = {}){
   if (actie === 'speler')     return gaNaarTab('spelers', { profiel: data.id });
   if (actie === 'wedstrijd'){
     if (huidigeView() !== 'team' && huidigeView() !== 'wedstrijd') return;
-    return import('./wedstrijd.js?v=20260922c').then(m => m.openWedstrijd(data.id));
+    return import('./wedstrijd.js?v=20260922e').then(m => m.openWedstrijd(data.id));
   }
 }
 
@@ -142,14 +145,14 @@ function groepen(){
       ...(modAan('evaluaties') ? [{ tab:'evaluatie', ico:'attendance-evaluatie', naam:'Evaluatie', badge: evalOpen }] : []),
     ]],
     ['Training', [
+      { tab:'presentietraining', ico:'attendance-present', naam:'Trainingen' },
       { tab:'planning',          ico:'planning-calendar',  naam:'Planning' },
-      { tab:'presentietraining', ico:'attendance-present', naam:'Aanwezigheid' },
       { tab:'trainingen',        ico:'training-cones',     naam:'Oefenstof', badge: stofNieuw },
       { tab:'videos',            ico:'training-video',     naam:'Video\u2019s' },
       { actie:'tactiek',         ico:'football-tactics',   naam:'Tactiek' },
     ]],
     ['Spelers', [
-      { tab:'spelers',  ico:'team-members',        naam:'Overzicht', tel: tid ? S.spelers.length : 0 },
+      { tab:'spelers',  ico:'team-members',        naam:'Selectie', tel: tid ? S.spelers.length : 0 },
       { tab:'historie', ico:'attendance-overview', naam:'Historie' },
       { tab:'stats',    ico:'stats-bars',          naam:'Stats' },
     ]],
@@ -196,6 +199,11 @@ function teken(){
   if (!zij) return;
   const zichtbaar = mq?.matches && $('#app') && $('#app').style.display !== 'none';
   document.documentElement.classList.toggle('desk', !!zichtbaar);
+  /* Wisselt het venster tussen smal en breed terwijl een team open staat,
+     teken het team dan opnieuw zodat de juiste weergave (desktop of gewoon)
+     verschijnt. */
+  if (wasDesk !== null && wasDesk !== !!zichtbaar && S.team && huidigeView() === 'team'){ ruimOp(); renderTeam(); }
+  wasDesk = !!zichtbaar;
   if (!zichtbaar) return;
 
   const actief = actieveSleutel();
@@ -333,6 +341,7 @@ function sneltoets(e){
 export function initDesktop(mediaQuery){
   mq = mediaQuery;
   if (zij){ plan(); return; }                      // al actief: alleen bijwerken
+  initSchermen();
   if (probeer(() => localStorage.getItem(K_KLEIN), '') === '1') document.documentElement.classList.add('zij-klein');
   zij = document.createElement('aside');
   zij.id = 'zijbalk';
@@ -345,4 +354,7 @@ export function initDesktop(mediaQuery){
   if (app) new MutationObserver(plan).observe(app, { subtree:true, childList:true, attributes:true, attributeFilter:['class','style'] });
   mq.addEventListener?.('change', plan);
   teken();
+  /* Stond er al een team open vóór deze module laadde (trage verbinding),
+     teken het dan opnieuw in de desktopweergave. */
+  if (S.team && huidigeView() === 'team' && document.documentElement.classList.contains('desk')) renderTeam();
 }
