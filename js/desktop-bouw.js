@@ -12,9 +12,9 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923e';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923e';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260923e';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923f';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923f';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260923f';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -112,15 +112,19 @@ function openEvaluaties(d){
   const ge = new Set((d.teamevaluaties || []).map(e => e.wedstrijdId));
   return (d.wedstrijden || []).filter(w => gespeeld(w) && (analyseWedstrijd(w).kwarten || 0) > 0 && !ge.has(w.id)).length;
 }
-function htmlDashboard(ctx){
-  const teams = ctx.teams;
-  const rij = teams.map(t => {
+/* [20260923f] Gedeeld met de mobiele bouw-omgeving (mobiel-bouw.js). */
+export function teamRijen(ctx){
+  return ctx.teams.map(t => {
     const d = ctx.data.get(t.id) || {};
     const u = (() => { try { return uitslagenTeam(t); } catch(e){ return {}; } })();
     const kom = (d.wedstrijden || []).filter(w => !gespeeld(w)).sort((a, b) => (a.datum + (a.aftrap || '')).localeCompare(b.datum + (b.aftrap || '')))[0] || null;
     return { t, d, u, kom, tr: (() => { try { return presentiePctTeam(t); } catch(e){ return null; } })(),
       wd: (() => { try { return presentiePctWedstrijdTeam(t); } catch(e){ return null; } })(), kaart: gemKaart(d), open: openEvaluaties(d) };
   });
+}
+function htmlDashboard(ctx){
+  const teams = ctx.teams;
+  const rij = teamRijen(ctx);
   const spelers = rij.reduce((a, r) => a + (r.d.spelers || []).length, 0);
   const trGem = rij.filter(r => r.tr != null); const trPct = trGem.length ? Math.round(trGem.reduce((a, r) => a + r.tr, 0) / trGem.length) : null;
   const eigen = new Set((S.teams || []).map(t => t.id));
@@ -163,7 +167,7 @@ function bouwVanTeamNaam(naam){
   const id = bouwVanCategorie(String(naam || '').split(/[-\s]/)[0]);
   return BOUWEN.find(b => b.id === id)?.naam?.toLowerCase() || 'andere bouw';
 }
-function richting(u, ctx){
+export function richting(u, ctx){
   const ids = new Set(ctx.teams.map(t => t.id));
   const van = ids.has(u.vanTeam), naar = ids.has(u.naarTeam);
   if (van && naar) return '<span class="dk-pill">binnen de bouw</span>';

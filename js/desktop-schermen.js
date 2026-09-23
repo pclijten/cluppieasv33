@@ -23,10 +23,10 @@ import { SKILLS, NIVEAUS, niveauKleur, LEERCURVE, leercurveRelevant, bouwSlots, 
 import { analyseWedstrijd, speeltijdReserve, kwartGespeeld } from './analyse.js?v=20260922c';
 import { teltMee } from './opkomst.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20260923e';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20260923f';
 import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20260922c';
-import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20260923e';
-import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20260923e';
+import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20260923f';
+import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20260923f';
 import { oefHtml } from './training-weergave.js?v=20260922c';
 import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
@@ -363,6 +363,69 @@ async function bewaarSpelerDesk(){
     positie: spPositie.pos || null, notitie: ($('#dkSpNotitie')?.value || '').trim() || null };
   try { await updateDoc(doc(db, 'teams', S.teamId, 'spelers', p.id), data); meld(`${naam} opgeslagen`); }
   catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
+}
+
+/* ==================== MOBIELE TEAMSCHERMEN (bouw-omgeving) ====================
+   [20260923f] Zelfde gegevens en helpers als de desktop, maar opgemaakt voor
+   de telefoon (klassen mb-*, styling in styles.css buiten de desktop-query).
+   Gebruikt door mobiel-bouw.js; zelfde S-wissel als htmlMeekijk. */
+export function htmlMobielTeam(soort, team, d, keuze = {}){
+  const bewaar = { team:S.team, teamId:S.teamId, spelers:S.spelers, wedstrijden:S.wedstrijden, presentie:S.presentie, beoordelingen:S.beoordelingen, teamEvaluaties:S.teamEvaluaties };
+  try {
+    S.team = team; S.teamId = team.id; S.spelers = d.spelers || []; S.wedstrijden = d.wedstrijden || []; S.presentie = d.presentie || [];
+    S.beoordelingen = [...(d.beoordelingen || [])].sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.gemaaktMs || 0) - (a.gemaaktMs || 0));
+    S.teamEvaluaties = d.teamevaluaties || [];
+    const spelers = [...S.spelers].filter(p => !p.gast).sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99));
+    if (soort === 'sel'){
+      const info = team.ledenInfo || {};
+      const staf = Object.keys(team.leden || {}).filter(u => team.leden[u] === true).map(u => String(info[u]?.naam || 'Coach').split('@')[0]);
+      return `${staf.length ? `<div class="mb-kaart"><div class="mb-lbl">Staf</div><div class="mb-staf">${staf.map(n => `<span><i>${esc(n.charAt(0).toUpperCase())}</i>${esc(n)}</span>`).join('')}</div></div>` : ''}
+        <div class="mb-fkgrid">${spelers.map(p => { const k = kaart(p), st = statsVan(p.id);
+          return `<button class="mb-fk" data-mb="speler" data-id="${esc(p.id)}"><span class="mb-rug">${esc(p.nummer ?? '')}</span><span class="mb-o">${k.ovr ?? '\u2013'}${k.snel ? '<small>snel</small>' : ''}</span>
+            <span class="mb-n">${esc(voornaam(p))}</span><span class="mb-ms"><span><b>${st.wedstrijden}</b><small>WED</small></span><span><b class="g">${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</b><small>SPEEL</small></span>
+            <span><b class="y">${st.pctReserve != null ? st.pctReserve + '%' : '\u2013'}</b><small>RES</small></span><span><b>${st.goals}</b><small>GOAL</small></span></span></button>`; }).join('') || '<p class="mb-leeg">Nog geen spelers.</p>'}</div>`;
+    }
+    if (soort === 'evs'){
+      const pid = keuze.speler && spelers.some(p => p.id === keuze.speler) ? keuze.speler : spelers[0]?.id;
+      const p = spelers.find(x => x.id === pid);
+      if (!p) return '<p class="mb-leeg">Nog geen spelers.</p>';
+      const k = kaart(p), st = statsVan(p.id), tg = teamGemiddelde();
+      return `<div class="mb-strook">${spelers.map(x => `<button class="mb-chip ${x.id === pid ? 'aan' : ''}" data-mb="speler" data-id="${esc(x.id)}">${esc(x.nummer ?? '')} ${esc(voornaam(x))}</button>`).join('')}</div>
+        <div class="mb-kaart mb-pas"><div class="mb-groot">${esc(voornaam(p))}<small>${k.ovr != null ? 'Kaart ' + k.ovr + (k.snel ? ' \u00b7 snel' : '') : 'nog niet beoordeeld'}</small></div>
+          ${k.niv.some(Boolean) ? `<div class="mb-radar">${radarSvg(k.niv, tg)}</div>
+            <div class="mb-dom">${SKILLS.map((dm, i) => `<span><b style="color:${dm.kleur}">${k.niv[i] ? cijfer(k.niv[i]) : '\u2013'}</b><small>${dm.id}</small></span>`).join('')}</div>`
+            : `<p class="mb-leeg">${k.snel ? 'Alleen een snelle beoordeling (' + esc(k.snelLabel) + '). Voor de radar per domein is een volledige beoordeling nodig.' : 'Nog geen beoordeling.'}</p>`}</div>
+        <div class="mb-tegels"><span><b>${st.wedstrijden}</b><small>WEDSTR.</small></span><span><b>${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</b><small>SPEELTIJD</small></span><span><b>${st.pctReserve != null ? st.pctReserve + '%' : '\u2013'}</b><small>RESERVE</small></span><span><b>${st.goals}</b><small>GOALS</small></span></div>
+        <div class="mb-kaart"><div class="mb-lbl">Alle evaluaties<span>${evaluatiesVan(p.id).length}</span></div>
+          ${evaluatiesVan(p.id).slice(0, 8).map(b => `<div class="mb-r"><span>${b.soort === 'volledig' ? 'Volledige beoordeling' : 'Snel' + (b.bron?.label ? ' \u00b7 ' + esc(b.bron.label) : '')}<small>${esc(datumMooi(b.datum, { day:'numeric', month:'short' }))}</small></span><em class="mb-niv" style="--n:${niveauKleur(evNiveau(b))}">${esc(NIVEAUS[evNiveau(b)]?.label || '\u2013')}</em></div>`).join('') || '<p class="mb-leeg">Nog geen evaluaties.</p>'}</div>`;
+    }
+    if (soort === 'evw'){
+      const lijst = afgelopen();
+      const wid = keuze.wedstrijd && lijst.some(w => w.id === keuze.wedstrijd) ? keuze.wedstrijd : lijst[0]?.id;
+      const w = lijst.find(x => x.id === wid);
+      if (!w) return '<p class="mb-leeg">Nog geen gespeelde wedstrijden.</p>';
+      const e = S.teamEvaluaties.find(x => x.wedstrijdId === w.id);
+      const vals = Object.values(e?.scores || {}).map(Number).filter(Boolean);
+      const pct = vals.length ? Math.round(gem(vals) / 5 * 100) : null;
+      return `<div class="mb-strook">${lijst.map(x => { const st = stand(x); return `<button class="mb-wl ${x.id === wid ? 'aan' : ''}" data-mb="wedstrijd" data-id="${esc(x.id)}"><b>${esc(String(Number((x.datum || '').slice(8, 10)) || ''))}<small>${esc(datumMooi(x.datum, { month:'short' }))}</small></b><span>${esc(x.tegenstander || '')}<small>${st.links}\u2013${st.rechts}</small></span></button>`; }).join('')}</div>
+        <div class="mb-kaart mb-evkop"><div class="mb-ring" style="--p:${pct ?? 0}"><span>${pct ?? '\u2013'}</span></div><p>${e ? `Teamscore ${esc(w.tegenstander || '')} ${stand(w).links}\u2013${stand(w).rechts}.` : 'Deze wedstrijd is nog niet ge\u00ebvalueerd.'}</p></div>
+        ${e ? `<div class="mb-kaart">${TEAM_CATEGORIEEN.map(c => { const v = Number(e.scores?.[c.id]) || 0;
+          return `<div class="mb-cat">${esc(c.naam)}</div><div class="mb-kb">${NIVEAUS.slice(1).map(n => `<span style="${v === n.n ? 'background:' + niveauKleur(n.n) + ';color:#161a1f' : ''}">${esc(n.label.slice(0, 6))}</span>`).join('')}</div>`; }).join('')}
+          ${(e.tags || []).length ? `<div class="mb-tags">${e.tags.map(tid => { const t = TEAM_TAGS.find(x => x.id === tid); return t ? `<span>${esc(t.label)}</span>` : ''; }).join('')}</div>` : ''}
+          ${e.notitieGoed ? `<p class="mb-noot"><b>Ging goed:</b> ${esc(e.notitieGoed)}</p>` : ''}${e.notitieAandacht ? `<p class="mb-noot"><b>Aandacht:</b> ${esc(e.notitieAandacht)}</p>` : ''}</div>` : ''}`;
+    }
+    if (soort === 'stat'){
+      const rij = spelers.map(p => ({ p, st: statsVan(p.id) }));
+      return `<div class="mb-kaart">${rij.map(({ p, st }) => `<div class="mb-statrij"><b>${esc(p.nummer ?? '')}</b><span>${esc(voornaam(p))}</span>
+          <i>${st.pctSpeeltijd != null ? `<em class="g" style="width:${st.pctSpeeltijd}%"></em><em class="y" style="width:${st.pctReserve}%"></em>` : ''}</i>
+          <small>${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</small><small>${st.goals} \u26bd</small></div>`).join('') || '<p class="mb-leeg">Nog geen spelers.</p>'}
+        <div class="mb-leg"><span><i class="g"></i>gespeeld</span><span><i class="y"></i>reserve</span><span>% van speelbare tijd</span></div></div>`;
+    }
+    return '';
+  } finally {
+    S.team = bewaar.team; S.teamId = bewaar.teamId; S.spelers = bewaar.spelers; S.wedstrijden = bewaar.wedstrijden; S.presentie = bewaar.presentie;
+    S.beoordelingen = bewaar.beoordelingen; S.teamEvaluaties = bewaar.teamEvaluaties;
+  }
 }
 
 /* ==================== MEEKIJKEN (coördinator, alleen lezen) ====================
@@ -851,8 +914,8 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260923e'); m.openWedstrijd(id); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260923e'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260923f'); m.openWedstrijd(id); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260923f'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
   if (a === 'presentie'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(); return; }
   if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(null, { startAnder:true }); return; }
@@ -861,11 +924,11 @@ async function actie(b){
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260923e'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalSpeler(null); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260923f'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'selw'){ selWedstrijd = id; renderTeam(); return; }
   if (a === 'seltr'){ selTraining = id; renderTeam(); return; }
@@ -873,8 +936,8 @@ async function actie(b){
   /* [20260923a] */
   if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
-  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20260923e');
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20260923f');
     if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
   if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
   if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
@@ -893,8 +956,8 @@ async function actie(b){
     if ($('#dkSpNaam')){ $('#dkSpNaam').value = bewaard.naam ?? ''; $('#dkSpNr').value = bewaard.nr ?? ''; $('#dkSpAchter').value = bewaard.achter ?? ''; $('#dkSpNotitie').value = bewaard.notitie ?? ''; }
     return; }
   if (a === 'spopslaan'){ await bewaarSpelerDesk(); return; }
-  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20260923e'); m.modalUitlenen(S._beoordeelProfiel); return; }
-  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20260923e'); await m.trekUitleningIn(id); renderTeam(); return; }
+  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20260923f'); m.modalUitlenen(S._beoordeelProfiel); return; }
+  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20260923f'); await m.trekUitleningIn(id); renderTeam(); return; }
   if (a === 'sphis'){ S._dkModus = null; S._profielTab = 'historie'; renderTeam(); return; }
   if (a === 'spweg'){ const p = speler(S._beoordeelProfiel); if (!p) return;
     if (p._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen — zet hem terug naar het bronteam');
@@ -908,7 +971,7 @@ async function actie(b){
     renderTeam(); return; }
   if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20260922c'); m.modalEigenDag(); return; }
   if (a === 'plandag'){ const { datum, bron, doc: did } = b.dataset;
-    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20260923e'); m.openWedstrijd(did); return; }
+    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20260923f'); m.openWedstrijd(did); return; }
     if (bron === 'training'){ selTraining = datum; zetTeamTab('presentietraining'); return; }
     const it = planningItems().find(x => x.datum === datum && x.bron === bron);
     if (it){ const m = await import('./teams-training.js?v=20260922c'); m.modalPlanDag(it); } return; }
