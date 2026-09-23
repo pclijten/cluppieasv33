@@ -16,9 +16,9 @@
 import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { BOUWEN } from './config.js?v=20260922c';
-import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260923c';
-import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260923c';
-import { openBouw, bouwTeams, bouwHuidig, zetHerteken } from './desktop-bouw.js?v=20260923c';
+import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260923d';
+import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260923d';
+import { openBouw, bouwTeams, bouwHuidig, zetHerteken } from './desktop-bouw.js?v=20260923d';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { evaluatieOpen } from './teams-hub.js?v=20260922c';
 import { telNav } from './tracker.js?v=20260922c';
@@ -55,9 +55,9 @@ function rolNaam(){
    loopt onze vervolgstap gegarandeerd ná die render. */
 async function sluitOpenWedstrijd(){
   if (huidigeView() !== 'wedstrijd' && !S.wedstrijdId) return;
-  const w = await import('./wedstrijd.js?v=20260923c');
+  const w = await import('./wedstrijd.js?v=20260923d');
   w.sluitWedstrijd();
-  await import('./teams.js?v=20260923c');
+  await import('./teams.js?v=20260923d');
   await new Promise(r => requestAnimationFrame(() => r()));
 }
 /* Club-view verlaten zónder terug te springen naar het teamoverzicht
@@ -73,7 +73,7 @@ async function gaNaarTab(tab, opties = {}){
   telNav('desk:' + tab, 'zijbalk');
   const view = huidigeView();
   if (view === 'wedstrijd'){
-    const w = await import('./wedstrijd.js?v=20260923c');
+    const w = await import('./wedstrijd.js?v=20260923d');
     if (opties.profiel) S._beoordeelProfiel = opties.profiel;
     w.sluitWedstrijd(tab);
     return;
@@ -99,16 +99,16 @@ async function naarOverzicht(){
   teamKeuzeOpen = false;
   await sluitOpenWedstrijd();
   if (S.teamId){ verlaatTeamView(); return; }
-  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260923c'); c.verlaatClubView(); }
+  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260923d'); c.verlaatClubView(); }
 }
 async function openClubDesk(id){
   await sluitOpenWedstrijd();
   if (S.teamId) verlaatTeamView();
-  const c = await import('./club.js?v=20260923c');
+  const c = await import('./club.js?v=20260923d');
   c.openClub(id);
 }
 async function openBouwDesk(clubId, bouw){
-  const b = await import('./bouw-hub.js?v=20260923c');
+  const b = await import('./bouw-hub.js?v=20260923d');
   b.openBouwHub(clubId, bouw);
 }
 /* Bouw-omgeving openen: eerst een open wedstrijd/club/team netjes verlaten. */
@@ -157,7 +157,7 @@ async function voerActieUit(actie, data = {}){
     S.clubTab = 'instel';          // eerste render (bij binnenkomst van de clubdata) toont Instellingen met Coördinatoren
     return;
   }
-  if (actie === 'chat')       return import('./chatbot.js?v=20260923c').then(m => m.openChatbot());
+  if (actie === 'chat')       return import('./chatbot.js?v=20260923d').then(m => m.openChatbot());
   if (actie === 'tactiek'){
     if (!S.teamId){ const tid = laatsteTeamId(); if (tid) openTeam(tid); }
     return import('./tactiekbord.js?v=20260922c').then(m => m.openTactiekBibliotheek());
@@ -172,7 +172,7 @@ async function voerActieUit(actie, data = {}){
   }
   if (actie === 'wedstrijd'){
     if (huidigeView() !== 'team' && huidigeView() !== 'wedstrijd') return;
-    return import('./wedstrijd.js?v=20260923c').then(m => m.openWedstrijd(data.id));
+    return import('./wedstrijd.js?v=20260923d').then(m => m.openWedstrijd(data.id));
   }
 }
 
@@ -219,9 +219,9 @@ function groepen(){
      beheerrecht alleen de bouw(en) die ze coördineren. Er staat telkens één
      bouw en één team open. */
   const beheer = [];
-  const bouwItems = (clubId, bouwId, naam) => {
+  const bouwItems = (clubId, bouwId, naam, kleur = null) => {
     const open = openBouwSleutel === clubId + '|' + bouwId;
-    beheer.push({ actie:'bouwtoggle', club:clubId, bouw:bouwId, ico:'admin-roles', naam, sub:1, pijl: open ? '\u25be' : '\u25b8' });
+    beheer.push({ actie:'bouwtoggle', club:clubId, bouw:bouwId, ico:'admin-roles', naam, sub:1, kleur, pijl: open ? '\u25be' : '\u25b8' });
     if (!open) return;
     beheer.push({ actie:'bpag', club:clubId, bouw:bouwId, pag:'dash', ico:'navigation-dashboard', naam:'Dashboard', sub:2 });
     beheer.push({ actie:'bpag', club:clubId, bouw:bouwId, pag:'uit', ico:'football-substitution', naam:'Uitleningen', sub:2 });
@@ -238,7 +238,9 @@ function groepen(){
   for (const c of S.clubs){
     beheer.push({ actie:'club', id:c.id, ico:'admin-admin', naam:c.naam });
     for (const b of BOUWEN) bouwItems(c.id, b.id, b.naam);
-    beheer.push({ actie:'coordbeheer', id:c.id, ico:'team-members', naam:'Coördinatoren', sub:1 });
+    /* [20260923d] eigen bouwen van de club (alleen beheerders) */
+    for (const eb of (Array.isArray(c.eigenBouwen) ? c.eigenBouwen : [])) if (eb?.id) bouwItems(c.id, eb.id, eb.naam || 'Bouw', eb.kleur);
+    beheer.push({ actie:'coordbeheer', id:c.id, ico:'team-members', naam:'Coördinatoren & bouwen', sub:1 });
   }
   for (const b of (S.coordinatorBouwen || []))
     if (!S.clubs.some(c => c.id === b.clubId)) bouwItems(b.clubId, b.bouw, b.bouwNaam + (b.clubNaam ? ' \u00b7 ' + b.clubNaam : ''));
@@ -278,7 +280,7 @@ function linkHtml(it, actief){
     : it.badge ? `<span class="zb-badge">${it.badge}</span>`
     : it.tel ? `<span class="zb-tel">${it.tel}</span>` : '';
   const pijl = it.pijl ? `<span class="zb-pijltje">${it.pijl}</span>` : '';
-  return `<button class="zb-link ${it.sub ? 'zb-sub zb-sub' + it.sub : ''} ${sleutel(it) === actief ? 'actief' : ''}" ${dataAttr(it)} title="${esc(it.naam)}">${it.ico ? ico(it.ico, it.sub > 1 ? 17 : 20) : '<span class="zb-stip-leeg"></span>'}<span class="zb-tekst">${esc(it.naam)}</span>${extra}${pijl}</button>`;
+  return `<button class="zb-link ${it.sub ? 'zb-sub zb-sub' + it.sub : ''} ${sleutel(it) === actief ? 'actief' : ''}" ${dataAttr(it)} title="${esc(it.naam)}">${it.ico ? (it.kleur ? `<span class="zb-ickleur" style="color:${esc(it.kleur)}">${ico(it.ico, it.sub > 1 ? 17 : 20)}</span>` : ico(it.ico, it.sub > 1 ? 17 : 20)) : '<span class="zb-stip-leeg"></span>'}<span class="zb-tekst">${esc(it.naam)}</span>${extra}${pijl}</button>`;
 }
 
 /* ---------- tekenen ---------- */
