@@ -15,8 +15,9 @@
 ========================================================================== */
 import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260923a';
-import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260923a';
+import { BOUWEN } from './config.js?v=20260922c';
+import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260923b';
+import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260923b';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { evaluatieOpen } from './teams-hub.js?v=20260922c';
 import { telNav } from './tracker.js?v=20260922c';
@@ -52,9 +53,9 @@ function rolNaam(){
    loopt onze vervolgstap gegarandeerd ná die render. */
 async function sluitOpenWedstrijd(){
   if (huidigeView() !== 'wedstrijd' && !S.wedstrijdId) return;
-  const w = await import('./wedstrijd.js?v=20260923a');
+  const w = await import('./wedstrijd.js?v=20260923b');
   w.sluitWedstrijd();
-  await import('./teams.js?v=20260923a');
+  await import('./teams.js?v=20260923b');
   await new Promise(r => requestAnimationFrame(() => r()));
 }
 /* Club-view verlaten zónder terug te springen naar het teamoverzicht
@@ -70,7 +71,7 @@ async function gaNaarTab(tab, opties = {}){
   telNav('desk:' + tab, 'zijbalk');
   const view = huidigeView();
   if (view === 'wedstrijd'){
-    const w = await import('./wedstrijd.js?v=20260923a');
+    const w = await import('./wedstrijd.js?v=20260923b');
     if (opties.profiel) S._beoordeelProfiel = opties.profiel;
     w.sluitWedstrijd(tab);
     return;
@@ -96,16 +97,16 @@ async function naarOverzicht(){
   teamKeuzeOpen = false;
   await sluitOpenWedstrijd();
   if (S.teamId){ verlaatTeamView(); return; }
-  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260923a'); c.verlaatClubView(); }
+  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260923b'); c.verlaatClubView(); }
 }
 async function openClubDesk(id){
   await sluitOpenWedstrijd();
   if (S.teamId) verlaatTeamView();
-  const c = await import('./club.js?v=20260923a');
+  const c = await import('./club.js?v=20260923b');
   c.openClub(id);
 }
 async function openBouwDesk(clubId, bouw){
-  const b = await import('./bouw-hub.js?v=20260923a');
+  const b = await import('./bouw-hub.js?v=20260923b');
   b.openBouwHub(clubId, bouw);
 }
 async function voerActieUit(actie, data = {}){
@@ -114,7 +115,12 @@ async function voerActieUit(actie, data = {}){
   if (actie === 'overzicht')  return naarOverzicht();
   if (actie === 'club')       return openClubDesk(data.id);
   if (actie === 'bouw')       return openBouwDesk(data.club, data.bouw);
-  if (actie === 'chat')       return import('./chatbot.js?v=20260923a').then(m => m.openChatbot());
+  if (actie === 'coordbeheer'){
+    await openClubDesk(data.id);
+    S.clubTab = 'instel';          // eerste render (bij binnenkomst van de clubdata) toont Instellingen met Coördinatoren
+    return;
+  }
+  if (actie === 'chat')       return import('./chatbot.js?v=20260923b').then(m => m.openChatbot());
   if (actie === 'tactiek'){
     if (!S.teamId){ const tid = laatsteTeamId(); if (tid) openTeam(tid); }
     return import('./tactiekbord.js?v=20260922c').then(m => m.openTactiekBibliotheek());
@@ -129,7 +135,7 @@ async function voerActieUit(actie, data = {}){
   }
   if (actie === 'wedstrijd'){
     if (huidigeView() !== 'team' && huidigeView() !== 'wedstrijd') return;
-    return import('./wedstrijd.js?v=20260923a').then(m => m.openWedstrijd(data.id));
+    return import('./wedstrijd.js?v=20260923b').then(m => m.openWedstrijd(data.id));
   }
 }
 
@@ -169,10 +175,18 @@ function groepen(){
   if (modAan('leerlijn')) g.push(['Ontwikkeling', [
     { tab:'leerlijnoverzicht', ico:'football-training', naam:'Leerlijn' },
   ]]);
-  const beheer = [
-    ...S.clubs.map(c => ({ actie:'club', id:c.id, ico:'admin-admin', naam:c.naam })),
-    ...(S.coordinatorBouwen || []).map(b => ({ actie:'bouw', club:b.clubId, bouw:b.bouw, ico:'admin-roles', naam:b.bouwNaam })),
-  ];
+  /* [20260923b] Clubbeheerders zien per club ook de drie bouw-dashboards
+     (onder/midden/boven) en een snelkoppeling naar het toewijzen van
+     coördinatoren. Coördinatoren zonder beheerrecht zien alleen hun eigen bouw(en). */
+  const meerClubs = S.clubs.length > 1;
+  const beheer = [];
+  for (const c of S.clubs){
+    beheer.push({ actie:'club', id:c.id, ico:'admin-admin', naam:c.naam });
+    for (const b of BOUWEN) beheer.push({ actie:'bouw', club:c.id, bouw:b.id, ico:'admin-roles', naam: b.naam + (meerClubs ? ' \u00b7 ' + c.naam : ''), sub:true });
+    beheer.push({ actie:'coordbeheer', id:c.id, ico:'team-members', naam:'Coördinatoren', sub:true });
+  }
+  for (const b of (S.coordinatorBouwen || []))
+    if (!S.clubs.some(c => c.id === b.clubId)) beheer.push({ actie:'bouw', club:b.clubId, bouw:b.bouw, ico:'admin-roles', naam:b.bouwNaam + (b.clubNaam && (meerClubs || S.clubs.length) ? ' \u00b7 ' + b.clubNaam : '') });
   if (beheer.length) g.push(['Club \u00b7 beheer', beheer]);
   return g;
 }
@@ -197,13 +211,14 @@ function dataAttr(it){
   if (it.tab) return `data-actie="tab" data-tab="${esc(it.tab)}"`;
   if (it.actie === 'club') return `data-actie="club" data-id="${esc(it.id)}"`;
   if (it.actie === 'bouw') return `data-actie="bouw" data-club="${esc(it.club)}" data-bouw="${esc(it.bouw)}"`;
+  if (it.actie === 'coordbeheer') return `data-actie="coordbeheer" data-id="${esc(it.id)}"`;
   return `data-actie="${esc(it.actie)}"`;
 }
 function linkHtml(it, actief){
   const extra = it.live ? '<span class="zb-live" title="Wedstrijd geopend"></span>'
     : it.badge ? `<span class="zb-badge">${it.badge}</span>`
     : it.tel ? `<span class="zb-tel">${it.tel}</span>` : '';
-  return `<button class="zb-link ${sleutel(it) === actief ? 'actief' : ''}" ${dataAttr(it)} title="${esc(it.naam)}">${ico(it.ico, 20)}<span class="zb-tekst">${esc(it.naam)}</span>${extra}</button>`;
+  return `<button class="zb-link ${it.sub ? 'zb-sub' : ''} ${sleutel(it) === actief ? 'actief' : ''}" ${dataAttr(it)} title="${esc(it.naam)}">${ico(it.ico, 20)}<span class="zb-tekst">${esc(it.naam)}</span>${extra}</button>`;
 }
 
 /* ---------- tekenen ---------- */

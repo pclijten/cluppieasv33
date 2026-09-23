@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923a';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923b';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
@@ -697,7 +697,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260923a');
+      const m = await import('./teams.js?v=20260923b');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
