@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923b';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923c';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
@@ -167,8 +167,8 @@ async function haalTeamData(team, seizoen){
     veilig('teamevaluaties', getDocs(query(collection(db,'teams',team.id,'teamevaluaties'), where('seizoen','==',seizoen)))),
   ]);
   const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend);
-  const wedstrijden = wsnap.docs.map(d => d.data()).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
-  const presentie = psnap.docs.map(d => d.data()).filter(s => s.datum);
+  const wedstrijden = wsnap.docs.map(d => ({id:d.id, ...d.data()})).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
+  const presentie = psnap.docs.map(d => ({id:d.id, ...d.data()})).filter(s => s.datum);
   const stand = poulesnap.exists() ? poulesnap.data() : null;
   const uitslagen = uitslagensnap.exists() ? uitslagensnap.data() : null;
   // NIET meer filteren op soort==='volledig': een team kan ook "snelle"
@@ -176,8 +176,8 @@ async function haalTeamData(team, seizoen){
   // 5-domeinen-structuur) — die moeten wél zichtbaar zijn in het
   // evaluatie-overzicht, ook al passen ze niet in de radar (die heeft de
   // domeinscores nodig en werkt dus verderop alsnog alleen met 'volledig').
-  const beoordelingen = bsnap.docs.map(d => d.data()).filter(b => b.spelerId && (b.scores || b.niveau != null));
-  const teamevaluaties = tesnap.docs.map(d => d.data()).filter(e => e.scores);
+  const beoordelingen = bsnap.docs.map(d => ({id:d.id, ...d.data()})).filter(b => b.spelerId && (b.scores || b.niveau != null));
+  const teamevaluaties = tesnap.docs.map(d => ({id:d.id, ...d.data()})).filter(e => e.scores);
   return { spelers, wedstrijden, presentie, stand, uitslagen, beoordelingen, teamevaluaties };
 }
 
@@ -236,10 +236,32 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   renderDashboard();
 }
 
+/* [20260923c] Zelfde gegevens als openBouwHub, maar zonder het overlay-scherm:
+   voor de desktop-bouwomgeving (desktop-bouw.js). Zet huidigeContext, zodat de
+   berekeningen hieronder en modalNieuweUitleningVanuitBouw gewoon werken. */
+export async function laadBouwData(clubId, bouw){
+  const [snap, clubSnap] = await Promise.all([
+    getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))),
+    getDoc(doc(db,'clubs',clubId)),
+  ]);
+  const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
+  const seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
+  const [dataLijst, usnap] = await Promise.all([
+    Promise.all(teams.map(t => haalTeamData(t, seizoen))),
+    getDocs(collection(db,'clubs',clubId,'uitleningen')),
+  ]);
+  const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
+  const teamIds = new Set(teams.map(t => t.id));
+  const uitleningen = usnap.docs.map(d => ({id:d.id, ...d.data()})).filter(u => teamIds.has(u.vanTeam) || teamIds.has(u.naarTeam));
+  huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen};
+  return huidigeContext;
+}
+export function zetBouwContext(ctx){ huidigeContext = ctx; }
+
 /* ==================== Berekeningen op de cache ==================== */
 function teamNaam(id){ return huidigeContext.teams.find(t => t.id === id)?.naam || '?'; }
 
-function presentiePctTeam(team){
+export function presentiePctTeam(team){
   const d = huidigeContext.data.get(team.id);
   if (!d.presentie.length || !d.spelers.length) return null;
   const pcts = d.spelers.map(p => opkomstVoor(p, d.presentie)).filter(o => o.totaal >= MIN_OPKOMST_TRAININGEN).map(o => o.pct);
@@ -252,7 +274,7 @@ function presentiePctTeam(team){
    wedstrijd; de selectie ZELF is dat al (een coach haalt een afwezige
    speler eruit). Percentage = gemiddeld over alle daadwerkelijk gespeelde
    wedstrijden (kwarten>0) van selectiegrootte t.o.v. het volledige team. */
-function presentiePctWedstrijdTeam(team){
+export function presentiePctWedstrijdTeam(team){
   const d = huidigeContext.data.get(team.id);
   if (!d.spelers.length) return null;
   // Oudere wedstrijden hebben soms nog geen selectie-veld (van vóór die
@@ -268,7 +290,7 @@ function presentiePctWedstrijdTeam(team){
    (teams/{id}/poule/uitslagen) i.p.v. alleen wat er zelf in de app is
    gelogd — dat laatste dekte maar een deel van de wedstrijden en miste dus
    regelmatig doelpunten/uitslagen die Sportlink wél had. */
-function uitslagenTeam(team){
+export function uitslagenTeam(team){
   const d = huidigeContext.data.get(team.id);
   const eigenRij = d.stand?.rijen?.find(r => r.eigen) || null;
   const eigenNaam = eigenRij?.team || null;
@@ -344,7 +366,7 @@ function teamRadarGemiddelde(team){
    toe nergens in dit dashboard terugkwam. Geeft geen radar (andere
    assen/aantal categorieën dan de 5-domeinen speler-radar, en radarSVG is
    daar hard op gebouwd) maar wel een duidelijk cijfer + telling. */
-function teamEvalStatsTeam(team){
+export function teamEvalStatsTeam(team){
   const d = huidigeContext.data.get(team.id);
   const evals = d.teamevaluaties || [];
   if (!evals.length) return null;
@@ -697,7 +719,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260923b');
+      const m = await import('./teams.js?v=20260923c');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -871,7 +893,7 @@ function renderUitleningenScherm(){
   render();
 }
 
-async function modalNieuweUitleningVanuitBouw(verversScherm){
+export async function modalNieuweUitleningVanuitBouw(verversScherm){
   const { clubId, teams } = huidigeContext;
 
   openModal(`

@@ -17,16 +17,16 @@
    afgeleid uit de laatste volledige beoordeling. Alleen zichtbaar voor coaches.
 ========================================================================== */
 import { S, $, esc, speler, modAan, meld } from './state.js?v=20260922c';
-import { db, doc, setDoc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js?v=20260922c';
+import { db, doc, setDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp } from './firebase.js?v=20260922c';
 import { SKILLS, NIVEAUS, niveauKleur, LEERCURVE, leercurveRelevant, bouwSlots, periodeNrs, isoWeek,
-  TEAM_CATEGORIEEN, TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK } from './config.js?v=20260922c';
+  TEAM_CATEGORIEEN, TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK, POSITIE_GROEPEN } from './config.js?v=20260922c';
 import { analyseWedstrijd, speeltijdReserve, kwartGespeeld } from './analyse.js?v=20260922c';
 import { teltMee } from './opkomst.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20260923b';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20260923c';
 import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20260922c';
-import { spelerStats } from './teams-spelers.js?v=20260923b';
-import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20260923b';
+import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20260923c';
+import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20260923c';
 import { oefHtml } from './training-weergave.js?v=20260922c';
 import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
@@ -37,6 +37,7 @@ let klassiekTab = null;          // tabblad waarvoor de coach "Gewone weergave" 
 let klassiekProfiel = null;      // speler-id waarvoor het volledige (oude) profiel open staat
 let laatsteSig = '';
 let selWedstrijd = null, selTraining = null, selThema = null, spFilter = 'Alle';
+let spPositie = { pid:null, pos:'' };
 let selDoc = null, evSel = null, evConcept = null, awOpen = null, planMaand = null, planFilter = 'alles';
 
 /* ---------- algemene hulpjes ---------- */
@@ -294,6 +295,88 @@ function htmlSelectie(){
         <span class="dk-filter-uitleg">Klik een kaart om de speler te bewerken. Cijfer = laatste volledige beoordeling (Aandacht 40 \u2026 Uitblinker 96); \u201csnel\u201d = uit de laatste snelle beoordeling. Speeltijd en reserve in % van speelbare tijd.</span></div>
       ${lijst.length ? `<div class="dk-kaarten">${lijst.map(kaartHtml).join('')}</div>` : '<p class="dk-leeg">Nog geen spelers in dit team.</p>'}
     </div></div>`;
+}
+
+/* ==================== SPELER BEWERKEN ====================
+   [20260923c] Klik op een kaart in Selectie: gegevens (zoals modalSpeler),
+   voorkeurspositie met meest gespeelde positie, notitie en uitlenen direct in
+   de pagina. Opslaan schrijft dezelfde velden als modalSpeler + modalNotitie. */
+function htmlSpelerBewerk(){
+  const p = speler(S._beoordeelProfiel);
+  if (!p) return null;
+  if (spPositie.pid !== p.id) spPositie = { pid: p.id, pos: p.positie || '' };
+  const top = (() => { try { return meestGespeeldePosities(p.id); } catch(e){ return []; } })();
+  const st = statsVan(p.id);
+  const lijst = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99));
+  const uit = (S.uitleningenUit || []).find(u => u.spelerId === p.id) || null;
+  const ingeleend = !!p._ingeleend;
+  return `<div class="dk-scherm dk-bewerk">
+    ${kop(voornaam(p), `${knop('Selectie', 'terugsel', '', 'navigation-back')}${knop('Evaluatie', 'evmodus', '', 'attendance-evaluatie')}${ingeleend ? '' : knop('Opslaan', 'spopslaan', 'rood', 'action-check')}`)}
+    <div class="dk-drie dk-drie-pas">
+      <aside class="dk-kol dk-lijstkol">${lijst.map(x => `<button class="dk-sp ${x.id === p.id ? 'actief' : ''}" data-dk="profiel" data-id="${esc(x.id)}"><span class="dk-sp-nr">${esc(x.nummer ?? '')}</span><span class="dk-sp-t"><b>${esc(voornaam(x))}</b><small>${esc(x.positie || '')}</small></span></button>`).join('')}</aside>
+      <section class="dk-kol dk-hart dk-scroll"><div class="dk-spook dk-spook-rug">${esc(p.nummer ?? '')}</div>
+        <h1 class="dk-groot dk-naam">${esc(voornaam(p))}<span class="dk-omlijnd dk-klein">${p.nummer != null && p.nummer !== '' ? '#' + esc(p.nummer) : ''}${spPositie.pos ? ' \u00b7 ' + esc(spPositie.pos) : ''}</span></h1>
+        ${ingeleend ? `<div class="dk-blok dk-meld">Ingeleende speler${p._ingeleendVan ? ' van ' + esc(p._ingeleendVan) : ''}. Gegevens pas je aan bij het eigen team van deze speler.</div>` : `
+        <div class="dk-blok"><h3 class="dk-label">Gegevens</h3>
+          <div class="dk-form"><label class="dk-veld3">Voornaam<input id="dkSpNaam" value="${esc(p.naam || '')}" autocomplete="off"></label>
+            <label>Nr.<input id="dkSpNr" value="${esc(p.nummer ?? '')}" inputmode="numeric"></label>
+            <label class="dk-veldvol">Achternaam<input id="dkSpAchter" value="${esc(p.achternaam || '')}" placeholder="Achternaam" autocomplete="off"></label></div>
+          <p class="dk-avg">De achternaam blijft binnen je eigen team en wordt nergens in de app getoond. Leen je deze speler uit, dan ziet de andere coach alleen de voorletter.</p></div>
+        <div class="dk-blok"><h3 class="dk-label">Voorkeurspositie</h3>
+          ${top.length ? `<div class="dk-meest"><span>Meest gespeeld dit seizoen:</span>${top.slice(0, 3).map((t, i) => `<span class="dk-pill ${i ? '' : 'rood'}">${esc(t.naam)} ${t.n}\u00d7</span>`).join('')}
+            ${top[0].naam !== spPositie.pos ? knop('Overnemen: ' + top[0].naam, 'sppos', 'rood').replace('data-dk="sppos"', `data-dk="sppos" data-pos="${esc(top[0].naam)}"`) : ''}</div>` : ''}
+          ${POSITIE_GROEPEN.map(g => `<div class="dk-posgroep"><small>${esc(g.naam)}</small><div class="dk-posrij" style="grid-template-columns:repeat(${g.posities.length},1fr)">${g.posities.map(x => `<button class="${x === spPositie.pos ? 'aan' : ''}" data-dk="sppos" data-pos="${esc(x)}">${esc(x)}</button>`).join('')}</div></div>`).join('')}</div>
+        <div class="dk-blok"><h3 class="dk-label">Notitie<span>alleen voor coaches</span></h3>
+          <textarea class="dk-ta" id="dkSpNotitie" rows="3" placeholder="Bijv. is altijd op de eerste van de maand afwezig voor werk \u00b7 vindt het fijn om extra complimenten te krijgen">${esc(p.notitie || '')}</textarea></div>`}
+        <div class="dk-blok"><h3 class="dk-label">Uitlenen<span>${uit ? '1 lopend' : ''}</span></h3>
+          ${uit ? `<div class="dk-leen">${ico('football-substitution', 18)}<div><b>Uitgeleend aan ${esc(uit.naarTeamNaam || 'ander team')}</b></div>${knop('Terugzetten', 'spterug', '').replace('data-dk="spterug"', `data-dk="spterug" data-id="${esc(uit.id)}"`)}</div>`
+            : `<p class="dk-leeg">Nu niet uitgeleend.</p>`}
+          ${ingeleend ? '' : `<div class="dk-rij-knoppen">${knop('Uitlenen aan ander team', 'spuitleen', '', 'football-substitution')}</div>`}</div>
+        ${ingeleend ? '' : `<div class="dk-rij-knoppen">${knop('Opslaan', 'spopslaan', 'rood', 'action-check')}${knop('Verwijderen', 'spweg', 'dk-gevaar', '')}</div>`}
+      </section>
+      <aside class="dk-kol dk-zijkol">${statTegels(st, true)}
+        <div class="dk-blok dk-sbblok"><h3 class="dk-label">Verhouding speeltijd / bank</h3>${sbBalk('', st, false)}${SB_LEGENDA}</div>
+        <div class="dk-blok"><h3 class="dk-label">Ook bij ${esc(voornaam(p))}</h3>
+          <div class="dk-rij-knoppen" style="margin-top:0">${knop('Evaluatie en radar', 'evmodus', '', 'attendance-evaluatie')}${knop('Historie', 'sphis', '', 'attendance-overview')}</div></div>
+      </aside>
+    </div></div>`;
+}
+async function bewaarSpelerDesk(){
+  const p = speler(S._beoordeelProfiel); if (!p) return;
+  const naam = ($('#dkSpNaam')?.value || '').trim();
+  if (!naam) return meld('Vul een naam in');
+  const nr = ($('#dkSpNr')?.value || '').trim();
+  if (nr !== '' && !Number.isFinite(Number(nr))) return meld('Het nummer moet een getal zijn');
+  /* zelfde velden als modalSpeler (bewerken) + modalNotitie in teams-spelers.js */
+  const data = { naam, achternaam: ($('#dkSpAchter')?.value || '').trim() || null, nummer: nr === '' ? null : Number(nr),
+    positie: spPositie.pos || null, notitie: ($('#dkSpNotitie')?.value || '').trim() || null };
+  try { await updateDoc(doc(db, 'teams', S.teamId, 'spelers', p.id), data); meld(`${naam} opgeslagen`); }
+  catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
+}
+
+/* ==================== MEEKIJKEN (coördinator, alleen lezen) ====================
+   [20260923c] Tekent Selectie / Evaluatie spelers / Evaluatie wedstrijden /
+   Stats voor een team uit de bouw met de gegevens die de bouw-omgeving al
+   ophaalde. We zetten de S-velden heel even op die gegevens, tekenen de
+   bestaande sjablonen en zetten alles direct terug (synchroon). */
+export function htmlMeekijk(soort, team, d, keuze = {}){
+  const bewaar = { team:S.team, teamId:S.teamId, spelers:S.spelers, wedstrijden:S.wedstrijden, presentie:S.presentie, beoordelingen:S.beoordelingen,
+    teamEvaluaties:S.teamEvaluaties, profiel:S._beoordeelProfiel, modus:S._dkModus, uitUit:S.uitleningenUit, evSel, evConcept, spFilter };
+  try {
+    S.team = team; S.teamId = team.id; S.spelers = d.spelers || []; S.wedstrijden = d.wedstrijden || []; S.presentie = d.presentie || [];
+    S.beoordelingen = [...(d.beoordelingen || [])].sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.gemaaktMs || 0) - (a.gemaaktMs || 0));
+    S.teamEvaluaties = d.teamevaluaties || []; S.uitleningenUit = []; spFilter = 'Alle';
+    let html = null;
+    if (soort === 'sel') html = htmlSelectie();
+    if (soort === 'evs'){ S._beoordeelProfiel = keuze.speler && speler(keuze.speler) ? keuze.speler : eersteSpeler(); S._dkModus = 'evaluatie'; html = S._beoordeelProfiel ? htmlPaspoort() : '<p class="dk-leeg">Nog geen spelers.</p>'; }
+    if (soort === 'evw'){ evSel = keuze.wedstrijd || null; evConcept = null; html = htmlEvaluatie() || '<p class="dk-leeg">Evaluaties staan uit voor dit team.</p>'; }
+    if (soort === 'stat') html = htmlStats();
+    return String(html || '').replaceAll('<textarea ', '<textarea readonly ');
+  } finally {
+    S.team = bewaar.team; S.teamId = bewaar.teamId; S.spelers = bewaar.spelers; S.wedstrijden = bewaar.wedstrijden; S.presentie = bewaar.presentie;
+    S.beoordelingen = bewaar.beoordelingen; S.teamEvaluaties = bewaar.teamEvaluaties; S._beoordeelProfiel = bewaar.profiel; S._dkModus = bewaar.modus;
+    S.uitleningenUit = bewaar.uitUit; evSel = bewaar.evSel; evConcept = bewaar.evConcept; spFilter = bewaar.spFilter;
+  }
 }
 
 /* ==================== PASPOORT (spelerprofiel) ==================== */
@@ -757,8 +840,8 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260923b'); m.openWedstrijd(id); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260923b'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260923c'); m.openWedstrijd(id); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260923c'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
   if (a === 'presentie'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(); return; }
   if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(null, { startAnder:true }); return; }
@@ -767,11 +850,11 @@ async function actie(b){
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260923b'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260923b'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260923b'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260923b'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260923b'); m.modalSpeler(null); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260923c'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'selw'){ selWedstrijd = id; renderTeam(); return; }
   if (a === 'seltr'){ selTraining = id; renderTeam(); return; }
@@ -779,8 +862,8 @@ async function actie(b){
   /* [20260923a] */
   if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
-  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20260923b'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20260923b');
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20260923c');
     if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
   if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
   if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
@@ -793,6 +876,20 @@ async function actie(b){
   if (a === 'evtag'){ evConcept.tags.has(id) ? evConcept.tags.delete(id) : evConcept.tags.add(id); renderTeam(); return; }
   if (a === 'evsave'){ const ok = await bewaarTeamEvaluatie(evConcept.wid, { scores: evConcept.scores, tags: [...evConcept.tags], notitieGoed: evConcept.goed.trim(), notitieAandacht: evConcept.aandacht.trim() });
     if (ok){ evConcept.bestaat = true; setTimeout(() => renderTeam(), 400); } return; }
+  if (a === 'sppos'){ spPositie.pos = spPositie.pos === b.dataset.pos && !b.textContent.startsWith('Overnemen') ? '' : b.dataset.pos;
+    const bewaard = { naam: $('#dkSpNaam')?.value, nr: $('#dkSpNr')?.value, achter: $('#dkSpAchter')?.value, notitie: $('#dkSpNotitie')?.value };
+    renderTeam();
+    if ($('#dkSpNaam')){ $('#dkSpNaam').value = bewaard.naam ?? ''; $('#dkSpNr').value = bewaard.nr ?? ''; $('#dkSpAchter').value = bewaard.achter ?? ''; $('#dkSpNotitie').value = bewaard.notitie ?? ''; }
+    return; }
+  if (a === 'spopslaan'){ await bewaarSpelerDesk(); return; }
+  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20260923c'); m.modalUitlenen(S._beoordeelProfiel); return; }
+  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20260923c'); await m.trekUitleningIn(id); renderTeam(); return; }
+  if (a === 'sphis'){ S._dkModus = null; S._profielTab = 'historie'; renderTeam(); return; }
+  if (a === 'spweg'){ const p = speler(S._beoordeelProfiel); if (!p) return;
+    if (p._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen — zet hem terug naar het bronteam');
+    if (!confirm(`${p.naam} verwijderen uit de selectie? Beoordelingen en leerpunten gaan ook verloren.`)) return;
+    try { await deleteDoc(doc(db, 'teams', S.teamId, 'spelers', p.id)); S._beoordeelProfiel = null; renderTeam(); } catch(e){ meld('Verwijderen mislukt: ' + (e.code || e.message)); }
+    return; }
   if (a === 'planfilter'){ planFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'planmaand'){ const d = Number(b.dataset.d);
     if (!d) planMaand = vandaagISO().slice(0, 7);
@@ -800,7 +897,7 @@ async function actie(b){
     renderTeam(); return; }
   if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20260922c'); m.modalEigenDag(); return; }
   if (a === 'plandag'){ const { datum, bron, doc: did } = b.dataset;
-    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20260923b'); m.openWedstrijd(did); return; }
+    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20260923c'); m.openWedstrijd(did); return; }
     if (bron === 'training'){ selTraining = datum; zetTeamTab('presentietraining'); return; }
     const it = planningItems().find(x => x.datum === datum && x.bron === bron);
     if (it){ const m = await import('./teams-training.js?v=20260922c'); m.modalPlanDag(it); } return; }
@@ -857,6 +954,8 @@ function sig(){
 }
 function wachter(){
   if (!isDesk() || !S.team || S.wedstrijdId) return;
+  /* niet opnieuw tekenen terwijl de coach in een invoerveld van het desktopscherm typt */
+  if (document.activeElement?.closest?.('#view-team .dk-scherm') && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
   if (!document.querySelector('#view-team.actief > .dk-scherm')) return;
   if (sig() !== laatsteSig) renderTeam();
 }
@@ -868,10 +967,11 @@ function renderDesk(v, tab){
   if (klassiekTab === tab) return false;
   /* Profiel: het volledige (bestaande) profiel, door naRender in een desktop-
      indeling gezet. Alleen in de modus "Evaluatie" tekenen we het paspoort. */
-  if (tab === 'spelers' && S._beoordeelProfiel && S._dkModus !== 'evaluatie') return false;
+  if (tab === 'spelers' && S._beoordeelProfiel && S._dkModus !== 'evaluatie' && S._profielTab === 'historie') return false;
+  if (tab === 'spelers' && S._dkModus === 'evaluatie' && !S._beoordeelProfiel) S._beoordeelProfiel = eersteSpeler();
   try {
     const html = tab === 'hub' ? htmlDashboard()
-      : tab === 'spelers' ? (S._beoordeelProfiel ? htmlPaspoort() : htmlSelectie())
+      : tab === 'spelers' ? (S._beoordeelProfiel ? (S._dkModus === 'evaluatie' ? htmlPaspoort() : htmlSpelerBewerk()) : htmlSelectie())
       : tab === 'wedstrijden' ? htmlWedstrijden()
       : tab === 'presentietraining' ? htmlTrainingen()
       : tab === 'evaluatie' ? htmlEvaluatie()
