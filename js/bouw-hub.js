@@ -157,7 +157,7 @@ async function haalTeamData(team, seizoen){
       throw e;
     }
   };
-  const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap, tesnap] = await Promise.all([
+  const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap, tesnap, progsnap] = await Promise.all([
     veilig('spelers', getDocs(collection(db,'teams',team.id,'spelers'))),
     veilig('wedstrijden', getDocs(query(collection(db,'teams',team.id,'wedstrijden'), where('seizoen','==',seizoen)))),
     veilig('presentie', getDocs(query(collection(db,'teams',team.id,'presentie'), where('seizoen','==',seizoen)))),
@@ -165,12 +165,16 @@ async function haalTeamData(team, seizoen){
     veilig('poule/uitslagen', getDoc(doc(db,'teams',team.id,'poule','uitslagen'))),
     veilig('beoordelingen', getDocs(query(collection(db,'teams',team.id,'beoordelingen'), where('seizoen','==',seizoen)))),
     veilig('teamevaluaties', getDocs(query(collection(db,'teams',team.id,'teamevaluaties'), where('seizoen','==',seizoen)))),
+    // [20260923h] Ook het programma-doc: de sync zet gespeelde uitslagen daar
+    // (met uitslag-veld) — het losse uitslagen-doc is alleen nog fallback.
+    getDoc(doc(db,'teams',team.id,'poule','programma')).catch(e => { console.warn(`[Cluppie] bouw-hub: poule/programma niet gelezen voor ${team.naam}`, e.code); return null; }),
   ]);
   const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend);
   const wedstrijden = wsnap.docs.map(d => ({id:d.id, ...d.data()})).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
   const presentie = psnap.docs.map(d => ({id:d.id, ...d.data()})).filter(s => s.datum);
   const stand = poulesnap.exists() ? poulesnap.data() : null;
   const uitslagen = uitslagensnap.exists() ? uitslagensnap.data() : null;
+  const programma = progsnap?.exists() ? progsnap.data() : null;
   // NIET meer filteren op soort==='volledig': een team kan ook "snelle"
   // beoordelingen hebben (tussendoor bij een wedstrijd/training, zonder de
   // 5-domeinen-structuur) — die moeten wél zichtbaar zijn in het
@@ -178,7 +182,7 @@ async function haalTeamData(team, seizoen){
   // domeinscores nodig en werkt dus verderop alsnog alleen met 'volledig').
   const beoordelingen = bsnap.docs.map(d => ({id:d.id, ...d.data()})).filter(b => b.spelerId && (b.scores || b.niveau != null));
   const teamevaluaties = tesnap.docs.map(d => ({id:d.id, ...d.data()})).filter(e => e.scores);
-  return { spelers, wedstrijden, presentie, stand, uitslagen, beoordelingen, teamevaluaties };
+  return { spelers, wedstrijden, presentie, stand, uitslagen, programma, beoordelingen, teamevaluaties };
 }
 
 export async function openBouwHub(clubId, bouw, isHerbezoek){
@@ -329,20 +333,90 @@ export function presentiePctWedstrijdTeam(team){
    (teams/{id}/poule/uitslagen) i.p.v. alleen wat er zelf in de app is
    gelogd — dat laatste dekte maar een deel van de wedstrijden en miste dus
    regelmatig doelpunten/uitslagen die Sportlink wél had. */
+/* [20260923h] Robuuster gemaakt:
+   1. Leest gespeelde wedstrijden uit ZOWEL poule/uitslagen als poule/programma
+      (ontdubbeld op datum + thuis + uit). Het dashboard las alleen het oude
+      uitslagen-doc, terwijl de sync inmiddels vooral het programma bijwerkt.
+   2. Eigen teamnaam komt niet meer uitsluitend uit de poulestand. Zonder stand
+      (onderbouw, begin seizoen) viel ALLES weg; nu wordt per regel de kant
+      herkend die op de teamcode eindigt (O11-1 ↔ "ASV '33 JO11-1").
+   3. Aanvulling met in de app gelogde wedstrijden (doelpunten) op data waar
+      Sportlink niets heeft — voor O7–O10 publiceert de KNVB geen uitslagen.
+   4. knvbVerborgen: true bij O10 en jonger / mini's, zodat het dashboard kan
+      uitleggen waarom er van Sportlink niets komt. */
+const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+function teamCode(team){
+  const m = String(team?.naam || '').match(/(?:j|m)?o\s?\d{1,2}\s?-\s?\d+[a-z]*/i);
+  return m ? norm(m[0]).replace(/^[jm]?o/, 'o') : null;       // "JO11-3" → "o113"
+}
+export function knvbVerborgen(team){
+  const n = String(team?.naam || '');
+  if (/mini/i.test(n)) return true;
+  const m = n.match(/o\s?(\d{1,2})/i);
+  return m ? parseInt(m[1], 10) <= 10 : false;
+}
+function clubVoorvoegsel(){
+  if (huidigeContext._clubPref !== undefined) return huidigeContext._clubPref;
+  const tel = new Map();
+  for (const t of huidigeContext.teams || []){
+    const c = teamCode(t), d = huidigeContext.data.get(t.id);
+    if (!c || !d) continue;
+    for (const r of [...(d.uitslagen?.rijen || []), ...(d.programma?.rijen || [])]) for (const n of [r?.thuis, r?.uit]){
+      const k = norm(n).replace(/[jm]o(\d)/g, 'o$1');
+      if (k.endsWith(c)){ const p = k.slice(0, -c.length); if (p) tel.set(p, (tel.get(p) || 0) + 1); }
+    }
+  }
+  return (huidigeContext._clubPref = [...tel.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null);
+}
 export function uitslagenTeam(team){
-  const d = huidigeContext.data.get(team.id);
+  const d = huidigeContext.data.get(team.id) || {};
   const eigenRij = d.stand?.rijen?.find(r => r.eigen) || null;
   const eigenNaam = eigenRij?.team || null;
-  const gespeeld = (d.uitslagen?.rijen || [])
-    .filter(r => r.eigenErin && r.uitslag && eigenNaam)
-    .map(r => {
-      const [a, b] = String(r.uitslag).split('-').map(x => parseInt(x, 10));
-      const thuis = r.thuis === eigenNaam;
-      const voor = thuis ? a : b, tegen = thuis ? b : a;
-      return { datum: r.datum, tegenstander: thuis ? r.uit : r.thuis, voor, tegen, thuis };
-    })
-    .filter(r => Number.isFinite(r.voor) && Number.isFinite(r.tegen))
-    .sort((x,y) => (x.datum||'').localeCompare(y.datum||''));
+  const code = teamCode(team);
+  const alleRijen = [...(d.uitslagen?.rijen || []), ...(d.programma?.rijen || [])];
+  // Zonder stand: de eigen naam is de naam die op de teamcode eindigt én in
+  // de meeste regels voorkomt (tegenstanders wisselen, wij niet). Voorkomt
+  // verwarring bij bv. "Bavos O11-3" tegen "ASV JO11-3".
+  let eigenSleutel = eigenNaam ? norm(eigenNaam) : null;
+  if (!eigenSleutel && code){
+    const tel = new Map();
+    for (const r of alleRijen) for (const n of [r?.thuis, r?.uit]){
+      const k = norm(n);
+      if (k && k.replace(/[jm]o(\d)/g, 'o$1').endsWith(code)) tel.set(k, (tel.get(k) || 0) + 1);
+    }
+    // Gelijkspel (bv. pas 1 wedstrijd)? Dan wint de naam met het clubvoorvoegsel
+    // dat over alle teams van deze bouw het vaakst voorkomt.
+    const pref = clubVoorvoegsel();
+    eigenSleutel = [...tel.entries()].sort((a, b) => (b[1] - a[1]) || ((pref && b[0].startsWith(pref)) - (pref && a[0].startsWith(pref))))[0]?.[0] || null;
+  }
+  const isEigen = naam => !!naam && !!eigenSleutel && norm(naam) === eigenSleutel;
+
+  // Sportlink-regels uit beide documenten, ontdubbeld.
+  const gezien = new Map();
+  for (const r of alleRijen){
+    if (!r || !r.uitslag || !r.datum) continue;
+    const k = `${r.datum}|${norm(r.thuis)}|${norm(r.uit)}`;
+    if (!gezien.has(k)) gezien.set(k, r);
+  }
+  const sportlink = [...gezien.values()].map(r => {
+    const [a, b] = String(r.uitslag).split('-').map(x => parseInt(x, 10));
+    let thuis;
+    if (isEigen(r.thuis)) thuis = true;
+    else if (isEigen(r.uit)) thuis = false;
+    else return null;                                  // niet (herkenbaar) van dit team
+    const voor = thuis ? a : b, tegen = thuis ? b : a;
+    return { datum: r.datum, tegenstander: thuis ? r.uit : r.thuis, voor, tegen, thuis, bron: 'sportlink' };
+  }).filter(r => r && Number.isFinite(r.voor) && Number.isFinite(r.tegen));
+
+  // Aanvulling uit de app zelf (alleen op data zonder Sportlink-uitslag).
+  const vandaagStr = new Date().toISOString().slice(0, 10);
+  const slDatums = new Set(sportlink.map(r => r.datum));
+  const app = (d.wedstrijden || [])
+    .filter(w => w.datum && w.datum <= vandaagStr && (w.goals || []).length && !slDatums.has(w.datum))
+    .map(w => ({ datum: w.datum, tegenstander: w.tegenstander || '', thuis: !!w.thuis, bron: 'app',
+      voor: w.goals.filter(g => g.type === 'voor').length, tegen: w.goals.filter(g => g.type === 'tegen').length }));
+
+  const gespeeld = [...sportlink, ...app].sort((x,y) => (x.datum||'').localeCompare(y.datum||''));
   let w=0, g=0, v=0, voorTot=0, tegenTot=0;
   gespeeld.forEach(r => {
     voorTot += r.voor; tegenTot += r.tegen;
@@ -350,9 +424,8 @@ export function uitslagenTeam(team){
   });
   const vorm = gespeeld.slice(-5).map(r => r.voor > r.tegen ? 'w' : r.voor < r.tegen ? 'v' : 'g');
   const laatste = gespeeld[gespeeld.length - 1] || null;
-  // [20260922] "lijst" toegevoegd (naast het bestaande aantal) zodat een
-  // apart scherm alle bekende uitslagen kan tonen i.p.v. alleen de laatste.
-  return { w, g, v, voor: voorTot, tegen: tegenTot, gespeeld: gespeeld.length, laatste, vorm, lijst: gespeeld, stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null };
+  return { w, g, v, voor: voorTot, tegen: tegenTot, gespeeld: gespeeld.length, laatste, vorm, lijst: gespeeld,
+    stand: eigenRij, totaalTeams: d.stand?.rijen?.length || null, knvbVerborgen: knvbVerborgen(team) };
 }
 
 /* Eén "cijfer" voor een meting, ongeacht het type: bij een volledige
@@ -603,7 +676,7 @@ function renderDashboard(){
             return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)">
               <span style="background:${VORMKLEUR[uitk]};color:#12140f;font-weight:800;font-size:10px;border-radius:5px;padding:1px 5px">${VORMLETTER[uitk]}</span>
               vs ${esc(u.laatste.tegenstander)} ${u.laatste.voor}-${u.laatste.tegen}</span>`; })()
-        : `<span style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog geen Sportlink-uitslag</span>`;
+        : `<span style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">${u.knvbVerborgen ? 'KNVB publiceert geen uitslagen (O10 en jonger)' : 'Nog geen uitslag bekend'}</span>`;
 
       const balkjesRij = [
         w.presentieTraining ? balkje('Training', pctTraining, pctTrainingKleur) : '',

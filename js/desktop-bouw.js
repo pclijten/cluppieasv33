@@ -135,7 +135,7 @@ function htmlDashboard(ctx){
         <div class="dk-pills"><span class="dk-pill">${teams.length} teams \u00b7 ${spelers} spelers</span>${trPct != null ? `<span class="dk-pill groen">Opkomst training ${trPct}%</span>` : ''}<button class="dk-pill" data-bk="ververs">Verversen</button></div></div>
       <div class="dk-blok dkb-half"><h3>${ico('football-match', 18)}Vorige uitslagen<span>laatst bekend</span></h3>
         ${rij.map(r => { const l = r.u?.laatste; const kl = l ? (l.voor > l.tegen ? 'groen' : l.voor < l.tegen ? 'rood' : '') : '';
-          return `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') : 'nog geen uitslag'}</span>${l ? `<span class="dk-pill ${kl}">${l.voor}\u2013${l.tegen}</span>` : ''}</div>`; }).join('') || '<p class="dk-leeg">Geen teams.</p>'}</div>
+          return `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') + (l.bron === 'app' ? ' \u00b7 app' : '') : (r.u?.knvbVerborgen ? 'geen KNVB-uitslagen (O10 en jonger)' : 'nog geen uitslag')}</span>${l ? `<span class="dk-pill ${kl}">${l.voor}\u2013${l.tegen}</span>` : ''}</div>`; }).join('') || '<p class="dk-leeg">Geen teams.</p>'}</div>
       <div class="dk-blok dkb-half"><h3>${ico('planning-calendar', 18)}Komende wedstrijden</h3>
         ${rij.map(r => `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${r.kom ? esc(datumKort(r.kom.datum)) + (r.kom.aftrap ? ' \u00b7 ' + esc(r.kom.aftrap) : '') + ' \u00b7 ' + (r.kom.thuis ? 'thuis' : 'uit') + ' ' + esc(r.kom.tegenstander || '') : 'niets gepland'}</span></div>`).join('')}</div>
       <div class="dkb-tegels">${rij.map(r => `<button class="dkb-tegel ${eigen.has(r.t.id) ? 'eigen' : ''}" data-bk="team" data-id="${esc(r.t.id)}">

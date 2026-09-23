@@ -101,7 +101,7 @@ function dashboard(){
   return `<h1 class="mb-groot">${esc(huidigeBouw().naam)} <span>dashboard</span></h1>
     <div class="mb-pills"><span class="mb-pill">${rij.length} teams \u00b7 ${spelers} spelers</span>${trPct != null ? `<span class="mb-pill groen">Opkomst training ${trPct}%</span>` : ''}</div>
     <div class="mb-kaart"><div class="mb-lbl">Laatste uitslagen</div>${rij.map(r => { const l = r.u?.laatste; const k = l ? (l.voor > l.tegen ? 'groen' : l.voor < l.tegen ? 'rood' : '') : '';
-      return `<div class="mb-r"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') : 'nog geen uitslag'}</span>${l ? `<em class="mb-pill ${k}">${l.voor}\u2013${l.tegen}</em>` : ''}</div>`; }).join('') || '<p class="mb-leeg">Geen teams.</p>'}</div>
+      return `<div class="mb-r"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') + (l.bron === 'app' ? ' \u00b7 app' : '') : (r.u?.knvbVerborgen ? 'geen KNVB-uitslagen (O10 en jonger)' : 'nog geen uitslag')}</span>${l ? `<em class="mb-pill ${k}">${l.voor}\u2013${l.tegen}</em>` : ''}</div>`; }).join('') || '<p class="mb-leeg">Geen teams.</p>'}</div>
     <div class="mb-kaart"><div class="mb-lbl">Komende wedstrijden</div>${rij.map(r => `<div class="mb-r"><b>${esc(r.t.naam)}</b><span>${r.kom ? esc(datumKort(r.kom.datum)) + (r.kom.aftrap ? ' \u00b7 ' + esc(r.kom.aftrap) : '') + ' \u00b7 ' + (r.kom.thuis ? 'thuis' : 'uit') + ' ' + esc(r.kom.tegenstander || '') : 'niets gepland'}</span></div>`).join('')}</div>
     <div class="mb-lbl mb-lbl-los">Teams<span>veeg opzij \u2192</span></div>
     <div class="mb-swipe">${rij.map(r => `<button class="mb-tt ${eigen.has(r.t.id) ? 'eigen' : ''}" data-mb="team" data-id="${esc(r.t.id)}">
