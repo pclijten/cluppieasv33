@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923c';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923d';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
@@ -240,11 +240,16 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
    voor de desktop-bouwomgeving (desktop-bouw.js). Zet huidigeContext, zodat de
    berekeningen hieronder en modalNieuweUitleningVanuitBouw gewoon werken. */
 export async function laadBouwData(clubId, bouw){
+  /* [20260923d] Eigen bouw (clubs/{id}.eigenBouwen): alle teams van de club
+     ophalen en filteren op de gekoppelde team-id's. Standaardbouw: zoals voorheen. */
+  const standaard = BOUWEN.some(b => b.id === bouw);
   const [snap, clubSnap] = await Promise.all([
-    getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))),
+    getDocs(standaard ? query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))
+                      : query(collection(db,'teams'), where('club','==',clubId))),
     getDoc(doc(db,'clubs',clubId)),
   ]);
-  const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
+  const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
+  const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id)).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
   const seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
   const [dataLijst, usnap] = await Promise.all([
     Promise.all(teams.map(t => haalTeamData(t, seizoen))),
@@ -719,7 +724,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260923c');
+      const m = await import('./teams.js?v=20260923d');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });

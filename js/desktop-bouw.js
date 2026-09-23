@@ -12,9 +12,9 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923c';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923c';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260923c';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923d';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923d';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260923d';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -26,7 +26,8 @@ export function bouwHuidig(){ return huidig && document.querySelector('#view-dkb
 export function bouwTeams(clubId, bouw){ return cache.get(clubId + '|' + bouw)?.teams || null; }
 
 const vandaag = () => new Date().toISOString().slice(0, 10);
-const bouwNaamVan = id => BOUWEN.find(b => b.id === id)?.naam || id;
+const bouwNaamVan = id => BOUWEN.find(b => b.id === id)?.naam
+  || S.clubs.flatMap(c => Array.isArray(c.eigenBouwen) ? c.eigenBouwen : []).find(b => b.id === id)?.naam || id;
 const clubNaamVan = id => S.clubs.find(c => c.id === id)?.naam || (S.coordinatorBouwen || []).find(b => b.clubId === id)?.clubNaam || 'Club';
 function datumKort(iso){ try { return new Date(iso + 'T12:00').toLocaleDateString('nl-NL', { weekday:'short', day:'numeric', month:'short' }); } catch(e){ return iso || ''; } }
 
@@ -185,7 +186,8 @@ async function klik(e){
   if (a === 'terug'){ const u = ctx.uitleningen.find(x => x.id === id); if (!u) return;
     if (await trekUitleningIn(u, huidig.clubId)){ ctx.uitleningen = ctx.uitleningen.filter(x => x.id !== id); teken(); } return; }
   if (a === 'definitief'){ const u = ctx.uitleningen.find(x => x.id === id); if (!u) return;
-    if (await definitiefOverzetten(u, huidig.clubId, huidig.bouw)){ ctx.uitleningen = ctx.uitleningen.filter(x => x.id !== id); await laadBouw(huidig.clubId, huidig.bouw, true); teken(); } return; }
+    /* eigen bouw: de rechtencontrole gaat over de standaardbouw van het bronteam */
+    if (await definitiefOverzetten(u, huidig.clubId, ctx.teams.find(t => t.id === u.vanTeam)?.bouw || huidig.bouw)){ ctx.uitleningen = ctx.uitleningen.filter(x => x.id !== id); await laadBouw(huidig.clubId, huidig.bouw, true); teken(); } return; }
   /* meekijk-schermen: alleen kiezen, niets wijzigen */
   const dk = b.dataset.dk;
   if (dk === 'openprofiel' || dk === 'profiel'){ huidig.scherm = 'evs'; huidig.keuze = { speler: id }; teken(); return; }
