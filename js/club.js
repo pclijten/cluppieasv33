@@ -11,7 +11,7 @@ import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bou
 import { teltMee } from './opkomst.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { htmlCoordinatorenBeheer, koppelCoordinatorenBeheer } from './coordinatoren.js?v=20260922c';
-import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20260923d';
+import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20260923e';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260922c';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260922c';
 import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20260922c';
@@ -33,7 +33,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260923d'); }
+async function teamsModule(){ return await import('./teams.js?v=20260923e'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -76,7 +76,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260923d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260923e').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){

@@ -9,12 +9,12 @@
    Tekent in een eigen view (#view-dkbouw) binnen #app.
 =============================================================== */
 import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
-import { BOUWEN, NIVEAUS, niveauKleur } from './config.js?v=20260922c';
+import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923d';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923d';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260923d';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260923e';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923e';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260923e';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -144,7 +144,7 @@ function htmlDashboard(ctx){
         ${rij.map(r => `<div class="dkb-opkrij"><b>${esc(r.t.naam)}</b><i><em class="g" style="width:${r.tr ?? 0}%"></em></i><i><em class="bl" style="width:${r.wd ?? 0}%"></em></i><span>${r.tr != null ? r.tr + '%' : '\u2013'} \u00b7 ${r.wd != null ? r.wd + '%' : '\u2013'}</span></div>`).join('')}
         <div class="dk-heat-leg"><span><i class="j"></i>training</span><span><i class="bl"></i>wedstrijd</span></div></div>
       <div class="dk-blok dkb-leen"><h3>${ico('football-substitution', 18)}Uitleningen<span>${ctx.uitleningen.length}</span></h3>
-        ${ctx.uitleningen.slice(0, 6).map(u => `<div class="dkb-rij"><b>${esc(u.snapshot?.naam || 'Speler')}</b><span>${esc(u.vanTeamNaam || '?')} \u2192 ${esc(u.naarTeamNaam || '?')}</span></div>`).join('') || '<p class="dk-leeg">Geen actieve uitleningen.</p>'}
+        ${ctx.uitleningen.slice(0, 6).map(u => `<div class="dkb-rij"><b>${esc(u.snapshot?.naam || 'Speler')}</b><span>${esc(u.vanTeamNaam || '?')} \u2192 ${esc(u.naarTeamNaam || '?')}</span>${richting(u, ctx)}</div>`).join('') || '<p class="dk-leeg">Geen actieve uitleningen.</p>'}
         <div class="dk-rij-knoppen">${knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'action-add')}${knop('Alle uitleningen', 'naaruit')}</div></div>
     </div></div>`;
 }
@@ -156,17 +156,31 @@ function magTeam(teamId, ctx){
   const bouwVan = Object.fromEntries(ctx.teams.map(t => [t.id, t.bouw]));
   return isBeheerder() || S.clubs.some(c => c.id === ctx.clubId) || eigenTeamIds.has(teamId) || coord.has(bouwVan[teamId]);
 }
+/* [20260923e] Richting van een uitlening t.o.v. deze bouw. Het andere team
+   hoort niet bij de geladen bouw; zijn standaardbouw leiden we af uit de
+   teamnaam (JO13-1 → middenbouw), net als bouwVanCategorie dat doet. */
+function bouwVanTeamNaam(naam){
+  const id = bouwVanCategorie(String(naam || '').split(/[-\s]/)[0]);
+  return BOUWEN.find(b => b.id === id)?.naam?.toLowerCase() || 'andere bouw';
+}
+function richting(u, ctx){
+  const ids = new Set(ctx.teams.map(t => t.id));
+  const van = ids.has(u.vanTeam), naar = ids.has(u.naarTeam);
+  if (van && naar) return '<span class="dk-pill">binnen de bouw</span>';
+  if (van) return `<span class="dk-pill oranje">\u2197 uitgeleend aan ${esc(bouwVanTeamNaam(u.naarTeamNaam))}</span>`;
+  return `<span class="dk-pill dkb-in">\u2199 ingeleend uit ${esc(bouwVanTeamNaam(u.vanTeamNaam))}</span>`;
+}
 function htmlUitleningen(ctx){
   const lijst = ctx.uitleningen;
   return `<div class="dk-scherm">
     ${kop('Uitleningen', knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'action-add'))}
     <div class="dkb-body dkb-uitbody">
       <h1 class="dk-groot">Uitleningen <span class="dk-omlijnd" style="display:inline">${esc(bouwNaamVan(ctx.bouw))}</span></h1>
-      <div class="dk-blok dk-tabelblok"><table class="dk-tabel"><thead><tr><th>Speler</th><th>Van</th><th>Naar</th><th></th></tr></thead><tbody>
+      <div class="dk-blok dk-tabelblok"><table class="dk-tabel"><thead><tr><th>Speler</th><th>Van</th><th>Naar</th><th>Richting</th><th></th></tr></thead><tbody>
         ${lijst.map(u => { const def = magTeam(u.vanTeam, ctx) && magTeam(u.naarTeam, ctx);
-          return `<tr><td><b>${esc(u.snapshot?.naam || 'Speler')}</b></td><td>${esc(u.vanTeamNaam || '?')}</td><td>${esc(u.naarTeamNaam || '?')}</td>
+          return `<tr><td><b>${esc(u.snapshot?.naam || 'Speler')}</b></td><td>${esc(u.vanTeamNaam || '?')}</td><td>${esc(u.naarTeamNaam || '?')}</td><td>${richting(u, ctx)}</td>
           <td class="n"><span class="dkb-tabknoppen">${knop('Terugzetten', 'terug', '', '', `data-id="${esc(u.id)}"`)}${def ? knop('Definitief', 'definitief', 'dk-gevaar', '', `data-id="${esc(u.id)}"`) : ''}</span></td></tr>`; }).join('')
-          || '<tr><td colspan="4" class="dk-leeg">Geen actieve uitleningen in deze bouw.</td></tr>'}
+          || '<tr><td colspan="5" class="dk-leeg">Geen actieve uitleningen in deze bouw.</td></tr>'}
       </tbody></table></div>
       <p class="dk-leeg">Terugzetten beëindigt de uitlening. Definitief zet de speler over naar het andere team (alleen als je op beide teams rechten hebt).</p>
     </div></div>`;

@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923d';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260923e';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
@@ -192,7 +192,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
     return;
   }
 
-  zetKop(bouwNaam(bouw), null);
+  zetKop(naamVanBouw(bouw), null);
   const inhoud = el.querySelector('#bouwhubInhoud');
   inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);text-align:center;padding:30px 0">Dashboard laden…</p>`;
 
@@ -200,11 +200,16 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   try {
     // Teams-query en het huidige seizoen van de club tegelijk ophalen i.p.v.
     // na elkaar — scheelt één rondje wachten bij elke keer openen.
+    const standaard = BOUWEN.some(b => b.id === bouw);
     const [snap, clubSnap] = await Promise.all([
-      getDocs(query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))),
+      getDocs(standaard ? query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))
+                        : query(collection(db,'teams'), where('club','==',clubId))),
       getDoc(doc(db,'clubs',clubId)),
     ]);
-    teams = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
+    /* [20260923e] eigen bouw: alleen de gekoppelde teams */
+    const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
+    teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id))
+      .sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
     seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
   } catch(e){
     console.error('[Cluppie] bouw-hub: teams ophalen mislukt:', e.code, e.message);
@@ -220,13 +225,11 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   try {
     // Teamdata van alle teams ÉN de club-uitleningen tegelijk ophalen i.p.v.
     // de uitleningen pas na afloop van alle teamdata op te halen.
-    const [dataLijst, usnap] = await Promise.all([
+    const [dataLijst, uitleningen] = await Promise.all([
       Promise.all(teams.map(t => haalTeamData(t, seizoen))),
-      getDocs(collection(db,'clubs',clubId,'uitleningen')),
+      haalUitleningenVoorTeams(clubId, teams.map(t => t.id)),
     ]);
     const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
-    const teamIds = new Set(teams.map(t => t.id));
-    const uitleningen = usnap.docs.map(d => ({id:d.id, ...d.data()})).filter(u => teamIds.has(u.vanTeam) || teamIds.has(u.naarTeam));
     huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen};
   } catch(e){
     console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
@@ -251,17 +254,41 @@ export async function laadBouwData(clubId, bouw){
   const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
   const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id)).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
   const seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
-  const [dataLijst, usnap] = await Promise.all([
+  const [dataLijst, uitleningen] = await Promise.all([
     Promise.all(teams.map(t => haalTeamData(t, seizoen))),
-    getDocs(collection(db,'clubs',clubId,'uitleningen')),
+    haalUitleningenVoorTeams(clubId, teams.map(t => t.id)),
   ]);
   const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
-  const teamIds = new Set(teams.map(t => t.id));
-  const uitleningen = usnap.docs.map(d => ({id:d.id, ...d.data()})).filter(u => teamIds.has(u.vanTeam) || teamIds.has(u.naarTeam));
   huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen};
   return huidigeContext;
 }
 export function zetBouwContext(ctx){ huidigeContext = ctx; }
+
+/* [20260923e] Uitleningen per team ophalen ("van dit team" + "naar dit team").
+   Vroeger in één keer ALLE uitleningen van de club: dat mag volgens de rules
+   alleen een clubadmin, dus voor een gewone bouwcoördinator mislukte het hele
+   bouw-dashboard ("geen toegang"). Per team met een == filter kan Firestore
+   de rule (lid/coördinator van vanTeam of naarTeam) wél controleren.
+   Een team waar je geen rechten op hebt wordt stil overgeslagen. */
+async function haalUitleningenVoorTeams(clubId, teamIds){
+  const kol = collection(db,'clubs',clubId,'uitleningen');
+  const vragen = teamIds.flatMap(id => [
+    getDocs(query(kol, where('vanTeam','==',id))).catch(() => null),
+    getDocs(query(kol, where('naarTeam','==',id))).catch(() => null),
+  ]);
+  const map = new Map();
+  for (const snap of await Promise.all(vragen)){
+    if (!snap) continue;
+    snap.docs.forEach(d => map.set(d.id, {id:d.id, ...d.data()}));
+  }
+  return [...map.values()];
+}
+function naamVanBouw(bouw){
+  return BOUWEN.find(b => b.id === bouw)?.naam
+    || (S.coordinatorBouwen || []).find(x => x.bouw === bouw)?.bouwNaam
+    || S.clubs.flatMap(c => Array.isArray(c.eigenBouwen) ? c.eigenBouwen : []).find(x => x.id === bouw)?.naam
+    || bouwNaam(bouw);
+}
 
 /* ==================== Berekeningen op de cache ==================== */
 function teamNaam(id){ return huidigeContext.teams.find(t => t.id === id)?.naam || '?'; }
@@ -724,7 +751,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260923d');
+      const m = await import('./teams.js?v=20260923e');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
