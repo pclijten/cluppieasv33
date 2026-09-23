@@ -4455,3 +4455,84 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   .zb-sub{ padding-left:30px !important; font-size:13px !important; }
   html.zij-klein .zb-sub{ padding-left:0 !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   DESKTOP RONDE 3 — [20260923c] speler bewerken, bouw-omgeving, menuboom
+================================================================== */
+@media (min-width:1100px) and (min-height:520px){
+  /* menuboom */
+  .zb-sub1{ padding-left:28px !important; font-size:13.5px !important; }
+  .zb-sub2{ padding-left:44px !important; font-size:13px !important; }
+  .zb-sub3{ padding-left:66px !important; font-size:12.5px !important; }
+  .zb-pijltje{ margin-left:auto; font-size:10px; color:var(--ink-2); }
+  .zb-stip-leeg{ width:5px; height:5px; border-radius:50%; background:var(--line-d); flex-shrink:0; margin:0 3px; }
+  .zb-link.actief .zb-stip-leeg{ background:var(--accent); }
+  html.zij-klein .zb-sub1, html.zij-klein .zb-sub2, html.zij-klein .zb-sub3{ padding-left:0 !important; }
+  html.zij-klein .zb-sub3, html.zij-klein .zb-pijltje{ display:none; }
+
+  /* speler bewerken */
+  .dk-form{ display:grid; grid-template-columns:3fr 1fr; gap:10px; }
+  .dk-form label{ display:flex; flex-direction:column; gap:5px; font-size:11.5px; font-weight:600; color:var(--ink-2); }
+  .dk-form .dk-veldvol{ grid-column:1 / -1; }
+  .dk-form input{ font:inherit; font-size:14px; color:var(--ink); background:var(--op-vlak); border:1px solid var(--line-d); border-radius:10px; padding:9px 11px; }
+  .dk-form input:focus, .dk-ta:focus{ outline:none; border-color:var(--accent); }
+  .dk-avg{ font-size:12px; color:var(--keeper); margin-top:10px; line-height:1.45; }
+  .dk-meest{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:10px; border:1px solid var(--line-d); border-radius:10px; margin-bottom:12px; font-size:12.5px; color:var(--ink-2); }
+  .dk-meest .dk-knop{ margin-left:auto; padding:6px 11px; }
+  .dk-posgroep{ margin-bottom:8px; }
+  .dk-posgroep small{ display:block; font-size:11px; font-weight:600; color:var(--ink-2); margin-bottom:4px; }
+  .dk-posrij{ display:grid; gap:4px; background:var(--op-vlak); border-radius:10px; padding:3px; }
+  .dk-posrij button{ padding:8px 6px; border-radius:7px; font-size:12.5px; font-weight:600; color:var(--ink-2); text-align:center !important; }
+  .dk-posrij button:hover{ color:var(--ink); }
+  .dk-posrij button.aan{ background:var(--accent); color:#fff; }
+  .dk-leen{ display:flex; align-items:center; gap:10px; font-size:13.5px; }
+  .dk-leen .dk-knop{ margin-left:auto; }
+  .dk-gevaar{ color:var(--keeper) !important; }
+  .dk-meld{ font-size:13.5px; color:var(--ink-2); }
+  .dk-bewerk .dk-hart{ display:flex; flex-direction:column; gap:14px; }
+  .dk-bewerk .dk-hart > .dk-blok{ max-width:760px; }
+
+  /* bouw-omgeving */
+  #view-dkbouw.actief{ padding:0 !important; max-width:none; }
+  .dkb-body{ padding:20px 28px 28px; display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; align-content:start; }
+  .dkb-hallo{ grid-column:1 / -1; display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .dkb-hallo .dk-groot{ font-size:clamp(44px,4.4vw,70px); }
+  .dkb-hallo .dk-pills{ margin-left:auto; }
+  .dkb-half{ grid-column:span 6; }
+  .dkb-rij{ display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--line-d); font-size:13px; }
+  .dkb-rij:first-of-type{ border-top:0; }
+  .dkb-rij > b{ width:70px; flex-shrink:0; }
+  .dkb-rij > span:not(.dk-pill){ color:var(--ink-2); flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dkb-tegels{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+  .dkb-tegel{ display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:14px; background:var(--surface); border:1px solid var(--line-d); color:var(--ink); text-align:left; }
+  .dkb-tegel:hover{ border-color:var(--hover-rand); }
+  .dkb-tegel.eigen{ border-color:color-mix(in srgb,var(--accent) 45%,transparent); background:linear-gradient(170deg,color-mix(in srgb,var(--accent) 12%,var(--surface)),var(--surface) 60%); }
+  .dkb-tkop{ display:flex; align-items:flex-start; gap:8px; }
+  .dkb-tkop b{ display:block; font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:800; line-height:.9; text-transform:uppercase; }
+  .dkb-tkop small{ font-size:12px; color:var(--ink-2); }
+  .dkb-vorm{ margin-left:auto; display:flex; gap:3px; }
+  .dkb-vorm i{ width:18px; height:18px; border-radius:5px; font-size:10px; font-weight:800; font-style:normal; display:grid; place-items:center; color:#fff; background:var(--ink-2); }
+  .dkb-vorm i.w{ background:var(--in); } .dkb-vorm i.v{ background:var(--accent); }
+  .dkb-cijfers{ display:grid; grid-template-columns:repeat(4,1fr); text-align:center; border-top:1px solid var(--line-d); padding-top:8px; }
+  .dkb-cijfers b{ display:block; font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:800; line-height:1; }
+  .dkb-cijfers b.g{ color:var(--in); } .dkb-cijfers b.bl{ color:#3b82f6; }
+  .dkb-cijfers small{ font-size:9.5px; font-weight:700; color:var(--ink-2); }
+  .dkb-opk{ grid-column:span 7; } .dkb-leen{ grid-column:span 5; }
+  .dkb-opkrij{ display:grid; grid-template-columns:70px 1fr 1fr 90px; gap:10px; align-items:center; font-size:13px; margin-bottom:7px; }
+  .dkb-opkrij i{ height:8px; border-radius:99px; background:var(--op-vlak-2); overflow:hidden; display:block; }
+  .dkb-opkrij em{ display:block; height:100%; border-radius:99px; }
+  .dkb-opkrij em.g{ background:var(--in); } .dkb-opkrij em.bl{ background:#3b82f6; }
+  .dkb-opkrij span{ text-align:right; color:var(--ink-2); font-size:12px; font-variant-numeric:tabular-nums; }
+  .dk-heat-leg i.bl{ background:#3b82f6; }
+  .dkb-uitbody{ display:flex; flex-direction:column; gap:14px; }
+  .dkb-tabknoppen{ display:inline-flex; gap:6px; }
+  .dkb-tabknoppen .dk-knop{ padding:6px 10px; font-size:12.5px; }
+
+  /* meekijken: alleen lezen */
+  .dk-lees{ margin:12px 28px 0; padding:9px 12px; border-radius:10px; background:color-mix(in srgb,#3b82f6 14%,transparent); color:var(--ink); font-size:12.5px; }
+  .dk-meekijk .dk-kop .dk-acties, .dk-meekijk .dk-rij-knoppen, .dk-meekijk .dk-link, .dk-meekijk .dk-filter,
+  .dk-meekijk .dk-geenradar .dk-knop{ display:none !important; }
+  .dk-meekijk .dk-kb, .dk-meekijk .dk-tags, .dk-meekijk .dk-ta, .dk-meekijk [data-dk="evopen"]{ pointer-events:none; }
+  .dk-meekijk .dk-scherm{ min-height:0; }
+  .dk-meekijk .dk-drie{ height:calc(100dvh - 60px - 50px); }
+}
