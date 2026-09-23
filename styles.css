@@ -4412,3 +4412,46 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   html.desk #view-wedstrijd.actief > .kwarten, html.desk #view-wedstrijd.actief > .klok,
   html.desk #view-wedstrijd.actief > .bank, html.desk #view-wedstrijd.actief > .uitklap{ margin-bottom:8px !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   DESKTOP PLANNING + BEHEER — [20260923b] maandkalender (desktop-schermen.js)
+================================================================== */
+@media (min-width:1100px) and (min-height:520px){
+  .dk-plan{ flex:none; display:grid; grid-template-columns:minmax(0,1fr) 300px; grid-template-rows:minmax(0,1fr); height:calc(100dvh - 60px); min-height:0; }
+  .dk-plan-hart{ padding:18px 24px; display:flex; flex-direction:column; gap:12px; min-height:0; overflow:hidden; }
+  .dk-plan-kop{ display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; }
+  .dk-plan-kop .dk-groot{ font-size:clamp(40px,4vw,62px); }
+  .dk-plan-kop .dk-filter{ padding:0; margin-left:auto; }
+  .dk-plan-nav{ display:flex; gap:6px; }
+  .dk-plan-nav .dk-knop{ padding:7px 12px; }
+  .dk-kal{ flex:1; min-height:0; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); grid-auto-rows:minmax(0,1fr); gap:6px; }
+  .dk-kal-dag{ font-size:11.5px; font-weight:600; color:var(--ink-2); padding:0 6px; align-self:end; }
+  .dk-kal > .dk-kal-dag{ grid-row:1; height:18px; }
+  .dk-kal{ grid-template-rows:18px; }
+  .dk-kal-cel{ min-width:0; background:var(--surface); border:1px solid var(--line-d); border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+  .dk-kal-cel > b{ font-family:'Barlow Condensed',sans-serif; font-size:17px; line-height:1; margin-bottom:2px; }
+  .dk-kal-cel.buiten{ opacity:.4; }
+  .dk-kal-cel.vandaag{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .dk-kal-cel.vandaag > b{ color:var(--accent); }
+  .dk-kal-cel.vrij{ background:repeating-linear-gradient(135deg,var(--surface) 0 8px,var(--op-vlak) 8px 16px); }
+  .dk-kal-cel small{ font-size:10.5px; color:var(--ink-2); }
+  .dk-ev{ display:block; width:100%; font-size:11px; font-weight:600; line-height:1.3; padding:2px 6px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); text-align:left; }
+  .dk-ev.wed{ background:color-mix(in srgb,var(--accent) 24%,transparent); }
+  .dk-ev.tr{ background:color-mix(in srgb,var(--in) 22%,transparent); }
+  .dk-ev.wd, .dk-ev.inh{ background:color-mix(in srgb,#3b82f6 22%,transparent); }
+  .dk-ev.bek{ background:color-mix(in srgb,var(--keeper) 26%,transparent); }
+  .dk-ev.vrij{ background:var(--op-vlak-2); color:var(--ink-2); }
+  .dk-ev.eig{ background:color-mix(in srgb,#a855f7 24%,transparent); }
+  .dk-ev:hover{ filter:brightness(1.15); }
+  .dk-plan-leg{ display:flex; gap:14px; font-size:11.5px; color:var(--ink-2); flex-wrap:wrap; }
+  .dk-plan-leg span{ display:flex; align-items:center; gap:6px; }
+  .dk-plan-leg i{ width:12px; height:12px; padding:0; border-radius:3px; display:inline-block; }
+  .dk-plan-rij{ display:flex; align-items:center; gap:10px; width:100%; padding:8px 4px; border-top:1px solid var(--line-d); color:var(--ink); text-align:left; }
+  .dk-plan-rij:first-of-type{ border-top:0; }
+  .dk-plan-rij:hover{ background:var(--op-vlak); }
+  .dk-plan-rij i{ width:6px; height:30px; padding:0; border-radius:3px; flex-shrink:0; }
+  .dk-plan-rij b{ display:block; font-size:13px; font-weight:600; }
+  .dk-plan-rij small{ font-size:11.5px; color:var(--ink-2); }
+  .zb-sub{ padding-left:30px !important; font-size:13px !important; }
+  html.zij-klein .zb-sub{ padding-left:0 !important; }
+}
