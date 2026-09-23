@@ -12,7 +12,7 @@ import {
 import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 
-import { htmlStats } from './wedstrijd.js?v=20260922e';
+import { htmlStats } from './wedstrijd.js?v=20260923a';
 import { telGebruik } from './tracker.js?v=20260922c';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
@@ -109,19 +109,11 @@ export function modalTeamEvaluatie(wedstrijdId){
 
   $('#mTeOk').onclick = async () => {
     if (!Object.keys(scores).length) return meld('Vul minstens één categorie in');
-    const data = {
-      wedstrijdId, tegenstander:w.tegenstander, datum:w.datum, scores,
-      tags:[...gekozenTags],
+    const ok = await bewaarTeamEvaluatie(wedstrijdId, {
+      scores, tags:[...gekozenTags],
       notitieGoed:$('#mTeGoed').value.trim(), notitieAandacht:$('#mTeAandacht').value.trim(),
-      door:deelnemer(), gemaaktMs:Date.now(),
-    };
-    if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
-    try {
-      if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'teamevaluaties',bestaande.id), data);
-      else await addDoc(collection(db,'teams',S.teamId,'teamevaluaties'), data);
-      telGebruik('team_evaluatie');
-      sluitModal(); meld('Teamevaluatie opgeslagen');
-    } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
+    });
+    if (ok) sluitModal();
   };
   const wegBtn = $('#mTeWeg');
   if (wegBtn) wegBtn.onclick = async () => {
@@ -129,6 +121,29 @@ export function modalTeamEvaluatie(wedstrijdId){
     await deleteDoc(doc(db,'teams',S.teamId,'teamevaluaties',bestaande.id));
     sluitModal();
   };
+}
+
+/* [20260923a] Opslaan van een teamevaluatie, gedeeld door de modal hierboven
+   en het desktopscherm "Evaluatie" (inline invullen naast de radar).
+   Zelfde documentvorm als voorheen; geeft true terug bij succes. */
+export async function bewaarTeamEvaluatie(wedstrijdId, { scores, tags = [], notitieGoed = '', notitieAandacht = '' }){
+  const w = S.wedstrijden.find(x => x.id === wedstrijdId);
+  if (!w){ meld('Kon de wedstrijd niet vinden — probeer de pagina te verversen'); return false; }
+  if (!scores || !Object.keys(scores).length){ meld('Vul minstens één categorie in'); return false; }
+  const bestaande = S.teamEvaluaties.find(e => e.wedstrijdId === wedstrijdId) || null;
+  const data = {
+    wedstrijdId, tegenstander:w.tegenstander, datum:w.datum, scores,
+    tags:[...tags], notitieGoed, notitieAandacht,
+    door:deelnemer(), gemaaktMs:Date.now(),
+  };
+  if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
+  try {
+    if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'teamevaluaties',bestaande.id), data);
+    else await addDoc(collection(db,'teams',S.teamId,'teamevaluaties'), data);
+    telGebruik('team_evaluatie');
+    meld('Teamevaluatie opgeslagen');
+    return true;
+  } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); return false; }
 }
 
 /* --- Dashboard-berekeningen --- */

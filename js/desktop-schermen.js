@@ -16,22 +16,28 @@
    Cijfers op kaarten: niveau 1–5 → 40 + (n−1) × 14 (Aandacht 40 … Uitblinker 96),
    afgeleid uit de laatste volledige beoordeling. Alleen zichtbaar voor coaches.
 ========================================================================== */
-import { S, $, esc, speler, modAan } from './state.js?v=20260922c';
-import { db, doc, setDoc, serverTimestamp } from './firebase.js?v=20260922c';
-import { SKILLS, NIVEAUS, LEERCURVE, leercurveRelevant, bouwSlots, periodeNrs, isoWeek } from './config.js?v=20260922c';
+import { S, $, esc, speler, modAan, meld } from './state.js?v=20260922c';
+import { db, doc, setDoc, addDoc, updateDoc, collection, serverTimestamp } from './firebase.js?v=20260922c';
+import { SKILLS, NIVEAUS, niveauKleur, LEERCURVE, leercurveRelevant, bouwSlots, periodeNrs, isoWeek,
+  TEAM_CATEGORIEEN, TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK } from './config.js?v=20260922c';
 import { analyseWedstrijd, speeltijdReserve, kwartGespeeld } from './analyse.js?v=20260922c';
 import { teltMee } from './opkomst.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie } from './teams.js?v=20260922e';
-import { evaluatieOpen } from './teams-hub.js?v=20260922c';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie } from './teams.js?v=20260923a';
+import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20260922c';
+import { spelerStats } from './teams-spelers.js?v=20260923a';
+import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20260923a';
+import { oefHtml } from './training-weergave.js?v=20260922c';
+import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { contentVoorThema } from './content.js?v=20260922c';
 
-const TABS = new Set(['hub', 'spelers', 'wedstrijden', 'presentietraining', 'leerlijnoverzicht']);
+const TABS = new Set(['hub', 'spelers', 'wedstrijden', 'presentietraining', 'leerlijnoverzicht', 'evaluatie', 'stats', 'documenten']);
 let klassiekTab = null;          // tabblad waarvoor de coach "Gewone weergave" koos
 let klassiekProfiel = null;      // speler-id waarvoor het volledige (oude) profiel open staat
 let laatsteSig = '';
 let selWedstrijd = null, selTraining = null, selThema = null, spFilter = 'Alle';
+let selDoc = null, evSel = null, evConcept = null, awOpen = null;
 
 /* ---------- algemene hulpjes ---------- */
 /* analyseWedstrijd/speeltijdReserve rekenen met klokstanden. Een wedstrijd
@@ -44,7 +50,9 @@ const vandaagISO = () => new Date().toISOString().slice(0, 10);
 const cijfer = n => Math.round(40 + (n - 1) * 14);
 const gem = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 const voornaam = p => (p?.naam || '').trim().split(' ')[0] || 'Speler';
-const volledigeNaam = p => [p?.naam, p?.achternaam].filter(Boolean).join(' ');
+/* [20260923a] Achternamen worden in Cluppie nergens getoond (zie modalSpeler) —
+   ook niet op desktop. Deze helper geeft daarom alleen de roepnaam. */
+const volledigeNaam = p => (p?.naam || '').trim() || 'Speler';
 function datumMooi(iso, opt = { weekday:'long', day:'numeric', month:'short' }){
   if (!iso) return '';
   try { const s = new Date(iso + 'T12:00').toLocaleDateString('nl-NL', opt); return s.charAt(0).toUpperCase() + s.slice(1); }
@@ -67,10 +75,32 @@ function kaart(p){
   const ovr = geldig.length ? cijfer(gem(geldig)) : null;
   const gv = nivVorig.filter(Boolean);
   const ovrVorig = gv.length ? cijfer(gem(gv)) : null;
+  /* [20260923a] Geen volledige beoordeling? Dan telt het niveau van de laatste
+     snelle beoordeling als kaartcijfer (label "snel"); de domeinen blijven leeg. */
+  const snel = geldig.length ? null : laatsteSnel(p.id);
   const trend = volledigen(p.id).slice(0, 6).reverse()
     .map(b => { const s = SKILLS.map(d => Number(b.scores?.[d.id])).filter(Boolean); return s.length ? cijfer(gem(s)) : null; })
     .filter(x => x != null);
-  return { niv, nivVorig, ovr, ovrVorig, stijging: ovr != null && ovrVorig != null ? ovr - ovrVorig : 0, trend, laatste };
+  return { niv, nivVorig, ovr: ovr ?? (snel ? cijfer(Number(snel.niveau)) : null), snel: !!snel, snelLabel: snel ? (NIVEAUS[Number(snel.niveau)]?.label || '') : '',
+    ovrVorig, stijging: ovr != null && ovrVorig != null ? ovr - ovrVorig : 0, trend, laatste };
+}
+function laatsteSnel(pid){
+  return S.beoordelingen.filter(b => b.spelerId === pid && b.soort === 'snel' && Number(b.niveau) >= 1)
+    .sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.gemaaktMs || 0) - (a.gemaaktMs || 0))[0] || null;
+}
+const LEEG_STATS = { wedstrijden:0, goals:0, pctSpeeltijd:null, pctReserve:null, opkomst:null };
+function statsVan(pid){ try { return spelerStats(pid) || LEEG_STATS; } catch(e){ return LEEG_STATS; } }
+function sbBalk(naam, st, metNaam = true){
+  const g = st.pctSpeeltijd, y = st.pctReserve;
+  return `<div class="dk-sb ${metNaam ? '' : 'zonder'}">${metNaam ? `<span>${esc(naam)}</span>` : ''}<i>${g != null ? `<b class="g" style="width:${g}%"></b><b class="y" style="width:${y}%"></b>` : ''}</i>
+    <em>${g != null ? `<b>${g}%</b> \u00b7 ${y}%` : 'nog niet'}</em></div>`;
+}
+const SB_LEGENDA = '<div class="dk-heat-leg"><span><i class="j"></i>gespeeld</span><span><i class="y"></i>reserve</span><span style="margin-left:auto">% van speelbare tijd</span></div>';
+function statTegels(st, smal = false){
+  return `<div class="dk-tegels ${smal ? 'smal' : ''}"><div><b>${st.wedstrijden}</b><small>Wedstr.</small></div>
+    <div><b>${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</b><small>Speeltijd</small><em>van speelbaar</em></div>
+    <div><b>${st.pctReserve != null ? st.pctReserve + '%' : '\u2013'}</b><small>Reserve</small><em>van speelbaar</em></div>
+    <div><b>${st.goals}</b><small>Goals</small></div></div>`;
 }
 function teamGemiddelde(){
   return SKILLS.map((d, i) => {
@@ -188,9 +218,9 @@ function miniVeld(w, metKaart = false){
 /* ==================== DASHBOARD (hub) ==================== */
 function htmlDashboard(){
   const w = komende()[0] || null;
-  const minuten = seizoensMinuten();
-  const laag = [...S.spelers].sort((a, b) => (minuten[a.id] || 0) - (minuten[b.id] || 0)).slice(0, 8);
-  const maxMin = Math.max(1, ...Object.values(minuten));
+  const stats = Object.fromEntries(S.spelers.map(p => [p.id, statsVan(p.id)]));
+  const pctLijst = S.spelers.filter(p => stats[p.id].pctSpeeltijd != null)
+    .sort((a, b) => stats[a.id].pctSpeeltijd - stats[b.id].pctSpeeltijd).slice(0, 9);
   const ses = sessies().slice(0, 8).reverse();
   const opkSp = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99)).slice(0, 10);
   const stof = oefenstofWeek();
@@ -213,9 +243,9 @@ function htmlDashboard(){
         <button class="dk-veld-knop" data-dk="openw" data-id="${esc(w.id)}" title="Wedstrijd openen">${miniVeld(w)}</button>
       </div>` : ''}
       <div class="dk-blok dk-speel"><h3>${ico('stats-bars', 18)}Speeltijd tot nu toe<span>minst gespeeld eerst</span></h3>
-        ${laag.length ? laag.map(p => `<div class="dk-balk ${(minuten[p.id] || 0) < maxMin * 0.6 ? 'laag' : ''}"><span>${esc(voornaam(p))}</span><i><b style="width:${(minuten[p.id] || 0) / maxMin * 100}%"></b></i><em>${minuten[p.id] || 0}\u2032</em></div>`).join('') : '<p class="dk-leeg">Nog geen gespeelde wedstrijden.</p>'}</div>
+        ${pctLijst.length ? pctLijst.map(p => sbBalk(voornaam(p), stats[p.id])).join('') + SB_LEGENDA : '<p class="dk-leeg">Nog geen gespeelde wedstrijden met een selectie.</p>'}</div>
       <div class="dk-blok dk-opk"><h3>${ico('attendance-overview', 18)}Opkomst training<span>laatste ${ses.length}</span></h3>
-        ${ses.length ? `<div class="dk-heat" style="grid-template-columns:70px repeat(${ses.length},1fr)"><span></span>${ses.map(s => `<span class="kh">${esc(datumMooi(s.datum, { weekday:'short' }).slice(0, 2).toLowerCase())}</span>`).join('')}
+        ${ses.length ? `<div class="dk-heat" style="grid-template-columns:70px repeat(${ses.length},1fr)"><span></span>${ses.map(s => `<span class="kh">${esc(datumMooi(s.datum, { weekday:'short' }).slice(0, 2).toLowerCase())}<b>${esc(s.datum.slice(8, 10) + '/' + s.datum.slice(5, 7))}</b></span>`).join('')}
           ${opkSp.map(p => `<span>${esc(voornaam(p))}</span>${ses.map(s => `<i class="${!teltMee(s, p) ? '' : (s.afwezig || []).includes(p.id) ? 'n' : 'j'}"></i>`).join('')}`).join('')}</div>
           <div class="dk-heat-leg"><span><i class="j"></i>aanwezig</span><span><i class="n"></i>afwezig</span><span><i></i>telt niet mee</span></div>` : '<p class="dk-leeg">Nog geen presentie ingevuld.</p>'}</div>
       <div class="dk-blok dk-stofblok"><h3>${ico('training-cones', 18)}Oefenstof deze week<span>week ${isoWeek()}</span></h3>
@@ -248,18 +278,20 @@ function htmlSelectie(){
   const lijst = [...S.spelers].filter(p => spFilter === 'Alle' || p.positie === spFilter)
     .sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99) || (a.naam || '').localeCompare(b.naam || ''));
   const kaartHtml = p => {
-    const k = kaart(p);
-    return `<button class="dk-fk ${k.stijging >= 5 ? 'vorm' : ''}" data-dk="profiel" data-id="${esc(p.id)}">
+    const k = kaart(p), st = statsVan(p.id);
+    return `<button class="dk-fk ${k.stijging >= 5 ? 'vorm' : ''}" data-dk="openprofiel" data-id="${esc(p.id)}" title="Profiel van ${esc(voornaam(p))} openen">
       <span class="dk-fk-rug">${esc(p.nummer ?? '')}</span>${k.stijging >= 5 ? `<span class="dk-pill rood dk-fk-tag">+${k.stijging}</span>` : ''}
-      <span class="dk-fk-ovr">${k.ovr ?? '–'}</span><span class="dk-fk-pos">${esc((p.positie || '').slice(0, 3).toUpperCase())}</span>
+      <span class="dk-fk-ovr">${k.ovr ?? '\u2013'}${k.snel ? '<small>snel</small>' : ''}</span><span class="dk-fk-pos">${esc((p.positie || '').slice(0, 3).toUpperCase())}</span>
       <span class="dk-fk-naam">${esc(voornaam(p))}</span>
-      <span class="dk-fk-st">${SKILLS.map((d, i) => `<span><b>${k.niv[i] ? cijfer(k.niv[i]) : '–'}</b><small style="color:${d.kleur}">${d.id}</small></span>`).join('')}</span></button>`;
+      <span class="dk-fk-st">${SKILLS.map((d, i) => `<span><b>${k.niv[i] ? cijfer(k.niv[i]) : '\u2013'}</b><small style="color:${d.kleur}">${d.id}</small></span>`).join('')}</span>
+      <span class="dk-fk-ms"><span><b>${st.wedstrijden}</b><small>WEDSTR</small></span><span><b class="g">${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</b><small>SPEEL</small></span>
+        <span><b class="y">${st.pctReserve != null ? st.pctReserve + '%' : '\u2013'}</b><small>RES</small></span><span><b>${st.goals}</b><small>GOALS</small></span></span></button>`;
   };
   return `<div class="dk-scherm dk-selectie">
-    ${kop('Selectie', `${knop('Beoordelingsronde', 'snelronde', '', 'action-check')}${knop('Speler toevoegen', 'nieuwsp', 'rood', 'team-player-add')}`)}
+    ${kop('Selectie', `${knop('Evaluatie', 'evmodus', '', 'attendance-evaluatie')}${knop('Beoordelingsronde', 'snelronde', '', 'action-check')}${knop('Speler toevoegen', 'nieuwsp', 'rood', 'team-player-add')}`)}
     <div class="dk-sel-body">
       <div class="dk-filter">${posities.map(f => `<button class="${f === spFilter ? 'actief' : ''}" data-dk="filter" data-f="${esc(f)}">${esc(f)}</button>`).join('')}
-        <span class="dk-filter-uitleg">Cijfer = laatste volledige beoordeling (Aandacht 40 \u2026 Uitblinker 96). Rood = gestegen sinds de vorige.</span></div>
+        <span class="dk-filter-uitleg">Klik een kaart om de speler te bewerken. Cijfer = laatste volledige beoordeling (Aandacht 40 \u2026 Uitblinker 96); \u201csnel\u201d = uit de laatste snelle beoordeling. Speeltijd en reserve in % van speelbare tijd.</span></div>
       ${lijst.length ? `<div class="dk-kaarten">${lijst.map(kaartHtml).join('')}</div>` : '<p class="dk-leeg">Nog geen spelers in dit team.</p>'}
     </div></div>`;
 }
@@ -282,6 +314,15 @@ function sparkline(t){
   const mn = Math.min(...t) - 2, mx = Math.max(...t) + 2;
   return `<svg viewBox="0 0 64 24"><polyline points="${t.map((v, i) => `${(i / (t.length - 1) * 64).toFixed(1)},${(24 - (v - mn) / (mx - mn) * 24).toFixed(1)}`).join(' ')}" fill="none" style="stroke:var(--ink-2)" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
 }
+function evaluatiesVan(pid){
+  return S.beoordelingen.filter(b => b.spelerId === pid && (b.soort === 'snel' || b.soort === 'volledig'))
+    .sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.gemaaktMs || 0) - (a.gemaaktMs || 0));
+}
+function evNiveau(b){
+  if (b.soort === 'snel') return Number(b.niveau) || 0;
+  const w = SKILLS.map(d => Number(b.scores?.[d.id])).filter(Boolean);
+  return w.length ? Math.round(gem(w)) : 0;
+}
 function htmlPaspoort(){
   const p = speler(S._beoordeelProfiel);
   if (!p) return null;
@@ -299,23 +340,28 @@ function htmlPaspoort(){
   momenten.sort((a, b) => (b[0] || '').localeCompare(a[0] || ''));
 
   return `<div class="dk-scherm dk-paspoort">
-    ${kop(volledigeNaam(p), `${knop('Selectie', 'terugsel', '', 'navigation-back')}${knop('Beoordelen', 'beoordeel', '', 'action-check')}${knop('Volledig profiel', 'volprofiel', 'rood', 'team-player')}`)}
+    ${kop('Evaluatie \u00b7 ' + voornaam(p), `${knop('Selectie', 'terugsel', '', 'navigation-back')}${knop('Profiel', 'openprofiel', '', 'team-player').replace('data-dk="openprofiel"', `data-dk="openprofiel" data-id="${esc(p.id)}"`)}${knop('Snel beoordelen', 'snel', '', 'action-check')}${knop('Evalueren', 'beoordeel', 'rood', 'attendance-evaluatie')}`)}
     <div class="dk-drie dk-drie-pas">
       <aside class="dk-kol dk-lijstkol">${lijst.map(s => { const ks = kaart(s); return `<button class="dk-sp ${s.id === p.id ? 'actief' : ''}" data-dk="profiel" data-id="${esc(s.id)}"><span class="dk-sp-nr">${esc(s.nummer ?? '')}</span><span class="dk-sp-t"><b>${esc(volledigeNaam(s))}</b><small>${esc(s.positie || 'Speler')}${ks.ovr != null ? ' \u00b7 ' + ks.ovr : ''}</small></span>${sparkline(ks.trend)}</button>`; }).join('')}</aside>
       <section class="dk-kol dk-hart"><div class="dk-spook dk-spook-rug">${esc(p.nummer ?? '')}</div>
-        <h1 class="dk-groot dk-naam">${esc(p.naam || '')}<span class="dk-omlijnd">${esc(p.achternaam || '')}</span></h1>
+        <h1 class="dk-groot dk-naam">${esc(p.naam || '')}<span class="dk-omlijnd">${esc(p.nummer != null && p.nummer !== '' ? '#' + p.nummer : '')}${p.positie ? ' \u00b7 ' + esc(p.positie) : ''}</span></h1>
         <div class="dk-pills">${p.nummer != null && p.nummer !== '' ? `<span class="dk-pill">#${esc(p.nummer)}${p.positie ? ' \u00b7 ' + esc(p.positie) : ''}</span>` : p.positie ? `<span class="dk-pill">${esc(p.positie)}</span>` : ''}
           ${k.ovr != null ? `<span class="dk-pill ${k.stijging >= 5 ? 'rood' : 'groen'}">Kaart ${k.ovr}${k.stijging ? ` (${k.stijging > 0 ? '+' : ''}${k.stijging})` : ''}</span>` : '<span class="dk-pill">Nog geen volledige beoordeling</span>'}
           <span class="dk-pill">${min}\u2032 dit seizoen</span><span class="dk-pill">Stippellijn = teamgemiddelde</span></div>
-        <div class="dk-radar">${radarSvg(k.niv, tg)}
-          <div class="dk-legenda">${SKILLS.map((d, i) => `<div><b style="color:${d.kleur}">${k.niv[i] ? cijfer(k.niv[i]) : '–'}</b><span><strong>${esc(d.kort)}</strong>${k.niv[i] ? esc(NIVEAUS[k.niv[i]]?.label || '') : 'niet beoordeeld'}${k.niv[i] && k.nivVorig[i] && k.niv[i] > k.nivVorig[i] ? ' \u00b7 gestegen' : ''}</span></div>`).join('')}</div></div>
+        ${k.niv.some(Boolean) ? `<div class="dk-radar">${radarSvg(k.niv, tg)}
+          <div class="dk-legenda">${SKILLS.map((d, i) => `<div><b style="color:${d.kleur}">${k.niv[i] ? cijfer(k.niv[i]) : '–'}</b><span><strong>${esc(d.kort)}</strong>${k.niv[i] ? esc(NIVEAUS[k.niv[i]]?.label || '') : 'niet beoordeeld'}${k.niv[i] && k.nivVorig[i] && k.niv[i] > k.nivVorig[i] ? ' \u00b7 gestegen' : ''}</span></div>`).join('')}</div></div>` : `<div class="dk-blok dk-geenradar"><b>${k.snel ? 'Alleen een snelle beoordeling: ' + esc(k.snelLabel) : 'Nog geen beoordeling'}</b>
+          <p>${k.snel ? `Het kaartcijfer gebruikt dat niveau (${k.ovr}). Voor de radar per domein is een volledige beoordeling nodig.` : 'Vul een volledige beoordeling in om de radar per domein te zien.'}</p>
+          ${knop('Volledige beoordeling', 'beoordeel', 'rood', 'attendance-evaluatie')}</div>`}
       </section>
       <aside class="dk-kol dk-zijkol">
+        ${statTegels(statsVan(p.id), true)}
+        <div class="dk-blok dk-sbblok"><h3 class="dk-label">Verhouding speeltijd / bank</h3>${sbBalk('', statsVan(p.id), false)}${SB_LEGENDA}</div>
+        <div><h3 class="dk-label">Alle evaluaties<span>${evaluatiesVan(p.id).length}</span></h3>
+          ${evaluatiesVan(p.id).slice(0, 8).map(b => `<button class="dk-evrij" data-dk="evopen" data-id="${esc(b.id)}"><span><b>${b.soort === 'volledig' ? 'Volledige beoordeling' : 'Snel' + (b.bron?.label ? ' \u00b7 ' + esc(b.bron.label) : '')}</b><small>${esc(datumMooi(b.datum, { day:'numeric', month:'short' }))}</small></span>
+            <span class="dk-niv" style="--n:${niveauKleur(evNiveau(b))}">${esc(NIVEAUS[evNiveau(b)]?.label || '\u2013')}</span></button>`).join('') || '<p class="dk-leeg">Nog geen evaluaties.</p>'}</div>
         <div><h3 class="dk-label">Leerpunten<span>${open} open \u00b7 ${klaar} afgerond</span></h3>
-          ${lps.length ? lps.slice(0, 8).map(l => `<div class="dk-lp ${l.klaar ? 'klaar' : ''}"><i style="background:${SKILLS.find(d => d.id === l.domein)?.kleur || 'var(--ink-2)'}"></i><div><b>${esc(l.tekst)}</b><small>${l.klaar ? 'Afgerond' + (l.klaarOp ? ' op ' + esc(datumMooi(l.klaarOp, { day:'numeric', month:'short' })) : '') : 'Sinds ' + esc(datumMooi(l.sinds, { day:'numeric', month:'short' }))}</small></div></div>`).join('') : '<p class="dk-leeg">Nog geen leerpunten.</p>'}
+          ${lps.filter(l => !l.klaar).slice(0, 4).map(l => `<div class="dk-lp"><i style="background:${SKILLS.find(d => d.id === l.domein)?.kleur || 'var(--ink-2)'}"></i><div><b>${esc(l.tekst)}</b></div></div>`).join('')}
           <button class="dk-link" data-dk="leerpunt">+ Leerpunt toevoegen</button></div>
-        <div><h3 class="dk-label">Laatste momenten<span>alleen voor coaches</span></h3>
-          ${momenten.length ? momenten.slice(0, 4).map(([d, t]) => `<div class="dk-moment"><span>${esc(datumMooi(d, { day:'numeric' }))}<small>${esc(datumMooi(d, { month:'short' }))}</small></span><p>${t}</p></div>`).join('') : '<p class="dk-leeg">Nog niets vastgelegd.</p>'}</div>
       </aside>
     </div></div>`;
 }
@@ -337,10 +383,18 @@ function htmlWedstrijden(){
   return `<div class="dk-scherm">
     ${kop('Wedstrijden', knop('Nieuwe wedstrijd', 'nieuwew', 'rood', 'action-add'))}
     <div class="dk-drie">
-      <aside class="dk-kol dk-lijstkol">${kom.length ? `<h5>Komend</h5>${kom.map(item).join('')}` : ''}${afg.length ? `<h5>Gespeeld</h5>${afg.map(item).join('')}` : ''}${!alle.length ? '<p class="dk-leeg">Nog geen wedstrijden.</p>' : ''}</aside>
+      <aside class="dk-kol dk-lijstkol">${kom.length ? volgendeKaart(kom[0]) + (kom.length > 1 ? `<h5>Daarna</h5>${kom.slice(1).map(item).join('')}` : '') : ''}${afg.length ? `<h5>Gespeeld</h5>${afg.map(item).join('')}` : ''}${!alle.length ? '<p class="dk-leeg">Nog geen wedstrijden.</p>' : ''}</aside>
       <section class="dk-kol dk-hart">${w ? (gespeeld(w) ? wedGespeeld(w) : wedKomend(w)) : '<p class="dk-leeg">Kies een wedstrijd.</p>'}</section>
       <aside class="dk-kol dk-zijkol">${w ? (gespeeld(w) ? zijGespeeld(w) : zijKomend(w)) : ''}</aside>
     </div></div>`;
+}
+function volgendeKaart(x){
+  const dagen = Math.max(0, Math.round((aftrapMs(x) - Date.now()) / 86400000));
+  const kk = kwartenKlaar(x);
+  return `<button class="dk-volg ${x.id === selWedstrijd ? 'actief' : ''}" data-dk="selw" data-id="${esc(x.id)}">
+    <span class="t">\u25cf Eerstvolgende \u00b7 ${dagen === 0 ? 'vandaag' : dagen === 1 ? 'morgen' : 'over ' + dagen + ' dagen'}</span>
+    <b>${esc(x.tegenstander || 'Tegenstander')}</b>
+    <span class="m">${esc(datumMooi(x.datum, { weekday:'short', day:'numeric', month:'short' }))}${x.aftrap ? ' \u00b7 ' + esc(x.aftrap) : ''} \u00b7 ${x.thuis ? 'thuis' : 'uit'} \u00b7 opstelling ${kk.klaar}/${kk.totaal}</span></button>`;
 }
 function wedKomend(w){
   const kk = kwartenKlaar(w);
@@ -351,14 +405,13 @@ function wedKomend(w){
     <div class="dk-rij-knoppen">${knop('Wedstrijd openen', 'openw', 'rood', 'training-start').replace('data-dk="openw"', `data-dk="openw" data-id="${esc(w.id)}"`)}</div>`;
 }
 function zijKomend(w){
-  const minuten = seizoensMinuten();
-  const laag = [...S.spelers].sort((a, b) => (minuten[a.id] || 0) - (minuten[b.id] || 0)).slice(0, 8);
-  const mx = Math.max(1, ...Object.values(minuten));
+  const stats = Object.fromEntries(S.spelers.map(p => [p.id, statsVan(p.id)]));
+  const laag = S.spelers.filter(p => stats[p.id].pctSpeeltijd != null).sort((a, b) => stats[a.id].pctSpeeltijd - stats[b.id].pctSpeeltijd).slice(0, 8);
   const sel = (w.selectie || []).filter(pid => speler(pid)).length;
   return `<div><h3 class="dk-label">Selectie<span>${sel ? sel + ' spelers' : 'nog niet gekozen'}</span></h3>
       ${sel ? (w.selectie || []).filter(pid => speler(pid)).slice(0, 16).map(pid => `<span class="dk-chip">${esc(voornaam(speler(pid)))}</span>`).join('') : '<p class="dk-leeg">Kies de selectie in de wedstrijd.</p>'}</div>
-    <div><h3 class="dk-label">Seizoensminuten<span>laagste eerst</span></h3>
-      ${laag.map(p => `<div class="dk-balk ${(minuten[p.id] || 0) < mx * 0.6 ? 'laag' : ''}"><span>${esc(voornaam(p))}</span><i><b style="width:${(minuten[p.id] || 0) / mx * 100}%"></b></i><em>${minuten[p.id] || 0}\u2032</em></div>`).join('')}</div>`;
+    <div><h3 class="dk-label">Speeltijd dit seizoen<span>minst gespeeld eerst</span></h3>
+      ${laag.length ? laag.map(p => sbBalk(voornaam(p), stats[p.id])).join('') + SB_LEGENDA : '<p class="dk-leeg">Nog geen gespeelde wedstrijden.</p>'}</div>`;
 }
 function wedGespeeld(w){
   const st = stand(w), nrs = periodeNrs(w);
@@ -388,48 +441,206 @@ function zijGespeeld(w){
     ${rij.length ? rij.map(([pid, s]) => `<div class="dk-balk ${s < mx * 0.6 ? 'laag' : ''}"><span>${esc(voornaam(speler(pid)))}</span><i><b style="width:${s / mx * 100}%"></b></i><em>${Math.round(s / 60)}\u2032</em></div>`).join('') : '<p class="dk-leeg">Geen speeltijd vastgelegd.</p>'}</div>`;
 }
 
-/* ==================== TRAININGEN (presentietraining) ==================== */
+/* ==================== TRAININGEN (presentietraining) ====================
+   [20260923a] Links de trainingen van deze week, midden de gekozen training
+   (standaard vandaag of de eerstvolgende) met aanwezigheid (tik = afmelden
+   met reden) en daaronder de oefenstof: PDF bovenaan, oefeningen uit het
+   AI-gedeelte eronder. Rechts volgende week en voorgaande trainingen. */
+function maandagVan(d){ const x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function trainingsdataWeek(offset = 0){
+  const dagen = Array.isArray(S.team?.trainingsdagen) ? S.team.trainingsdagen : [];
+  const ma = maandagVan(new Date()); ma.setDate(ma.getDate() + offset * 7);
+  const van = ma.toISOString().slice(0, 10); const tot = new Date(ma); tot.setDate(tot.getDate() + 6);
+  const totIso = tot.toISOString().slice(0, 10);
+  const set = new Set();
+  for (let i = 0; i < 7; i++){ const d = new Date(ma); d.setDate(d.getDate() + i); if (dagen.includes(i + 1)) set.add(d.toISOString().slice(0, 10)); }
+  for (const s of (S.presentie || [])) if (s.datum >= van && s.datum <= totIso) set.add(s.datum);
+  return [...set].sort();
+}
+const sessieOp = iso => (S.presentie || []).find(s => s.datum === iso) || null;
+const kortDatum = iso => `${datumMooi(iso, { weekday:'short' }).slice(0, 2).toLowerCase()} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+function trItem(iso){
+  const s = sessieOp(iso), vandaag = vandaagISO();
+  const status = iso === vandaag ? 'vandaag' : iso < vandaag ? (s ? `${aanwezigTel(s)}/${meetellers(s)} aanwezig` : 'geen presentie') : 'gepland';
+  return `<button class="dk-li ${iso === selTraining ? 'actief' : ''}" data-dk="seltr" data-id="${esc(iso)}">
+    <span class="dk-li-dt">${esc(String(Number(iso.slice(8, 10))))}<small>${esc(datumMooi(iso, { weekday:'short' }).replace('.', ''))}</small></span>
+    <span class="dk-li-t"><b>${esc(oefenstofVoorDatum(iso)?.titel || 'Training')}</b><small>${esc(status)}</small></span>
+    ${iso === vandaag ? '<span class="dk-pill rood">vandaag</span>' : ''}</button>`;
+}
+async function zetPresentie(datum, pid, reden){
+  const s = sessieOp(datum);
+  const afwezig = new Set(s?.afwezig || []), telaat = new Set(s?.telaat || []);
+  const redenen = JSON.parse(JSON.stringify(s?.afwezigRedenen || {}));
+  if (reden){ afwezig.add(pid); telaat.delete(pid); redenen[pid] = { type: reden, notitie: redenen[pid]?.notitie || '' }; }
+  else { afwezig.delete(pid); delete redenen[pid]; }
+  /* zelfde documentvorm als modalPresentie in teams-training.js */
+  const data = { datum, afwezig: [...afwezig], telaat: [...telaat], afwezigRedenen: redenen,
+    selectie: S.spelers.map(p => p.id), aantalAanwezig: S.spelers.length - afwezig.size, aantalTeLaat: telaat.size,
+    aantalSpelers: S.spelers.length, door: S.user?.displayName || S.user?.email || '', gewijzigd: serverTimestamp() };
+  if (s) await updateDoc(doc(db, 'teams', S.teamId, 'presentie', s.id), data);
+  else await addDoc(collection(db, 'teams', S.teamId, 'presentie'), { ...data, gemaakt: serverTimestamp(), seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK });
+}
 function htmlTrainingen(){
-  const kom = komendeTrainingsdagen(3);
-  const ses = sessies().slice(0, 10);
-  const sleutels = [...kom.map(d => 'd:' + d), ...ses.map(s => 's:' + s.id)];
-  if (!sleutels.includes(selTraining)) selTraining = sleutels[0] || null;
-  const isSessie = selTraining?.startsWith('s:');
-  const sessie = isSessie ? ses.find(s => 's:' + s.id === selTraining) : null;
-  const datum = sessie ? sessie.datum : selTraining?.slice(2);
+  const deze = trainingsdataWeek(0), volgende = trainingsdataWeek(1);
+  const vorige = sessies().filter(s => s.datum < (deze[0] || vandaagISO())).slice(0, 6);
+  const alle = [...deze, ...volgende, ...vorige.map(s => s.datum)];
+  if (!alle.includes(selTraining)){
+    const v = vandaagISO();
+    selTraining = deze.find(d => d === v) || deze.find(d => d > v) || deze[deze.length - 1] || volgende[0] || vorige[0]?.datum || null;
+  }
+  const datum = selTraining, sessie = datum ? sessieOp(datum) : null;
   const stof = datum ? oefenstofVoorDatum(datum) : null;
-  const item = (sl, iso, sub, tel) => `<button class="dk-li ${sl === selTraining ? 'actief' : ''}" data-dk="seltr" data-id="${esc(sl)}">
-      <span class="dk-li-dt">${esc(String(Number(iso.slice(8, 10))))}<small>${esc(datumMooi(iso, { weekday:'short', month:'short' }).replace('.', ''))}</small></span>
-      <span class="dk-li-t"><b>${esc(oefenstofVoorDatum(iso)?.titel || 'Training')}</b><small>${esc(sub)}</small></span>
-      ${tel ? `<span class="dk-trtel"><em>${tel[0]}/${tel[1]}</em><i><b style="width:${tel[1] ? tel[0] / tel[1] * 100 : 0}%"></b></i></span>` : ''}</button>`;
   const oef = stof && Array.isArray(stof.oefeningen) ? stof.oefeningen : [];
-  const kleuren = SKILLS.map(d => d.kleur);
+  const spelers = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99));
+  const tegel = p => {
+    const telt = !sessie || teltMee(sessie, p);
+    const af = sessie && (sessie.afwezig || []).includes(p.id);
+    const info = af && sessie.afwezigRedenen?.[p.id] ? afwezigRedenInfo(sessie.afwezigRedenen[p.id]) : null;
+    return `<div class="dk-awwrap"><button class="dk-at ${!telt ? 'nvt' : af ? 'n' : sessie ? 'j' : ''}" data-dk="awopen" data-id="${esc(p.id)}">
+        <i>${esc(p.nummer ?? voornaam(p).charAt(0))}</i><span>${esc(voornaam(p))}<small>${!telt ? 'telt niet mee' : af ? esc(info?.label || 'afwezig') : sessie ? 'aanwezig' : 'nog niet bevestigd'}</small></span></button>
+      ${awOpen === p.id ? `<div class="dk-reden">${af ? `<button data-dk="awzet" data-id="${esc(p.id)}" data-r="">\u2713 Weer aanwezig</button>` : ''}${AFWEZIG_REDENEN.map(r => `<button data-dk="awzet" data-id="${esc(p.id)}" data-r="${esc(r.id)}">${r.ico ? ico(r.ico, 16) : r.emoji} ${esc(r.label)}</button>`).join('')}</div>` : ''}</div>`;
+  };
+  const aanw = sessie ? aanwezigTel(sessie) : spelers.length, tel = sessie ? meetellers(sessie) : spelers.length;
   return `<div class="dk-scherm">
-    ${kop('Trainingen', knop('Presentie vandaag', 'presentie', 'rood', 'attendance-present'))}
-    <div class="dk-drie">
-      <aside class="dk-kol dk-lijstkol">${kom.length ? `<h5>Gepland</h5>${kom.map(d => item('d:' + d, d, 'nog in te vullen', null)).join('')}` : ''}
-        ${ses.length ? `<h5>Geweest</h5>${ses.map(s => item('s:' + s.id, s.datum, 'presentie ingevuld', [aanwezigTel(s), meetellers(s)])).join('')}` : ''}
-        ${!kom.length && !ses.length ? '<p class="dk-leeg">Nog geen trainingen. Stel trainingsdagen in bij Instellingen of vul presentie in.</p>' : ''}</aside>
-      <section class="dk-kol dk-hart">${datum ? `<div class="dk-spook">${esc(String(Number(datum.slice(8, 10))))}</div>
-        <h1 class="dk-groot">${esc(datumMooi(datum, { weekday:'long', day:'numeric', month:'short' }))}<span class="dk-omlijnd dk-klein">${esc(stof?.titel || 'Geen oefenstof gekoppeld')}</span></h1>
-        <div class="dk-pills"><span class="dk-pill">Week ${isoWeekVan(datum)}</span>${sessie ? `<span class="dk-pill groen">${aanwezigTel(sessie)} van ${meetellers(sessie)} aanwezig</span>` : '<span class="dk-pill oranje">Presentie nog niet ingevuld</span>'}</div>
-        <div><h3 class="dk-label">Opbouw<span>${oef.length ? oef.length + ' oefeningen' : stof ? 'PDF-training' : ''}</span></h3>
-          ${oef.length ? `<div class="dk-blokken">${oef.map((o, i) => `<button class="dk-oefblok" style="--c:${kleuren[i % kleuren.length]}" data-dk="stof" data-id="${esc(stof.id)}"><span class="nr">${i + 1}</span><b>${esc(o.titel || 'Oefening ' + (i + 1))}</b></button>`).join('')}</div>`
-            : stof ? stofRij(stof) : '<p class="dk-leeg">Voor deze week staat nog geen oefenstof klaar voor dit team.</p>'}</div>
-        <div><h3 class="dk-label">Aanwezigheid<span>${sessie ? 'ingevuld' : 'nog niet ingevuld'}</span></h3>
-          <div class="dk-aanw">${[...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99)).map(p => {
-            const st = !sessie ? '' : !teltMee(sessie, p) ? 'nvt' : (sessie.afwezig || []).includes(p.id) ? 'n' : 'j';
-            return `<span class="dk-aw ${st}"><i>${esc(p.nummer ?? voornaam(p).charAt(0))}</i>${esc(voornaam(p))}</span>`; }).join('')}</div>
-          <div class="dk-rij-knoppen">${knop(sessie ? 'Presentie wijzigen' : 'Presentie invullen', sessie ? 'presentiewijzig' : (datum === vandaagISO() ? 'presentie' : 'presentieander'), sessie ? '' : 'rood', 'attendance-present').replace(/data-dk="(presentiewijzig)"/, `data-dk="$1" data-id="${esc(sessie?.id || '')}"`)}</div></div>` : '<p class="dk-leeg">Kies een training.</p>'}
+    ${kop('Trainingen', `${knop('Presentie invullen', datum === vandaagISO() ? 'presentie' : 'presentieander', '', 'attendance-present')}${knop('Training plannen', 'tab', 'rood', 'action-add').replace('data-dk="tab"', 'data-dk="tab" data-tab="planning"')}`)}
+    <div class="dk-drie dk-drie-tr">
+      <aside class="dk-kol dk-lijstkol"><h5>Deze week \u00b7 week ${isoWeek()}</h5>${deze.length ? deze.map(trItem).join('') : '<p class="dk-leeg">Geen trainingen deze week. Stel trainingsdagen in bij Instellingen.</p>'}</aside>
+      <section class="dk-kol dk-hart dk-scroll">${datum ? `<div class="dk-spook">${esc(String(Number(datum.slice(8, 10))))}</div>
+        <h1 class="dk-groot">${esc(datumMooi(datum, { weekday:'long' }))} ${esc(datum.slice(8, 10) + '/' + datum.slice(5, 7))}<span class="dk-omlijnd dk-klein">${esc(stof?.titel || 'Geen oefenstof gekoppeld')}</span></h1>
+        <div class="dk-pills"><span class="dk-pill">Week ${isoWeekVan(datum)}</span>${sessie ? `<span class="dk-pill groen">${aanw} van ${tel} aanwezig</span>` : '<span class="dk-pill oranje">Presentie nog niet ingevuld</span>'}</div>
+        <div><h3 class="dk-label">Aanwezigheid<span>${sessie ? `${aanw} van ${tel}` : 'iedereen aanwezig tot je iemand afmeldt'} \u00b7 tik om af te melden</span></h3>
+          <div class="dk-aanwtegels">${spelers.map(tegel).join('')}</div></div>
+        <div><h3 class="dk-label">Training van deze dag<span>${stof ? esc(stof.week || '') : ''}</span></h3>
+          ${stof ? `<div class="dk-pdfbalk"><canvas class="dk-pdfthumb" data-pdf="${esc(stof.url || '')}"></canvas>
+              <div><b>${esc(stof.titel || stof.bestandsnaam || 'Training')}</b><small>${esc([stof.week, oef.length ? oef.length + ' oefeningen' : 'PDF'].filter(Boolean).join(' \u00b7 '))}</small>
+              <div class="dk-rij-knoppen">${stof.url ? knop('Origineel', 'stofpdf', '', 'admin-document').replace('data-dk="stofpdf"', `data-dk="stofpdf" data-id="${esc(stof.id)}"`) : ''}${knop('Volledig scherm', 'stof', '', 'training-view').replace('data-dk="stof"', `data-dk="stof" data-id="${esc(stof.id)}"`)}</div></div></div>
+            ${oef.length ? `<div class="dk-oefeningen trw-inline">${oef.map((o, i) => oefHtml(i + 1, o, stof.diagramUrls || {})).join('')}</div>` : '<p class="dk-leeg">Deze oefenstof is (nog) niet uitgewerkt in oefeningen. Open het origineel voor de PDF.</p>'}`
+          : '<p class="dk-leeg">Voor deze week staat nog geen oefenstof klaar voor dit team.</p>'}</div>` : '<p class="dk-leeg">Kies een training.</p>'}
       </section>
-      <aside class="dk-kol dk-zijkol">
-        <div><h3 class="dk-label">Oefenstof deze week<span>week ${isoWeek()}</span></h3>${oefenstofWeek().map(stofRij).join('') || '<p class="dk-leeg">Nog niets voor deze week.</p>'}
-          <button class="dk-link" data-dk="tab" data-tab="trainingen">Alle oefenstof \u203a</button></div>
-        <div><h3 class="dk-label">Video\u2019s<span>${(S.videos || []).filter(v => (v.teams || []).includes(S.teamId)).length}</span></h3>
-          <button class="dk-link" data-dk="tab" data-tab="videos">Naar de video\u2019s \u203a</button></div>
-        <div><h3 class="dk-label">Opkomst<span>laatste ${Math.min(4, ses.length)}</span></h3>
-          ${ses.slice(0, 4).map(s => `<div class="dk-balk"><span>${esc(datumMooi(s.datum, { weekday:'short', day:'numeric' }))}</span><i><b class="in" style="width:${meetellers(s) ? aanwezigTel(s) / meetellers(s) * 100 : 0}%"></b></i><em>${aanwezigTel(s)}/${meetellers(s)}</em></div>`).join('') || '<p class="dk-leeg">Nog geen presentie.</p>'}</div>
+      <aside class="dk-kol dk-zijkol dk-scroll">
+        <div><h3 class="dk-label">Volgende week<span>week ${isoWeek() + 1 > 53 ? 1 : isoWeek() + 1}</span></h3>${volgende.map(trItem).join('') || '<p class="dk-leeg">Niets gepland.</p>'}</div>
+        <div><h3 class="dk-label">Voorgaande trainingen</h3>${vorige.map(s => trItem(s.datum)).join('') || '<p class="dk-leeg">Nog geen trainingen met presentie.</p>'}</div>
       </aside>
+    </div></div>`;
+}
+
+/* PDF-voorvertoning (eerste pagina) in een canvas, via de pdf.js die de
+   bestaande pdf-viewer ook gebruikt. Mislukt het, dan blijft het canvas leeg. */
+async function tekenPdfs(v){
+  const els = [...v.querySelectorAll('canvas[data-pdf]:not([data-klaar]), div[data-pdfvol]:not([data-klaar])')];
+  if (!els.length) return;
+  try { await laadPdfJs(); } catch(e){ return; }
+  for (const el of els){
+    el.dataset.klaar = '1';
+    const url = el.dataset.pdf || el.dataset.pdfvol; if (!url) continue;
+    try {
+      const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+      const pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+      const paginas = el.dataset.pdfvol ? Math.min(pdf.numPages, 20) : 1;
+      for (let n = 1; n <= paginas; n++){
+        const page = await pdf.getPage(n);
+        const breedte = el.dataset.pdfvol ? Math.max(300, el.clientWidth - 8) : 110;
+        const vp0 = page.getViewport({ scale: 1 }), schaal = breedte / vp0.width * (window.devicePixelRatio || 1);
+        const vp = page.getViewport({ scale: schaal });
+        const c = el.tagName === 'CANVAS' ? el : el.appendChild(document.createElement('canvas'));
+        c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+        c.style.width = breedte + 'px';
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      }
+    } catch(e){ if (el.dataset.pdfvol) el.innerHTML = '<p class="dk-leeg">Dit document kan niet in de pagina getoond worden. Gebruik \u201cGroot openen\u201d.</p>'; }
+  }
+}
+
+/* ==================== EVALUATIE (team, per wedstrijd) ==================== */
+function evGemiddelde(scores){ const w = Object.values(scores || {}).map(Number).filter(Boolean); return w.length ? gem(w) : 0; }
+function radarN(vals, gemVals, labels, kleuren){
+  const n = vals.length, cx = 200, cy = 190, R = 140;
+  const pt = (v, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, r = R * (v || 0) / 5; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+  const pp = a => a.map(p => p.map(x => x.toFixed(1)).join(',')).join(' ');
+  return `<svg class="dk-radar-svg" viewBox="0 0 400 380">${[1, 2, 3, 4, 5].map(l => `<polygon points="${pp(vals.map((_, i) => pt(l, i)))}" fill="none" style="stroke:var(--line-d)"/>`).join('')}
+    ${labels.map((l, i) => { const [x, y] = pt(6.2, i); return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" style="fill:${kleuren[i]}">${esc(l)}</text>`; }).join('')}
+    ${gemVals && gemVals.some(Boolean) ? `<polygon points="${pp(gemVals.map(pt))}" fill="none" style="stroke:var(--ink-2)" stroke-width="1.5" stroke-dasharray="4 4"/>` : ''}
+    <polygon points="${pp(vals.map(pt))}" fill="rgba(226,52,47,.26)" stroke="#e2342f" stroke-width="2.4" stroke-linejoin="round"/>
+    ${vals.map((v, i) => { const [x, y] = pt(v, i); return v ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" style="fill:${kleuren[i]}"/>` : ''; }).join('')}</svg>`;
+}
+function htmlEvaluatie(){
+  if (!modAan('evaluaties')) return null;
+  const lijst = afgelopen();
+  if (!lijst.find(w => w.id === evSel)) evSel = (lijst.find(w => !(S.teamEvaluaties || []).some(e => e.wedstrijdId === w.id)) || lijst[0])?.id || null;
+  const w = lijst.find(x => x.id === evSel);
+  if (w && evConcept?.wid !== w.id){
+    const b = (S.teamEvaluaties || []).find(e => e.wedstrijdId === w.id);
+    evConcept = { wid: w.id, scores: { ...(b?.scores || {}) }, tags: new Set(b?.tags || []), goed: b?.notitieGoed || '', aandacht: b?.notitieAandacht || '', bestaat: !!b };
+  }
+  const evals = (S.teamEvaluaties || []).filter(e => e.scores);
+  const seizoen = TEAM_CATEGORIEEN.map(c => { const v = evals.map(e => Number(e.scores[c.id])).filter(Boolean); return v.length ? gem(v) : 0; });
+  const vals = TEAM_CATEGORIEEN.map(c => Number(evConcept?.scores[c.id]) || 0);
+  const pct = Math.round(evGemiddelde(evConcept?.scores) / 5 * 100);
+  const verloop = evals.filter(e => e.datum).sort((a, b) => a.datum.localeCompare(b.datum)).map(e => evGemiddelde(e.scores));
+  const item = x => { const e = (S.teamEvaluaties || []).find(t => t.wedstrijdId === x.id), st = stand(x);
+    return `<button class="dk-li ${x.id === evSel ? 'actief' : ''}" data-dk="evsel" data-id="${esc(x.id)}">
+      <span class="dk-li-dt">${esc(String(Number((x.datum || '').slice(8, 10)) || ''))}<small>${esc(datumMooi(x.datum, { month:'short' }))}</small></span>
+      <span class="dk-li-t"><b>${esc(x.tegenstander || 'Tegenstander')}</b><small>${st.links}\u2013${st.rechts} \u00b7 ${x.thuis ? 'thuis' : 'uit'}</small></span>
+      ${e ? `<span class="dk-pill groen">${Math.round(evGemiddelde(e.scores) / 5 * 100)}%</span>` : '<span class="dk-pill rood">evalueren</span>'}</button>`; };
+  return `<div class="dk-scherm">
+    ${kop('Evaluatie wedstrijden', w ? knop(evConcept.bestaat ? 'Bijwerken' : 'Opslaan', 'evsave', 'rood', 'action-check') : '')}
+    <div class="dk-drie dk-drie-ev">
+      <aside class="dk-kol dk-lijstkol">${lijst.length ? lijst.map(item).join('') : '<p class="dk-leeg">Nog geen gespeelde wedstrijden.</p>'}</aside>
+      <section class="dk-kol dk-scroll dk-evform">${w ? `<h3 class="dk-label">${esc(w.tegenstander || '')} \u00b7 ${stand(w).links}\u2013${stand(w).rechts}<span>tik een niveau; nog eens tikken = overslaan</span></h3>
+        ${TEAM_CATEGORIEEN.map(c => `<div class="dk-evcat"><b>${esc(c.naam)}</b><div class="dk-kb">${NIVEAUS.slice(1).map(n => { const aan = Number(evConcept.scores[c.id]) === n.n;
+          return `<button data-dk="evniv" data-id="${esc(c.id)}" data-n="${n.n}" class="${aan ? 'aan' : ''}" style="${aan ? 'background:' + niveauKleur(n.n) : ''}">${esc(n.label)}</button>`; }).join('')}</div></div>`).join('')}
+        <div class="dk-evcat"><b>Opvallend</b><div class="dk-tags">${TEAM_TAGS.map(t => `<button data-dk="evtag" data-id="${esc(t.id)}" class="${evConcept.tags.has(t.id) ? 'aan' : ''}">${t.ico ? ico(t.ico, 15) : t.emoji} ${esc(t.label)}</button>`).join('')}</div></div>
+        <textarea class="dk-ta" data-dkin="goed" rows="2" placeholder="Wat ging het beste? (optioneel)">${esc(evConcept.goed)}</textarea>
+        <textarea class="dk-ta" data-dkin="aandacht" rows="2" placeholder="Aandachtspunt voor de volgende training (optioneel)">${esc(evConcept.aandacht)}</textarea>` : '<p class="dk-leeg">Kies een wedstrijd.</p>'}</section>
+      <aside class="dk-kol dk-evradar">${w ? `<div class="dk-evkop"><div class="dk-ring" style="--p:${pct}"><span>${pct || '\u2013'}</span></div><p>Teamscore van deze wedstrijd.<br>Stippellijn = seizoensgemiddelde.</p></div>
+        ${radarN(vals, seizoen, TEAM_CATEGORIEEN.map(c => c.naam.split(/[ &\/]/)[0]), TEAM_CATEGORIEEN.map(c => Number(evConcept.scores[c.id]) ? niveauKleur(Number(evConcept.scores[c.id])) : 'var(--ink-2)'))}
+        ${verloop.length > 1 ? `<div class="dk-blok"><h3 class="dk-label">Seizoensverloop<span>${verloop.length} evaluaties</span></h3>${sparkGroot(verloop)}</div>` : ''}` : ''}</aside>
+    </div></div>`;
+}
+function sparkGroot(t){
+  const W = 300, H = 70, mn = 1, mx = 5;
+  return `<svg viewBox="0 0 ${W} ${H}" class="dk-spark"><polyline points="${t.map((v, i) => `${(8 + i / (t.length - 1) * (W - 16)).toFixed(1)},${(H - 6 - (v - mn) / (mx - mn) * (H - 12)).toFixed(1)}`).join(' ')}" fill="none" style="stroke:var(--in)" stroke-width="3" stroke-linejoin="round"/></svg>`;
+}
+
+/* ==================== STATS ==================== */
+function htmlStats(){
+  const rij = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99)).map(p => ({ p, st: statsVan(p.id), k: kaart(p) }));
+  const afg = afgelopen().filter(w => (w.goals || []).length || analyse(w).kwarten);
+  let voor = 0, tegen = 0, punten = 0;
+  for (const w of afg){ const st = stand(w); voor += st.voor; tegen += st.tegen; punten += st.voor > st.tegen ? 3 : st.voor === st.tegen ? 1 : 0; }
+  const opk = sessies().length ? Math.round(gem(sessies().map(s => meetellers(s) ? aanwezigTel(s) / meetellers(s) * 100 : 0))) : null;
+  const scorers = rij.filter(r => r.st.goals).sort((a, b) => b.st.goals - a.st.goals).slice(0, 6);
+  const mxg = Math.max(1, ...scorers.map(r => r.st.goals));
+  return `<div class="dk-scherm">
+    ${kop('Stats')}
+    <div class="dk-stats">
+      <div class="dk-blok dk-tabelblok"><table class="dk-tabel"><thead><tr><th>#</th><th>Speler</th><th class="n">Wedstr.</th><th>Speeltijd / reserve</th><th class="n">Goals</th><th class="n">Opkomst</th><th class="n">Kaart</th></tr></thead><tbody>
+        ${rij.map(({ p, st, k }) => `<tr data-dk="openprofiel" data-id="${esc(p.id)}"><td>${esc(p.nummer ?? '')}</td><td><b>${esc(voornaam(p))}</b></td><td class="n">${st.wedstrijden}</td><td>${sbBalk('', st, false)}</td><td class="n">${st.goals}</td><td class="n">${st.opkomst != null ? st.opkomst + '%' : '\u2013'}</td><td class="n"><b>${k.ovr ?? '\u2013'}</b>${k.snel ? '<small> snel</small>' : ''}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="dk-statszij">
+        <div class="dk-tegels smal"><div><b>${afg.length}</b><small>Wedstrijden</small></div><div><b>${voor}\u2013${tegen}</b><small>Doelsaldo</small></div>
+          <div><b>${opk != null ? opk + '%' : '\u2013'}</b><small>Opkomst</small></div><div><b>${afg.length ? (punten / afg.length).toFixed(1).replace('.', ',') : '\u2013'}</b><small>Punten gem.</small></div></div>
+        <div class="dk-blok"><h3 class="dk-label">Doelpunten per speler</h3>${scorers.map(r => `<div class="dk-sb zonder-leg"><span>${esc(voornaam(r.p))}</span><i><b class="r" style="width:${r.st.goals / mxg * 100}%"></b></i><em><b>${r.st.goals}</b></em></div>`).join('') || '<p class="dk-leeg">Nog geen doelpunten.</p>'}</div>
+      </div></div></div>`;
+}
+
+/* ==================== DOCUMENTEN ==================== */
+const DOC_CAT = [['knvb', 'KNVB'], ['beleid', 'Beleid'], ['overig', 'Overig']];
+function htmlDocumenten(){
+  const lijst = (S.documenten || []).filter(d => (d.teams || []).includes(S.teamId))
+    .sort((a, b) => (b.gemaakt?.seconds || 0) - (a.gemaakt?.seconds || 0));
+  if (!lijst.find(d => d.id === selDoc)) selDoc = lijst[0]?.id || null;
+  const d = lijst.find(x => x.id === selDoc);
+  const rij = x => `<button class="dk-li dk-docli ${x.id === selDoc ? 'actief' : ''}" data-dk="seldoc" data-id="${esc(x.id)}"><span class="dk-docico">${ico('admin-document', 18)}</span>
+    <span class="dk-li-t"><b>${esc(x.titel || x.bestandsnaam || 'Document')}</b><small>${esc(x.gemaakt?.seconds ? new Date(x.gemaakt.seconds * 1000).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }) : '')}</small></span>
+    ${!S.trainingenGelezen?.[x.id] ? '<span class="dk-pill rood">nieuw</span>' : ''}</button>`;
+  return `<div class="dk-scherm">
+    ${kop('Documenten')}
+    <div class="dk-docs">
+      <aside class="dk-kol dk-lijstkol">${lijst.length ? DOC_CAT.map(([id, naam]) => { const g = lijst.filter(x => (x.categorie || 'overig') === id); return g.length ? `<h5>${naam}</h5>${g.map(rij).join('')}` : ''; }).join('') : '<p class="dk-leeg">Nog geen documenten voor dit team. Je clubadmin kan hier stukken delen.</p>'}</aside>
+      <section class="dk-kol dk-docview">${d ? `<div class="dk-dockop"><b>${esc(d.titel || d.bestandsnaam || 'Document')}</b>
+          <span class="dk-acties">${knop('Groot openen', 'docgroot', 'rood', 'training-view').replace('data-dk="docgroot"', `data-dk="docgroot" data-id="${esc(d.id)}"`)}</span></div>
+        <div class="dk-docpaginas" data-pdfvol="${esc(d.url || '')}"></div>` : ''}</section>
     </div></div>`;
 }
 
@@ -484,33 +695,56 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260922e'); m.openWedstrijd(id); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260922e'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20260923a'); m.openWedstrijd(id); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20260923a'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
   if (a === 'presentie'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(); return; }
   if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(null, { startAnder:true }); return; }
   if (a === 'presentiewijzig'){ const s = (S.presentie || []).find(x => x.id === id); const m = await import('./teams-training.js?v=20260922c'); m.modalPresentie(s || null); return; }
   if (a === 'stof'){ openOefenstof(id); return; }
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
-  if (a === 'terugsel'){ S._beoordeelProfiel = null; renderTeam(); return; }
+  if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260922e'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260922e'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260922e'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260922e'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260922e'); m.modalSpeler(null); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20260923a'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20260923a'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20260923a'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20260923a'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20260923a'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'selw'){ selWedstrijd = id; renderTeam(); return; }
   if (a === 'seltr'){ selTraining = id; renderTeam(); return; }
   if (a === 'selth'){ selThema = LEERCURVE[Number(b.dataset.i)]?.thema || selThema; renderTeam(); return; }
+  /* [20260923a] */
+  if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
+  if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20260923a'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20260923a');
+    if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
+  if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
+  if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
+    try { await zetPresentie(selTraining, pid, reden); meld(reden ? `${voornaam(speler(pid))} afgemeld` : `${voornaam(speler(pid))} weer aanwezig`); }
+    catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
+    renderTeam(); return; }
+  if (a === 'stofpdf'){ const t = S.trainingen.find(x => x.id === id); if (!t?.url) return; const { openPdfViewer } = await import('./pdf-viewer.js?v=20260922c'); openPdfViewer({ url: t.url, titel: t.titel || 'Training', meta: t.week || '' }); return; }
+  if (a === 'evsel'){ evSel = id; renderTeam(); return; }
+  if (a === 'evniv'){ const n = Number(b.dataset.n); if (Number(evConcept.scores[id]) === n) delete evConcept.scores[id]; else evConcept.scores[id] = n; renderTeam(); return; }
+  if (a === 'evtag'){ evConcept.tags.has(id) ? evConcept.tags.delete(id) : evConcept.tags.add(id); renderTeam(); return; }
+  if (a === 'evsave'){ const ok = await bewaarTeamEvaluatie(evConcept.wid, { scores: evConcept.scores, tags: [...evConcept.tags], notitieGoed: evConcept.goed.trim(), notitieAandacht: evConcept.aandacht.trim() });
+    if (ok){ evConcept.bestaat = true; setTimeout(() => renderTeam(), 400); } return; }
+  if (a === 'seldoc'){ selDoc = id; renderTeam(); markeerGelezen(id); return; }
+  if (a === 'docgroot'){ const d = (S.documenten || []).find(x => x.id === id); if (!d?.url) return; const { openPdfViewer } = await import('./pdf-viewer.js?v=20260922c'); openPdfViewer({ url: d.url, titel: d.titel || 'Document', meta: '' }); markeerGelezen(id); return; }
 }
+function eersteSpeler(){ return [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99))[0]?.id || null; }
+async function markeerGelezen(id){ if (!id || S.trainingenGelezen?.[id]) return; try { await setDoc(doc(db, 'gebruikers', S.user.uid, 'gelezen', id), { tijd: serverTimestamp() }); } catch(e){} }
 function koppel(v){
   v.onclick = e => {
     const b = e.target.closest('[data-dk]');
     if (!b || !v.contains(b)) return;
     actie(b).catch(err => console.warn('[Cluppie] desktop-actie mislukt', err));
   };
+  v.oninput = e => { const t = e.target.closest('[data-dkin]'); if (t && evConcept) evConcept[t.dataset.dkin] = t.value; };
   tikAftel();
+  tekenPdfs(v);
 }
 
 /* aftelklok (1× per seconde, alleen zolang het element bestaat) */
@@ -543,6 +777,8 @@ function sig(){
       (S.presentie || []).map(p => p.id + ':' + (p.afwezig || []).length).join('|'),
       S.beoordelingen.length + ':' + (S.beoordelingen[0]?.gemaaktMs || 0),
       (S.trainingen || []).length, (S.videos || []).length, Object.keys(S.trainingenGelezen || {}).length,
+      (S.teamEvaluaties || []).map(e => e.id + ':' + (e.gemaaktMs || 0)).join('|'), (S.documenten || []).length, S._dkModus || '',
+      (S.presentie || []).map(p => p.id + ':' + Object.keys(p.afwezigRedenen || {}).length).join('|'),
     ].join('#');
   } catch(e){ return ''; }
 }
@@ -557,17 +793,20 @@ function renderDesk(v, tab){
   if (!isDesk() || !TABS.has(tab)) { klassiekTab = tab === klassiekTab ? klassiekTab : null; return false; }
   if (klassiekTab && klassiekTab !== tab) klassiekTab = null;
   if (klassiekTab === tab) return false;
-  if (tab === 'spelers' && S._beoordeelProfiel){
-    if (klassiekProfiel === S._beoordeelProfiel) return false;
-    klassiekProfiel = null;
-  }
+  /* Profiel: het volledige (bestaande) profiel, door naRender in een desktop-
+     indeling gezet. Alleen in de modus "Evaluatie" tekenen we het paspoort. */
+  if (tab === 'spelers' && S._beoordeelProfiel && S._dkModus !== 'evaluatie') return false;
   try {
     const html = tab === 'hub' ? htmlDashboard()
       : tab === 'spelers' ? (S._beoordeelProfiel ? htmlPaspoort() : htmlSelectie())
       : tab === 'wedstrijden' ? htmlWedstrijden()
       : tab === 'presentietraining' ? htmlTrainingen()
+      : tab === 'evaluatie' ? htmlEvaluatie()
+      : tab === 'stats' ? htmlStats()
+      : tab === 'documenten' ? htmlDocumenten()
       : htmlLeerlijn();
     if (!html) return false;
+    v.classList.remove(...[...v.classList].filter(c => c.startsWith('dk-na')));
     v.innerHTML = html;
     koppel(v);
     laatsteSig = sig();
@@ -578,9 +817,65 @@ function renderDesk(v, tab){
     return false;
   }
 }
+/* ---------- bestaande tabbladen in desktop-indeling ----------
+   [20260923a] Na het normale tekenen (en koppelen) van een tabblad zonder eigen
+   desktopscherm: klasse erop voor de CSS, desktop-kop bovenaan, en voor het
+   spelerprofiel en de wedstrijd-aanwezigheid een keuzelijst links. We
+   verplaatsen alleen bestaande DOM-knopen; hun klik-handlers blijven intact. */
+const NA_TITEL = { spelers:'Speler', preswedstrijd:'Aanwezigheid wedstrijd', poule:'Poule', planning:'Planning', videos:'Video\u2019s',
+  historie:'Historie', documenten:'Documenten', stats:'Stats', evaluatie:'Evaluatie', berichten:'Berichten', trainingen:'Oefenstof',
+  instellingen:'Instellingen', help:'Help', updates:'Updates', leerlijnoverzicht:'Leerlijn' };
+function naRender(v, tab){
+  v.classList.remove(...[...v.classList].filter(c => c.startsWith('dk-na')));
+  if (!isDesk() || v.querySelector(':scope > .dk-scherm')) return;
+  v.classList.add('dk-na', 'dk-na-' + tab);
+  const profiel = tab === 'spelers' && S._beoordeelProfiel;
+  const p = profiel ? speler(S._beoordeelProfiel) : null;
+  const kopEl = document.createElement('div');
+  kopEl.className = 'dk-kop dk-nakop';
+  kopEl.innerHTML = `<div class="dk-kruim">${esc(S.team?.naam || '')} / <b>${esc(p ? voornaam(p) : (NA_TITEL[tab] || ''))}</b></div><div class="dk-acties">${p
+    ? `<button class="dk-knop" data-na="sel">${ico('navigation-back', 18)}Selectie</button><button class="dk-knop" data-na="ev">${ico('attendance-evaluatie', 18)}Evaluatie</button>` : ''}</div>`;
+  kopEl.onclick = e => { const b = e.target.closest('[data-na]'); if (!b) return;
+    if (b.dataset.na === 'sel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); }
+    if (b.dataset.na === 'ev'){ S._dkModus = 'evaluatie'; renderTeam(); } };
+  if (profiel || tab === 'preswedstrijd'){
+    const midden = document.createElement('section');
+    midden.className = 'dk-kol dk-namidden';
+    while (v.firstChild) midden.appendChild(v.firstChild);
+    const links = document.createElement('aside');
+    links.className = 'dk-kol dk-lijstkol';
+    if (profiel){
+      const lijst = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99));
+      links.innerHTML = lijst.map(x => `<button class="dk-sp ${x.id === p?.id ? 'actief' : ''}" data-naid="${esc(x.id)}"><span class="dk-sp-nr">${esc(x.nummer ?? '')}</span><span class="dk-sp-t"><b>${esc(voornaam(x))}</b><small>${esc(x.positie || '')}</small></span></button>`).join('');
+      links.onclick = e => { const b = e.target.closest('[data-naid]'); if (!b) return; S._beoordeelProfiel = b.dataset.naid; renderTeam(); };
+    } else {
+      const { komend, eerder } = presWedstrijdKeuzes();
+      const huidig = S._presWedstrijdId || komend[0]?.id || eerder[0]?.id;
+      const it = w => `<button class="dk-li ${w.id === huidig ? 'actief' : ''}" data-naid="${esc(w.id)}"><span class="dk-li-dt">${esc(String(Number((w.datum || '').slice(8, 10)) || ''))}<small>${esc(datumMooi(w.datum, { month:'short' }))}</small></span>
+        <span class="dk-li-t"><b>${esc(w.tegenstander || 'Tegenstander')}</b><small>${w.thuis ? 'thuis' : 'uit'}${w.aftrap ? ' \u00b7 ' + esc(w.aftrap) : ''}</small></span></button>`;
+      links.innerHTML = (komend.length ? `<h5>Komend</h5>${komend.map(it).join('')}` : '') + (eerder.length ? `<h5>Gespeeld</h5>${eerder.slice(0, 8).map(it).join('')}` : '');
+      links.onclick = e => { const b = e.target.closest('[data-naid]'); if (!b) return; S._presWedstrijdId = b.dataset.naid; renderTeam(); };
+    }
+    const rij = document.createElement('div');
+    rij.className = 'dk-narij' + (profiel ? ' profiel' : '');
+    rij.append(links, midden);
+    if (p){
+      const rechts = document.createElement('aside');
+      rechts.className = 'dk-kol dk-zijkol';
+      const st = statsVan(p.id);
+      rechts.innerHTML = `${statTegels(st, true)}<div class="dk-blok dk-sbblok"><h3 class="dk-label">Verhouding speeltijd / bank</h3>${sbBalk('', st, false)}${SB_LEGENDA}</div>`;
+      rij.append(rechts);
+    }
+    v.append(kopEl, rij);
+  } else {
+    v.prepend(kopEl);
+  }
+}
+
 let gestart = false;
 export function initSchermen(){
   S._deskRenderTeam = renderDesk;
+  S._deskNaRender = naRender;
   if (!gestart){ gestart = true; setInterval(wachter, 1500); }
 }
 /* Bij het wisselen tussen smal en breed: bestaand onclick van een eerder

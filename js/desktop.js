@@ -15,8 +15,8 @@
 ========================================================================== */
 import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260922e';
-import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260922e';
+import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20260923a';
+import { initSchermen, ruimOp } from './desktop-schermen.js?v=20260923a';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { evaluatieOpen } from './teams-hub.js?v=20260922c';
 import { telNav } from './tracker.js?v=20260922c';
@@ -52,9 +52,9 @@ function rolNaam(){
    loopt onze vervolgstap gegarandeerd ná die render. */
 async function sluitOpenWedstrijd(){
   if (huidigeView() !== 'wedstrijd' && !S.wedstrijdId) return;
-  const w = await import('./wedstrijd.js?v=20260922e');
+  const w = await import('./wedstrijd.js?v=20260923a');
   w.sluitWedstrijd();
-  await import('./teams.js?v=20260922e');
+  await import('./teams.js?v=20260923a');
   await new Promise(r => requestAnimationFrame(() => r()));
 }
 /* Club-view verlaten zónder terug te springen naar het teamoverzicht
@@ -70,7 +70,7 @@ async function gaNaarTab(tab, opties = {}){
   telNav('desk:' + tab, 'zijbalk');
   const view = huidigeView();
   if (view === 'wedstrijd'){
-    const w = await import('./wedstrijd.js?v=20260922e');
+    const w = await import('./wedstrijd.js?v=20260923a');
     if (opties.profiel) S._beoordeelProfiel = opties.profiel;
     w.sluitWedstrijd(tab);
     return;
@@ -96,16 +96,16 @@ async function naarOverzicht(){
   teamKeuzeOpen = false;
   await sluitOpenWedstrijd();
   if (S.teamId){ verlaatTeamView(); return; }
-  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260922e'); c.verlaatClubView(); }
+  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20260923a'); c.verlaatClubView(); }
 }
 async function openClubDesk(id){
   await sluitOpenWedstrijd();
   if (S.teamId) verlaatTeamView();
-  const c = await import('./club.js?v=20260922e');
+  const c = await import('./club.js?v=20260923a');
   c.openClub(id);
 }
 async function openBouwDesk(clubId, bouw){
-  const b = await import('./bouw-hub.js?v=20260922e');
+  const b = await import('./bouw-hub.js?v=20260923a');
   b.openBouwHub(clubId, bouw);
 }
 async function voerActieUit(actie, data = {}){
@@ -114,15 +114,22 @@ async function voerActieUit(actie, data = {}){
   if (actie === 'overzicht')  return naarOverzicht();
   if (actie === 'club')       return openClubDesk(data.id);
   if (actie === 'bouw')       return openBouwDesk(data.club, data.bouw);
-  if (actie === 'chat')       return import('./chatbot.js?v=20260922e').then(m => m.openChatbot());
+  if (actie === 'chat')       return import('./chatbot.js?v=20260923a').then(m => m.openChatbot());
   if (actie === 'tactiek'){
     if (!S.teamId){ const tid = laatsteTeamId(); if (tid) openTeam(tid); }
     return import('./tactiekbord.js?v=20260922c').then(m => m.openTactiekBibliotheek());
   }
-  if (actie === 'speler')     return gaNaarTab('spelers', { profiel: data.id });
+  if (actie === 'speler'){ S._dkModus = null; S._profielTab = 'overzicht'; return gaNaarTab('spelers', { profiel: data.id }); }
+  if (actie === 'selectie'){ S._dkModus = null; return gaNaarTab('spelers'); }
+  if (actie === 'spev' || actie === 'sphis'){
+    const eerste = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99))[0]?.id || null;
+    S._dkModus = actie === 'spev' ? 'evaluatie' : null;
+    if (actie === 'sphis') S._profielTab = 'historie';
+    return gaNaarTab('spelers', { profiel: S._beoordeelProfiel || eerste });
+  }
   if (actie === 'wedstrijd'){
     if (huidigeView() !== 'team' && huidigeView() !== 'wedstrijd') return;
-    return import('./wedstrijd.js?v=20260922e').then(m => m.openWedstrijd(data.id));
+    return import('./wedstrijd.js?v=20260923a').then(m => m.openWedstrijd(data.id));
   }
 }
 
@@ -145,15 +152,17 @@ function groepen(){
       ...(modAan('evaluaties') ? [{ tab:'evaluatie', ico:'attendance-evaluatie', naam:'Evaluatie', badge: evalOpen }] : []),
     ]],
     ['Training', [
-      { tab:'presentietraining', ico:'attendance-present', naam:'Trainingen' },
+      { tab:'presentietraining', ico:'attendance-present', naam:'Trainingen', badge: stofNieuw },
       { tab:'planning',          ico:'planning-calendar',  naam:'Planning' },
-      { tab:'trainingen',        ico:'training-cones',     naam:'Oefenstof', badge: stofNieuw },
+      /* [20260923a] Oefenstof zit op desktop in Trainingen; het tabblad blijft
+         bereikbaar via zoeken (Ctrl K) en op de telefoon ongewijzigd. */
       { tab:'videos',            ico:'training-video',     naam:'Video\u2019s' },
       { actie:'tactiek',         ico:'football-tactics',   naam:'Tactiek' },
     ]],
     ['Spelers', [
-      { tab:'spelers',  ico:'team-members',        naam:'Selectie', tel: tid ? S.spelers.length : 0 },
-      { tab:'historie', ico:'attendance-overview', naam:'Historie' },
+      { actie:'selectie', ico:'team-members',         naam:'Selectie', tel: tid ? S.spelers.length : 0 },
+      { actie:'spev',     ico:'attendance-evaluatie', naam:'Evaluatie' },
+      { actie:'sphis',    ico:'attendance-overview',  naam:'Historie' },
       { tab:'stats',    ico:'stats-bars',          naam:'Stats' },
     ]],
   ];
@@ -175,6 +184,10 @@ function sleutel(it){
 function actieveSleutel(){
   const v = huidigeView();
   if (v === 'wedstrijd') return 'tab:wedstrijden';
+  if (v === 'team' && S.teamTab === 'spelers')
+    return S._dkModus === 'evaluatie' ? 'actie:spev' : (S._beoordeelProfiel && S._profielTab === 'historie') ? 'actie:sphis' : 'actie:selectie';
+  if (v === 'team' && S.teamTab === 'historie') return 'actie:sphis';
+  if (v === 'team' && S.teamTab === 'trainingen') return 'tab:presentietraining';
   if (v === 'team')      return 'tab:' + (S.teamTab || 'hub');
   if (v === 'club')      return 'club:' + S.clubId;
   if (v === 'teams')     return 'overzicht';
@@ -271,6 +284,7 @@ function palItems(){
     uit.push({ groep:'Pagina\u2019s', ico:it.ico, naam:it.naam, sub:kop, actie: it.tab ? 'tab' : it.actie, data:{ tab:it.tab, id:it.id, club:it.club, bouw:it.bouw } });
   uit.push({ groep:'Pagina\u2019s', ico:'communication-push', naam:'Wat is er nieuw', sub:'Updates', actie:'tab', data:{ tab:'updates' } });
   uit.push({ groep:'Pagina\u2019s', ico:'navigation-settings', naam:'Instellingen', sub:'Team', actie:'tab', data:{ tab:'instellingen' } });
+  uit.push({ groep:'Pagina\u2019s', ico:'training-cones', naam:'Oefenstof (alle)', sub:'Training', actie:'tab', data:{ tab:'trainingen' } });
   uit.push({ groep:'Pagina\u2019s', ico:'navigation-help', naam:'Help en handleiding', sub:'', actie:'tab', data:{ tab:'help' } });
   if (S.teams.length > 1) for (const t of S.teams)
     uit.push({ groep:'Teams', ico:'team-team', naam:t.naam, sub: t.id === S.teamId ? 'huidig team' : '', actie:'team', data:{ id:t.id } });

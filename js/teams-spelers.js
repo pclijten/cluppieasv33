@@ -30,7 +30,7 @@ import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260922e');
+  const m = await import('./teams.js?v=20260923a');
   m.renderTeam();
 }
 
@@ -155,7 +155,8 @@ function meestGespeeldePositie(p){
   return best || p.positie || null;
 }
 
-function spelerStats(pid){
+/* [20260923a] geëxporteerd voor de desktopschermen (kaarten, profiel, stats). */
+export function spelerStats(pid){
   let wedstrijden = 0, tijd = 0, keeper = 0, goals = 0;
   const posities = {};
   for (const w of S.wedstrijden){
