@@ -4695,3 +4695,6 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .mb-statrij small{ text-align:right; color:var(--ink-2); font-size:12px; font-variant-numeric:tabular-nums; }
 .mb-leeg{ font-size:13px; color:var(--ink-2); line-height:1.5; }
 @media (min-width:1100px) and (min-height:520px){ #view-mbouw .mb-tabs{ left:var(--zij-w,0); } }
+
+/* [20260923g] radar bij Evaluatie wedstrijden (mobiel) */
+.mb-radar-ev svg{ width:min(320px,100%); height:auto; overflow:visible; }
