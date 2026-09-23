@@ -57,6 +57,20 @@ S._navClubTerug      = () => import('./club.js?v=20260922c').then(m => m.clubTer
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
+/* [20260922d] Desktop-schil (zijbalk links). Alleen op schermen van minstens
+   1100 × 520 px wordt js/desktop.js geladen; een telefoon downloadt die
+   module nooit. Wordt het venster later breder (of smaller), dan pakt de
+   change-listener dat op; desktop.js zelf zet html.desk aan/uit. */
+const _deskMq = window.matchMedia('(min-width:1100px) and (min-height:520px)');
+function _laadDesktop(){
+  if (!_deskMq.matches) return;
+  import('./desktop.js?v=20260922d')
+    .then(m => m.initDesktop(_deskMq))
+    .catch(e => console.warn('[Cluppie] desktop-schil niet geladen', e));
+}
+_laadDesktop();
+_deskMq.addEventListener?.('change', _laadDesktop);
+
 onAuthStateChanged(auth, async user => {
   S.user = user;
   if (user){
