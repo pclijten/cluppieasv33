@@ -17,6 +17,7 @@ import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
+import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20260924a';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
@@ -110,6 +111,7 @@ export function htmlHub(updInfo){
     ['Meer', [
       tegel('planning',         'Planning',     'planning-calendar'),
       tegel('documenten',       'Documenten',   'admin-document', documentenOngelezen || null),
+      ...(modAan('lijstjes') ? [tegel('lijstjes', 'Lijstjes', 'attendance-fill', lijstjesOpenTotaal() || null)] : []),
       tegel('instellingen',     'Instellingen', 'navigation-settings'),
       tegel('help',             'Help',         'navigation-help'),
       `<button class="hub-tegel" data-open-hulpchat="1">${ico('communication-chat', 40)}<span class="hub-tnaam">Hulpchat</span></button>`,
