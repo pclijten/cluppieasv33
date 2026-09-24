@@ -4778,6 +4778,38 @@ button.lj-veld{flex:1 1 0;min-width:max-content}
 .lj-veld input::placeholder{color:var(--ink-2);opacity:.7;font-weight:500}
 .lj-veld:focus-within{border-color:var(--accent)}
 .lj-onder{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(transparent,var(--bg) 30%);z-index:2}
+/* [20260924b] Compacte lijstregels (mobiel): naam + waarden op één regel */
+.lj-ckop{display:flex;align-items:center;gap:6px;padding:0 9px 6px 11px;font-size:calc(9.5px * var(--fs));font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.2px}
+.lj-ckop span{flex-shrink:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lj-ckop .lj-ck-n{flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lj-ck-nr{width:28px}.lj-ck-check,.lj-cc-check{width:72px}.lj-ck-keuze,.lj-cc-keuze{width:54px}.lj-ck-datum,.lj-cc-datum{width:78px}.lj-ck-nb,.lj-nb{width:32px}
+.lj-cr{background:var(--surface);border:1px solid var(--line-d);border-radius:12px;margin-bottom:6px;overflow:hidden}
+.lj-cr.open{border-left:3px solid var(--warn)}
+.lj-crr{display:flex;align-items:center;gap:6px;padding:7px 8px 7px 10px;min-height:50px}
+.lj-crr .lj-shirt{width:28px;height:28px;font-size:calc(14px * var(--fs))}
+.lj-cn{flex:1;min-width:0;padding-left:2px}
+.lj-cn b{display:block;font-weight:600;font-size:calc(14.5px * var(--fs));color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lj-cn small{display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.lj-cc{position:relative;height:36px;border-radius:9px;background:var(--surface-2);border:1.5px solid transparent;font-weight:600;font-size:calc(14px * var(--fs));color:var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;white-space:nowrap;overflow:hidden;cursor:pointer;padding:0 4px}
+.lj-cc-datum{font-size:calc(13px * var(--fs))}
+.lj-cc-datum input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
+.lj-cc.leeg{color:var(--ink-2);font-weight:500}
+.lj-cc.ja{background:color-mix(in srgb,var(--ok) 14%,var(--surface-2));border-color:color-mix(in srgb,var(--ok) 35%,transparent);color:var(--ok)}
+.lj-cc.nee{background:color-mix(in srgb,var(--warn) 10%,var(--surface-2));color:var(--warn)}
+.lj-cc:focus-within{border-color:var(--accent)}
+.lj-nb{height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--ink-2);flex-shrink:0;opacity:.6;background:none;border:none}
+.lj-nb.heeft{opacity:1;color:var(--accent)}
+.lj-nr{display:none;padding:0 10px 9px 44px}
+.lj-nr.zondernr{padding-left:10px}
+.lj-cr.notitie .lj-nr{display:block}
+.lj-nr input{width:100%;background:var(--surface-2);border:1.5px solid var(--accent);border-radius:9px;padding:8px 10px;color:var(--ink);font-family:inherit;font-weight:600;font-size:calc(14px * var(--fs));outline:none}
+.lj-rijplus{margin-top:6px}
+/* Nieuwe lijst: selectie of eigen namen */
+.lj-rijseg button small{display:block;font-size:calc(11px * var(--fs));font-weight:500;opacity:.8;margin-top:1px}
+textarea.lj-namen{min-height:130px}
+.lj-naamrij{padding:4px 6px 4px 4px}
+.lj-naaminv{flex:1;min-width:0;background:none;border:1.5px solid transparent;border-radius:8px;padding:6px 8px;color:var(--ink);font-family:inherit;font-weight:600;font-size:calc(14px * var(--fs));outline:none}
+.lj-naaminv:focus{border-color:var(--accent);background:var(--surface)}
 .lj-deel svg{vertical-align:-3px}
 
 /* modals */
