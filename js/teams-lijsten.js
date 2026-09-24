@@ -5,7 +5,8 @@
    (✓/✗, keuze, tekst, datum).
 
    Datamodel — één document per lijst:
-     { naam, sjabloon, rijen:'spelers'|'wedstrijden',
+     { naam, sjabloon, rijen:'spelers'|'wedstrijden'|'eigen',
+       rijKop?, eigenRijen?:{ [rijId]: { naam, volg } }   (alleen bij rijen:'eigen'),
        kolommen:[{id, naam, type:'check'|'keuze'|'tekst'|'datum', opties?, alleenUit?, optioneel?}],
        waarden:{ [rijId]: { [kolomId]: waarde } },
        datum?, tijd?, inPlanning, gearchiveerd, seizoen, gemaaktDoor, gemaaktMs, bijgewerktMs }
@@ -21,7 +22,13 @@
    Lijsten met een datum verschijnen via lijstPlanningItems() in de Planning;
    de datum leeft alleen in de lijst, dus er is geen tweede item om bij te
    houden. Delen via WhatsApp: alleen voornamen, vrije tekstkolommen staan
-   standaard uit (AVG — zie de melding in het deelscherm). */
+   standaard uit (AVG — zie de melding in het deelscherm).
+
+   [20260924b] Eigen rijen: in plaats van de selectie kan de eerste kolom ook
+   eigen namen bevatten (ouders, vrijwilligers). Opgeslagen als map met
+   veldpaden (eigenRijen.<id>), zodat twee coaches tegelijk namen kunnen
+   toevoegen. Mobiel toont lijsten met ≤3 korte kolommen (✓/✗, keuze, datum)
+   compact: naam en waarden op één regel, opmerking achter een potloodje. */
 import { db, doc, collection, addDoc, updateDoc, deleteDoc, deleteField, onSnapshot } from './firebase.js?v=20260922c';
 import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
 import { SEIZOEN_FALLBACK } from './config.js?v=20260922c';
@@ -102,7 +109,20 @@ function wedstrijdRijen(metEerder){
       thuis:w.thuis === true, tijd:w.aftrap || w.tijd || '', verleden:w.datum < vandaag }))
     .sort((a, b) => a.datum.localeCompare(b.datum));
 }
-function rijenVan(l, metEerder = true){ return l.rijen === 'wedstrijden' ? wedstrijdRijen(metEerder) : spelerRijen(); }
+function eigenRijen(l){
+  return Object.entries(l.eigenRijen || {})
+    .filter(([, x]) => x && x.naam)
+    .map(([id, x]) => ({ id, soort:'eigen', naam:String(x.naam), volg:Number(x.volg) || 0 }))
+    .sort((a, b) => a.volg - b.volg || a.naam.localeCompare(b.naam, 'nl'));
+}
+function rijenVan(l, metEerder = true){
+  return l.rijen === 'wedstrijden' ? wedstrijdRijen(metEerder) : l.rijen === 'eigen' ? eigenRijen(l) : spelerRijen();
+}
+const isEigen = l => l.rijen === 'eigen';
+function rijKopNaam(l){ return l.rijen === 'wedstrijden' ? 'Wedstrijd' : isEigen(l) ? (l.rijKop || 'Naam') : 'Speler'; }
+/* Naam zoals hij buiten Cluppie (WhatsApp) verschijnt: spelers alleen voornaam,
+   eigen namen precies zoals de coach ze invulde. */
+function deelNaam(r){ return r.soort === 'eigen' ? r.naam : voornaam(r.naam); }
 function kolommenVan(l){ return Array.isArray(l.kolommen) ? l.kolommen : []; }
 /* Weergavevolgorde: optionele kolommen (opmerking) altijd achteraan, zodat de
    brede opmerkingsregel onderaan de kaart staat. */
@@ -203,7 +223,7 @@ function samenvatting(l){
       + (onb ? `<span class="lj-tel open">Nog geen antwoord <b>${onb}</b></span>` : '');
     if (chips) rijHtml += `<div class="lj-samen-k">${chips}</div>`;
   } else {
-    top = `<span class="lj-getal">${v.c}<small>/${v.t}</small></span><span class="lj-lbl">${keuzes.length ? 'spelers volledig ingevuld' : 'ingevuld'}</span>`;
+    top = `<span class="lj-getal">${v.c}<small>/${v.t}</small></span><span class="lj-lbl">${keuzes.length ? (isEigen(l) ? 'volledig ingevuld' : 'spelers volledig ingevuld') : 'ingevuld'}</span>`;
   }
   for (const k of keuzes){
     const tel = {}; let open = 0;
@@ -234,6 +254,7 @@ function veldHtml(l, r, k){
 
 function rijKop(r){
   if (r.soort === 'speler') return `<span class="lj-shirt">${esc(r.nr)}</span><span class="lj-naam">${esc(r.naam)}</span>`;
+  if (r.soort === 'eigen') return `<span class="lj-naam">${esc(r.naam)}</span>`;
   const dt = new Date(r.datum + 'T12:00');
   const mnd = dt.toLocaleDateString('nl-NL', { month:'short' }).replace('.', '');
   return `<span class="lj-dag"><b>${dt.getDate()}</b><small>${esc(mnd)}</small></span>
@@ -251,6 +272,46 @@ function htmlKaarten(l, rijen){
   }).join('');
 }
 
+/* ---------- Compact (mobiel): één regel per rij ----------
+   Kan als alle vaste kolommen kort zijn (✓/✗, keuze, datum), het er 1–3 zijn
+   en er hooguit één optionele tekstkolom (opmerking) is. Anders: kaarten. */
+const COMPACT_TYPES = new Set(['check', 'keuze', 'datum']);
+function compactKolommen(l){
+  if (l.rijen === 'wedstrijden') return null;
+  const k = kolommenVan(l);
+  const vast = k.filter(x => !x.optioneel), opt = k.filter(x => x.optioneel);
+  if (!vast.length || vast.length > 3 || !vast.every(x => COMPACT_TYPES.has(x.type))) return null;
+  if (opt.length > 1 || opt.some(x => x.type !== 'tekst')) return null;
+  return { vast, notitie:opt[0] || null };
+}
+function datumMini(iso){
+  if (!iso) return '';
+  try { return new Date(iso + 'T12:00').toLocaleDateString('nl-NL', { day:'numeric', month:'short' }).replace(/\./g, ''); }
+  catch(e){ return iso; }
+}
+function htmlCompact(l, rijen, ck){
+  const metNr = !isEigen(l);
+  const kop = `<div class="lj-ckop">${metNr ? '<span class="lj-ck-nr"></span>' : ''}<span class="lj-ck-n">${esc(rijKopNaam(l))}</span>${ck.vast.map(k => `<span class="lj-ck-${k.type}">${esc(k.naam)}</span>`).join('')}${ck.notitie ? '<span class="lj-ck-nb"></span>' : ''}</div>`;
+  const cel = (r, k) => {
+    const v = waarde(l, r.id, k.id), d = celData(l, r, k);
+    if (k.type === 'check'){
+      const cls = v === true ? 'ja' : v === false ? 'nee' : 'leeg';
+      return `<button class="lj-cc lj-cc-check ${cls}" data-lj-check ${d} title="${esc(k.naam)}">${v === true ? '✓ Ja' : v === false ? '✗ Nee' : '—'}</button>`;
+    }
+    if (k.type === 'keuze') return `<button class="lj-cc lj-cc-keuze ${v ? '' : 'leeg'}" data-lj-keuze ${d} title="${esc(k.naam)}">${v ? esc(v) : '—'}</button>`;
+    return `<label class="lj-cc lj-cc-datum ${v ? '' : 'leeg'}" title="${esc(k.naam)}"><span>${v ? esc(datumMini(v)) : '—'}</span><input type="date" value="${esc(v || '')}" data-lj-cdatum ${d}></label>`;
+  };
+  return kop + rijen.map(r => {
+    const opm = ck.notitie ? waarde(l, r.id, ck.notitie.id) : '';
+    return `<div class="lj-cr ${rijCompleet(l, r) ? '' : 'open'}">
+      <div class="lj-crr">${metNr ? `<span class="lj-shirt">${esc(r.nr)}</span>` : ''}<span class="lj-cn"><b>${esc(r.naam)}</b>${opm ? `<small>${esc(opm)}</small>` : ''}</span>
+        ${ck.vast.map(k => cel(r, k)).join('')}
+        ${ck.notitie ? `<button class="lj-nb ${opm ? 'heeft' : ''}" data-lj-notitie title="${esc(ck.notitie.naam)}">${ico('admin-edit', 17)}</button>` : ''}</div>
+      ${ck.notitie ? `<div class="lj-nr ${metNr ? '' : 'zondernr'}"><input type="text" value="${esc(opm || '')}" placeholder="${esc(ck.notitie.naam)}…" data-lj-tekst data-lj-notinv ${celData(l, r, ck.notitie)} autocomplete="off" maxlength="200"></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
 function htmlTabel(l, rijen){
   const kols = weergaveKolommen(l);
   const cel = (r, k) => {
@@ -263,10 +324,12 @@ function htmlTabel(l, rijen){
     }
     return `<td><input class="lj-dinv" type="${k.type === 'datum' ? 'date' : 'text'}" value="${esc(v || '')}" data-lj-tekst ${d} autocomplete="off"></td>`;
   };
-  const eerste = r => r.soort === 'speler'
+  const eerste = r => r.soort === 'eigen'
+    ? `<td><span class="lj-dnaam">${esc(r.naam)}</span></td>`
+    : r.soort === 'speler'
     ? `<td><span class="lj-dnaam"><span class="lj-shirt">${esc(r.nr)}</span>${esc(r.naam)}</span></td>`
     : `<td><span class="lj-dnaam">${esc(datumKort(r.datum))} · ${esc(r.tegen)} <span class="lj-thuis ${r.thuis ? '' : 'uit'}">${r.thuis ? 'Thuis' : 'Uit'}</span></span></td>`;
-  return `<div class="lj-tabelwrap"><table class="lj-tabel"><thead><tr><th>${l.rijen === 'wedstrijden' ? 'Wedstrijd' : 'Speler'}</th>${kols.map(k => `<th>${esc(k.naam)}</th>`).join('')}</tr></thead>
+  return `<div class="lj-tabelwrap"><table class="lj-tabel"><thead><tr><th>${esc(rijKopNaam(l))}</th>${kols.map(k => `<th>${esc(k.naam)}</th>`).join('')}</tr></thead>
     <tbody>${rijen.map(r => `<tr class="${rijCompleet(l, r) ? '' : 'open'} ${r.verleden ? 'verleden' : ''}">${eerste(r)}${kols.map(k => cel(r, k)).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
@@ -283,13 +346,15 @@ export function htmlLijst(){
     ? `<button class="lj-datumchip" id="ljDatum">📅 ${esc(datumKort(l.datum))}${l.tijd ? ' · ' + esc(l.tijd) : ''}${l.inPlanning !== false ? ' <span class="pl">· in Planning</span>' : ''} <span class="pen">✎</span></button>`
     : `<button class="lj-datumchip leeg" id="ljDatum">+ Datum</button>`;
   const breed = isBreed();
+  const ck = breed ? null : compactKolommen(l);
   const lijf = !rijenVan(l, true).length
-    ? `<div class="kaart leeg">${wed ? 'Nog geen wedstrijden dit seizoen.' : 'Nog geen spelers in de selectie.'}</div>`
-    : rijen.length ? (breed ? htmlTabel(l, rijen) : htmlKaarten(l, rijen))
+    ? `<div class="kaart leeg">${wed ? 'Nog geen wedstrijden dit seizoen.' : isEigen(l) ? 'Nog geen namen in deze lijst — voeg ze hieronder toe.' : 'Nog geen spelers in de selectie.'}</div>`
+    : rijen.length ? (breed ? htmlTabel(l, rijen) : ck ? htmlCompact(l, rijen, ck) : htmlKaarten(l, rijen))
     : `<div class="kaart leeg">Alles ingevuld 🎉</div>`;
+  const plus = isEigen(l) ? `<button class="lj-nieuw lj-rijplus" id="ljRijPlus">+ Namen toevoegen</button>` : '';
   const inhoud = `
     <div class="lj-balkje">
-      <span class="lj-bron">${wed ? 'Rijen = wedstrijden uit Sportlink' : `Rijen = selectie (${spelerRijen().length} spelers)`}</span>
+      <span class="lj-bron">${wed ? 'Rijen = wedstrijden uit Sportlink' : isEigen(l) ? `Rijen = eigen namen (${eigenRijen(l).length})` : `Rijen = selectie (${spelerRijen().length} spelers)`}</span>
       ${datumChip}
       <button class="lj-menu" id="ljMenu" title="Meer">⋯</button>
     </div>
@@ -300,7 +365,7 @@ export function htmlLijst(){
       <button class="${filter === 'open' ? 'aan' : ''}" data-lj-filter="open">Nog open (${v.t - v.c})</button>
       ${eerderAantal ? `<button class="${S._ljToonEerder ? 'aan' : ''}" id="ljEerder">${S._ljToonEerder ? 'Verberg' : 'Toon'} gespeeld (${eerderAantal})</button>` : ''}
     </div>
-    ${lijf}`;
+    ${lijf}${plus}`;
   const deel = `<button class="knop fluo vol lj-deel" id="ljDeel">${ico('action-whatsapp', 18)} Delen via WhatsApp</button>`;
   if (breed) return `<div class="lj-desk"><div class="lj-desk-hoofd">${inhoud}</div><aside class="lj-desk-zij">${samenvatting(l)}${deel}</aside></div>`;
   return inhoud + `<div class="lj-onder">${deel}</div>`;
@@ -339,6 +404,18 @@ export function koppelLijstjes(v, tab, api){
   const menu = v.querySelector('#ljMenu'); if (menu) menu.onclick = () => modalMenu(l);
   const deel = v.querySelector('#ljDeel'); if (deel) deel.onclick = () => modalDelen(l);
   const herstel = v.querySelector('#ljHerstel'); if (herstel) herstel.onclick = async () => { if (await schrijf(l.id, { gearchiveerd:false })) meld('Lijst teruggezet'); };
+  const rijPlus = v.querySelector('#ljRijPlus'); if (rijPlus) rijPlus.onclick = () => modalNamenToevoegen(l);
+  // compact: potloodje klapt de opmerking-regel open
+  v.querySelectorAll('[data-lj-notitie]').forEach(b => b.onclick = () => {
+    const kaart = b.closest('.lj-cr'); if (!kaart) return;
+    const open = kaart.classList.toggle('notitie');
+    if (open) setTimeout(() => kaart.querySelector('input')?.focus(), 30);
+  });
+  // compact: datumcel — na kiezen meteen opnieuw tekenen (de tekstveld-uitstelregel geldt hier niet)
+  v.querySelectorAll('[data-lj-cdatum]').forEach(inp => inp.onchange = () => {
+    zetCel(l, inp.dataset.ljRij, inp.dataset.ljKol, inp.value || undefined);
+    inp.blur(); API.renderTeam();
+  });
   // ✓/✗: leeg → ja → nee → leeg
   v.querySelectorAll('[data-lj-check]').forEach(b => b.onclick = () => {
     const { ljRij:rij, ljKol:kol } = b.dataset;
@@ -353,7 +430,12 @@ export function koppelLijstjes(v, tab, api){
     zetCel(l, rij, kol, s.value || undefined);
   });
   v.querySelectorAll('[data-lj-tekst]').forEach(inp => {
-    inp.onchange = () => zetCel(l, inp.dataset.ljRij, inp.dataset.ljKol, inp.value.trim() || undefined);
+    inp.onchange = () => {
+      zetCel(l, inp.dataset.ljRij, inp.dataset.ljKol, inp.value.trim() || undefined);
+      // compacte opmerking: na opslaan de regel dichtklappen en de tekst onder de naam tonen
+      if (inp.hasAttribute('data-lj-notinv')) S._ljUitgesteld = true;
+    };
+    if (inp.hasAttribute('data-lj-notinv')) inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
     inp.onblur = () => { if (S._ljUitgesteld){ S._ljUitgesteld = false; setTimeout(() => API.renderTeam(), 0); } };
   });
 }
@@ -369,7 +451,7 @@ function modalKeuze(l, rij, kol, eigenFocus){
     <div class="lj-opts">${opts.map(o => `<button class="lj-opt ${o === huidig ? 'gekozen' : ''}" data-lj-kies="${esc(o)}">${esc(o)}</button>`).join('')}
       <button class="lj-opt wis" data-lj-kies="">Wissen</button></div>
     <div class="lj-eigen"><input class="invoer" id="ljEigenOpt" placeholder="Eigen maat/optie, bv. 176 of XXL" autocomplete="off"><button class="knop klein" id="ljEigenOk">+ Toevoegen</button></div>
-    <p class="lj-hint">Een eigen optie komt erbij voor de hele kolom, dus ook bij de andere ${l.rijen === 'wedstrijden' ? 'rijen' : 'spelers'}.</p>`);
+    <p class="lj-hint">Een eigen optie komt erbij voor de hele kolom, dus ook bij de andere ${l.rijen === 'wedstrijden' ? 'rijen' : isEigen(l) ? 'namen' : 'spelers'}.</p>`);
   $$('#modalInhoud [data-lj-kies]').forEach(b => b.onclick = () => {
     zetCel(l, rij, kol, b.dataset.ljKies || undefined); sluitModal(); API.renderTeam();
   });
@@ -426,7 +508,8 @@ function modalSjabloon(){
   $$('#modalInhoud [data-lj-sj]').forEach(b => b.onclick = () => {
     const s = SJABLONEN[b.dataset.ljSj];
     S._ljConcept = { sjabloon:b.dataset.ljSj, naam:s.naam === 'Leeg' ? '' : s.naam, rijen:s.rijen,
-      kolommen:s.kolommen.map(k => ({ ...k, opties:k.opties ? [...k.opties] : undefined })), datum:'', tijd:'', inPlanning:true };
+      kolommen:s.kolommen.map(k => ({ ...k, opties:k.opties ? [...k.opties] : undefined })), datum:'', tijd:'', inPlanning:true,
+      rijKop:'', namen:'' };
     modalNieuw();
   });
 }
@@ -438,15 +521,26 @@ function kolLijstHtml(kols, metWeg){
 function modalNieuw(){
   const c = S._ljConcept; if (!c) return;
   const s = SJABLONEN[c.sjabloon];
+  const wed = c.rijen === 'wedstrijden', eigen = c.rijen === 'eigen';
   openModal(`<h2>${esc(s.naam)}</h2>
-    <p class="lj-msub">${c.rijen === 'wedstrijden' ? 'Rijen: alle wedstrijden van dit seizoen (Sportlink).' : 'Rijen: je hele selectie — nieuwe spelers komen er vanzelf bij.'}</p>
+    <p class="lj-msub">${wed ? 'Rijen: alle wedstrijden van dit seizoen (Sportlink).' : eigen ? 'Rijen: de namen die je hieronder invult — later aan te vullen.' : 'Rijen: je hele selectie — nieuwe spelers komen er vanzelf bij.'}</p>
     <div class="veldgroep"><label>Naam</label><input class="invoer" id="ljNNaam" value="${esc(c.naam)}" placeholder="bv. Herfsttoernooi, Teamuitje" autocomplete="off" maxlength="60"></div>
-    ${c.rijen === 'spelers' ? datumVeldenHtml(c, !!s.datumVerplicht) : ''}
+    ${wed ? '' : `<div class="veldgroep"><label>Wie staat er in de lijst?</label>
+      <div class="segment lj-rijseg"><button type="button" class="${eigen ? '' : 'actief'}" data-lj-rijsoort="spelers">Selectie<small>${spelerRijen().length} spelers</small></button><button type="button" class="${eigen ? 'actief' : ''}" data-lj-rijsoort="eigen">Eigen namen<small>ouders, vrijwilligers…</small></button></div></div>
+    ${eigen ? `<div class="veldgroep"><label>Kop van de eerste kolom</label><input class="invoer" id="ljNKop" value="${esc(c.rijKop)}" placeholder="bv. Ouder, Vrijwilliger, Naam" autocomplete="off" maxlength="24"></div>
+      <div class="veldgroep"><label>Namen (één per regel)</label><textarea class="invoer lj-namen" id="ljNNamen" placeholder="Fam. de Wit&#10;Sandra&#10;Mark (vader Finn)">${esc(c.namen)}</textarea></div>
+      <div class="avg-balk"><span class="slot">🔒</span><span>${NAMEN_HINT}</span></div>` : ''}`}
+    ${wed ? '' : datumVeldenHtml(c, !!s.datumVerplicht)}
     <div class="veldgroep"><label>Kolommen</label><div class="lj-kollijst">${kolLijstHtml(c.kolommen, true)}</div>
       <button class="knop klein" id="ljNKol">+ Kolom</button></div>
     <button class="knop fluo vol" id="ljNOk">Lijst maken</button>`);
   koppelDatumVelden(c);
-  const bewaarConcept = () => { c.naam = $('#ljNNaam').value; leesDatumVelden(c); };
+  const bewaarConcept = () => {
+    c.naam = $('#ljNNaam').value; leesDatumVelden(c);
+    if ($('#ljNKop')) c.rijKop = $('#ljNKop').value;
+    if ($('#ljNNamen')) c.namen = $('#ljNNamen').value;
+  };
+  $$('#modalInhoud [data-lj-rijsoort]').forEach(b => b.onclick = () => { bewaarConcept(); c.rijen = b.dataset.ljRijsoort; modalNieuw(); });
   $$('#modalInhoud [data-lj-kolweg]').forEach(b => b.onclick = () => { bewaarConcept(); c.kolommen.splice(Number(b.dataset.ljKolweg), 1); modalNieuw(); });
   $('#ljNKol').onclick = () => { bewaarConcept(); modalKolom(kol => { c.kolommen = metNieuweKolom(c.kolommen, kol); modalNieuw(); }, () => modalNieuw()); };
   $('#ljNOk').onclick = async () => {
@@ -461,6 +555,10 @@ function modalNieuw(){
     };
     if (c.datum) data.datum = c.datum;
     if (c.datum && c.tijd) data.tijd = c.tijd;
+    if (c.rijen === 'eigen'){
+      data.rijKop = (c.rijKop || '').trim().slice(0, 24) || 'Naam';
+      data.eigenRijen = nieuweEigenRijen(c.namen);
+    }
     try {
       const ref = await addDoc(collection(db, 'teams', S.teamId, 'lijsten'), data);
       S._lijsten = [...alleLijsten().filter(x => x.id !== ref.id), { id:ref.id, ...data }];
@@ -468,6 +566,61 @@ function modalNieuw(){
       openLijst(ref.id);
     } catch(e){ meld('Aanmaken mislukt: ' + (e.code || e.message)); }
   };
+}
+
+/* ---------- Eigen namen ---------- */
+const NAMEN_HINT = 'Alleen zichtbaar voor de staf van dit team. Zet er geen telefoonnummers of medische informatie bij.';
+function splitsNamen(tekst){
+  return [...new Set(String(tekst || '').split(/\n|;/).map(x => x.trim().slice(0, 40)).filter(Boolean))].slice(0, 60);
+}
+/* { [id]: {naam, volg} } — volg loopt op vanaf `start`, zodat nieuwe namen onderaan komen. */
+function nieuweEigenRijen(tekst, start = Date.now()){
+  const uit = {};
+  splitsNamen(tekst).forEach((naam, i) => { uit['r' + nieuwId().slice(1) + i] = { naam, volg:start + i }; });
+  return uit;
+}
+function modalNamenToevoegen(l){
+  openModal(`<h2>Namen toevoegen</h2><p class="lj-msub">${esc(l.naam)} · één naam per regel</p>
+    <div class="veldgroep"><textarea class="invoer lj-namen" id="ljRNamen" placeholder="Fam. de Wit&#10;Sandra"></textarea></div>
+    <div class="avg-balk"><span class="slot">🔒</span><span>${NAMEN_HINT}</span></div>
+    <button class="knop fluo vol" id="ljROk">Toevoegen</button>`);
+  setTimeout(() => $('#ljRNamen')?.focus(), 50);
+  $('#ljROk').onclick = async () => {
+    const nieuw = nieuweEigenRijen($('#ljRNamen').value);
+    const ids = Object.keys(nieuw);
+    if (!ids.length) return meld('Typ minstens één naam');
+    const velden = {}; ids.forEach(id => { velden[`eigenRijen.${id}`] = nieuw[id]; });
+    if (await schrijf(l.id, velden)){
+      l.eigenRijen = { ...(l.eigenRijen || {}), ...nieuw };
+      sluitModal(); API.renderTeam(); meld(ids.length === 1 ? 'Naam toegevoegd' : `${ids.length} namen toegevoegd`);
+    }
+  };
+}
+function modalNamenBeheren(l){
+  const rijen = eigenRijen(l);
+  openModal(`<h2>Namen beheren</h2><p class="lj-msub">Weghalen wist ook wat er bij die naam is ingevuld.</p>
+    <div class="veldgroep"><label>Kop van de eerste kolom</label><input class="invoer" id="ljBKop" value="${esc(l.rijKop || 'Naam')}" maxlength="24" autocomplete="off"></div>
+    <div class="lj-kollijst">${rijen.length ? rijen.map(r => `<div class="lj-kol lj-naamrij"><input class="lj-naaminv" value="${esc(r.naam)}" data-lj-rnaam="${esc(r.id)}" maxlength="40" autocomplete="off"><button data-lj-rweg="${esc(r.id)}" title="Weghalen">✕</button></div>`).join('') : '<div class="lj-kol leeg">Nog geen namen</div>'}</div>
+    <button class="knop klein" id="ljBPlus">+ Namen toevoegen</button>`);
+  const kop = $('#ljBKop');
+  kop.onchange = async () => { const x = kop.value.trim().slice(0, 24) || 'Naam'; if (await schrijf(l.id, { rijKop:x })){ l.rijKop = x; API.renderTeam(); } };
+  $$('#modalInhoud [data-lj-rnaam]').forEach(inp => inp.onchange = async () => {
+    const id = inp.dataset.ljRnaam, x = inp.value.trim().slice(0, 40);
+    if (!x){ inp.value = l.eigenRijen?.[id]?.naam || ''; return meld('Een naam mag niet leeg zijn — gebruik ✕ om weg te halen'); }
+    if (await schrijf(l.id, { [`eigenRijen.${id}.naam`]:x })){ if (l.eigenRijen?.[id]) l.eigenRijen[id].naam = x; API.renderTeam(); }
+  });
+  $$('#modalInhoud [data-lj-rweg]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.ljRweg, naam = l.eigenRijen?.[id]?.naam || '';
+    if (!confirm(`"${naam}" uit de lijst halen? Wat er bij deze naam is ingevuld gaat verloren.`)) return;
+    const velden = { [`eigenRijen.${id}`]:deleteField() };
+    if (l.waarden?.[id]) velden[`waarden.${id}`] = deleteField();
+    if (await schrijf(l.id, velden)){
+      if (l.eigenRijen) delete l.eigenRijen[id];
+      if (l.waarden) delete l.waarden[id];
+      modalNamenBeheren(l); API.renderTeam();
+    }
+  });
+  $('#ljBPlus').onclick = () => modalNamenToevoegen(l);
 }
 
 /* ---------- Kolom toevoegen ---------- */
@@ -506,14 +659,16 @@ function modalKolom(klaar, terug){
 function modalMenu(l){
   openModal(`<h2>${esc(l.naam)}</h2>
     <button class="lj-mopt" data-lj-m="kolommen"><span>▦</span>Kolommen beheren</button>
+    ${isEigen(l) ? '<button class="lj-mopt" data-lj-m="namen"><span>👥</span>Namen beheren</button>' : ''}
     <button class="lj-mopt" data-lj-m="naam"><span>✎</span>Naam wijzigen</button>
-    ${l.rijen === 'spelers' ? `<button class="lj-mopt" data-lj-m="datum"><span>📅</span>${l.datum ? 'Datum wijzigen' : 'Datum toevoegen'}</button>` : ''}
+    ${l.rijen !== 'wedstrijden' ? `<button class="lj-mopt" data-lj-m="datum"><span>📅</span>${l.datum ? 'Datum wijzigen' : 'Datum toevoegen'}</button>` : ''}
     <button class="lj-mopt" data-lj-m="arch"><span>🗄</span>${l.gearchiveerd ? 'Terugzetten uit archief' : 'Archiveren'}</button>
     <button class="lj-mopt gevaar" data-lj-m="weg"><span>🗑</span>Verwijderen</button>`);
   $$('#modalInhoud [data-lj-m]').forEach(b => b.onclick = async () => {
     const m = b.dataset.ljM;
     if (m === 'kolommen') return modalKolommen(l);
     if (m === 'naam') return modalNaam(l);
+    if (m === 'namen') return modalNamenBeheren(l);
     if (m === 'datum') return modalDatum(l);
     if (m === 'arch'){
       const naar = !l.gearchiveerd;
@@ -573,7 +728,7 @@ function waTekst(l, o){
       return regel.join('\n');
     }).join('\n\n') + '\n\nKun je helpen? Laat het even weten!';
   }
-  const rijen = spelerRijen();
+  const rijen = rijenVan(l);
   const checks = kols.filter(k => k.type === 'check'), keuzes = kols.filter(k => k.type === 'keuze');
   const teksten = kols.filter(k => k.type === 'tekst' || k.type === 'datum');
   const extra = r => { const t = teksten.map(k => waarde(l, r.id, k.id)).filter(Boolean); return t.length ? ` (${t.join('; ')})` : ''; };
@@ -581,7 +736,7 @@ function waTekst(l, o){
   checks.forEach((k, i) => {
     const ja = rijen.filter(r => waarde(l, r.id, k.id) === true), nee = rijen.filter(r => waarde(l, r.id, k.id) === false),
       open = rijen.filter(r => waarde(l, r.id, k.id) === undefined);
-    const nm = a => a.map(r => voornaam(r.naam) + (i === 0 ? extra(r) : '')).join(', ');
+    const nm = a => a.map(r => deelNaam(r) + (i === 0 ? extra(r) : '')).join(', ');
     delen.push(`*${k.naam}*\n✅ Ja (${ja.length}): ${nm(ja) || '—'}` + (nee.length ? `\n❌ Nee (${nee.length}): ${nm(nee)}` : '')
       + (open.length ? `\n${i === 0 ? '❓ Nog geen antwoord' : '⏳ Nog niet'} (${open.length}): ${nm(open)}` : ''));
   });
@@ -594,11 +749,11 @@ function waTekst(l, o){
         return `*${k.naam}:* ` + (opts.filter(x => tel[x]).map(x => `${x} ×${tel[x]}`).join(', ') || '—') + (op ? ` · nog onbekend: ${op}` : '');
       }).join('\n'));
     } else {
-      delen.push(rijen.map(r => `${voornaam(r.naam)}: ` + keuzes.map(k => `${k.naam.toLowerCase()} ${waarde(l, r.id, k.id) || '?'}`).join(' · ') + (checks.length ? '' : extra(r))).join('\n'));
+      delen.push(rijen.map(r => `${deelNaam(r)}: ` + keuzes.map(k => `${k.naam.toLowerCase()} ${waarde(l, r.id, k.id) || '?'}`).join(' · ') + (checks.length ? '' : extra(r))).join('\n'));
     }
   }
   if (!checks.length && !keuzes.length && teksten.length)
-    delen.push(rijen.map(r => `${voornaam(r.naam)}: ${teksten.map(k => waarde(l, r.id, k.id) || '—').join(' · ')}`).join('\n'));
+    delen.push(rijen.map(r => `${deelNaam(r)}: ${teksten.map(k => waarde(l, r.id, k.id) || '—').join(' · ')}`).join('\n'));
   if (delen.length === 1) delen.push('(Kies hierboven minstens één kolom.)');
   return delen.join('\n\n');
 }
@@ -611,9 +766,10 @@ function modalDelen(l){
   const tekst = waTekst(l, o);
   openModal(`<h2>Delen via WhatsApp</h2><p class="lj-msub">Kies wat er in het bericht komt.</p>
     <div class="lj-wakies">${kolommenVan(l).map(k => `<button class="${o.kol.has(k.id) ? 'aan' : ''}" data-lj-wak="${esc(k.id)}">${o.kol.has(k.id) ? '✓ ' : ''}${esc(k.naam)}</button>`).join('')}</div>
-    ${heeftKeuze ? `<div class="segment" style="margin-bottom:12px"><button type="button" class="${!o.totalen ? 'actief' : ''}" data-lj-tot="0">Per speler</button><button type="button" class="${o.totalen ? 'actief' : ''}" data-lj-tot="1">Alleen totalen</button></div>` : ''}
+    ${heeftKeuze ? `<div class="segment" style="margin-bottom:12px"><button type="button" class="${!o.totalen ? 'actief' : ''}" data-lj-tot="0">${isEigen(l) ? 'Per naam' : 'Per speler'}</button><button type="button" class="${o.totalen ? 'actief' : ''}" data-lj-tot="1">Alleen totalen</button></div>` : ''}
     <div class="lj-watekst">${esc(tekst)}</div>
-    ${spelers ? `<div class="avg-balk"><span class="slot">🔒</span><span>Het bericht bevat voornamen van spelers en gaat buiten Cluppie. Deel het alleen in de teamgroep met ouders. Opmerkingen staan standaard uit.</span></div>` : ''}
+    ${spelers ? `<div class="avg-balk"><span class="slot">🔒</span><span>Het bericht bevat voornamen van spelers en gaat buiten Cluppie. Deel het alleen in de teamgroep met ouders. Opmerkingen staan standaard uit.</span></div>`
+      : isEigen(l) ? `<div class="avg-balk"><span class="slot">🔒</span><span>Het bericht bevat de namen uit deze lijst en gaat buiten Cluppie. Deel het alleen in de teamgroep. Opmerkingen staan standaard uit.</span></div>` : ''}
     <div class="rij" style="margin-top:12px"><button class="knop fluo" id="ljWaOpen">${ico('action-whatsapp', 18)} Open WhatsApp</button><button class="knop" id="ljWaKop">${ico('action-copy', 18)} Kopieer</button></div>`);
   $$('#modalInhoud [data-lj-wak]').forEach(b => b.onclick = () => { const k = b.dataset.ljWak; o.kol.has(k) ? o.kol.delete(k) : o.kol.add(k); modalDelen(l); });
   $$('#modalInhoud [data-lj-tot]').forEach(b => b.onclick = () => { o.totalen = b.dataset.ljTot === '1'; modalDelen(l); });
@@ -631,7 +787,7 @@ export function lijstPlanningItems(){
   return actieveLijsten().filter(l => l.datum && l.inPlanning !== false).map(l => {
     const v = voortgang(l);
     const k = kolommenVan(l).find(x => x.type === 'check');
-    const n = k ? spelerRijen().filter(r => waarde(l, r.id, k.id) === true).length : v.c;
+    const n = k ? rijenVan(l).filter(r => waarde(l, r.id, k.id) === true).length : v.c;
     const stand = k ? `${n}/${v.t} ${k.naam.toLowerCase()}` : `${v.c}/${v.t} ingevuld`;
     return { bron:'lijst', docId:l.id, datum:l.datum, type:'lijst', label:'📋 ' + l.naam,
       opmerking:[l.tijd || '', stand].filter(Boolean).join(' · '), aangepast:false };

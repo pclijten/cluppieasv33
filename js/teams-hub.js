@@ -17,7 +17,7 @@ import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
-import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20260924a';
+import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20260924b';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
