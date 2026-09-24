@@ -4698,3 +4698,149 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 
 /* [20260923g] radar bij Evaluatie wedstrijden (mobiel) */
 .mb-radar-ev svg{ width:min(320px,100%); height:auto; overflow:visible; }
+
+/* ==================== LIJSTJES (v20260924a) ====================
+   Goedgekeurde mockup 24 sep: kaart per rij op de telefoon (velden op één
+   regel, label links / waarde rechts), tabel op desktop. Alles op thema-
+   tokens zodat licht en donker kloppen. Klassen bewust met lj- prefix
+   (.veld is al het voetbalveld). */
+.lj-intro{font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin:0 2px 12px}
+.lj-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line-d);border-radius:16px;padding:13px 14px;margin-bottom:10px;box-shadow:var(--shadow);color:var(--ink)}
+.lj-item:hover{border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+.lj-item.arch{opacity:.6}
+.lj-ico{width:44px;height:44px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 16%,var(--surface-2));color:var(--accent)}
+.lj-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.lj-titel{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(18px * var(--fs));text-transform:uppercase;letter-spacing:.3px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lj-meta{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:3px}
+.lj-balk{display:block;height:5px;border-radius:3px;background:var(--surface-2);margin-top:7px;overflow:hidden}
+.lj-balk i{display:block;height:100%;background:var(--ok);border-radius:3px}
+.lj-pijl{width:30px;height:30px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.lj-nieuw{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border:1.5px dashed var(--hover-rand);border-radius:14px;color:var(--ink-2);font-weight:600;font-size:calc(14px * var(--fs));margin-top:4px;background:none}
+.lj-archknop{display:block;width:100%;margin:14px 0 10px;padding:8px;background:none;border:none;color:var(--ink-2);font-size:calc(12.5px * var(--fs));font-weight:600;text-decoration:underline}
+
+/* lijst: kopbalkje */
+.lj-balkje{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-6px 0 12px}
+.lj-bron{font-size:calc(12px * var(--fs));color:var(--ink-2);flex:1 1 100%}
+.lj-datumchip{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:9px;background:var(--surface);border:1px solid var(--line-d);font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink)}
+.lj-datumchip.leeg{color:var(--ink-2)}
+.lj-datumchip .pl{color:var(--ok);font-size:calc(11px * var(--fs));font-weight:700}
+.lj-datumchip .pen{color:var(--ink-2)}
+.lj-menu{margin-left:auto;width:38px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--line-d);color:var(--ink);font-size:20px;line-height:1}
+.lj-archbalk{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;margin-bottom:12px;border-radius:10px;background:var(--surface-2);font-size:calc(12.5px * var(--fs));color:var(--ink-2);font-weight:600}
+.lj-archbalk button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 10px;font-weight:600;font-size:calc(12px * var(--fs))}
+
+/* samenvatting */
+.lj-samen{background:var(--surface);border:1px solid var(--line-d);border-radius:16px;padding:13px 14px;margin-bottom:12px}
+.lj-samen-top{display:flex;align-items:baseline;gap:8px}
+.lj-getal{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(34px * var(--fs));line-height:1;color:var(--ink)}
+.lj-getal small{font-size:calc(18px * var(--fs));color:var(--ink-2)}
+.lj-lbl{font-size:calc(12.5px * var(--fs));color:var(--ink-2);font-weight:500}
+.lj-samen-rij{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.lj-samen-k{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.lj-kn{font-weight:700;color:var(--ink-2);min-width:48px;text-transform:uppercase;font-size:calc(10.5px * var(--fs));letter-spacing:.4px}
+.lj-tel{background:var(--surface-2);border-radius:7px;padding:3px 6px;font-weight:600;font-size:calc(12px * var(--fs));color:var(--ink);white-space:nowrap}
+.lj-tel b{color:var(--accent);margin-left:2px}
+.lj-tel.open{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface-2))}
+.lj-tel.open b{color:inherit}
+
+/* filters */
+.lj-filters{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.lj-filters button{padding:7px 12px;border-radius:99px;background:var(--surface);border:1px solid var(--line-d);font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2)}
+.lj-filters button.aan{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+
+/* rij-kaart (telefoon) */
+.lj-rk{background:var(--surface);border:1px solid var(--line-d);border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.lj-rk.open{border-left:3px solid var(--warn)}
+.lj-rk.verleden{opacity:.6}
+.lj-rk-kop{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.lj-shirt{width:32px;height:32px;border-radius:50%;background:var(--surface-2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(15px * var(--fs));flex-shrink:0}
+.lj-naam{font-weight:600;font-size:calc(14.5px * var(--fs));flex:1;min-width:0;color:var(--ink)}
+.lj-naam small{display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);font-weight:500;margin-top:1px}
+.lj-dag{width:40px;flex-shrink:0;text-align:center;background:var(--surface-2);border-radius:9px;padding:4px 0;display:flex;flex-direction:column}
+.lj-dag b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(19px * var(--fs));line-height:1}
+.lj-dag small{font-size:calc(10px * var(--fs));text-transform:uppercase;color:var(--ink-2);font-weight:700}
+.lj-thuis{font-size:calc(10.5px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 7px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);flex-shrink:0}
+.lj-thuis.uit{background:color-mix(in srgb,var(--accent) 14%,var(--surface-2));color:var(--accent)}
+.lj-thuis-tekst{font-size:calc(12.5px * var(--fs));color:var(--ink-2);padding:6px 2px 0}
+.lj-velden{display:flex;flex-wrap:wrap;gap:6px}
+.lj-veld{flex:1 1 auto;background:var(--surface-2);border:1.5px solid transparent;border-radius:10px;padding:7px 9px;text-align:left;height:38px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;min-width:0;white-space:nowrap;overflow:hidden;color:var(--ink);cursor:pointer}
+button.lj-veld{flex:1 1 0;min-width:max-content}
+.lj-veld.lj-tekst{flex:1 1 150px}
+.lj-veld.breed{flex-basis:100%}
+.lj-vl{font-size:calc(10px * var(--fs));font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+.lj-vw{font-size:calc(14px * var(--fs));font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;text-align:right}
+.lj-vw.leeg{color:var(--ink-2);font-weight:500;opacity:.7}
+.lj-veld.ja{background:color-mix(in srgb,var(--ok) 14%,var(--surface-2));border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+.lj-veld.ja .lj-vw{color:var(--ok)}
+.lj-veld.nee{background:color-mix(in srgb,var(--warn) 10%,var(--surface-2))}
+.lj-veld.nee .lj-vw{color:var(--warn)}
+.lj-veld input{background:none;border:none;outline:none;font-size:calc(14px * var(--fs));font-weight:600;flex:1;min-width:0;width:100%;padding:0;color:var(--ink);font-family:inherit}
+.lj-veld input::placeholder{color:var(--ink-2);opacity:.7;font-weight:500}
+.lj-veld:focus-within{border-color:var(--accent)}
+.lj-onder{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(transparent,var(--bg) 30%);z-index:2}
+.lj-deel svg{vertical-align:-3px}
+
+/* modals */
+.lj-msub{font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin:-4px 0 14px}
+.lj-hint{font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.4}
+.lj-opts{display:flex;flex-wrap:wrap;gap:8px}
+.lj-opt{padding:11px 16px;border-radius:11px;background:var(--surface-2);font-weight:700;font-size:calc(15px * var(--fs));border:1.5px solid transparent;min-width:64px;color:var(--ink)}
+.lj-opt.gekozen{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface-2))}
+.lj-opt.wis{color:var(--ink-2);font-weight:600}
+.lj-eigen{display:flex;gap:8px;margin-top:14px}
+.lj-eigen .invoer{flex:1;padding:9px 12px}
+.lj-sjgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lj-sj{background:var(--surface-2);border:1.5px solid var(--hair);border-radius:14px;padding:13px 12px;text-align:left;display:flex;flex-direction:column;gap:6px;color:var(--ink)}
+.lj-sj:hover{border-color:var(--accent)}
+.lj-sj svg{color:var(--accent)}
+.lj-sj .st{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(17px * var(--fs));text-transform:uppercase;letter-spacing:.3px}
+.lj-sj .ss{font-size:calc(11.5px * var(--fs));color:var(--ink-2);line-height:1.35}
+.lj-kollijst{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.lj-kol{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:10px;padding:9px 11px;font-size:calc(13.5px * var(--fs));font-weight:600;color:var(--ink)}
+.lj-kol.leeg{color:var(--ink-2);font-weight:500}
+.lj-kol-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lj-kt{font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:600;background:var(--surface);padding:2px 7px;border-radius:6px;white-space:nowrap}
+.lj-kol button{color:var(--ink-2);background:none;border:none;padding:0 2px;font-size:15px}
+.lj-toggle{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;background:var(--surface-2);border:none;border-radius:11px;font-size:calc(13.5px * var(--fs));font-weight:600;color:var(--ink);text-align:left}
+.lj-toggle small{display:block;font-weight:500;color:var(--ink-2);font-size:calc(11.5px * var(--fs));margin-top:1px}
+.lj-schakel{width:40px;height:24px;border-radius:12px;background:var(--hair);position:relative;flex-shrink:0;margin-left:auto;transition:background .15s}
+.lj-schakel::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+.lj-schakel.aan{background:var(--ok)}
+.lj-schakel.aan::after{left:19px}
+.avg-balk.lj-sterk{background:color-mix(in srgb,var(--warn) 22%,var(--surface));border-color:var(--warn)}
+.lj-mopt{display:flex;align-items:center;gap:12px;width:100%;padding:13px 4px;border:none;border-bottom:1px solid var(--hair);background:none;font-weight:600;font-size:calc(14.5px * var(--fs));text-align:left;color:var(--ink)}
+.lj-mopt:last-child{border-bottom:none}
+.lj-mopt span{width:22px;text-align:center;color:var(--ink-2)}
+.lj-mopt.gevaar{color:var(--warn)}
+.lj-wakies{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lj-wakies button{padding:6px 11px;border-radius:99px;border:1.5px solid var(--line-d);background:var(--surface-2);font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2)}
+.lj-wakies button.aan{border-color:var(--ok);color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,var(--surface-2))}
+.lj-watekst{background:var(--surface-2);border-radius:12px;padding:12px 13px;font-size:calc(13px * var(--fs));line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--ink);margin-bottom:12px;max-height:40vh;overflow:auto}
+
+/* planning: lijst-regels */
+.plan-rij.lijst{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--card))}
+.plan-badge.lijst{background:var(--accent)}
+
+/* desktop: tabel + zijkolom */
+.lj-desk{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.lj-desk-zij{position:sticky;top:12px;display:flex;flex-direction:column;gap:10px}
+.lj-desk .lj-bron{flex:0 1 auto}
+.lj-tabelwrap{overflow-x:auto;border-radius:14px;border:1px solid var(--line-d)}
+.lj-tabel{width:100%;border-collapse:collapse;background:var(--surface);font-size:13.5px}
+.lj-tabel th{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2);padding:11px 10px;border-bottom:1px solid var(--hair);text-align:left;background:var(--surface-2);white-space:nowrap}
+.lj-tabel td{padding:6px 10px;border-bottom:1px solid var(--hair)}
+.lj-tabel tr:last-child td{border-bottom:none}
+.lj-tabel tr:hover td{background:var(--op-vlak)}
+.lj-tabel tr.open td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+.lj-tabel tr.verleden{opacity:.6}
+.lj-td-leeg{color:var(--ink-2);font-size:12px}
+.lj-dnaam{display:flex;align-items:center;gap:9px;font-weight:600;white-space:nowrap;color:var(--ink)}
+.lj-dnaam .lj-shirt{width:28px;height:28px;font-size:13px}
+.lj-dsel,.lj-dinv{background:var(--surface-2);border:1px solid transparent;border-radius:8px;padding:6px 8px;font-size:13px;font-weight:600;width:100%;min-width:90px;color:var(--ink);font-family:inherit}
+.lj-dsel:focus,.lj-dinv:focus{outline:none;border-color:var(--accent)}
+.lj-dcheck{width:32px;height:30px;border-radius:8px;background:var(--surface-2);border:none;font-weight:700;color:var(--ink)}
+.lj-dcheck.ja{background:color-mix(in srgb,var(--ok) 20%,var(--surface-2));color:var(--ok)}
+.lj-dcheck.nee{color:var(--warn)}
+@media (min-width:1100px) and (min-height:520px){
+  .dk-ev.lijst{ background:color-mix(in srgb,var(--accent) 14%,transparent); box-shadow:inset 2px 0 0 var(--accent); }
+}
