@@ -28,6 +28,7 @@ const autoBouw = t => bouwVanCategorie(t?.categorie);
 
 let open = null;      // id van de bouw die in bewerking is
 let concept = null;   // { teamId: bouwId } tijdens bewerken
+let kiesVoor = null;  // [20260925c] team dat uit de open bouw weg moet → kies de nieuwe bouw
 
 function sorteer(teams){ return [...teams].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl', { numeric:true })); }
 
@@ -72,11 +73,25 @@ function editor(b, teams){
       <div class="eb-chips">${sorteer(teams).map(t => {
         const nu = concept[t.id], aan = nu === b.id, auto = autoBouw(t);
         const sub = !aan ? `nu ${KORT[nu] || '?'}` : (auto !== b.id ? `handmatig · cat. ${KORT[auto]}` : 'op categorie');
-        return `<button type="button" class="eb-chip bi-chip ${aan ? 'aan' : ''}" data-bi-team="${esc(t.id)}">${esc(t.naam || '?')}<small>${esc(sub)}</small></button>`;
+        return `<button type="button" class="eb-chip bi-chip ${aan ? 'aan' : ''}${kiesVoor === t.id ? ' kies' : ''}" data-bi-team="${esc(t.id)}">${esc(t.naam || '?')}<small>${esc(sub)}</small></button>`;
       }).join('') || '<span style="color:var(--ink-2)">Nog geen teams in de club.</span>'}</div>
-      <p class="bi-uitleg">Voeg je een team toe dat nu in een andere bouw zit, dan <b>verhuist</b> het, inclusief de toegang van de coördinator. Haal je een handmatig team weg, dan gaat het terug naar de bouw van zijn categorie. Een team dat op categorie hier hoort, verplaats je door het in de andere bouw aan te klikken.</p>
+      ${kiesVoor ? kiezer(b, teams.find(t => t.id === kiesVoor)) : ''}
+      <p class="bi-uitleg">Voeg je een team toe dat nu in een andere bouw zit, dan <b>verhuist</b> het, inclusief de toegang van de coördinator. Haal je een team weg, dan kies je naar welke andere bouw het gaat — een team zit altijd in één bouw.</p>
       <div class="eb-knoppen"><button class="knop fluo" id="biOpslaan">Opslaan</button><button class="knop licht" id="biAnnuleer">Annuleren</button>
         <button class="link bi-reset" id="biReset">Alles in deze bouw terug naar automatisch</button></div>
+    </div>`;
+}
+
+/* [20260925c] Weghalen = verplaatsen: kies de andere standaardbouw. */
+function kiezer(b, t){
+  if (!t) return '';
+  const auto = autoBouw(t);
+  return `
+    <div class="bi-kiezer">
+      <div class="bi-kiezer-t"><b>${esc(t.naam || '?')}</b> uit ${esc(b.naam)} halen — naar welke bouw?</div>
+      <div class="bi-kiezer-k">${BOUWEN.filter(x => x.id !== b.id).map(x =>
+        `<button type="button" class="knop licht klein" data-bi-naar="${x.id}">${esc(x.naam)}${x.id === auto ? ' <small>(categorie)</small>' : ''}</button>`).join('')}
+        <button type="button" class="bi-reset" data-bi-naar="">Niet verplaatsen</button></div>
     </div>`;
 }
 
@@ -91,22 +106,26 @@ export function koppelBouwIndeling(v, teams){
   const teken = () => { blok.innerHTML = binnen(teams); koppelBouwIndeling(v, teams); };
 
   blok.querySelectorAll('[data-bi-open]').forEach(b => b.addEventListener('click', () => {
-    open = b.dataset.biOpen;
+    open = b.dataset.biOpen; kiesVoor = null;
     concept = Object.fromEntries(teams.map(t => [t.id, bouwVanTeam(t)]));
     teken();
   }));
   blok.querySelectorAll('[data-bi-team]').forEach(b => b.addEventListener('click', () => {
     const t = teams.find(x => x.id === b.dataset.biTeam); if (!t) return;
-    if (concept[t.id] !== open) concept[t.id] = open;            // erbij → verhuist hierheen
-    else if (autoBouw(t) !== open) concept[t.id] = autoBouw(t);  // weg → terug naar categorie
-    else { meld(`${t.naam} hoort op categorie hier — klik hem aan in de andere bouw om te verplaatsen`); return; }
+    if (concept[t.id] !== open){ concept[t.id] = open; kiesVoor = null; }   // erbij → verhuist hierheen
+    else kiesVoor = kiesVoor === t.id ? null : t.id;                        // weg → kies de nieuwe bouw
     teken();
   }));
+  blok.querySelectorAll('[data-bi-naar]').forEach(b => b.addEventListener('click', () => {
+    if (kiesVoor && b.dataset.biNaar) concept[kiesVoor] = b.dataset.biNaar;
+    kiesVoor = null; teken();
+  }));
   blok.querySelector('#biReset')?.addEventListener('click', () => {
+    kiesVoor = null;
     for (const t of teams) if (concept[t.id] === open || autoBouw(t) === open) concept[t.id] = autoBouw(t);
     teken();
   });
-  blok.querySelector('#biAnnuleer')?.addEventListener('click', () => { open = null; concept = null; teken(); });
+  blok.querySelector('#biAnnuleer')?.addEventListener('click', () => { open = null; concept = null; kiesVoor = null; teken(); });
   blok.querySelector('#biOpslaan')?.addEventListener('click', async () => {
     const knop = blok.querySelector('#biOpslaan');
     // alleen teams waarvan de (effectieve) bouw of de handmatig-vlag echt verandert
@@ -130,6 +149,6 @@ export function koppelBouwIndeling(v, teams){
       return;
     }
     meld(`Indeling opgeslagen (${wijzig.length} team${wijzig.length === 1 ? '' : 's'})`);
-    open = null; concept = null; teken();
+    open = null; concept = null; kiesVoor = null; teken();
   });
 }
