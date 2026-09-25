@@ -1083,20 +1083,7 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
-  { datum:'2026-09-25', titel:'Bouwen: zelf teams indelen', punten:[
-    'Clubbeheerders zien in Club → Instellingen bij "Bouwen & teams" per bouw welke teams erbij horen en wie de coördinator is.',
-    'Met "Teams indelen" zet je een team in een andere bouw dan zijn categorie aangeeft, bijvoorbeeld een JO12-team bij de onderbouw. Het team verhuist dan ook in het bouw-dashboard, de zijbalk en bij oefenstof, en de coördinator van die bouw krijgt toegang.',
-    'Handmatig ingedeelde teams herken je aan het ✎-teken. Wijzigt de coach later de categorie van zijn team, dan blijft de indeling staan.',
-  ]},
-  { datum:'2026-09-25', titel:'Trainingen uploaden: overzichtelijker op de computer', punten:[
-    'Op de computer gebruikt het Trainingen-scherm van de club nu de volle breedte in plaats van een smalle kolom.',
-    'Uploaden, Lijst/Overzicht en Groepen beheren staan op één balk. PDF\'s kun je ook gewoon op het uploadvlak slepen.',
-    'Bovenaan zie je per trainingsgroep meteen of alles gekoppeld is. Klik op een groep om ernaartoe te springen.',
-    'Het overzicht toont zes weken naast elkaar met de huidige week gemarkeerd, en per team korte knopjes (Training 1, Training 2) die de PDF openen.',
-    'De lijst is een tabel per week. Staat een training bij precies één groep, dan zie je "Groep B · 6 teams" in plaats van alle losse teamnamen.',
-    'Ook andere club- en teamschermen zijn op de computer weer breder, zoals bedoeld.',
-  ]},
-  { datum:'2026-09-24', titel:'Lijstjes: compacter en met eigen namen', punten:[
+   { datum:'2026-09-24', titel:'Lijstjes: compacter en met eigen namen', punten:[
     'Op de telefoon staan naam en antwoord nu op één regel, zodat je veel meer spelers tegelijk ziet. De kolomnaam staat één keer bovenaan.',
     'Een opmerking vul je in via het potloodje rechts op de regel. Een ingevulde opmerking zie je klein onder de naam.',
     'Nieuw: bij het maken van een lijst kies je "Selectie" of "Eigen namen". Met eigen namen zet je bijvoorbeeld ouders of vrijwilligers in de eerste kolom, zoals voor een kantinedienst of rijschema.',
