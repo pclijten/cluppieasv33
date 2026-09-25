@@ -33,7 +33,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260924b'); }
+async function teamsModule(){ return await import('./teams.js?v=20260925a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -76,7 +76,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260924b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260925a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1384,7 +1384,216 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
   return `${groepBlokken}${losBlok}`;
 }
 
+/* ==================== TRAININGEN — DESKTOPWEERGAVE ====================
+   [20260925a] Alleen als html.desk aan staat (zijbalk-desktop). Mobiel blijft
+   de bestaande htmlClubTrainingen-opbouw gebruiken. Zelfde data, zelfde
+   knoppen-id's/data-attributen (trainingUpload, trainingFile, trGroepenBeheer,
+   data-weergave, data-tdownload, data-tbewerk, …), zodat de bestaande
+   koppel-code in renderClub ongewijzigd blijft werken. Nieuw: groepstegels
+   (data-trd-naar), weekvenster (data-trd-venster) en slepen op het uploadvlak. */
+const TRD_WEKEN = 6;   // zoveel weken naast elkaar in de matrix
+
+/* Korte chiptekst: "Week 39 - training 2" → "Training 2"; anders de titel
+   zonder "Week NN -"-voorvoegsel. */
+function trdChipLabel(t){
+  const titel = String(t.titel || t.bestandsnaam || 'Training');
+  const m = titel.match(/training\s*(\d+)/i);
+  if (m) return 'Training ' + m[1];
+  return titel.replace(/^\s*week\s*\d+\s*[-–·:]\s*/i, '').replace(/\.pdf$/i, '') || titel;
+}
+
+function htmlClubTrainingenDesk(teams, trainingen){
+  const weergave = S.clubTrainWeergave || 'lijst';
+  const groepen = trainingsGroepen();
+  const teamById = new Map(teams.map(t => [t.id, t]));
+  const alleWeken = weekLijst(trainingen);
+  const nuWeek = isoWeek(new Date());
+  const wkKey = t => ((t.week || '').trim().toLowerCase()) || '__leeg';
+
+  const werkbalk = `
+    <div class="trd-werkbalk">
+      <button class="trd-drop" id="trainingUpload" type="button">
+        <span class="trd-drop-ic">${ico('admin-upload', 20)}</span>
+        <span class="trd-drop-t"><b>PDF-training(en) toevoegen</b>
+          <small>Sleep PDF's hierheen of klik om te kiezen — meerdere tegelijk verdeel je daarna per groep</small></span>
+        <input type="file" id="trainingFile" accept="application/pdf" multiple style="display:none">
+      </button>
+      <div class="segment trd-seg" id="trainWeergave">
+        <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
+        <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per groep</button>
+      </div>
+      <button class="trd-knop" id="trGroepenBeheer" type="button">${ico('navigation-settings', 16)}${groepen.length ? 'Groepen beheren' : 'Trainingsgroepen instellen'}</button>
+    </div>`;
+
+  return `<div class="trd">${werkbalk}${weergave === 'overzicht'
+    ? trdOverzicht() : trdLijst()}</div>`;
+
+  /* ---------- Overzicht per groep ---------- */
+  function trdOverzicht(){
+    if (!groepen.length)
+      return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b>Groepen beheren</b> hierboven — dan zie je hier per groep of alle teams gedekt zijn.</div>`;
+
+    // weekvenster: standaard de laatste TRD_WEKEN weken; S._trdVenster schuift terug
+    const maxTerug = Math.max(0, alleWeken.length - TRD_WEKEN);
+    const terug = Math.min(Math.max(0, S._trdVenster || 0), maxTerug);
+    const eind = alleWeken.length - terug;
+    const weken = alleWeken.slice(Math.max(0, eind - TRD_WEKEN), eind);
+    const bereik = weken.length
+      ? (weken.length === 1 ? weken[0].label : `${weken[0].label} – ${weken[weken.length-1].label}`) : '';
+
+    const trsVoor = (teamId, key) => trainingen.filter(t => (t.teams || []).includes(teamId) && wkKey(t) === key);
+
+    const status = ids => {
+      if (!ids.length) return { ok:false, tekst:'geen teams' };
+      if (!weken.length) return { ok:false, tekst:'nog geen weken' };
+      let gaten = 0; const mist = new Set();
+      for (const id of ids) for (const w of weken) if (!trsVoor(id, w.key).length){ gaten++; mist.add(id); }
+      if (!gaten) return { ok:true, tekst:'compleet', kort:'compleet' };
+      if (gaten === ids.length * weken.length) return { ok:false, tekst:'niets gekoppeld', kort:'niets' };
+      return { ok:false, tekst:`${mist.size} team${mist.size>1?'s':''} mist ${gaten} slot${gaten>1?'s':''}`, kort:`${gaten} gat${gaten>1?'en':''}` };
+    };
+
+    const matrix = ids => {
+      if (!weken.length) return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
+      const kop = `<thead><tr><th class="trd-teamkop">Team</th>${weken.map(w => {
+        const nu = w.nr === nuWeek;
+        return `<th class="${nu?'nu':''}">${esc(w.label)}${nu?'<small>deze week</small>':''}</th>`;
+      }).join('')}</tr></thead>`;
+      const rijen = ids.map(id => {
+        let gevuld = 0;
+        const cellen = weken.map(w => {
+          const nu = w.nr === nuWeek ? ' class="nu"' : '';
+          const items = trsVoor(id, w.key)
+            .slice().sort((a, b) => trdChipLabel(a).localeCompare(trdChipLabel(b), 'nl', { numeric:true }));
+          if (!items.length) return `<td${nu}><span class="trd-gat">— niets</span></td>`;
+          gevuld++;
+          return `<td${nu}><div class="trd-cel">${items.map(t =>
+            `<button class="trd-chip" data-tdownload="${esc(t.url)}" title="${esc(t.bestandsnaam || t.titel || '')}">${ico('action-check', 12)}<span>${esc(trdChipLabel(t))}</span></button>`
+          ).join('')}</div></td>`;
+        }).join('');
+        return `<tr><th>${esc(teamById.get(id)?.naam || '?')}<small>${gevuld}/${weken.length} ${weken.length===1?'week':'weken'}</small></th>${cellen}</tr>`;
+      }).join('');
+      return `<table class="trd-mx">${kop}<tbody>${rijen}</tbody></table>`;
+    };
+
+    const inGroep = new Set(groepen.flatMap(g => g.teams || []));
+    const losTeams = teams.filter(t => !inGroep.has(t.id)).sort((a, b) => (a.naam || '').localeCompare(b.naam || ''));
+
+    const gdata = groepen.map(g => {
+      const ids = (g.teams || []).filter(id => teamById.has(id));
+      return { g, ids, st: status(ids) };
+    });
+
+    const tegels = `<div class="trd-tegels">${gdata.map(({ g, ids, st }) => `
+      <button class="trd-tegel" data-trd-naar="trd-g-${esc(g.id)}" type="button">
+        <span class="tm-letter">${esc(g.id)}</span>
+        <span class="trd-tegel-m"><b>${esc(g.naam || ('Groep ' + g.id))}</b><small>${ids.length} team${ids.length===1?'':'s'}</small></span>
+        <span class="tm-pil ${st.ok?'ok':'mist'}">${esc(st.kort || st.tekst)}</span>
+      </button>`).join('')}${losTeams.length ? `
+      <button class="trd-tegel warn" data-trd-naar="trd-los" type="button">
+        <span class="tm-letter">!</span>
+        <span class="trd-tegel-m"><b>Zonder groep</b><small>${losTeams.length} team${losTeams.length>1?'s':''}</small></span>
+        <span class="tm-pil mist">let op</span>
+      </button>` : ''}</div>`;
+
+    const venster = alleWeken.length > TRD_WEKEN ? `
+      <div class="trd-venster">
+        <button type="button" data-trd-venster="${terug + 1}" ${terug >= maxTerug ? 'disabled' : ''}>‹ Eerder</button>
+        <span>${esc(bereik)}</span>
+        <button type="button" data-trd-venster="${terug - 1}" ${terug <= 0 ? 'disabled' : ''}>Later ›</button>
+      </div>` : '';
+
+    const blokken = gdata.map(({ g, ids, st }) => `
+      <div class="tm-groep trd-groep${st.ok ? ' dicht' : ''}" id="trd-g-${esc(g.id)}">
+        <div class="tm-groep-kop" data-tm-klap>
+          <div class="tm-letter">${esc(g.id)}</div>
+          <div class="tm-groep-mid">
+            <div class="tm-groep-naam">${esc(g.naam || ('Groep ' + g.id))}</div>
+            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${bereik ? ` · ${esc(bereik)}` : ''}</div>
+          </div>
+          <span class="tm-pil ${st.ok?'ok':'mist'}">${esc(st.tekst)}</span>
+          <span class="tm-chevron">▾</span>
+        </div>
+        <div class="tm-groep-body">${ids.length ? matrix(ids) : `<div class="kaart leeg" style="margin:0">Nog geen teams in deze groep.</div>`}</div>
+      </div>`).join('');
+
+    const los = losTeams.length ? `
+      <div class="tm-los" id="trd-los">
+        <div class="tm-los-kop"><span class="tm-los-ic">⚠️</span><span class="tm-los-t">Teams zonder groep</span>
+          <span class="tm-los-s">${losTeams.length} team${losTeams.length>1?'s':''}</span></div>
+        <div class="tm-los-uitleg">Deze teams zitten in geen enkele trainingsgroep en krijgen bij het uploaden-per-groep automatisch niets. Voeg ze toe via Groepen beheren.</div>
+        <div class="tm-los-chips">${losTeams.map(t => {
+          const heeft = trainingen.some(x => (x.teams || []).includes(t.id));
+          return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':' · niets'}</span>`;
+        }).join('')}</div>
+      </div>` : '';
+
+    return `${tegels}${venster}${blokken}${los}`;
+  }
+
+  /* ---------- Lijst: tabel, gegroepeerd per week (nieuwste week boven) ---------- */
+  function trdLijst(){
+    if (!trainingen.length)
+      return `<div class="kaart leeg">Nog geen trainingen.<br>Upload een PDF en koppel hem aan een team of trainingsgroep.</div>`;
+
+    // teams die precies één groep vormen → "Groep B · 6 teams"
+    const groepVan = ids => {
+      const set = new Set(ids);
+      return groepen.find(g => {
+        const gi = (g.teams || []).filter(id => teamById.has(id));
+        return gi.length && gi.length === set.size && gi.every(id => set.has(id));
+      });
+    };
+    const teamsHtml = t => {
+      const ids = (t.teams || []);
+      if (!ids.length) return '<span class="trd-leeg">geen team</span>';
+      const g = groepVan(ids);
+      if (g) return `<span class="trd-tg groep">${esc(g.naam || ('Groep ' + g.id))} · ${ids.length} team${ids.length===1?'':'s'}</span>`;
+      const namen = ids.map(id => teamById.get(id)?.naam || '?');
+      const zicht = namen.slice(0, 5).map(n => `<span class="trd-tg">${esc(n)}</span>`).join('');
+      return zicht + (namen.length > 5 ? `<span class="trd-tg" title="${esc(namen.slice(5).join(', '))}">+${namen.length - 5}</span>` : '');
+    };
+
+    const rij = t => {
+      const ai = Array.isArray(t.oefeningen) && t.oefeningen.length;
+      const toonBest = t.bestandsnaam && t.bestandsnaam !== (t.titel || '');
+      return `
+        <div class="trd-rij">
+          <div class="trd-rt"><span class="trd-pdf${ai?' ai':''}">${ai?'AI':'PDF'}</span>
+            <div class="trd-rt-m"><div class="trd-tt">${esc(t.titel || t.bestandsnaam || 'Training')}</div>
+              ${toonBest ? `<div class="trd-fb">${esc(t.bestandsnaam)}</div>` : ''}</div></div>
+          <div class="trd-teams">${teamsHtml(t)}</div>
+          <span class="trd-ai${ai?' ja':''}">${ai ? '✓ uitgelezen' : '—'}</span>
+          <div class="trd-act">
+            <button data-tdownload="${esc(t.url)}" title="Openen">${ico('navigation-forward', 16)}</button>
+            ${ai ? `<button data-ttekst="${t.id}" title="Tekst controleren en bewerken">${ico('admin-document', 16)}</button><button data-tnotities="${t.id}" title="Notities van coaches bekijken">${ico('communication-chat', 16)}</button>` : ''}
+            <button data-tbewerk="${t.id}" title="Teams en titel wijzigen">${ico('admin-edit', 16)}</button>
+            <button data-tshare="${t.id}" title="Delen naar WhatsApp">${ico('action-whatsapp', 16)}</button>
+            <button data-tweg="${t.id}" title="Verwijderen" class="weg">${ico('admin-delete', 16)}</button>
+          </div>
+        </div>`;
+    };
+
+    // nieuwste week boven; "Zonder week"/losse labels onderaan
+    const volgorde = alleWeken.slice().sort((a, b) => {
+      if (a.nr != null && b.nr != null) return b.nr - a.nr;
+      if (a.nr != null) return -1;
+      if (b.nr != null) return 1;
+      return a.label.localeCompare(b.label);
+    });
+    const secties = volgorde.map(w => {
+      const items = trainingen.filter(t => wkKey(t) === w.key)
+        .sort((a, b) => String(a.titel || a.bestandsnaam || '').localeCompare(String(b.titel || b.bestandsnaam || ''), 'nl', { numeric:true }));
+      if (!items.length) return '';
+      return `<div class="trd-weekkop">${esc(w.label)} <span class="trd-tel">${items.length} PDF${items.length===1?'':"'s"}</span>${w.nr === nuWeek ? '<span class="trd-nu">● deze week</span>' : ''}</div>${items.map(rij).join('')}`;
+    }).join('');
+
+    return `<div class="trd-lijst"><div class="trd-rij trd-kopr"><span>Training</span><span>Teams</span><span>Tekst</span><span style="text-align:right">Acties</span></div>${secties}</div>`;
+  }
+}
+
 function htmlClubTrainingen(teams, trainingen){
+  if (document.documentElement.classList.contains('desk')) return htmlClubTrainingenDesk(teams, trainingen);
   const weergave = S.clubTrainWeergave || 'lijst';   // 'lijst' | 'overzicht'
   const groepen = trainingsGroepen();
 
@@ -1930,6 +2139,28 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       if (files.length === 1) modalNieuweTraining(files[0], teams);
       else modalMeerdereTrainingen(files, teams);
     };
+    // [20260925a] desktop: groepstegel → groep openklappen en ernaartoe scrollen
+    v.querySelectorAll('[data-trd-naar]').forEach(b => b.onclick = () => {
+      const doel = v.querySelector('#' + CSS.escape(b.dataset.trdNaar)); if (!doel) return;
+      doel.classList.remove('dicht');
+      doel.scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+    // desktop: weekvenster verschuiven (runtime-veld op S, geen state.js-wijziging)
+    v.querySelectorAll('[data-trd-venster]').forEach(b => b.onclick = () => {
+      S._trdVenster = Math.max(0, Number(b.dataset.trdVenster) || 0); renderClub();
+    });
+    // PDF's op het uploadvlak slepen (werkt overal waar slepen kan)
+    const pdfUitDrop = e => [...(e.dataTransfer?.files || [])]
+      .filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    ['dragenter','dragover'].forEach(n => knop.addEventListener(n, e => { e.preventDefault(); knop.classList.add('sleep'); }));
+    knop.addEventListener('dragleave', () => knop.classList.remove('sleep'));
+    knop.addEventListener('drop', e => {
+      e.preventDefault(); knop.classList.remove('sleep');
+      const files = pdfUitDrop(e);
+      if (!files.length){ meld('Alleen PDF-bestanden kunnen hier worden toegevoegd'); return; }
+      if (files.length === 1) modalNieuweTraining(files[0], teams);
+      else modalMeerdereTrainingen(files, teams);
+    });
     const grpBeheer = v.querySelector('#trGroepenBeheer');
     if (grpBeheer) grpBeheer.onclick = () => modalTrainingsGroepen(teams);
     v.querySelectorAll('[data-tdownload]').forEach(b => b.onclick = () => window.open(b.dataset.tdownload, '_blank'));
