@@ -4876,3 +4876,93 @@ textarea.lj-namen{min-height:130px}
 @media (min-width:1100px) and (min-height:520px){
   .dk-ev.lijst{ background:color-mix(in srgb,var(--accent) 14%,transparent); box-shadow:inset 2px 0 0 var(--accent); }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   [20260925a] Desktop: breedte-fix subschermen + Trainingen-desktopweergave.
+   1) De centrering van #view-team/#view-club (regel ±3883) rekent met
+      padding in %, en die % slaat op de breedte van .app (het hele vlak naast
+      de zijbalk), niet op de view (max 1320 px). Daardoor bleef er op brede
+      schermen maar ±430 px over. Onder html.desk nu: vaste padding + max-width
+      op de view zelf (view heeft al margin:auto). dk-scherm/dk-na-schermen
+      hebben hun eigen indeling en blijven buiten schot.
+   2) Trainingen (club) krijgt op desktop de volle breedte (tot 1180 px).
+   Terugdraaien = dit blok weghalen.
+================================================================== */
+@media (min-width:1100px) and (min-height:520px){
+  html.desk #view-club.actief:not(:has(> .hub-sectie)),
+  html.desk #view-team.actief:not(:has(> .hub-sectie)):not(:has(> .dk-scherm)):not(.dk-na){
+    padding-left:32px; padding-right:32px; max-width:calc(var(--stage-w) + 64px);
+  }
+  html.desk #view-club.actief:has(> .trd){ max-width:1244px; }
+}
+
+.trd-werkbalk{ display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:12px; align-items:center; margin-bottom:18px; }
+.trd-drop{ display:flex; align-items:center; gap:14px; width:100%; text-align:left; border:2px dashed var(--hair); border-radius:12px; background:var(--surface); padding:12px 16px; cursor:pointer; transition:border-color .15s, background .15s; }
+.trd-drop:hover,.trd-drop.sleep{ border-color:var(--accent); background:color-mix(in srgb,var(--accent) 8%, var(--surface)); }
+.trd-drop.bezig{ border-color:var(--accent); }
+.trd-drop-ic{ width:38px; height:38px; border-radius:10px; flex-shrink:0; display:grid; place-items:center; color:var(--accent); background:color-mix(in srgb,var(--accent) 16%, transparent); }
+.trd-drop-t b{ display:block; font-size:14px; color:var(--ink); }
+.trd-drop-t small{ display:block; font-size:12px; color:var(--ink-2); }
+.trd-seg button{ padding:9px 16px; font-size:13px; white-space:nowrap; }
+.trd-knop{ display:flex; align-items:center; gap:7px; padding:10px 14px; border-radius:10px; border:1px solid var(--line-d); background:var(--surface); font-weight:600; font-size:13px; color:var(--ink); white-space:nowrap; }
+.trd-knop:hover{ border-color:var(--hover-rand); }
+
+.trd-tegels{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; margin-bottom:14px; }
+.trd-tegel{ display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:12px; background:var(--card); box-shadow:var(--shadow); border:1px solid transparent; text-align:left; }
+.trd-tegel:hover{ border-color:var(--hover-rand); }
+.trd-tegel.warn{ border-left:3px solid var(--uit); }
+.trd-tegel .tm-letter{ width:36px; height:36px; font-size:19px; }
+.trd-tegel-m{ flex:1; min-width:0; }
+.trd-tegel .tm-pil{ font-size:11.5px; }
+.trd-mx .trd-chip, .trd-groep .tm-groep-sub{ font-size:12px; }
+.trd-tegel-m b{ display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--ink); }
+.trd-tegel-m small{ font-size:12px; color:var(--ink-2); }
+
+.trd-venster{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin:0 0 10px; font-size:13px; color:var(--ink-2); }
+.trd-venster span{ font-weight:600; color:var(--ink); min-width:120px; text-align:center; }
+.trd-venster button{ padding:6px 11px; border-radius:8px; border:1px solid var(--line-d); background:var(--surface); color:var(--ink); font-size:12.5px; font-weight:600; }
+.trd-venster button:disabled{ opacity:.35; cursor:default; }
+
+.trd-groep .tm-groep-body{ padding:0 14px 14px; }
+.trd-mx{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; border:1px solid var(--line-d); border-radius:10px; overflow:hidden; font-size:12.5px; }
+.trd-mx th,.trd-mx td{ border-bottom:1px solid var(--line-d); }
+.trd-mx tbody tr:last-child th,.trd-mx tbody tr:last-child td{ border-bottom:0; }
+.trd-mx thead th{ background:var(--surface-2); font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--ink-2); padding:9px 6px; text-align:center; }
+.trd-mx thead th.trd-teamkop{ width:150px; text-align:left; padding-left:14px; }
+.trd-mx thead th.nu{ color:var(--ink); background:color-mix(in srgb,var(--accent) 18%, var(--surface-2)); }
+.trd-mx thead th.nu small{ display:block; font-size:9.5px; color:var(--accent); letter-spacing:.3px; }
+.trd-mx tbody th{ background:var(--surface-2); text-align:left; padding:8px 14px; font-weight:600; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.trd-mx tbody th small{ display:block; font-weight:500; font-size:11.5px; color:var(--ink-2); }
+.trd-mx td{ padding:6px; vertical-align:middle; }
+.trd-mx td.nu{ background:color-mix(in srgb,var(--accent) 5%, transparent); }
+.trd-cel{ display:flex; flex-wrap:wrap; gap:5px; justify-content:center; }
+.trd-chip{ display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:5px 9px; border-radius:7px; background:rgba(53,196,122,.13); border:1px solid transparent; color:var(--ink); font-size:12px; font-weight:600; }
+.trd-chip span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trd-chip svg{ color:var(--in); flex-shrink:0; }
+.trd-chip:hover{ border-color:rgba(53,196,122,.55); background:rgba(53,196,122,.2); }
+.trd-gat{ display:block; text-align:center; padding:6px; border-radius:7px; background:rgba(245,177,61,.10); color:var(--uit); font-size:12px; font-weight:600; }
+
+.trd-lijst{ background:var(--card); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+.trd-rij{ display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,1.6fr) 100px 200px; gap:14px; align-items:center; padding:10px 16px; border-top:1px solid var(--line-d); }
+.trd-rij:hover{ background:var(--op-vlak); }
+.trd-rij.trd-kopr{ border-top:0; background:var(--surface-2); font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--ink-2); }
+.trd-rij.trd-kopr:hover{ background:var(--surface-2); }
+.trd-weekkop{ display:flex; align-items:center; gap:10px; padding:14px 16px 6px; border-top:1px solid var(--line-d); font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:16px; text-transform:uppercase; letter-spacing:.6px; color:var(--ink-2); }
+.trd-tel{ font-family:'Inter',sans-serif; font-size:11px; letter-spacing:0; text-transform:none; background:var(--op-vlak); border-radius:10px; padding:1px 8px; }
+.trd-nu{ font-family:'Inter',sans-serif; font-size:10.5px; letter-spacing:.3px; color:var(--accent); }
+.trd-rt{ display:flex; align-items:center; gap:11px; min-width:0; }
+.trd-rt-m{ min-width:0; }
+.trd-pdf{ width:36px; height:36px; border-radius:9px; flex-shrink:0; display:grid; place-items:center; background:var(--surface-2); font-size:10.5px; font-weight:700; color:var(--ink-2); }
+.trd-pdf.ai{ color:var(--accent); }
+.trd-tt{ font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trd-fb{ font-size:12px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trd-teams{ display:flex; flex-wrap:wrap; gap:5px; min-width:0; }
+.trd-tg{ font-size:12px; font-weight:600; padding:3px 8px; border-radius:6px; background:var(--op-vlak); color:var(--ink); }
+.trd-tg.groep{ background:color-mix(in srgb,var(--accent) 16%, transparent); color:color-mix(in srgb,var(--accent) 45%, #fff); }
+.trd-leeg{ font-size:12px; color:var(--uit); }
+.trd-ai{ font-size:12px; color:var(--ink-2); }
+.trd-ai.ja{ color:var(--in); font-weight:600; }
+.trd-act{ display:flex; gap:2px; justify-content:flex-end; }
+.trd-act button{ width:32px; height:32px; border-radius:8px; display:grid; place-items:center; color:var(--ink-2); }
+.trd-act button:hover{ background:var(--op-vlak-2); color:var(--ink); }
+.trd-act button.weg:hover{ color:var(--uit); }
