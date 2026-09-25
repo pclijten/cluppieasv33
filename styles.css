@@ -4966,3 +4966,25 @@ textarea.lj-namen{min-height:130px}
 .trd-act button{ width:32px; height:32px; border-radius:8px; display:grid; place-items:center; color:var(--ink-2); }
 .trd-act button:hover{ background:var(--op-vlak-2); color:var(--ink); }
 .trd-act button.weg:hover{ color:var(--uit); }
+
+/* ══════════════════════════════════════════════════════════════════
+   [20260925b] Club → Instellingen → Bouwen & teams (js/bouw-indeling.js).
+   Hergebruikt .eb-kop/.eb-chips/.eb-knoppen van de eigen bouwen.
+================================================================== */
+.bi-intro{ font-size:calc(12.5px * var(--fs)); color:var(--ink-2); line-height:1.5; margin:0 0 10px; }
+.bi-grid{ display:grid; gap:10px; margin-bottom:14px; }
+.bi-kaart{ margin:0 !important; }
+.bi-kaart.open{ border:1px solid var(--hover-rand); }
+.bi-kaart .knop[disabled]{ opacity:.4; }
+.bi-tags em{ font-size:calc(12px * var(--fs)); color:var(--ink-2); }
+.bi-tags span.hand{ background:color-mix(in srgb,var(--uit) 16%, transparent); color:var(--uit); }
+.bi-coord{ font-size:calc(12px * var(--fs)); color:var(--ink-2); margin-top:9px; }
+.bi-coord b{ color:var(--ink); font-weight:600; }
+.bi-chip{ display:inline-flex; flex-direction:column; align-items:flex-start; line-height:1.2; border-radius:10px; }
+.bi-chip small{ font-size:calc(10.5px * var(--fs)); font-weight:500; color:var(--ink-2); }
+.bi-chip.aan small{ color:rgba(255,255,255,.8); }
+.bi-uitleg{ font-size:calc(12px * var(--fs)); color:var(--ink-2); line-height:1.5; margin:10px 0 0; }
+.bi-uitleg b{ color:var(--uit); }
+.bi-reset{ margin-left:auto; align-self:center; font-family:'Inter',sans-serif; font-size:calc(12px * var(--fs)); color:var(--ink-2); text-decoration:underline; background:none; border:0; cursor:pointer; }
+.bi-kaart .eb-kop .knop{ white-space:nowrap; flex-shrink:0; }
+/* desktop: één kolom — de instellingenkolom is ±760 px, drie kaarten naast elkaar wordt te krap */
