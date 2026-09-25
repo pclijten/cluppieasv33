@@ -12,6 +12,7 @@ import { teltMee } from './opkomst.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
 import { htmlCoordinatorenBeheer, koppelCoordinatorenBeheer } from './coordinatoren.js?v=20260922c';
 import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20260923e';
+import { htmlBouwIndeling, koppelBouwIndeling, bouwVanTeam } from './bouw-indeling.js?v=20260925b';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20260922c';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20260922c';
 import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20260922c';
@@ -33,7 +34,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260925a'); }
+async function teamsModule(){ return await import('./teams.js?v=20260925b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -76,7 +77,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260925a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260925b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1243,7 +1244,7 @@ function bouwenVanTraining(t, teams){
   const set = new Set();
   for (const tid of (t.teams||[])){
     const team = teams.find(x => x.id === tid);
-    set.add(bouwVanCategorie(team?.categorie));
+    set.add(bouwVanTeam(team));
   }
   return set;
 }
@@ -1910,6 +1911,7 @@ function htmlClubInstel(teams = [], syncStatus = {}){
       <button class="knop licht vol" id="migreerSeizoen" style="margin-top:10px">🗂️ Migreer bestaande data naar dit seizoen</button>
     </div>
     ${htmlCoordinatorenBeheer(teams)}
+    ${htmlBouwIndeling(teams)}
     ${htmlEigenBouwenBeheer(teams)}
     ${(() => {
       const modus = S.club.themaModus || 'coachKiest';
@@ -2323,6 +2325,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const migreerBtn = v.querySelector('#migreerSeizoen');
     if (migreerBtn) migreerBtn.onclick = () => migreerSeizoenData(teams);
     koppelCoordinatorenBeheer(v, teams);
+    koppelBouwIndeling(v, teams);
     koppelEigenBouwenBeheer(v, teams);
     // Clubbreed thema: 'donker'|'licht' forceren, of 'coachKiest' vrijlaten.
     // Wegschrijven naar het clubdocument; de seizoen-listener bij elke coach
@@ -2759,7 +2762,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
   const groepen = trainingsGroepen();
   // teams groeperen per bouw
   const perBouw = {onder:[], midden:[], boven:[]};
-  for (const t of teams) perBouw[bouwVanCategorie(t.categorie)].push(t);
+  for (const t of teams) perBouw[bouwVanTeam(t)].push(t);
   const groepHtml = BOUWEN.map(b => {
     const lijst = perBouw[b.id];
     if (!lijst.length) return '';
@@ -3133,7 +3136,7 @@ function modalBewerkTraining(t, teams){
     <div class="veldgroep"><label>Voor welke teams?</label>
       <div id="mTbTeams">
         ${teams.length ? BOUWEN.map(b => {
-          const lijst = teams.filter(team => bouwVanCategorie(team.categorie) === b.id);
+          const lijst = teams.filter(team => bouwVanTeam(team) === b.id);
           if (!lijst.length) return '';
           return `
             <div style="font-size:calc(11.5px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin:10px 0 6px">${esc(b.naam)}</div>
@@ -3187,7 +3190,7 @@ function modalBewerkTraining(t, teams){
 function teamKeuzePerBouw(teams, voorgevinkt){
   const vink = voorgevinkt instanceof Set ? voorgevinkt : new Set(voorgevinkt || []);
   return BOUWEN.map(b => {
-    const lijst = teams.filter(t => bouwVanCategorie(t.categorie) === b.id);
+    const lijst = teams.filter(t => bouwVanTeam(t) === b.id);
     if (!lijst.length) return '';
     return `
       <div style="font-size:calc(11.5px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin:10px 0 6px">${esc(b.naam)}</div>
@@ -3347,7 +3350,7 @@ async function bewaarGroepen(groepen){
 }
 
 function modalNieuweVideo(teams, voorBouw = null){
-  const voor = voorBouw ? new Set(teams.filter(t => bouwVanCategorie(t.categorie) === voorBouw).map(t => t.id)) : new Set();
+  const voor = voorBouw ? new Set(teams.filter(t => bouwVanTeam(t) === voorBouw).map(t => t.id)) : new Set();
   openModal(`
     <h2>YouTube-video toevoegen</h2>
     <div class="veldgroep"><label>YouTube-link</label>
@@ -3438,7 +3441,7 @@ const MAX_VIDEO_MB = 100;
 function modalUploadVideo(file, teams, voorBouw = null){
   if (file.size > MAX_VIDEO_MB * 1024 * 1024)
     return meld(`Bestand is te groot (max ${MAX_VIDEO_MB} MB). Comprimeer de clip eerst.`);
-  const voor = voorBouw ? new Set(teams.filter(t => bouwVanCategorie(t.categorie) === voorBouw).map(t => t.id)) : new Set();
+  const voor = voorBouw ? new Set(teams.filter(t => bouwVanTeam(t) === voorBouw).map(t => t.id)) : new Set();
   openModal(`
     <h2>Video uploaden</h2>
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>

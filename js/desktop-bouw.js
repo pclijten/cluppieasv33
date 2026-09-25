@@ -12,9 +12,9 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260922c';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260925a';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260925a';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260925a';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260925b';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260925b';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260925b';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -22,6 +22,9 @@ let huidig = null;                // { clubId, bouw, scherm:'dash'|'uit'|'sel'|'
 let herteken = () => {};
 
 export function zetHerteken(f){ herteken = f || (() => {}); }
+/* [20260925b] teamindeling per bouw gewijzigd (bouw-indeling.js): gecachete
+   teamlijsten weggooien, zodat zijbalk en bouw-dashboard opnieuw laden. */
+try { window.addEventListener('cluppie:bouwen-gewijzigd', () => { cache.clear(); herteken(); }); } catch(e){}
 export function bouwHuidig(){ return huidig && document.querySelector('#view-dkbouw.actief') ? huidig : null; }
 export function bouwTeams(clubId, bouw){ return cache.get(clubId + '|' + bouw)?.teams || null; }
 
