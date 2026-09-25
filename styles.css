@@ -4988,3 +4988,13 @@ textarea.lj-namen{min-height:130px}
 .bi-reset{ margin-left:auto; align-self:center; font-family:'Inter',sans-serif; font-size:calc(12px * var(--fs)); color:var(--ink-2); text-decoration:underline; background:none; border:0; cursor:pointer; }
 .bi-kaart .eb-kop .knop{ white-space:nowrap; flex-shrink:0; }
 /* desktop: één kolom — de instellingenkolom is ±760 px, drie kaarten naast elkaar wordt te krap */
+/* [20260925c] bouw-indeling: team weghalen → kies de nieuwe bouw */
+.bi-kiezer{ margin-top:10px; padding:11px 12px; border-radius:11px; background:var(--surface-2); border:1px solid var(--hover-rand); }
+.bi-kiezer-t{ font-size:calc(13px * var(--fs)); color:var(--ink-2); margin-bottom:8px; }
+.bi-kiezer-t b{ color:var(--ink); }
+.bi-kiezer-k{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.bi-kiezer-k small{ font-weight:500; opacity:.7; }
+.bi-chip.kies{ outline:2px solid var(--uit); outline-offset:1px; }
+.bi-kiezer-k .knop{ background:var(--card); border:1px solid var(--line-d); color:var(--ink); padding:8px 12px; border-radius:9px; font-weight:600; }
+.bi-kiezer-k .knop:hover{ border-color:var(--hover-rand); }
+.bi-kiezer-k .bi-reset{ margin-left:auto; }
