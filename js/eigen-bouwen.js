@@ -19,7 +19,7 @@
 ======================================================== */
 import { S, esc, meld } from './state.js?v=20260922c';
 import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { BOUWEN } from './config.js?v=20260922c';
+import { BOUWEN, bouwVanCategorie } from './config.js?v=20260922c';
 
 const KLEUREN = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444'];
 let concept = null;           // { id, naam, kleur, teams:[], coaches:{}, nieuw:bool } — de bouw die open staat
@@ -56,6 +56,18 @@ function afgeleid(lijst, teams){
 }
 async function bewaar(lijst, teams){
   await updateDoc(doc(db, 'clubs', S.clubId), { eigenBouwen: lijst, ...afgeleid(lijst, teams) });
+  /* [20260925d] Een team dat 'alleen in eigen bouw' stond (bouw:'eigen', zie
+     bouw-indeling.js) en nu in geen enkele eigen bouw meer zit, gaat terug
+     naar de standaardbouw van zijn categorie — anders valt het overal buiten. */
+  const inEigen = new Set(lijst.flatMap(b => b.teams || []));
+  const wees = teams.filter(t => t.bouw === 'eigen' && !inEigen.has(t.id));
+  await Promise.all(wees.map(async t => {
+    const bouw = bouwVanCategorie(t.categorie);
+    try { await updateDoc(doc(db, 'teams', t.id), { bouw, bouwHandmatig: false }); t.bouw = bouw; t.bouwHandmatig = false; }
+    catch(e){ console.error('[Cluppie] eigen-bouwen: team terugzetten mislukt', t.id, e.code || e.message); }
+  }));
+  try { window.dispatchEvent(new CustomEvent('cluppie:bouwen-gewijzigd')); } catch(e){}
+  return wees.length ? ` \u2014 ${wees.map(t => t.naam).join(', ')} staat weer in de standaardbouw van zijn categorie` : '';
 }
 
 function sorteer(teams){ return [...teams].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl', { numeric:true })); }
@@ -141,14 +153,14 @@ export function koppelEigenBouwenBeheer(v, teams){
     if (concept.nieuw && (BOUWEN.some(b => b.id === id) || lijst.some(b => b.id === id))) id = 'eb' + Date.now().toString(36);
     const nieuw = { id, naam, kleur: concept.kleur, teams: concept.teams.filter(t => teams.some(x => x.id === t)), coaches: { ...concept.coaches } };
     const volgende = concept.nieuw ? [...lijst, nieuw] : lijst.map(b => b.id === concept.id ? nieuw : b);
-    try { await bewaar(volgende, teams); concept = null; meld(`${naam} opgeslagen`); if (S.club) S.club.eigenBouwen = volgende; teken(); }
+    try { const extra = await bewaar(volgende, teams); concept = null; meld(`${naam} opgeslagen${extra}`); if (S.club) S.club.eigenBouwen = volgende; teken(); }
     catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
   });
   blok.querySelector('#ebWeg')?.addEventListener('click', async () => {
     const lijst = eigenBouwenVan(S.club); const e = lijst.find(b => b.id === concept.id); if (!e) return;
     if (!confirm(`${e.naam} verwijderen? De teams zelf blijven gewoon bestaan.`)) return;
     const volgende = lijst.filter(b => b.id !== e.id);
-    try { await bewaar(volgende, teams); concept = null; meld(`${e.naam} verwijderd`); if (S.club) S.club.eigenBouwen = volgende; teken(); }
+    try { const extra = await bewaar(volgende, teams); concept = null; meld(`${e.naam} verwijderd${extra}`); if (S.club) S.club.eigenBouwen = volgende; teken(); }
     catch(err){ meld('Verwijderen mislukt: ' + (err.code || err.message)); }
   });
 }
