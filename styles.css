@@ -4998,3 +4998,6 @@ textarea.lj-namen{min-height:130px}
 .bi-kiezer-k .knop{ background:var(--card); border:1px solid var(--line-d); color:var(--ink); padding:8px 12px; border-radius:9px; font-weight:600; }
 .bi-kiezer-k .knop:hover{ border-color:var(--hover-rand); }
 .bi-kiezer-k .bi-reset{ margin-left:auto; }
+/* [20260925d] bouw-indeling: teams die alleen in een eigen bouw zitten */
+.bi-eigen{ border:1px dashed var(--hair); box-shadow:none; background:transparent; }
+.bi-tags span em{ font-style:normal; font-weight:500; opacity:.75; }
