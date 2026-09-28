@@ -5106,3 +5106,113 @@ textarea.lj-namen{min-height:130px}
 .dk-elf-bal i b{ display:block; height:100%; }
 .dk-elf-bal i b.e1{ background:var(--accent); }
 .dk-elf-bal i b.e2{ background:var(--elf2); }
+
+/* ══════════════════════════════════════════════════════════════════
+   SELECTIE-BOUW — [20260928f] bouw met 1e + 2e als twee teams
+   (js/selectie-bouw.js): radar per team, tegel en scherm Selectie maken.
+   Gedeelde onderdelen hier, desktop-indeling in het html.desk-blok eronder.
+================================================================== */
+.sbw-leeg{ font-size:12.5px; color:var(--ink-2); padding:6px 0; }
+.sbw-nul{ color:var(--ink-2); opacity:.65; }
+.sbw-eb{ background:var(--op-vlak-2); color:var(--ink); }
+.sbw-sk{ font-size:11px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+/* segment 1e / 2e / beide + filters */
+.sbw-seg{ display:inline-flex; gap:2px; padding:2px; border-radius:9px; background:var(--surface-2); flex-shrink:0; }
+.sbw-seg button{ padding:5px 10px; border-radius:7px; font-size:12px; font-weight:600; color:var(--ink-2); background:none; white-space:nowrap; }
+.sbw-seg button:hover{ color:var(--ink); }
+.sbw-seg button:focus-visible{ outline:2px solid var(--elf2); outline-offset:1px; }
+.sbw-seg button.aan{ color:#fff; }
+.sbw-seg button.aan.e1{ background:var(--accent); }
+.sbw-seg button.aan.e2{ background:var(--elf2); color:#0b1220; }
+.sbw-seg button.aan.eb, .sbw-seg button.aan.f{ background:var(--ink); color:var(--bg); }
+/* positie + score */
+.sbw-pos{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; font-size:13px; }
+.sbw-pos i{ font-style:normal; width:20px; height:20px; border-radius:6px; display:grid; place-items:center; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:12px; color:#0b1220; flex-shrink:0; }
+.sbw-score{ display:inline-flex; align-items:center; gap:5px; justify-content:flex-end; white-space:nowrap; }
+.sbw-score b{ font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:800; line-height:1; min-width:22px; text-align:right; }
+.sbw-score small{ font-size:10px; color:var(--ink-2); }
+.sbw-tr{ display:inline-flex; align-items:center; gap:2px; font-size:11px; font-weight:700; min-width:34px; font-variant-numeric:tabular-nums; }
+.sbw-tr svg{ width:11px; height:11px; }
+.sbw-tr.op{ color:var(--ok); } .sbw-tr.af{ color:var(--n1); } .sbw-tr.gl{ color:var(--ink-2); }
+.sbw-team{ display:block; font-size:11px; color:var(--ink-2); margin-top:1px; font-weight:500; }
+.sbw-team.leen{ color:var(--keeper); }
+/* speeltijd/reserve-balk */
+.sbw-sb{ display:grid; grid-template-columns:minmax(70px,1fr) 78px; gap:8px; align-items:center; }
+.sbw-sb i{ display:flex; height:9px; border-radius:99px; background:var(--op-vlak-2); overflow:hidden; }
+.sbw-sb i b{ display:block; height:100%; } .sbw-sb i b.g{ background:var(--in); } .sbw-sb i b.y{ background:var(--keeper); }
+.sbw-sb em{ font-style:normal; color:var(--ink-2); font-size:12px; text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.sbw-sb em b{ color:var(--ink); }
+/* radar */
+.sbw-radar{ display:grid; grid-template-columns:minmax(0,200px) minmax(0,1fr); gap:14px; align-items:center; }
+.sbw-radarsvg{ width:100%; height:auto; max-width:200px; display:block; margin:0 auto; }
+.sbw-leg{ display:flex; gap:12px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-2); margin-bottom:6px; }
+.sbw-leg span{ display:inline-flex; align-items:center; gap:5px; }
+.sbw-leg i{ display:inline-block; width:14px; height:10px; border-radius:3px; }
+.sbw-leg i.l{ background:color-mix(in srgb,var(--accent) 45%,transparent); border:1.5px solid var(--accent); }
+.sbw-leg i.g{ background:color-mix(in srgb,var(--elf2) 14%,transparent); border:1.5px dashed var(--elf2); }
+.sbw-dom{ display:grid; grid-template-columns:62px minmax(40px,1fr) 28px 28px 38px; gap:8px; align-items:center; font-size:12.5px; padding:3px 0; }
+.sbw-dom .d{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sbw-dom i{ position:relative; display:block; height:6px; border-radius:99px; background:var(--op-vlak-2); }
+.sbw-dom i b{ position:absolute; inset:0 auto 0 0; display:block; border-radius:99px; }
+.sbw-dom i em{ position:absolute; top:-3px; width:2px; height:12px; border-radius:2px; background:var(--elf2); }
+.sbw-dom .g{ color:var(--elf2); text-align:right; font-variant-numeric:tabular-nums; }
+.sbw-dom .l{ font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+.sbw-meta{ font-size:11px; color:var(--ink-2); margin-top:6px; }
+.sbw-meta b{ color:var(--ink); }
+/* tegel */
+.sbw-verdeling{ display:flex; gap:8px; }
+.sbw-verdeling div{ flex:1; background:var(--surface-2); border-radius:12px; padding:9px 6px; text-align:center; }
+.sbw-verdeling b{ display:block; font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:800; line-height:1; }
+.sbw-verdeling b.e1{ color:var(--accent); } .sbw-verdeling b.e2{ color:var(--elf2); }
+.sbw-verdeling small{ font-size:10px; font-weight:700; color:var(--ink-2); letter-spacing:.05em; }
+.sbw-mini{ display:flex; align-items:center; gap:8px; padding:5px 0; border-top:1px solid var(--line-d); font-size:13px; }
+.sbw-mini:first-of-type{ border-top:0; }
+.sbw-mini .nm{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sbw-mini .nm small{ color:var(--ink-2); }
+.sbw-mini .sbw-score b{ font-size:17px; }
+/* filterbalk + tellers */
+.sbw-balk{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.sbw-zoek{ background:var(--surface); border:1px solid var(--line-d); border-radius:10px; padding:8px 12px; color:var(--ink); font:inherit; font-size:13px; min-width:0; }
+.sbw-tel{ display:flex; gap:7px; align-items:center; font-size:13px; margin-left:auto; flex-wrap:wrap; }
+.sbw-tel b{ font-variant-numeric:tabular-nums; margin-right:6px; }
+.sbw-tel .elf-pill{ margin-right:0; }
+/* mobiel */
+.sbw-tegel-mb{ cursor:pointer; }
+.sbw-scherm[data-sbw="mb"]{ display:flex; flex-direction:column; gap:10px; }
+.sbw-scherm[data-sbw="mb"] .sbw-balk{ gap:8px; }
+.sbw-scherm[data-sbw="mb"] .sbw-zoek{ flex:1 1 140px; }
+.sbw-scherm[data-sbw="mb"] .sbw-tel{ margin-left:0; width:100%; }
+.sbw-mblijst{ display:flex; flex-direction:column; gap:8px; }
+.sbw-mbrij{ padding:11px 12px; }
+.sbw-mbkop{ display:flex; align-items:flex-start; gap:8px; }
+.sbw-mbkop .nm{ flex:1; min-width:0; }
+.sbw-mbkop .nm b{ font-size:15px; }
+.sbw-mbmid{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.sbw-mbcijfers{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; font-size:11.5px; color:var(--ink-2); }
+.sbw-mbcijfers b{ color:var(--ink); font-variant-numeric:tabular-nums; }
+.sbw-voet{ font-size:12px; line-height:1.55; }
+@media (max-width:420px){ .sbw-radar{ grid-template-columns:1fr; } }
+
+@media (min-width:1100px) and (min-height:520px){
+  .dkb-kols{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:14px; }
+  .dkb-kol{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .sbw-radarblok h3 span{ white-space:nowrap; }
+  .sbw-tegel{ grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr); gap:18px; text-align:left; cursor:pointer;
+    border-color:color-mix(in srgb,var(--elf2) 40%,transparent); color:var(--ink); }
+  .sbw-tegel:hover{ border-color:var(--elf2); }
+  .sbw-tegel h3{ margin-bottom:6px; }
+  .sbw-uitleg{ margin:0 0 10px; color:var(--ink-2); font-size:13px; line-height:1.5; }
+  .sbw-open{ margin-top:12px; display:flex; justify-content:flex-end; }
+  .sbw-body{ padding:20px 28px 28px; display:flex; flex-direction:column; gap:14px; }
+  .sbw-body .dkb-hallo .dk-groot{ font-size:clamp(44px,4.4vw,70px); }
+  .sbw-tabel{ min-width:1040px; }
+  .sbw-tabel th[data-sel]{ cursor:pointer; user-select:none; white-space:nowrap; }
+  .sbw-tabel th[data-sel]:hover{ color:var(--ink); }
+  .sbw-tabel tbody tr{ cursor:default; }
+  .sbw-tabel td:nth-child(4){ width:auto; }
+  .sbw-tabel td:nth-child(6){ width:22%; }
+  .sbw-tabel td{ vertical-align:middle; }
+}
+@media (min-width:1100px) and (max-width:1350px) and (min-height:520px){
+  .sbw-tegel{ grid-template-columns:1fr 1fr; } .sbw-tegel > div:first-child{ grid-column:1 / -1; }
+}
