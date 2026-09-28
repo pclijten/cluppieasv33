@@ -22,7 +22,11 @@ import { db, doc, updateDoc } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwVanCategorie } from './config.js?v=20260922c';
 
 const KLEUREN = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444'];
-let concept = null;           // { id, naam, kleur, teams:[], coaches:{}, nieuw:bool } — de bouw die open staat
+let concept = null;           // { id, naam, kleur, teams:[], coaches:{}, selectie:bool|null, nieuw:bool } — de bouw die open staat
+/* [20260928f] Selectie (1e + 2e): eb.selectie === true, of nog niet ingesteld en de naam bevat
+   "selectie". Dan krijgt het bouw-dashboard radars per team en de tegel Selectie maken
+   (selectie-bouw.js). Het eerste team op naam is het 1e elftal. */
+const isSelectie = b => b?.selectie === true || (b?.selectie == null && /selectie/i.test(b?.naam || ''));
 
 export function eigenBouwenVan(club){ return Array.isArray(club?.eigenBouwen) ? club.eigenBouwen.filter(b => b && b.id) : []; }
 
@@ -95,6 +99,9 @@ function binnen(teams){
       <div class="eb-snel"><button type="button" class="knop licht klein" data-eb-snel="mo">Alle MO-teams</button><button type="button" class="knop licht klein" data-eb-snel="leeg">Niets</button></div>
       <div class="veldlabel">Gekoppelde coaches <span style="font-weight:500;text-transform:none;letter-spacing:0">\u00b7 krijgen dezelfde rechten als een bouwcoördinator</span></div>
       <div class="eb-chips">${coachesVan(teams).map(co => `<button type="button" class="eb-chip ${c.coaches[co.uid] ? 'aan' : ''}" data-eb-coach="${esc(co.uid)}">${esc(co.naam)}${co.uid === S.user?.uid ? ' <small>(jij)</small>' : co.teams.length ? ` <small>${esc(co.teams.slice(0, 2).join(', '))}</small>` : ''}</button>`).join('')}</div>
+      <div class="veldlabel">Soort bouw</div>
+      <div class="eb-chips"><button type="button" class="eb-chip ${isSelectie(c) ? 'aan' : ''}" data-eb-selectie="1">Selectie met 1e en 2e elftal</button></div>
+      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin:6px 0 0">Aan: het dashboard toont per team de evaluatie-radar en de tegel Selectie maken, waar je per speler 1e, 2e of beide kiest. Het eerste team op naam is het 1e elftal.</p>
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin:8px 0 0">Zij zien deze bouw in hun menu (dashboard, uitleningen, alle teams) en mogen de teams in deze bouw bekijken en aanpassen. Koppel jezelf om het dashboard van deze bouw zelf te kunnen zien.</p>
       <div class="eb-knoppen"><button class="knop fluo" id="ebOpslaan">Opslaan</button><button class="knop licht" id="ebAnnuleer">Annuleren</button>
         ${c.nieuw ? '' : '<button class="knop licht" id="ebWeg" style="color:var(--uit)">Verwijderen</button>'}</div>
@@ -126,7 +133,7 @@ export function koppelEigenBouwenBeheer(v, teams){
   });
   blok.querySelectorAll('[data-eb-bewerk]').forEach(b => b.addEventListener('click', () => {
     const e = eigenBouwenVan(S.club).find(x => x.id === b.dataset.ebBewerk); if (!e) return;
-    concept = { id:e.id, naam:e.naam || '', kleur:e.kleur || KLEUREN[0], teams:[...(e.teams || [])], coaches:{ ...(e.coaches || {}) }, nieuw:false }; teken();
+    concept = { id:e.id, naam:e.naam || '', kleur:e.kleur || KLEUREN[0], teams:[...(e.teams || [])], coaches:{ ...(e.coaches || {}) }, selectie: e.selectie ?? null, nieuw:false }; teken();
   }));
   blok.querySelector('#ebNaam')?.addEventListener('input', naamBijhouden);
   blok.querySelectorAll('[data-eb-kleur]').forEach(b => b.addEventListener('click', () => { naamBijhouden(); concept.kleur = b.dataset.ebKleur; teken(); }));
@@ -138,6 +145,7 @@ export function koppelEigenBouwenBeheer(v, teams){
     naamBijhouden(); const uid = b.dataset.ebCoach;
     if (concept.coaches[uid]) delete concept.coaches[uid]; else concept.coaches[uid] = true; teken();
   }));
+  blok.querySelector('[data-eb-selectie]')?.addEventListener('click', () => { naamBijhouden(); concept.selectie = !isSelectie(concept); teken(); });
   blok.querySelectorAll('[data-eb-snel]').forEach(b => b.addEventListener('click', () => {
     naamBijhouden(); concept.teams = b.dataset.ebSnel === 'mo' ? [...new Set([...concept.teams, ...teams.filter(isMeiden).map(t => t.id)])] : []; teken();
   }));
@@ -152,6 +160,7 @@ export function koppelEigenBouwenBeheer(v, teams){
     let id = concept.id;
     if (concept.nieuw && (BOUWEN.some(b => b.id === id) || lijst.some(b => b.id === id))) id = 'eb' + Date.now().toString(36);
     const nieuw = { id, naam, kleur: concept.kleur, teams: concept.teams.filter(t => teams.some(x => x.id === t)), coaches: { ...concept.coaches } };
+    if (concept.selectie != null) nieuw.selectie = concept.selectie === true;
     const volgende = concept.nieuw ? [...lijst, nieuw] : lijst.map(b => b.id === concept.id ? nieuw : b);
     try { const extra = await bewaar(volgende, teams); concept = null; meld(`${naam} opgeslagen${extra}`); if (S.club) S.club.eigenBouwen = volgende; teken(); }
     catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }

@@ -10,12 +10,13 @@
 ================================================================= */
 import { S, $, esc, meld, toon } from './state.js?v=20260922c';
 import { BOUWEN } from './config.js?v=20260922c';
-import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20260928e';
-import { zetBouwContext, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928e';
-import { trekUitleningIn } from './teams-spelers.js?v=20260928e';
-import { htmlMobielTeam } from './desktop-schermen.js?v=20260928e';
+import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20260928f';
+import { zetBouwContext, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928f';
+import { trekUitleningIn } from './teams-spelers.js?v=20260928f';
+import { htmlMobielTeam } from './desktop-schermen.js?v=20260928f';
+import { isSelectieBouw, htmlRadarMobiel, htmlSelectieTegelMobiel, htmlSelectieMobiel, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928f';
 
-let st = null;   // { clubId, bouw, tab:'dash'|'teams'|'uit', teamId, pag:'sel'|'evs'|'evw'|'stat', keuze:{} }
+let st = null;   // { clubId, bouw, tab:'dash'|'teams'|'uit'|'selmaken', teamId, pag:'sel'|'evs'|'evw'|'stat', keuze:{} }
 let cache = null;
 
 const ICO = {
@@ -46,7 +47,8 @@ function view(){
     v.id = 'view-mbouw'; v.className = 'view';
     $('#app').appendChild(v);
     v.addEventListener('click', klik);
-    v.addEventListener('change', e => { if (e.target.id === 'mbKiezer'){ const [c, b] = e.target.value.split('|'); openMobielBouw(c, b); } });
+    v.addEventListener('change', e => { if (e.target.id === 'mbKiezer'){ const [c, b] = e.target.value.split('|'); openMobielBouw(c, b); return; } if (e.target.dataset?.sel) selectieInvoer(e, cache); });
+    v.addEventListener('input', e => { if (e.target.id === 'sbwZoek') selectieInvoer(e, cache); });
   }
   return v;
 }
@@ -63,7 +65,7 @@ export async function openMobielBouw(clubId, bouw){
 
 function kop(){
   const b = huidigeBouw();
-  const titel = st.teamId ? (cache?.teams.find(t => t.id === st.teamId)?.naam || 'Team') : { dash:b.naam, teams:'Teams', uit:'Uitleningen' }[st.tab];
+  const titel = st.teamId ? (cache?.teams.find(t => t.id === st.teamId)?.naam || 'Team') : { dash:b.naam, teams:'Teams', uit:'Uitleningen', selmaken:'Selectie maken' }[st.tab];
   const sub = st.teamId ? b.naam : `${b.club || ''}${cache ? ' \u00b7 ' + cache.teams.length + ' teams' : ''}`;
   const keuzes = bouwen();
   return `<div class="mb-kop"><button class="mb-terug" data-mb="terug" aria-label="Terug">\u2039</button>
@@ -88,6 +90,7 @@ function teken(){
           ${t ? htmlMobielTeam(st.pag, t, cache.data.get(t.id) || {}, st.keuze) : '<p class="mb-leeg">Team niet gevonden.</p>'}</div>`;
     } else if (st.tab === 'dash') binnen = `<div class="mb-inhoud">${dashboard()}</div>`;
     else if (st.tab === 'teams') binnen = `<div class="mb-inhoud">${teamsLijst()}</div>`;
+    else if (st.tab === 'selmaken') binnen = `<div class="mb-inhoud">${htmlSelectieMobiel(cache)}</div>`;
     else binnen = `<div class="mb-inhoud">${uitleningen()}</div>`;
   } catch(e){ console.warn('[Cluppie] mobiele bouw', e); binnen = '<p class="mb-leeg">Dit scherm kon niet getekend worden.</p>'; }
   v.innerHTML = `<div class="mb-scherm">${kop()}${binnen}${tabs()}</div>`;
@@ -98,6 +101,7 @@ function dashboard(){
   const spelers = rij.reduce((a, r) => a + (r.d.spelers || []).length, 0);
   const tr = rij.filter(r => r.tr != null); const trPct = tr.length ? Math.round(tr.reduce((a, r) => a + r.tr, 0) / tr.length) : null;
   const eigen = new Set((S.teams || []).map(t => t.id));
+  const sel = isSelectieBouw(cache);   /* [20260928f] radars per team + tegel Selectie maken */
   return `<h1 class="mb-groot">${esc(huidigeBouw().naam)} <span>dashboard</span></h1>
     <div class="mb-pills"><span class="mb-pill">${rij.length} teams \u00b7 ${spelers} spelers</span>${trPct != null ? `<span class="mb-pill groen">Opkomst training ${trPct}%</span>` : ''}</div>
     <div class="mb-kaart"><div class="mb-lbl">Laatste uitslagen</div>${rij.map(r => { const l = r.u?.laatste; const k = l ? (l.voor > l.tegen ? 'groen' : l.voor < l.tegen ? 'rood' : '') : '';
@@ -110,6 +114,7 @@ function dashboard(){
         <span class="mb-cijfers"><span><b>${(r.d.spelers || []).length}</b><small>SPELERS</small></span><span><b class="g">${r.tr != null ? r.tr + '%' : '\u2013'}</b><small>TRAINING</small></span>
           <span><b class="bl">${r.wd != null ? r.wd + '%' : '\u2013'}</b><small>WEDSTR.</small></span><span><b>${r.kaart ?? '\u2013'}</b><small>GEM. KAART</small></span></span>
         <span class="mb-pills">${r.open ? `<em class="mb-pill geel">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</em>` : '<em class="mb-pill groen">evaluaties bij</em>'}</span></button>`).join('')}</div>
+    ${sel ? rij.map(r => htmlRadarMobiel(cache, r.t)).join('') + htmlSelectieTegelMobiel(cache) : ''}
     <div class="mb-kaart"><div class="mb-lbl">Opkomst per team<span>seizoen</span></div>${rij.map(r => `<div class="mb-opk"><b>${esc(r.t.naam)}</b><i><em class="g" style="width:${r.tr ?? 0}%"></em></i><i><em class="bl" style="width:${r.wd ?? 0}%"></em></i></div>`).join('')}
       <div class="mb-leg"><span><i class="g"></i>training</span><span><i class="bl"></i>wedstrijd</span></div></div>
     <div class="mb-kaart"><div class="mb-lbl">Uitleningen<span>${cache.uitleningen.length}</span></div>
@@ -133,18 +138,21 @@ function uitleningen(){
 }
 
 async function klik(e){
+  if (st && selectieKlik(e, cache, () => teken())) return;
   const b = e.target.closest('[data-mb]'); if (!b || !st) return;
   const a = b.dataset.mb, id = b.dataset.id;
   if (a === 'terug'){
     if (st.teamId){ st.teamId = null; st.keuze = {}; teken(); return; }
-    const m = await import('./teams.js?v=20260928e'); m.renderTeams(); toon('teams'); return;
+    if (st.tab === 'selmaken'){ st.tab = 'dash'; teken(); window.scrollTo(0, 0); return; }
+    const m = await import('./teams.js?v=20260928f'); m.renderTeams(); toon('teams'); return;
   }
   if (a === 'tab'){ st.tab = id; st.teamId = null; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
   if (a === 'team'){ st.teamId = id; st.pag = 'sel'; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
   if (a === 'pag'){ st.pag = id; st.keuze = {}; teken(); return; }
+  if (a === 'selmaken'){ st.tab = 'selmaken'; st.teamId = null; teken(); window.scrollTo(0, 0); return; }
   if (a === 'speler'){ st.pag = 'evs'; st.keuze = { speler:id }; teken(); return; }
   if (a === 'wedstrijd'){ st.keuze = { wedstrijd:id }; teken(); return; }
-  if (a === 'eigen'){ const m = await import('./teams.js?v=20260928e'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
+  if (a === 'eigen'){ const m = await import('./teams.js?v=20260928f'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
   if (a === 'nieuwleen'){ zetBouwContext(cache); modalNieuweUitleningVanuitBouw(() => teken()); return; }
   if (a === 'terug-leen'){ const u = cache.uitleningen.find(x => x.id === id); if (!u) return;
     try { if (await trekUitleningIn(u, st.clubId)){ cache.uitleningen = cache.uitleningen.filter(x => x.id !== id); teken(); } }

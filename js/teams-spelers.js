@@ -31,7 +31,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260928e');
+  const m = await import('./teams.js?v=20260928f');
   m.renderTeam();
 }
 
@@ -1204,7 +1204,8 @@ export function modalLeenOverlay(spelerId){
     };
     const knop = $('#mLoOk'); knop.disabled = true; knop.textContent = 'Opslaan…';
     try {
-      await updateDoc(doc(db,'clubs',clubId,'uitleningen',p._leenId), { overlay });
+      /* [20260928f] per veld schrijven: zo blijven overlay.elftal (selectie-bouw) en overlay.meetelVanaf staan */
+      await updateDoc(doc(db,'clubs',clubId,'uitleningen',p._leenId), { 'overlay.nummer': overlay.nummer, 'overlay.positie': overlay.positie });
       telGebruik('uitlenen_overlay');
       sluitModal();
       meld('Aangepast bij jou');
