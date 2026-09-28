@@ -19,7 +19,7 @@ import { ico } from './icons.js?v=20260922c';
 
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260928b';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260928c';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -504,7 +504,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260928b').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260928c').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -550,7 +550,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260928b').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260928c').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -1226,9 +1226,33 @@ export function toonBijwerkScherm(){
       <td class="bw-st-tot">${aWed.tijd[pid] ? uurMin(aWed.tijd[pid]) : '—'}</td></tr>`;
   };
 
+  /* Selectie-samenvatting (wedstrijdbreed, dus boven de periode-tabs) */
+  const selIds = (w.selectie||[]).filter(pid => speler(pid));
+  const afwIds = S.spelers.map(p => p.id).filter(pid => !selIds.includes(pid));
+  const laterIds = (w.telaat||[]).filter(pid => selIds.includes(pid));
+  const selChip = (pid, tekst) => `<span class="bw-badge bw-selchip">${esc(spelerNaam(pid))}${tekst ? ' · '+tekst : ''}</span>`;
+  const afwChips = afwIds.map(pid => {
+    const rec = (w.afwezigRedenen||{})[pid];
+    const info = rec ? afwezigRedenInfo(rec) : null;
+    return selChip(pid, info ? `${info.emoji||''} ${esc(info.label)}`.trim() : 'afwezig');
+  }).join('');
+  const laterChips = laterIds.map(pid => {
+    const m = (w.telaatVanaf||{})[pid];
+    return selChip(pid, `⏱ later${m ? ' ('+esc(m)+"')" : ''}`);
+  }).join('');
+  const selectieBlok = `
+    <div class="bijwerk-blok">
+      <div class="bijwerk-blok-kop"><span class="t">👥 Selectie</span></div>
+      <div class="bw-sel-tel">${selIds.length} erbij${laterIds.length ? ` · ${laterIds.length} kwam later` : ''} · ${afwIds.length} afwezig</div>
+      ${afwChips || laterChips ? `<div class="bw-sel-chips">${laterChips}${afwChips}</div>` : ''}
+      <button class="bijwerk-toevoeg" id="bwSelectie">✎ Selectie &amp; afwezigheid aanpassen</button>
+    </div>`;
+
   openModal(`
     <h2>Achteraf bijwerken</h2>
     <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:14px;line-height:1.5">${esc(w.tegenstander ? 'Tegen '+w.tegenstander : periodeOmschrijving(w))} · zet hier na afloop alles recht wat je tijdens de wedstrijd niet kon invoeren.</p>
+
+    ${selectieBlok}
 
     <div class="bijwerk-tabs">${periodeNrs(w).map(p =>
       `<button data-bw-p="${p}" class="${p===nr?'actief':''}">${esc(periodeLabel(w, p))}</button>`).join('')}</div>
@@ -1268,6 +1292,7 @@ export function toonBijwerkScherm(){
   $$('#modalInhoud [data-bw-speeltijd]').forEach(el => el.onclick = () => modalSpeeltijdCorrigeren(el.dataset.bwSpeeltijd, {kwart:nr, terugNaarBijwerk:true}));
   /* toevoeg-knoppen */
   $('#bwWisselNieuw').onclick = () => modalWisselAchteraf(nr, null);
+  $('#bwSelectie').onclick = () => modalSelectie({terugNaarBijwerk:true, kwart:nr});
   $('#bwGoalNieuw').onclick = () => modalGoalToevoegen(nr);
   $('#bwKaartNieuw').onclick = () => modalKaart({kwart:nr, terugNaarBijwerk:true});
 }
@@ -2376,7 +2401,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260928b').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260928c').then(m => m.renderTeam?.());
   });
 }
 
@@ -2861,7 +2886,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260928b').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260928c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3375,8 +3400,12 @@ function verbergWijzigOpzet(){
   el.classList.remove('open');
 }
 
-function modalSelectie(){
+function modalSelectie(opties = {}){
   const w = S.wedstrijd;
+  // Vanuit "Achteraf bijwerken": na Klaar/✕ terug naar dat overzicht
+  const achteraf = !!opties.terugNaarBijwerk;
+  const terugBijwerk = () => { S.bijwerkKwart = opties.kwart || S.bijwerkKwart; toonBijwerkScherm(); };
+  let bevestigdVerlies = false;   // "toch afwezig zetten" is bevestigd
   let sel = new Set(w.selectie || []);
   let telaat = new Set(w.telaat || []);   // erbij, maar te laat gekomen
   // wedstrijdminuut waarop een te-late speler erbij was (optioneel, per pid)
@@ -3414,13 +3443,36 @@ function modalSelectie(){
     <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>erbij</b>. Tik wie er <b>niet</b> is en geef eventueel de reden. Afwezige spelers verschijnen niet op de bank.</p>
     <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin:-4px 0 12px">Komt iemand <b>later</b>? Vul in vanaf welke wedstrijdminuut hij erbij was (doorlopend geteld over alle periodes). De tijd daarvóór telt dan niet mee in zijn speeltijd-%.</p>
     <div id="mSelLijst">${rijenHtml()}</div>
-    <button class="knop vol" id="mSelOk" style="margin-top:6px">Klaar</button>`);
+    <div id="mSelWaarsch"></div>
+    <button class="knop vol" id="mSelOk" style="margin-top:6px">Klaar</button>
+    ${achteraf ? `<button class="knop licht vol" id="mSelTerug" style="margin-top:8px">‹ Terug naar overzicht</button>` : ''}`);
+  if (achteraf){
+    kruisNaarBijwerk(terugBijwerk);
+    $('#mSelTerug').onclick = terugBijwerk;
+  }
 
+  /* Wie uit de selectie gaat, verliest zijn opstellingsplekken, wissels en
+     kaarten in deze wedstrijd (zie opschoning hieronder). Heeft hij die al,
+     dan eerst waarschuwen — vooral achteraf is dat anders ongemerkt dataverlies. */
+  const metGegevens = () => {
+    const weg = (w.selectie||[]).filter(pid => !sel.has(pid) && speler(pid));
+    return weg.filter(pid =>
+      Object.values(w.kwarten||{}).some(kk =>
+        Object.values(kk.lineup||{}).includes(pid) ||
+        (kk.events||[]).some(e => e.in === pid || e.uit === pid)) ||
+      (w.kaarten||[]).some(c => c.pid === pid));
+  };
+  const resetWaarsch = () => {
+    bevestigdVerlies = false;
+    $('#mSelWaarsch').innerHTML = '';
+    $('#mSelOk').textContent = 'Klaar';
+  };
   const koppel = () => {
     $$('#mSelLijst [data-seltoggle]').forEach(b => b.onclick = () => {
       const id = b.dataset.seltoggle;
       if (sel.has(id)){ sel.delete(id); telaat.delete(id); }   // afwezig: geen te-laat
       else { sel.add(id); delete redenen[id]; }
+      resetWaarsch();
       $('#mSelLijst').innerHTML = rijenHtml(); koppel();
     });
     // Te-laat chip: afwezige speler terug erbij+vlag, of vlag weer weg. Telt als erbij.
@@ -3428,6 +3480,7 @@ function modalSelectie(){
       const id = b.dataset.seltelaat;
       if (telaat.has(id)){ telaat.delete(id); }
       else { sel.add(id); delete redenen[id]; telaat.add(id); }
+      resetWaarsch();
       $('#mSelLijst').innerHTML = rijenHtml(); koppel();
     });
     $$('#mSelLijst [data-selreden]').forEach(b => b.onclick = () => {
@@ -3450,6 +3503,13 @@ function modalSelectie(){
   koppel();
 
   $('#mSelOk').onclick = () => {
+    const verlies = metGegevens();
+    if (verlies.length && !bevestigdVerlies){
+      bevestigdVerlies = true;
+      $('#mSelWaarsch').innerHTML = `<div class="waarschuwing" style="margin-top:8px"><span>⚠️</span><span><b>${verlies.map(pid => esc(spelerNaam(pid))).join(', ')}</b> ${verlies.length === 1 ? 'heeft' : 'hebben'} al opstelling, wissels of kaarten in deze wedstrijd. Afwezig zetten wist die, en daarmee ook de speeltijd. Tik nog een keer om toch op te slaan.</span></div>`;
+      $('#mSelOk').textContent = 'Toch opslaan';
+      return;
+    }
     w.selectie = [...sel];
     // alleen te-laat-vlaggen bewaren van wie ook echt in de selectie zit
     w.telaat = [...telaat].filter(pid => sel.has(pid));
@@ -3472,6 +3532,7 @@ function modalSelectie(){
     for (const nr of Object.keys(w.aanvoerders||{}))
       if (w.aanvoerders[nr] && !toegestaan.has(w.aanvoerders[nr])) w.aanvoerders[nr] = null;
     if (w.aanvoerder && !toegestaan.has(w.aanvoerder)) w.aanvoerder = null;
+    if (achteraf){ bewaarWedstrijd(); renderWedstrijd(); meld('Selectie bijgewerkt'); terugBijwerk(); return; }
     sluitModal(); bewaarWedstrijd(); renderWedstrijd();
   };
 }
