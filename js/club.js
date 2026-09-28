@@ -34,7 +34,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260928d'); }
+async function teamsModule(){ return await import('./teams.js?v=20260928e'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -77,7 +77,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260928d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260928e').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1131,7 +1131,8 @@ function slMatch(zoeknaam, lijst){
    expliciet gezet is, anders is de teamnaam al de koppeling. */
 function sportlinkMeta(t){
   const n = String(t.sportlinkNaam || '').trim();
-  return n ? ` · <span style="color:var(--ink-2)">↔ ${esc(n)}</span>` : '';
+  const twee = t.tweedeElftal ? ` · <span style="color:var(--ink-2)">1e + 2e elftal${t.tweedeElftal.sportlinkNaam ? ' (↔ ' + esc(t.tweedeElftal.sportlinkNaam) + ')' : ''}</span>` : '';
+  return (n ? ` · <span style="color:var(--ink-2)">↔ ${esc(n)}</span>` : '') + twee;
 }
 
 async function slTeamlijstOphalen(){
@@ -1157,6 +1158,10 @@ async function modalSportlinkTeam(team, teams){
   openModal(`<h2>Sportlink · ${esc(team.naam)}</h2><p style="color:var(--ink-2)">Teamlijst laden…</p>`);
   let lijst = await slTeamlijstOphalen();
   const gekoppeld = !!S.club.sportlinkClientId;
+  /* [20260928e] 1e + 2e elftal binnen één team (bv. Selectie = ASV'33 1 + 2).
+     Buiten teken() bewaard, zodat "Teamlijst ophalen" de keuze niet wist. */
+  let aan2 = !!team.tweedeElftal;
+  let keuze2 = String(team.tweedeElftal?.sportlinkNaam || '').trim();
 
   const teken = () => {
     const huidig = String(team.sportlinkNaam || '').trim();
@@ -1180,6 +1185,18 @@ async function modalSportlinkTeam(team, teams){
           ${onbekend}${lijst.map(optie).join('')}
         </select></div>
       <div id="mSlInfo" style="font-size:calc(12.5px * var(--fs));line-height:1.45;margin:-4px 0 12px"></div>
+      <label class="lid-rij" style="cursor:pointer;margin-bottom:8px">
+        <input type="checkbox" id="mSl2Aan" ${aan2 ? 'checked' : ''} style="width:19px;height:19px;accent-color:var(--grass)">
+        <div class="lid-naam" style="font-weight:500">Dit team speelt met een 1e én 2e elftal
+          <span style="display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);font-weight:400">Eén selectie, twee elftallen. De coach wijst spelers toe en kiest per wedstrijd het elftal. Hierboven staat de koppeling van het 1e elftal.</span></div>
+      </label>
+      <div class="veldgroep" id="mSl2Wrap" style="${aan2 ? '' : 'display:none'}"><label>Team in Sportlink · 2e elftal</label>
+        <select class="invoer" id="mSl2Team">
+          <option value="" ${keuze2 ? '' : 'selected'}>Nog niet koppelen</option>
+          ${keuze2 && !lijst.some(s => s.teamnaam === keuze2) ? `<option value="${esc(keuze2)}" selected>${esc(keuze2)} (niet in teamlijst)</option>` : ''}
+          ${lijst.map(s => `<option value="${esc(s.teamnaam)}" ${s.teamnaam === keuze2 ? 'selected' : ''}>${esc(s.teamnaam)}${s.klassepoule ? ' — ' + esc(s.klassepoule) : ''}</option>`).join('')}
+        </select>
+        <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.45">Stand en programma van het 2e elftal verschijnen zodra de nachtelijke sync dit veld leest.</p></div>
       ${!lijst.length ? `
         <div class="kaart" style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">
           ${gekoppeld
@@ -1212,6 +1229,8 @@ async function modalSportlinkTeam(team, teams){
     sel.onchange = werkInfoBij;
     naamIn.oninput = werkInfoBij;
     werkInfoBij();
+    $('#mSl2Aan').onchange = e => { aan2 = e.target.checked; $('#mSl2Wrap').style.display = aan2 ? '' : 'none'; };
+    $('#mSl2Team').onchange = e => { keuze2 = e.target.value; };
 
     const ophalen = $('#mSlOphalen');
     if (ophalen) ophalen.onclick = async () => {
@@ -1232,10 +1251,12 @@ async function modalSportlinkTeam(team, teams){
       if (!naam) return meld('Geef het team een naam');
       const keuze = sel.value;
       const code = keuze ? (sel.selectedOptions[0]?.dataset.code || null) : null;
+      const tweede = aan2 ? { sportlinkNaam: keuze2 || null } : null;
       const data = {
         naam,
         sportlinkNaam: keuze || deleteField(),
         sportlinkTeamcode: code || deleteField(),
+        tweedeElftal: tweede || deleteField(),
       };
       const ok = $('#mSlOk');
       ok.disabled = true; ok.textContent = 'Opslaan…';
@@ -1244,6 +1265,7 @@ async function modalSportlinkTeam(team, teams){
         team.naam = naam;
         if (keuze){ team.sportlinkNaam = keuze; team.sportlinkTeamcode = code; }
         else { delete team.sportlinkNaam; delete team.sportlinkTeamcode; }
+        if (tweede) team.tweedeElftal = tweede; else delete team.tweedeElftal;
         sluitModal();
         renderClub();
         meld(gekoppeld ? 'Opgeslagen — klik op “Sync nu” onder Instellingen om direct op te halen' : 'Opgeslagen');

@@ -18,6 +18,7 @@ import { analyseWedstrijd } from './analyse.js?v=20260928a';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20260924b';
+import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20260928e';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
@@ -154,6 +155,7 @@ export function htmlHub(updInfo){
     </div>
     ${teamKeuze}
     ${updBanner}
+    ${htmlSelectieDashboard()}
     ${secties.map(([kop, tegels]) => `
       <section class="hub-sectie">
         <div class="hub-sectie-kop">${esc(kop)}</div>
@@ -163,6 +165,17 @@ export function htmlHub(updInfo){
 }
 
 /* ==================== PRESENTIE WEDSTRIJD ==================== */
+/* [20260928e] Standaardselectie als de wedstrijd er (nog) geen heeft: iedereen,
+   of bij een team met 1e + 2e elftal de spelers van het elftal van die wedstrijd.
+   Zelfde regel als normaliseerWedstrijd in wedstrijd.js. */
+function standaardSelectie(w){
+  if (Array.isArray(w.selectie) && w.selectie.length) return w.selectie;
+  if (heeftElftallen() && w.type !== 'toernooi'){
+    const e = spelersVoorElftal(S.spelers, elftalWedstrijd(w)).eigen;
+    if (e.length) return e.map(p => p.id);
+  }
+  return S.spelers.map(p => p.id);
+}
 /* De wedstrijd waarvoor presentie getoond wordt: gekozen door de coach, of
    standaard de eerstvolgende (vandaag of later); zonder komende wedstrijden
    de meest recente. */
@@ -188,7 +201,7 @@ export function htmlPresWedstrijd(){
   }
   /* Zonder expliciete selectie geldt: iedereen speelt mee (zelfde aanname als
      normaliseerWedstrijd in wedstrijd.js). */
-  const sel = new Set(Array.isArray(w.selectie) && w.selectie.length ? w.selectie : S.spelers.map(p => p.id));
+  const sel = new Set(standaardSelectie(w));
   const redenen = w.afwezigRedenen || {};
   const laat = new Set(w.telaat || []);          // erbij, maar komt later
   const vanaf = w.telaatVanaf || {};             // wedstrijdminuut van aankomst
@@ -199,23 +212,28 @@ export function htmlPresWedstrijd(){
     <button class="pw-kiezer" id="pwKiezer">
       <span class="pw-ico">${ico('football-whistle', 20)}</span>
       <span class="pw-txt"><span class="pw-t">${wedstrijdTitel(w)}</span>
-        <span class="pw-m">${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</span></span>
+        <span class="pw-m">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</span></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="pw-pijl"><path d="M8 9l4 4 4-4"/></svg>
     </button>`;
 
-  const rijen = S.spelers.map(p => {
+  /* Team met 1e + 2e elftal: eerst het elftal van deze wedstrijd, dan de
+     rest van de selectie ("niet mee" zonder redenkeuze). */
+  const tweeElftallen = heeftElftallen() && w.type !== 'toernooi';
+  const groepen = tweeElftallen ? spelersVoorElftal(S.spelers, elftalWedstrijd(w)) : { eigen: S.spelers, rest: [] };
+  const rij = (p, rest) => {
     const aanwezig = sel.has(p.id);
     const isLaat = aanwezig && laat.has(p.id);
     const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
     const klasse = !aanwezig ? 'afwezig' : (isLaat ? 'telaat' : 'aanwezig');
+    const nietMee = !aanwezig && rest && !info;
     return `
-    <div class="pres-speler ${klasse}">
+    <div class="pres-speler ${klasse}${nietMee ? ' nietmee' : ''}">
       <button type="button" class="pres-speler-kop" data-pw-toggle="${p.id}">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${!aanwezig ? 'Afwezig' : (isLaat ? 'Komt later' : 'Erbij')}</span>
+        <span class="pres-status">${!aanwezig ? (nietMee ? 'Niet mee' : 'Afwezig') : (isLaat ? 'Komt later' : 'Erbij')}</span>
       </button>
-      ${!aanwezig ? `
+      ${!aanwezig && !nietMee ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
         `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-pw-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-pw-laat="${p.id}">⏱ Komt later</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pw-notitie="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
@@ -224,7 +242,10 @@ export function htmlPresWedstrijd(){
         <label class="telaat-minuut">erbij vanaf min.<input type="number" inputmode="numeric" min="1" max="${maxMin}" class="invoer" data-pw-vanaf="${p.id}" value="${esc(vanaf[p.id] ?? '')}" placeholder="—"></label></div>
       ` : ''}
     </div>`;
-  }).join('');
+  };
+  const rijen = (tweeElftallen ? `<div class="elf-groep">${elftalNaam(elftalWedstrijd(w))}</div>` : '')
+    + groepen.eigen.map(p => rij(p, false)).join('')
+    + (groepen.rest.length ? `<div class="elf-groep">Rest van de selectie</div>` + groepen.rest.map(p => rij(p, true)).join('') : '');
 
   return `
     ${kiezer}
@@ -252,7 +273,7 @@ export function presWedstrijdKeuzeHtml(){
   const rij = (w) => `
     <button class="lijst-item ${huidig && w.id === huidig.id ? 'eerstvolgend' : ''}" data-pw-kies="${w.id}">
       <div class="li-tekst"><div class="titel">${wedstrijdTitel(w)}</div>
-      <div class="meta">${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</div></div>
+      <div class="meta">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</div></div>
       <span class="pijl">›</span></button>`;
   return `
     <h2>Kies een wedstrijd</h2>
@@ -269,7 +290,7 @@ export function presWedstrijdKeuzeHtml(){
 export async function presWedstrijdBewaar(wijzig){
   const w = presWedstrijdHuidig();
   if (!w) return;
-  const sel = new Set(Array.isArray(w.selectie) && w.selectie.length ? w.selectie : S.spelers.map(p => p.id));
+  const sel = new Set(standaardSelectie(w));
   const redenen = JSON.parse(JSON.stringify(w.afwezigRedenen || {}));
   const laat = new Set(w.telaat || []);
   const vanaf = {...(w.telaatVanaf || {})};

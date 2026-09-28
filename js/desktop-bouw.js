@@ -12,9 +12,9 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260928a';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928d';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928d';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260928d';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928e';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928e';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260928e';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties

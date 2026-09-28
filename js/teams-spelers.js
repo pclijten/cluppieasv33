@@ -24,13 +24,14 @@ import { ico } from './icons.js?v=20260922c';
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
+import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20260928e';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260928d');
+  const m = await import('./teams.js?v=20260928e');
   m.renderTeam();
 }
 
@@ -156,11 +157,18 @@ function meestGespeeldePositie(p){
 }
 
 /* [20260923a] geëxporteerd voor de desktopschermen (kaarten, profiel, stats). */
-export function spelerStats(pid){
-  let wedstrijden = 0, tijd = 0, keeper = 0, goals = 0;
+/* [20260928e] Optioneel elftal ('1' | '2'): alleen de wedstrijden van dat
+   elftal (teams met een 1e + 2e elftal). Zonder argument: alles, zoals altijd. */
+export function spelerStats(pid, elftal = null){
+  let wedstrijden = 0, tijd = 0, keeper = 0, goals = 0, assists = 0;
   const posities = {};
-  for (const w of S.wedstrijden){
-    for (const g of (w.goals||[])) if (g.type === 'voor' && g.pid === pid) goals++;
+  const lijst = elftal ? filterOpElftal(S.wedstrijden, elftal) : S.wedstrijden;
+  for (const w of lijst){
+    for (const g of (w.goals||[])){
+      if (g.type !== 'voor') continue;
+      if (g.pid === pid) goals++;
+      if (g.assist === pid) assists++;
+    }
     const a = analyseWedstrijd(w);
     if (!a.kwarten) continue;
     if (a.tijd[pid]){ tijd += a.tijd[pid]; wedstrijden++; }
@@ -183,12 +191,12 @@ export function spelerStats(pid){
   }
   const opkomst = o.pct;
   // reserve/speelbaar + percentages over wedstrijden waarin de speler in de selectie zat
-  const sr = speeltijdReserve(S.wedstrijden)[pid] || {speeltijd:0, reserve:0, speelbaar:0};
+  const sr = speeltijdReserve(lijst)[pid] || {speeltijd:0, reserve:0, speelbaar:0};
   const reserve = sr.reserve;
   const speelbaar = sr.speelbaar;
   const pctSpeeltijd = speelbaar > 0 ? Math.round((sr.speeltijd/speelbaar)*100) : null;
   const pctReserve   = pctSpeeltijd != null ? 100 - pctSpeeltijd : null;
-  return {wedstrijden, tijd, keeper, goals, opkomst, totTr, overTr, afwPerReden, posities,
+  return {wedstrijden, tijd, keeper, goals, assists, opkomst, totTr, overTr, afwPerReden, posities,
     reserve, speelbaar, pctSpeeltijd, pctReserve, disciplinair: sr.disciplinair||0};
 }
 
@@ -341,8 +349,13 @@ export function htmlProfiel(){
         <div class="stat-box"><div class="v">${st.wedstrijden}</div><div class="l">Wedstr.</div></div>
         <div class="stat-box"><div class="v">${st.tijd ? uurMin(st.tijd) : '—'}</div><div class="l">Speeltijd</div>${st.pctSpeeltijd!=null?`<div class="sub">${st.pctSpeeltijd}% van speelbaar</div>`:''}</div>
         <div class="stat-box"><div class="v">${st.reserve ? uurMin(st.reserve) : '—'}</div><div class="l">Reserve</div>${st.pctReserve!=null?`<div class="sub">${st.pctReserve}% van speelbaar</div>`:''}</div>
-        <div class="stat-box"><div class="v">${st.goals}</div><div class="l">Goals</div></div>
+        <div class="stat-box"><div class="v">${st.goals}</div><div class="l">Goals</div><div class="sub">${st.assists} assist${st.assists === 1 ? '' : 's'}</div></div>
       </div>
+      ${heeftElftallen() ? (() => {
+        const e1 = spelerStats(p.id, '1'), e2 = spelerStats(p.id, '2');
+        const r = (e, x) => `<div class="elf-split-rij"><span class="elf-pill e${e}">${e}e</span><span>${x.wedstrijden} wedstr.</span><span>${Math.round(x.tijd / 60)} min</span><span>${x.goals} G</span><span>${x.assists} A</span></div>`;
+        return `<div class="kaart elf-split"><div class="veldlabel" style="margin-top:0">Per elftal${elftalPillen(p)}</div>${r('1', e1)}${r('2', e2)}</div>`;
+      })() : ''}
       ${st.pctSpeeltijd != null ? `
       <div class="kaart" style="margin-top:-2px">
         <div class="veldlabel" style="margin-top:0">Verhouding speeltijd / bank</div>
