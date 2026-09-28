@@ -4060,6 +4060,11 @@ textarea.trw-vel-in{min-height:80px;resize:none}
   .dk-aftel small{ display:block; font-family:Inter,sans-serif; font-size:11px; color:var(--ink-2); font-weight:500; margin-top:3px; }
   .dk-veld-knop{ display:block; padding:0; }
   .dk-speel{ grid-column:span 5; }
+  /* [20260928h] Speeltijd: alle spelers, blok blijft ~9 rijen hoog en scrolt */
+  .dk-speel-lijst{ max-height:208px; overflow-y:auto; overscroll-behavior:contain; margin-right:-8px; padding-right:8px; scrollbar-width:thin; scrollbar-color:var(--line-d) transparent; }
+  .dk-speel-lijst::-webkit-scrollbar{ width:6px; }
+  .dk-speel-lijst::-webkit-scrollbar-thumb{ background:var(--line-d); border-radius:99px; }
+  .dk-speel-lijst:focus-visible{ outline:2px solid var(--elf2); outline-offset:2px; border-radius:6px; }
   .dk-opk{ grid-column:span 5; }
   .dk-stofblok{ grid-column:span 4; }
   .dk-taken{ grid-column:span 3; }
@@ -5154,6 +5159,11 @@ textarea.lj-namen{min-height:130px}
 /* radar */
 .sbw-radar{ display:grid; grid-template-columns:minmax(0,200px) minmax(0,1fr); gap:14px; align-items:center; }
 .sbw-radarsvg{ width:100%; height:auto; max-width:200px; display:block; margin:0 auto; }
+/* [20260928h] keuze wedstrijden/spelers + bredere radar voor 8 categorieën */
+.sbw-radarkeus{ margin:-2px 0 12px; }
+.sbw-radar.breed{ grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.sbw-radarsvg.breed{ max-width:300px; overflow:visible; }
+.sbw-radar.breed .sbw-dom{ grid-template-columns:100px minmax(40px,1fr) 28px 28px 38px; padding:2px 0; }
 .sbw-leg{ display:flex; gap:12px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-2); margin-bottom:6px; }
 .sbw-leg span{ display:inline-flex; align-items:center; gap:5px; }
 .sbw-leg i{ display:inline-block; width:14px; height:10px; border-radius:3px; }
