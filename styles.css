@@ -5009,3 +5009,8 @@ textarea.lj-namen{min-height:130px}
 .telaat-minuut .invoer{ width:64px;padding:6px 8px;text-align:center;font-size:calc(14px * var(--fs)); }
 /* Label onder een te-late speler op de bank */
 .chip .telaat-label{ font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(11px * var(--fs));line-height:1;color:#1a1200;background:var(--warn);padding:2px 6px;border-radius:99px;white-space:nowrap; }
+
+/* ==================== SELECTIE IN ACHTERAF BIJWERKEN (20260928c) ==================== */
+.bw-sel-tel{ font-size:calc(13px * var(--fs));color:var(--ink);font-weight:600;padding:2px 4px 6px; }
+.bw-sel-chips{ display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 4px; }
+.bijwerk-blok .bw-selchip{ white-space:normal; }
