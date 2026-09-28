@@ -27,8 +27,8 @@
    getDoc per verhuizing (vers spelerdocument). */
 import { S, esc, meld } from './state.js?v=20260922c';
 import { db, doc, collection, getDoc, writeBatch, serverTimestamp } from './firebase.js?v=20260922c';
-import { bouwLeenSnapshot } from './teams-spelers.js?v=20260928g';
-import { SKILLS, POSITIE_GROEPEN } from './config.js?v=20260922c';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20260928h';
+import { SKILLS, POSITIE_GROEPEN, TEAM_CATEGORIEEN } from './config.js?v=20260922c';
 import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260928a';
 import { opkomstVoor } from './opkomst.js?v=20260922c';
 
@@ -232,26 +232,46 @@ export function teamRadar(ctx, team){
   const dom = lijst => SKILLS.map(s => { const v = lijst.map(b => Number(b.scores?.[s.id])).filter(Boolean); return v.length ? gem(v) : null; });
   return { laatste: dom(laatsten), gem: dom(vol), aantal: laatsten.length, spelers: (d.spelers || []).length, datum: vol[vol.length - 1].datum || '' };
 }
-function radarSvg(laatste, gemid){
-  const S_ = 220, cx = 110, cy = 112, R = 74, n = SKILLS.length;
+/* ---------- [20260928h] radar van de wedstrijdevaluaties (teamevaluaties) ----------
+   Los van de spelersbeoordelingen hierboven: de 8 categorieën die de coach
+   na elke wedstrijd invult (Evaluatie wedstrijden). Laatste = de meest
+   recente geëvalueerde wedstrijd, gemiddelde = alle wedstrijden dit seizoen.
+   De data zit al in de hub-context (teamevaluaties) — geen extra reads. */
+const TEAM_KORT = { inzet:'Inzet', samenwerking:'Samenwerking', taken:'Taken', opbouw:'Opbouw', omschakeling:'Omschakelen', druk:'Druk zetten', plezier:'Plezier', coachbaar:'Coachbaar' };
+export function wedRadar(ctx, team){
+  const d = ctx.data.get(team.id) || {};
+  const ev = (d.teamevaluaties || []).filter(e => e.scores);
+  if (!ev.length) return null;
+  const wed = new Map((d.wedstrijden || []).map(w => [w.id, w]));
+  const datum = e => e.datum || wed.get(e.wedstrijdId)?.datum || '';
+  const lijst = [...ev].sort((a, b) => datum(a).localeCompare(datum(b)));
+  const laatsteE = lijst[lijst.length - 1];
+  const dom = l => TEAM_CATEGORIEEN.map(c => { const v = l.map(e => Number(e.scores?.[c.id])).filter(Boolean); return v.length ? gem(v) : null; });
+  return { laatste: dom([laatsteE]), gem: dom(lijst), aantal: lijst.length, tegen: wed.get(laatsteE.wedstrijdId)?.tegenstander || '', datum: datum(laatsteE) };
+}
+/* Radar-SVG voor n assen. maat: 5 domeinen (korte codes) of 8 categorieën (woorden). */
+function radarSvg(laatste, gemid, assen, breed = false){
+  const W = breed ? 320 : 220, H = breed ? 260 : 220, cx = W / 2, cy = breed ? 130 : 112, R = breed ? 86 : 74, n = assen.length;
   const pt = (i, v) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n; return [cx + R * (v || 0) / 5 * Math.cos(a), cy + R * (v || 0) / 5 * Math.sin(a)]; };
   const poly = vals => vals.map((v, i) => pt(i, v).map(x => x.toFixed(1)).join(',')).join(' ');
-  let s = `<svg viewBox="0 0 ${S_} ${S_}" class="sbw-radarsvg" role="img" aria-label="Radar: laatste evaluatie en seizoensgemiddelde">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" class="sbw-radarsvg${breed ? ' breed' : ''}" role="img" aria-label="Radar: laatste evaluatie en seizoensgemiddelde">`;
   for (let v = 1; v <= 5; v++) s += `<polygon points="${poly(Array(n).fill(v))}" style="fill:none;stroke:var(--line-d)"/>`;
-  SKILLS.forEach((d, i) => {
-    const [x, y] = pt(i, 5), [lx, ly] = pt(i, 6.3);
+  assen.forEach((d, i) => {
+    const [x, y] = pt(i, 5), [lx, ly] = pt(i, breed ? 6.1 : 6.3);
+    const anker = breed && Math.abs(lx - cx) > 8 ? (lx > cx ? 'start' : 'end') : 'middle';
     s += `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" style="stroke:var(--line-d)"/>`;
-    s += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" style="fill:${d.kleur};font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px">${d.id}</text>`;
+    s += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anker}" dominant-baseline="middle" style="fill:${d.kleur};font-family:${breed ? 'Inter,sans-serif;font-weight:600;font-size:12px' : "'Barlow Condensed',sans-serif;font-weight:800;font-size:15px"}">${esc(d.label)}</text>`;
   });
   s += `<polygon points="${poly(gemid)}" style="fill:color-mix(in srgb,var(--elf2) 14%,transparent);stroke:var(--elf2);stroke-width:1.8;stroke-dasharray:5 3"/>`;
   s += `<polygon points="${poly(laatste)}" style="fill:color-mix(in srgb,var(--accent) 30%,transparent);stroke:var(--accent);stroke-width:2.4;stroke-linejoin:round"/>`;
-  laatste.forEach((v, i) => { if (!v) return; const [x, y] = pt(i, v); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" style="fill:${SKILLS[i].kleur};stroke:var(--surface);stroke-width:2"/>`; });
+  laatste.forEach((v, i) => { if (!v) return; const [x, y] = pt(i, v); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" style="fill:${assen[i].stip || assen[i].kleur};stroke:var(--surface);stroke-width:2"/>`; });
   return s + '</svg>';
 }
 function maandKort(iso){ try { return new Date(iso + 'T12:00').toLocaleDateString('nl-NL', { month:'short' }); } catch(e){ return ''; } }
-function radarBinnen(ctx, team){
+const pctVan = v => Math.round(v / 5 * 100);
+function spelersRadar(ctx, team){
   const r = teamRadar(ctx, team);
-  if (!r) return { kop:'', html:'<p class="sbw-leeg">Nog geen evaluaties met domeinscores.</p>' };
+  if (!r) return { kop:'', html:'<p class="sbw-leeg">Nog geen spelersbeoordelingen met domeinscores.</p>' };
   const rijen = SKILLS.map((d, i) => {
     const l = r.laatste[i], g = r.gem[i];
     const dd = l != null && g != null ? cijfer(l) - cijfer(g) : null;
@@ -261,16 +281,43 @@ function radarBinnen(ctx, team){
   }).join('');
   return {
     kop: `${r.aantal} van ${r.spelers} geëvalueerd${r.datum ? ' · ' + esc(maandKort(r.datum)) : ''}`,
-    html: `<div class="sbw-radar">${radarSvg(r.laatste, r.gem)}<div class="sbw-radarinfo">
+    html: `<div class="sbw-radar">${radarSvg(r.laatste, r.gem, SKILLS.map(d => ({ label:d.id, kleur:d.kleur })))}<div class="sbw-radarinfo">
       <div class="sbw-leg"><span><i class="l"></i>laatste evaluatie</span><span><i class="g"></i>gemiddelde seizoen</span></div>
       ${rijen}<div class="sbw-meta">Cijfers: <span style="color:var(--elf2)">gemiddeld</span> · <b>laatst</b> · verschil</div></div></div>`,
   };
+}
+function wedstrijdRadar(ctx, team){
+  const r = wedRadar(ctx, team);
+  if (!r) return { kop:'', html:'<p class="sbw-leeg">Nog geen wedstrijden geëvalueerd.</p>' };
+  const rijen = TEAM_CATEGORIEEN.map((c, i) => {
+    const l = r.laatste[i], g = r.gem[i];
+    const dd = l != null && g != null ? pctVan(l) - pctVan(g) : null;
+    return `<div class="sbw-dom"><span class="d">${esc(TEAM_KORT[c.id] || c.naam)}</span>
+      <i><b style="width:${(l || 0) / 5 * 100}%;background:var(--accent)"></b>${g ? `<em style="left:calc(${g / 5 * 100}% - 1px)"></em>` : ''}</i>
+      <span class="g">${g ? pctVan(g) : '–'}</span><span class="l">${l ? pctVan(l) : '–'}</span>${trendHtml(dd)}</div>`;
+  }).join('');
+  return {
+    kop: `${r.aantal} wedstrijd${r.aantal === 1 ? '' : 'en'} geëvalueerd`,
+    html: `<div class="sbw-radar breed">${radarSvg(r.laatste, r.gem, TEAM_CATEGORIEEN.map(c => ({ label:TEAM_KORT[c.id] || c.naam, kleur:'var(--ink-2)', stip:'var(--accent)' })), true)}<div class="sbw-radarinfo">
+      <div class="sbw-leg"><span><i class="l"></i>laatste: ${esc(r.tegen || 'wedstrijd')}${r.datum ? ' · ' + esc(Number(r.datum.slice(8, 10)) + ' ' + maandKort(r.datum)) : ''}</span><span><i class="g"></i>gemiddelde seizoen</span></div>
+      ${rijen}<div class="sbw-meta">Teamscore in %: <span style="color:var(--elf2)">gemiddeld</span> · <b>laatst</b> · verschil</div></div></div>`,
+  };
+}
+/* Welke radar per team (runtime): 'w' = wedstrijden, 's' = spelers.
+   Zonder keuze: wedstrijden als die er zijn, anders spelers. */
+const radarModus = {};
+function radarBinnen(ctx, team){
+  const heeftW = !!wedRadar(ctx, team), heeftS = !!teamRadar(ctx, team);
+  const m = radarModus[team.id] || (heeftW || !heeftS ? 'w' : 's');
+  const r = m === 'w' ? wedstrijdRadar(ctx, team) : spelersRadar(ctx, team);
+  const knop = (v, l) => `<button type="button" data-sel="radar" data-t="${esc(team.id)}" data-v="${v}" class="${m === v ? 'aan f' : ''}" aria-pressed="${m === v}">${l}</button>`;
+  return { ...r, keus: `<div class="sbw-seg sbw-radarkeus" role="group" aria-label="Radar kiezen">${knop('w', 'Wedstrijden')}${knop('s', 'Spelers')}</div>` };
 }
 
 /* ---------- desktop ---------- */
 export function htmlRadarBlok(ctx, team){
   const r = radarBinnen(ctx, team);
-  return `<div class="dk-blok sbw-radarblok"><h3>Evaluatie ${esc(team.naam)}<span>${r.kop}</span></h3>${r.html}</div>`;
+  return `<div class="dk-blok sbw-radarblok"><h3>Evaluatie ${esc(team.naam)}<span>${r.kop}</span></h3>${r.keus}${r.html}</div>`;
 }
 function stijgersDalers(rijen){
   const met = rijen.filter(r => r.sc?.delta != null);
@@ -330,7 +377,7 @@ export function htmlSelectieScherm(ctx, kopHtml){
 /* ---------- mobiel ---------- */
 export function htmlRadarMobiel(ctx, team){
   const r = radarBinnen(ctx, team);
-  return `<div class="mb-kaart"><div class="mb-lbl">Evaluatie ${esc(team.naam)}<span>${r.kop}</span></div>${r.html}</div>`;
+  return `<div class="mb-kaart"><div class="mb-lbl">Evaluatie ${esc(team.naam)}<span>${r.kop}</span></div>${r.keus}${r.html}</div>`;
 }
 export function htmlSelectieTegelMobiel(ctx){
   const rijen = selectieRijen(ctx);
@@ -383,6 +430,7 @@ export function selectieKlik(e, ctx, opnieuw){
   if (!b || !ctx) return false;
   const root = b.closest('.sbw-scherm');
   const soort = b.dataset.sel;
+  if (soort === 'radar'){ radarModus[b.dataset.t] = b.dataset.v === 's' ? 's' : 'w'; opnieuw?.(); return true; }
   if (soort === 'e' || soort === 'l'){ f[soort] = b.dataset.v; hertekenLijst(root, ctx); return true; }
   if (soort === 'sort'){ const k = b.dataset.v; f.r = f.s === k ? -f.r : (['naam', 'nr', 'pos'].includes(k) ? 1 : -1); f.s = k; opnieuw?.(); return true; }
   if (soort === 'el'){ zetElftal(ctx, b.dataset.k, b.dataset.e, root); return true; }

@@ -12,10 +12,10 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260928a';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928g';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928g';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260928g';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928g';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928h';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928h';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260928h';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928h';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -119,7 +119,8 @@ function gemKaart(d){
 }
 function openEvaluaties(d){
   const ge = new Set((d.teamevaluaties || []).map(e => e.wedstrijdId));
-  return (d.wedstrijden || []).filter(w => gespeeld(w) && (analyseWedstrijd(w).kwarten || 0) > 0 && !ge.has(w.id)).length;
+  /* [20260928h] overgeslagen wedstrijden (evaluatieGenegeerd) tellen niet mee — zelfde regel als de zijbalk */
+  return (d.wedstrijden || []).filter(w => gespeeld(w) && !w.evaluatieGenegeerd && (analyseWedstrijd(w).kwarten || 0) > 0 && !ge.has(w.id)).length;
 }
 /* [20260923f] Gedeeld met de mobiele bouw-omgeving (mobiel-bouw.js). */
 export function teamRijen(ctx){
