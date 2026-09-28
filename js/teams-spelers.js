@@ -31,7 +31,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260928f');
+  const m = await import('./teams.js?v=20260928g');
   m.renderTeam();
 }
 

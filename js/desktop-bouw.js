@@ -12,10 +12,10 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260928a';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928f';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928f';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260928f';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928f';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928g';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928g';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260928g';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928g';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -147,7 +147,7 @@ function htmlDashboard(ctx){
           <div class="dk-pills">${r.open ? `<span class="dk-pill oranje">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</span>` : '<span class="dk-pill groen">evaluaties bij</span>'}${r.u?.stand?.positie ? `<span class="dk-pill">${esc(String(r.u.stand.positie))}e in de poule</span>` : ''}</div></button>`;
   return `<div class="dk-scherm">
     ${kop('Dashboard', knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'football-substitution'))}
-    <div class="dkb-body">
+    <div class="dkb-body${sel ? ' sbw-dash' : ''}">
       <div class="dkb-hallo"><h1 class="dk-groot">${esc(bouwNaamVan(ctx.bouw))} <span class="dk-omlijnd" style="display:inline">${esc(clubNaamVan(ctx.clubId))}</span></h1>
         <div class="dk-pills"><span class="dk-pill">${teams.length} teams \u00b7 ${spelers} spelers</span>${trPct != null ? `<span class="dk-pill groen">Opkomst training ${trPct}%</span>` : ''}<button class="dk-pill" data-bk="ververs">Verversen</button></div></div>
       <div class="dk-blok dkb-half"><h3>${ico('football-match', 18)}Vorige uitslagen<span>laatst bekend</span></h3>

@@ -11,15 +11,23 @@
      naam bevat "selectie". Instelbaar in Club → Instellingen → Eigen bouwen.
      Het eerste team (op naam) is het 1e, de rest het 2e.
 
-   Opslag (geen nieuwe collecties):
-     teams/{teamId}/spelers/{pid}.elftal = '1' | '2' | 'b'
-         leeg = het elftal van zijn eigen team
-     clubs/{clubId}/uitleningen/{id}.overlay.elftal  (ingeleende speler)
-   Alle cijfers komen uit de bouwdata die al geladen is (laadBouwData):
-   geen extra reads. Wie geen schrijfrechten op een team heeft, krijgt een
-   melding en de keuze springt terug. */
+   [20260928g] De keuze wordt echt uitgevoerd (op verzoek van Paul):
+     1e / 2e → het spelerdocument verhuist naar het 1e / 2e team, met
+               DEZELFDE id (zoals definitiefOverzetten), zodat opstellingen,
+               goals en beoordelingen aan de speler gekoppeld blijven.
+               Een uitlening binnen de bouw vervalt.
+     Beide   → de speler blijft in zijn team en krijgt een uitlening naar het
+               andere team (bestaand spiegelmodel): hij staat in beide selecties.
+   Alles in één writeBatch per speler: lukt één stap niet (rechten), dan
+   gebeurt er niets. teams/{id}/spelers/{pid}.elftal bewaart de keuze; wijkt
+   die af van waar de speler echt staat (keuzes van vóór deze versie), dan
+   toont het scherm "Keuzes doorvoeren".
+   Cijfers, beoordelingen en opkomst tellen over alle teams in de bouw, zodat
+   een verhuisde speler zijn historie houdt. Geen extra reads, behalve één
+   getDoc per verhuizing (vers spelerdocument). */
 import { S, esc, meld } from './state.js?v=20260922c';
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
+import { db, doc, collection, getDoc, writeBatch, serverTimestamp } from './firebase.js?v=20260922c';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20260928g';
 import { SKILLS, POSITIE_GROEPEN } from './config.js?v=20260922c';
 import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20260928a';
 import { opkomstVoor } from './opkomst.js?v=20260922c';
@@ -31,6 +39,10 @@ export function isSelectieBouw(ctx){
   return eb.selectie === true || (eb.selectie == null && /selectie/i.test(eb.naam || ''));
 }
 const elftalVanTeam = (ctx, teamId) => ctx.teams.findIndex(t => t.id === teamId) === 0 ? '1' : '2';
+const binnenBouw = (ctx, u) => ctx.teams.some(t => t.id === u.vanTeam) && ctx.teams.some(t => t.id === u.naarTeam);
+const internLeen = (ctx, pid) => (ctx.uitleningen || []).filter(u => u.spelerId === pid && binnenBouw(ctx, u));
+/* Waar staat de speler nu echt? Uitlening binnen de bouw = beide; anders het elftal van zijn team. */
+const werkelijk = (ctx, teamId, pid) => internLeen(ctx, pid).length ? 'b' : elftalVanTeam(ctx, teamId);
 const geldig = e => e === '1' || e === '2' || e === 'b';
 const cijfer = n => Math.round(40 + (n - 1) * 14);
 const gem = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
@@ -70,7 +82,11 @@ function statsVan(ctx){
   }
   let sr = {};
   try { sr = speeltijdReserve(alle); } catch(e){ console.warn('[Cluppie] selectie: speeltijd niet berekend', e); }
-  const uit = { per, sr };
+  /* beoordelingen en trainingen van alle teams samen: een verhuisde speler houdt zo zijn score en opkomst.
+     Opkomst telt per sessie alleen wie in de selectie van die training stond (opkomst.teltMee). */
+  const beoordelingen = ctx.teams.flatMap(t => ctx.data.get(t.id)?.beoordelingen || []);
+  const presentie = ctx.teams.flatMap(t => ctx.data.get(t.id)?.presentie || []);
+  const uit = { per, sr, beoordelingen, presentie };
   statsCache.set(ctx, uit);
   return uit;
 }
@@ -93,7 +109,8 @@ function scoreVan(pid, beoordelingen){
 
 /* ---------- rijen ---------- */
 export function selectieRijen(ctx){
-  const { per, sr } = statsVan(ctx);
+  { const [a, b] = ctx.teams; anderTeam = a && b ? { [a.id]: b.naam, [b.id]: a.naam } : {}; }
+  const { per, sr, beoordelingen, presentie } = statsVan(ctx);
   const ids = new Set(ctx.teams.map(t => t.id));
   const stat = pid => {
     const x = per[pid] || { w:0, g:0, a:0, pos:{} };
@@ -107,23 +124,24 @@ export function selectieRijen(ctx){
     const d = ctx.data.get(t.id) || {};
     for (const p of (d.spelers || [])){
       const st = stat(p.id);
-      rijen.push({ sleutel: t.id + ':' + p.id, pid:p.id, naam:p.naam || 'Speler', nummer:p.nummer ?? null, teamId:t.id, teamNaam:t.naam || '',
-        positie: p.positie || meest(st.pos), el: geldig(p.elftal) ? p.elftal : elftalVanTeam(ctx, t.id), ...st,
-        opk: (() => { try { return opkomstVoor(p, d.presentie || []).pct; } catch(e){ return null; } })(),
-        sc: scoreVan(p.id, d.beoordelingen), bron:p });
+      const el = werkelijk(ctx, t.id, p.id);
+      const wens = geldig(p.elftal) ? p.elftal : el;
+      rijen.push({ sleutel: p.id, pid:p.id, naam:p.naam || 'Speler', nummer:p.nummer ?? null, teamId:t.id, teamNaam:t.naam || '',
+        positie: p.positie || meest(st.pos), el, wens, open: wens !== el, ...st,
+        opk: (() => { try { return opkomstVoor(p, presentie).pct; } catch(e){ return null; } })(),
+        sc: scoreVan(p.id, beoordelingen), bron:p });
     }
   }
   /* ingeleend van buiten de bouw (bv. een jeugdspeler); binnen de bouw staat hij al bij zijn eigen team */
   for (const u of (ctx.uitleningen || [])){
     if (!ids.has(u.naarTeam) || ids.has(u.vanTeam)) continue;
-    const d = ctx.data.get(u.naarTeam) || {};
     const s = u.snapshot || {};
     const pid = u.adopteertGast || u.spelerId;
     const st = stat(pid);
     rijen.push({ sleutel: 'leen:' + u.id, pid, naam:s.naam || 'Speler', nummer:u.overlay?.nummer ?? s.nummer ?? null,
       teamId:u.naarTeam, teamNaam: ctx.teams.find(t => t.id === u.naarTeam)?.naam || u.naarTeamNaam || '', leen:u, uit:u.vanTeamNaam || 'ander team',
-      positie: u.overlay?.positie ?? s.positie ?? meest(st.pos), el: geldig(u.overlay?.elftal) ? u.overlay.elftal : elftalVanTeam(ctx, u.naarTeam), ...st,
-      opk: (() => { try { return opkomstVoor({ id:pid, meetelVanaf:u.overlay?.meetelVanaf ?? null }, d.presentie || []).pct; } catch(e){ return null; } })(),
+      positie: u.overlay?.positie ?? s.positie ?? meest(st.pos), el: elftalVanTeam(ctx, u.naarTeam), wens:null, open:false, ...st,
+      opk: (() => { try { return opkomstVoor({ id:pid, meetelVanaf:u.overlay?.meetelVanaf ?? null }, presentie).pct; } catch(e){ return null; } })(),
       sc:null });
   }
   return rijen;
@@ -168,11 +186,20 @@ function posHtml(pos){
 }
 function elPill(e){ return e === 'b' ? '<span class="elf-pill sbw-eb">1+2</span>' : `<span class="elf-pill e${e}">${e}e</span>`; }
 function keuzeHtml(r){
+  if (r.leen) return '<span class="sbw-viauit" title="Aanpassen via Uitleningen">via uitlening</span>';
   return `<div class="sbw-seg" role="group" aria-label="Elftal van ${esc(r.naam)}">${[['1', '1e'], ['2', '2e'], ['b', 'Beide']].map(([v, l]) =>
     `<button type="button" data-sel="el" data-k="${esc(r.sleutel)}" data-e="${v}" class="${r.el === v ? 'aan e' + v : ''}" aria-pressed="${r.el === v}">${l}</button>`).join('')}</div>`;
 }
 function teamRegel(r){
-  return r.leen ? `<small class="sbw-team leen">ingeleend van ${esc(r.uit)} · ${esc(r.teamNaam)}</small>` : `<small class="sbw-team">${esc(r.teamNaam)}</small>`;
+  if (r.leen) return `<small class="sbw-team leen">ingeleend van ${esc(r.uit)} · ${esc(r.teamNaam)}</small>`;
+  const ook = r.el === 'b' ? ' + ' + esc(anderTeam[r.teamId] || 'ander team') : '';
+  return `<small class="sbw-team ${r.open ? 'open' : ''}">${esc(r.teamNaam)}${ook}${r.open ? ` · gekozen: ${r.wens === 'b' ? 'beide' : r.wens + 'e'}` : ''}</small>`;
+}
+let anderTeam = {};   // teamId → naam van het ándere team (voor "ASV33-1 + ASV33-2"), gezet in selectieRijen
+function openHtml(rijen){
+  const n = rijen.filter(r => r.open).length;
+  return n ? `<div class="sbw-melding"><span><b>${n} speler${n === 1 ? '' : 's'}</b> ${n === 1 ? 'staat' : 'staan'} nog niet in het team dat je koos.</span>
+    <button type="button" class="sbw-doorvoer" data-sel="doorvoeren">Keuzes doorvoeren</button></div>` : '';
 }
 function sbHtml(r){
   return `<div class="sbw-sb"><i>${r.pct != null ? `<b class="g" style="width:${r.pct}%"></b><b class="y" style="width:${r.res}%"></b>` : ''}</i>
@@ -195,7 +222,9 @@ function filterHtml(){
    over het team. Gemiddelde = alle volledige evaluaties van dit seizoen. */
 export function teamRadar(ctx, team){
   const d = ctx.data.get(team.id) || {};
-  const vol = (d.beoordelingen || []).filter(isVolledig).sort((a, b) => nieuwstEerst(b, a));
+  /* spelers die nu in dit team staan, met hun beoordelingen uit alle teams van de bouw */
+  const ids = new Set((d.spelers || []).map(p => p.id));
+  const vol = statsVan(ctx).beoordelingen.filter(b => ids.has(b.spelerId)).filter(isVolledig).sort((a, b) => nieuwstEerst(b, a));
   if (!vol.length) return null;
   const perSpeler = {};
   vol.forEach(b => { perSpeler[b.spelerId] = b; });
@@ -255,12 +284,14 @@ export function htmlSelectieTegel(ctx){
   const rijen = selectieRijen(ctx);
   const t = tellen(rijen);
   const { op, af } = stijgersDalers(rijen);
+  const open = rijen.filter(r => r.open).length;
   return `<button type="button" class="dk-blok sbw-tegel" data-bk="selmaken">
-    <div><h3>Selectie maken<span>${rijen.length} spelers</span></h3>
-      <p class="sbw-uitleg">Alle spelers van ${ctx.teams.map(x => esc(x.naam)).join(' en ')} in één lijst. Zet per speler 1e, 2e of beide, met cijfers, positie en score erbij.</p>
-      <div class="sbw-verdeling"><div><b class="e1">${t.e1}</b><small>1E ELFTAL</small></div><div><b class="e2">${t.e2}</b><small>2E ELFTAL</small></div><div><b>${t.b}</b><small>BEIDE</small></div></div></div>
-    <div><div class="sbw-sk">Stijgers · laatste evaluatie</div>${op.map(miniRij).join('') || '<p class="sbw-leeg">Nog geen stijgers.</p>'}</div>
-    <div><div class="sbw-sk">Dalers · laatste evaluatie</div>${af.map(miniRij).join('') || '<p class="sbw-leeg">Nog geen dalers.</p>'}
+    <div class="sbw-kol"><h3>Selectie maken<span>${rijen.length} spelers</span></h3>
+      <p class="sbw-uitleg">Alle spelers van ${ctx.teams.map(x => esc(x.naam)).join(' en ')} in één lijst. Kies per speler 1e, 2e of beide; hij komt dan in het juiste team.</p>
+      <div class="sbw-verdeling"><div><b class="e1">${t.e1}</b><small>1E ELFTAL</small></div><div><b class="e2">${t.e2}</b><small>2E ELFTAL</small></div><div><b>${t.b}</b><small>BEIDE</small></div></div>
+      ${open ? `<span class="dk-pill oranje sbw-openpil">${open} keuze${open === 1 ? '' : 's'} nog niet doorgevoerd</span>` : ''}</div>
+    <div class="sbw-kol"><h3>Stijgers<span>laatste evaluatie</span></h3>${op.map(miniRij).join('') || '<p class="sbw-leeg">Nog geen stijgers.</p>'}</div>
+    <div class="sbw-kol"><h3>Dalers<span>laatste evaluatie</span></h3>${af.map(miniRij).join('') || '<p class="sbw-leeg">Nog geen dalers.</p>'}
       <div class="sbw-open"><span class="dk-knop">Open selectie ›</span></div></div>
   </button>`;
 }
@@ -285,11 +316,14 @@ export function htmlSelectieScherm(ctx, kopHtml){
     <div class="sbw-body">
       <div class="dkb-hallo"><h1 class="dk-groot">Selectie <span class="dk-omlijnd" style="display:inline">maken</span></h1></div>
       <div class="sbw-balk">${filterHtml()}<div class="sbw-tel" id="sbwTel">${telHtml(rijen)}</div></div>
-      <div class="dk-blok dk-tabelblok"><table class="dk-tabel sbw-tabel"><thead><tr>
+      <div id="sbwOpen">${openHtml(rijen)}</div>
+      <div class="dk-blok dk-tabelblok"><table class="dk-tabel sbw-tabel">
+        <colgroup><col class="c-nr"><col class="c-naam"><col class="c-pos"><col class="c-sel"><col class="c-w"><col class="c-sb"><col class="c-g"><col class="c-a"><col class="c-opk"><col class="c-sc"></colgroup>
+        <thead><tr>
         ${th('nr', '#')}${th('naam', 'Speler')}${th('pos', 'Positie')}<th>Selectie</th>${th('w', 'Wedstr.', true)}${th('pct', 'Speeltijd / reserve')}
         ${th('g', 'Goals', true)}${th('a', 'Assists', true)}${th('opk', 'Opkomst', true)}${th('score', 'Score', true)}</tr></thead>
         <tbody id="sbwBody">${dkRijen(rijen)}</tbody></table></div>
-      <p class="dk-leeg sbw-voet">Cijfers tellen over de wedstrijden van alle teams in deze bouw, dit seizoen. Score = kaartcijfer uit de laatste beoordeling (40–96); het pijltje vergelijkt met de meting daarvoor. Een keuze bij Selectie wordt direct opgeslagen. Een jeugdspeler voeg je toe met een uitlening; die verschijnt dan vanzelf in deze lijst.</p>
+      <p class="dk-leeg sbw-voet">Cijfers tellen over de wedstrijden van alle teams in deze bouw, dit seizoen. Score = kaartcijfer uit de laatste beoordeling (40–96); het pijltje vergelijkt met de meting daarvoor. Kies je 1e of 2e, dan verhuist de speler direct naar dat team; bij Beide blijft hij in zijn team en staat hij via een uitlening ook bij het andere team. Zijn historie blijft behouden. Een jeugdspeler voeg je toe met een uitlening; die verschijnt dan vanzelf in deze lijst.</p>
     </div></div>`;
 }
 
@@ -322,8 +356,9 @@ export function htmlSelectieMobiel(ctx){
     <div class="sbw-balk">${filterHtml()}
       <select class="sbw-zoek" data-sel="sortsel" aria-label="Sorteren op">${sorteer.map(([k, l]) => `<option value="${k}" ${f.s === k ? 'selected' : ''}>Sorteer: ${l}</option>`).join('')}</select>
       <div class="sbw-tel" id="sbwTel">${telHtml(rijen)}</div></div>
+    <div id="sbwOpen">${openHtml(rijen)}</div>
     <div class="sbw-mblijst" id="sbwBody">${mbRijen(rijen)}</div>
-    <p class="mb-leeg sbw-voet">Score = kaartcijfer uit de laatste beoordeling; het pijltje vergelijkt met de meting daarvoor. Een keuze wordt direct opgeslagen.</p>
+    <p class="mb-leeg sbw-voet">Score = kaartcijfer uit de laatste beoordeling; het pijltje vergelijkt met de meting daarvoor. Kies je 1e of 2e, dan verhuist de speler naar dat team; bij Beide staat hij via een uitlening in beide teams.</p>
   </div>`;
 }
 
@@ -336,6 +371,7 @@ function hertekenLijst(root, ctx){
   const body = root.querySelector('#sbwBody');
   if (body) body.innerHTML = root.dataset.sbw === 'mb' ? mbRijen(rijen) : dkRijen(rijen);
   const tel = root.querySelector('#sbwTel'); if (tel) tel.innerHTML = telHtml(rijen);
+  const open = root.querySelector('#sbwOpen'); if (open) open.innerHTML = openHtml(rijen);
   root.querySelectorAll('[data-sel="e"],[data-sel="l"]').forEach(b => {
     const aan = f[b.dataset.sel] === b.dataset.v; b.className = aan ? 'aan f' : ''; b.setAttribute('aria-pressed', aan);
   });
@@ -350,6 +386,7 @@ export function selectieKlik(e, ctx, opnieuw){
   if (soort === 'e' || soort === 'l'){ f[soort] = b.dataset.v; hertekenLijst(root, ctx); return true; }
   if (soort === 'sort'){ const k = b.dataset.v; f.r = f.s === k ? -f.r : (['naam', 'nr', 'pos'].includes(k) ? 1 : -1); f.s = k; opnieuw?.(); return true; }
   if (soort === 'el'){ zetElftal(ctx, b.dataset.k, b.dataset.e, root); return true; }
+  if (soort === 'doorvoeren'){ doorvoeren(ctx, root); return true; }
   return soort === 'sortsel';
 }
 export function selectieInvoer(e, ctx){
@@ -358,26 +395,88 @@ export function selectieInvoer(e, ctx){
   if (t.dataset?.sel === 'sortsel'){ f.s = t.value; f.r = ['naam', 'nr', 'pos'].includes(t.value) ? 1 : -1; hertekenLijst(t.closest('.sbw-scherm'), ctx); return true; }
   return false;
 }
-async function zetElftal(ctx, sleutel, e, root){
-  const r = selectieRijen(ctx).find(x => x.sleutel === sleutel);
-  if (!r || !geldig(e) || r.el === e) return;
-  const oud = r.el;
-  const zet = w => {
-    if (r.leen) r.leen.overlay = { ...(r.leen.overlay || {}), elftal:w };
-    else r.bron.elftal = w;
-    hertekenLijst(root, ctx);
-  };
-  zet(e);
-  try {
-    if (r.leen) await updateDoc(doc(db, 'clubs', ctx.clubId, 'uitleningen', r.leen.id), { 'overlay.elftal': e });
-    else await updateDoc(doc(db, 'teams', r.teamId, 'spelers', r.pid), { elftal: e });
-    meld(`${r.naam} → ${e === 'b' ? 'beide elftallen' : e + 'e elftal'}`);
-  } catch(err){
-    zet(oud);
-    meld(err?.code === 'permission-denied'
-      ? `Geen rechten om ${r.teamNaam} aan te passen. Koppel je als coach aan deze bouw.`
-      : 'Opslaan mislukt: ' + (err?.code || err?.message));
+/* ---------- de keuze echt uitvoeren ---------- */
+let bezig = false;
+async function voerUit(ctx, r, e){
+  const [t1, t2] = ctx.teams;
+  const pid = r.pid, huis = r.teamId;
+  const leningen = internLeen(ctx, pid);
+  const batch = writeBatch(db);
+  if (e === '1' || e === '2'){
+    const doel = e === '1' ? t1 : t2;
+    leningen.forEach(u => batch.delete(doc(db, 'clubs', ctx.clubId, 'uitleningen', u.id)));
+    let nieuw = null;
+    if (doel.id !== huis){
+      /* verhuizen met dezelfde id: vers document ophalen, bij het doelteam zetten, bij het oude weghalen */
+      const snap = await getDoc(doc(db, 'teams', huis, 'spelers', pid));
+      if (!snap.exists()) throw new Error(`${r.naam} staat niet meer bij ${r.teamNaam}`);
+      nieuw = { ...snap.data(), elftal:e };
+      delete nieuw.gast;
+      batch.set(doc(db, 'teams', doel.id, 'spelers', pid), nieuw);
+      batch.delete(doc(db, 'teams', huis, 'spelers', pid));
+    } else batch.update(doc(db, 'teams', huis, 'spelers', pid), { elftal:e });
+    await batch.commit();
+    /* lokaal bijwerken, zodat lijst en dashboard meteen kloppen */
+    const weg = new Set(leningen.map(u => u.id));
+    ctx.uitleningen = (ctx.uitleningen || []).filter(u => !weg.has(u.id));
+    if (nieuw){
+      const dv = ctx.data.get(huis), dn = ctx.data.get(doel.id);
+      dv.spelers = (dv.spelers || []).filter(p => p.id !== pid);
+      dn.spelers = [...(dn.spelers || []), { id:pid, ...nieuw }];
+    } else r.bron.elftal = e;
+    return e === '1' ? `${r.naam} staat nu bij ${t1.naam}` : `${r.naam} staat nu bij ${t2.naam}`;
   }
+  /* beide: blijft in zijn team, uitlening naar het andere team (als die er nog niet is) */
+  const ander = huis === t1.id ? t2 : t1;
+  batch.update(doc(db, 'teams', huis, 'spelers', pid), { elftal:'b' });
+  let leen = null;
+  if (!leningen.length){
+    const ref = doc(collection(db, 'clubs', ctx.clubId, 'uitleningen'));
+    leen = { spelerId:pid, vanTeam:huis, vanTeamNaam:r.teamNaam, naarTeam:ander.id, naarTeamNaam:ander.naam,
+      overlay:{}, snapshot: bouwLeenSnapshot(r.bron), door: S.user?.uid || null };
+    batch.set(ref, { ...leen, gemaakt: serverTimestamp() });
+    leen.id = ref.id;
+  }
+  await batch.commit();
+  r.bron.elftal = 'b';
+  if (leen) ctx.uitleningen = [...(ctx.uitleningen || []), leen];
+  return `${r.naam} staat nu bij ${t1.naam} én ${t2.naam}`;
+}
+function foutTekst(err, r){
+  return err?.code === 'permission-denied'
+    ? `Geen rechten op ${r.teamNaam} of het andere team. Koppel je als coach aan deze bouw.`
+    : 'Mislukt: ' + (err?.code || err?.message);
+}
+async function zetElftal(ctx, sleutel, e, root){
+  if (bezig) return meld('Even wachten, de vorige wijziging loopt nog');
+  const r = selectieRijen(ctx).find(x => x.sleutel === sleutel);
+  if (!r || r.leen || !geldig(e) || (r.el === e && !r.open)) return;
+  bezig = true;
+  root?.querySelector(`[data-k="${CSS.escape(sleutel)}"]`)?.classList.add('sbw-bezig');
+  try { meld(await voerUit(ctx, r, e)); }
+  catch(err){ console.warn('[Cluppie] selectie: uitvoeren mislukt', err); meld(foutTekst(err, r)); }
+  finally { bezig = false; hertekenLijst(root, ctx); }
+}
+/* Keuzes van vóór deze versie (alleen een label) in één keer uitvoeren. */
+async function doorvoeren(ctx, root){
+  if (bezig) return;
+  const open = selectieRijen(ctx).filter(r => r.open);
+  if (!open.length) return;
+  const naar = e => open.filter(r => r.wens === e).length;
+  if (!confirm(`${open.length} spelers in het gekozen team zetten?\n\n` +
+    `• ${naar('1')} naar ${ctx.teams[0].naam}\n• ${naar('2')} naar ${ctx.teams[1].naam}\n• ${naar('b')} in beide teams (via een uitlening)\n\n` +
+    'Opstellingen, goals en beoordelingen blijven aan de spelers gekoppeld.')) return;
+  bezig = true;
+  const knop = root?.querySelector('[data-sel="doorvoeren"]');
+  let ok = 0, fout = 0, laatsteFout = '';
+  for (const r of open){
+    if (knop) knop.textContent = `Bezig… ${ok + fout + 1}/${open.length}`;
+    try { await voerUit(ctx, r, r.wens); ok++; }
+    catch(err){ fout++; laatsteFout = foutTekst(err, r); console.warn('[Cluppie] selectie: doorvoeren', r.naam, err); }
+  }
+  bezig = false;
+  hertekenLijst(root, ctx);
+  meld(fout ? `${ok} doorgevoerd, ${fout} mislukt. ${laatsteFout}` : `${ok} spelers staan nu in het gekozen team`);
 }
 /* Voor Club → Instellingen: staat de selectie-optie aan voor deze bouw? */
 export function selectieStandaard(eb){ return eb?.selectie === true || (eb?.selectie == null && /selectie/i.test(eb?.naam || '')); }
