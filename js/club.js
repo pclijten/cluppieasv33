@@ -34,7 +34,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20260928c'); }
+async function teamsModule(){ return await import('./teams.js?v=20260928d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -77,7 +77,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20260928c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20260928d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1093,6 +1093,169 @@ function trainingsdagenMeta(t){
   return ` · <span style="color:var(--accent);font-weight:600">${esc(namen)}</span>`;
 }
 
+/* ==================== SPORTLINK-KOPPELING PER TEAM ====================
+   [20260928] De clubbeheerder kan per team de weergavenaam in Cluppie los van
+   Sportlink kiezen (bv. "Selectie") en het team koppelen aan een echt
+   Sportlink-team uit de keuzelijst (bv. "ASV'33 1").
+
+   Opslag op teams/{id}: naam, sportlinkNaam (leeg = automatisch op naam),
+   sportlinkTeamcode (alleen weergave). De nachtelijke sync matcht op
+   sportlinkNaam || naam. De keuzelijst komt uit clubs/{clubId}/geheim/_sportlink,
+   die de sync (functions/index.js → schrijfTeamlijst) bijhoudt.
+
+   Hernoemen wijzigt hier bewust NIET de teamcode, zodat bestaande
+   uitnodigingslinks blijven werken. */
+
+/* Moet gelijk lopen met teamSleutel() in functions/index.js: bepaalt welk
+   Sportlink-team een Cluppie-naam automatisch matcht. */
+const EIGEN_CLUB_RE_SL = /asv['’`]?\s*33/i;
+function slTeamSleutel(naam){
+  let s = String(naam || '').toLowerCase();
+  s = s.replace(EIGEN_CLUB_RE_SL, ' ');
+  s = s.replace(/\basv\b/g, ' ');
+  const m = s.match(/\b(m)?j?o\s*(\d{1,2})\s*[-\s]\s*(\d+)\s*(?:jm|j|m)?\b/i);
+  if (m) return (m[1] ? 'm' : '') + 'o' + m[2] + '-' + m[3];
+  const sr = s.trim().match(/^(\d{1,2})\s*(?:\(?\s*(?:zon|zat)[a-z]*\s*\)?)?$/);
+  if (sr) return 'sen' + sr[1];
+  return s.replace(/[^a-z0-9+]+/g, '');
+}
+/* Op welke naam zoekt de sync voor dit team? */
+function slZoeknaam(t){ return String(t?.sportlinkNaam || '').trim() || t?.naam || ''; }
+/* Welk Sportlink-team (uit de lijst) matcht een zoeknaam? */
+function slMatch(zoeknaam, lijst){
+  const k = slTeamSleutel(zoeknaam);
+  return k ? (lijst.find(s => slTeamSleutel(s.teamnaam) === k) || null) : null;
+}
+
+/* korte koppeling in de beheer-teamregel ("↔ ASV'33 1") — alleen als die
+   expliciet gezet is, anders is de teamnaam al de koppeling. */
+function sportlinkMeta(t){
+  const n = String(t.sportlinkNaam || '').trim();
+  return n ? ` · <span style="color:var(--ink-2)">↔ ${esc(n)}</span>` : '';
+}
+
+async function slTeamlijstOphalen(){
+  try {
+    const snap = await getDoc(doc(db,'clubs',S.clubId,'geheim','_sportlink'));
+    const teams = snap.exists() ? (snap.data().teams || []) : [];
+    // Eén optie per teamnaam (Sportlink kan een naam onder twee teamcodes
+    // hebben, bv. veld + futsal); de variant mét klasse/poule wint.
+    const perNaam = new Map();
+    for (const t of teams){
+      const b = perNaam.get(t.teamnaam);
+      if (!b || (!b.klassepoule && t.klassepoule)) perNaam.set(t.teamnaam, t);
+    }
+    return [...perNaam.values()];
+  } catch(e){
+    console.warn('[sportlink] teamlijst lezen mislukt', e);
+    return [];
+  }
+}
+
+async function modalSportlinkTeam(team, teams){
+  if (!team) return;
+  openModal(`<h2>Sportlink · ${esc(team.naam)}</h2><p style="color:var(--ink-2)">Teamlijst laden…</p>`);
+  let lijst = await slTeamlijstOphalen();
+  const gekoppeld = !!S.club.sportlinkClientId;
+
+  const teken = () => {
+    const huidig = String(team.sportlinkNaam || '').trim();
+    const autoMatch = slMatch(team.naam, lijst);
+    const optie = (s) => {
+      const extra = [s.klassepoule, s.speeldag].filter(Boolean).join(' · ');
+      return `<option value="${esc(s.teamnaam)}" data-code="${esc(s.teamcode)}" ${s.teamnaam === huidig ? 'selected' : ''}>${esc(s.teamnaam)}${extra ? ' — ' + esc(extra) : ''}</option>`;
+    };
+    // Staat er een koppeling die (nog) niet in de lijst voorkomt? Toon hem toch.
+    const onbekend = huidig && !lijst.some(s => s.teamnaam === huidig)
+      ? `<option value="${esc(huidig)}" selected>${esc(huidig)} (niet in teamlijst)</option>` : '';
+
+    openModal(`
+      <h2>Sportlink · ${esc(team.naam)}</h2>
+      <div class="veldgroep"><label>Naam in Cluppie</label>
+        <input class="invoer" id="mSlNaam" value="${esc(team.naam)}" maxlength="40" autocomplete="off"></div>
+      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin:-4px 0 12px">De teamcode (${esc(team.code || '—')}) blijft gelijk, dus uitnodigingslinks blijven werken.</p>
+      <div class="veldgroep"><label>Team in Sportlink</label>
+        <select class="invoer" id="mSlTeam" ${lijst.length || huidig ? '' : 'disabled'}>
+          <option value="" ${huidig ? '' : 'selected'}>Automatisch (op naam)</option>
+          ${onbekend}${lijst.map(optie).join('')}
+        </select></div>
+      <div id="mSlInfo" style="font-size:calc(12.5px * var(--fs));line-height:1.45;margin:-4px 0 12px"></div>
+      ${!lijst.length ? `
+        <div class="kaart" style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">
+          ${gekoppeld
+            ? `De Sportlink-teamlijst is nog niet opgehaald.<br><button class="knop licht vol" id="mSlOphalen" style="margin-top:8px">🔄 Teamlijst ophalen</button>`
+            : `Vul eerst de Sportlink Client ID in onder Club → Instellingen.`}
+        </div>` : ''}
+      <button class="knop vol" id="mSlOk">Opslaan</button>`);
+
+    const sel = $('#mSlTeam'), naamIn = $('#mSlNaam'), info = $('#mSlInfo');
+
+    const werkInfoBij = () => {
+      const keuze = sel.value;
+      const naamNu = naamIn.value.trim();
+      const zoek = keuze || naamNu;
+      const match = keuze ? (lijst.find(s => s.teamnaam === keuze) || { teamnaam: keuze }) : slMatch(naamNu, lijst);
+      let html = '';
+      if (!keuze){
+        html = match
+          ? `Automatisch gekoppeld aan <b>${esc(match.teamnaam)}</b>${match.klassepoule ? ' · ' + esc(match.klassepoule) : ''}.`
+          : (lijst.length ? `<span style="color:var(--uit)">“${esc(naamNu)}” komt met geen enkel Sportlink-team overeen — kies er hierboven een.</span>` : '');
+      }
+      // Botsing: synct een ánder team van de club al op hetzelfde Sportlink-team?
+      const k = slTeamSleutel(zoek);
+      const dubbel = k ? teams.filter(t => t.id !== team.id && slTeamSleutel(slZoeknaam(t)) === k) : [];
+      if (dubbel.length){
+        html += `${html ? '<br>' : ''}<span style="color:var(--uit)">⚠️ Let op: ${dubbel.map(t => '<b>' + esc(t.naam) + '</b>').join(', ')} ${dubbel.length === 1 ? 'is' : 'zijn'} ook aan dit Sportlink-team gekoppeld — beide teams krijgen dan dezelfde wedstrijden.</span>`;
+      }
+      info.innerHTML = html;
+    };
+    sel.onchange = werkInfoBij;
+    naamIn.oninput = werkInfoBij;
+    werkInfoBij();
+
+    const ophalen = $('#mSlOphalen');
+    if (ophalen) ophalen.onclick = async () => {
+      ophalen.disabled = true; ophalen.textContent = 'Bezig…';
+      try {
+        await httpsCallable(functions, 'syncNu')({ clubId: S.clubId, alleenTeamlijst: true });
+        lijst = await slTeamlijstOphalen();
+        if (!lijst.length) meld('Sportlink gaf geen teams terug');
+        teken();
+      } catch(e){
+        ophalen.disabled = false; ophalen.textContent = '🔄 Teamlijst ophalen';
+        meld('Ophalen mislukt: ' + (e.message || e.code || 'onbekende fout'));
+      }
+    };
+
+    $('#mSlOk').onclick = async () => {
+      const naam = naamIn.value.trim();
+      if (!naam) return meld('Geef het team een naam');
+      const keuze = sel.value;
+      const code = keuze ? (sel.selectedOptions[0]?.dataset.code || null) : null;
+      const data = {
+        naam,
+        sportlinkNaam: keuze || deleteField(),
+        sportlinkTeamcode: code || deleteField(),
+      };
+      const ok = $('#mSlOk');
+      ok.disabled = true; ok.textContent = 'Opslaan…';
+      try {
+        await updateDoc(doc(db,'teams',team.id), data);
+        team.naam = naam;
+        if (keuze){ team.sportlinkNaam = keuze; team.sportlinkTeamcode = code; }
+        else { delete team.sportlinkNaam; delete team.sportlinkTeamcode; }
+        sluitModal();
+        renderClub();
+        meld(gekoppeld ? 'Opgeslagen — klik op “Sync nu” onder Instellingen om direct op te halen' : 'Opgeslagen');
+      } catch(e){
+        console.error(e); ok.disabled = false; ok.textContent = 'Opslaan';
+        meld('Opslaan mislukt: ' + (e.code || e.message));
+      }
+    };
+  };
+  teken();
+}
+
 function modalTeamModules(team){
   if (!team) return;
   const m = team.modules || {};
@@ -1230,9 +1393,10 @@ function htmlClubTeams(teams, afgelastingen = []){
       <button class="lijst-item" data-open-team="${t.id}">
         <div class="mini-shirt" style="width:40px;height:40px;border-radius:50%;background:var(--grass);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs))">${esc(t.format)}v${esc(t.format)}</div>
         <div><div class="titel">${esc(t.naam)}</div>
-        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)${trainingsdagenMeta(t)}${modulesMeta(t)}</div></div>
+        <div class="meta">${esc(t.categorie || '—')} · ${Object.keys(t.leden||{}).length} coach(es)${trainingsdagenMeta(t)}${modulesMeta(t)}${sportlinkMeta(t)}</div></div>
         <button class="actie" data-dagen-team="${t.id}" title="Trainingsdagen">${ico('planning-calendar',17)}</button>
         <button class="actie" data-modules-team="${t.id}" title="Modules aan/uit">🎛️</button>
+        <button class="actie" data-sportlink-team="${t.id}" title="Naam &amp; Sportlink-koppeling">⚽</button>
         <button class="actie" data-uitnodig-team="${t.id}" title="Coach uitnodigen">📨</button>
         <span class="pijl">›</span>
       </button>`).join('')
@@ -1869,7 +2033,7 @@ function htmlClubInstel(teams = [], syncStatus = {}){
       onderregel = `<div class="tok-laatste">Laatste sync: <b>${esc(syncTijd(st.laatsteSync))}</b>${aantal?' · '+aantal:''}</div>`;
     } else if (st.laatsteSync){
       badge = `<span class="tok-status leeg">Niet gevonden</span>`;
-      onderregel = `<div class="tok-laatste" style="color:var(--ink-2)">Teamnaam “${esc(t.naam)}” niet in Sportlink gevonden — controleer of de naam overeenkomt.</div>`;
+      onderregel = `<div class="tok-laatste" style="color:var(--ink-2)">${t.sportlinkNaam ? `Sportlink-team “${esc(t.sportlinkNaam)}”` : `Teamnaam “${esc(t.naam)}”`} niet in Sportlink gevonden — koppel het juiste team via Teams → ⚽.</div>`;
     } else {
       badge = `<span class="tok-status leeg">Nog niet gesynct</span>`;
     }
@@ -1883,7 +2047,7 @@ function htmlClubInstel(teams = [], syncStatus = {}){
   const voetbalBlok = `
     <div class="sectie-kop">⚽ Sportlink-koppeling</div>
     <div class="kaart">
-      <p class="uitleg" style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:8px">Vul één keer de <b>Client ID</b> van jullie Sportlink Club.Dataservice in. De app haalt daarmee automatisch het volledige programma, de uitslagen en de poulestanden op voor <b>alle</b> teams — teams worden op naam gekoppeld, dus per team hoef je niets meer te doen. De Client ID krijg je bij het afnemen van Club.Dataservice via Sportlink.</p>
+      <p class="uitleg" style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:8px">Vul één keer de <b>Client ID</b> van jullie Sportlink Club.Dataservice in. De app haalt daarmee automatisch het volledige programma, de uitslagen en de poulestanden op voor <b>alle</b> teams — teams worden automatisch op naam gekoppeld. Heet een team in Cluppie anders dan in Sportlink (bv. “Selectie”), koppel het dan via Teams → ⚽. De Client ID krijg je bij het afnemen van Club.Dataservice via Sportlink.</p>
       <div class="tok-invoer">
         <input type="text" id="clientIdInput"
                placeholder="Bijv. oEGJY6X0n9"
@@ -2105,7 +2269,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const linkBtn = v.querySelector('#clubAlleLinks');
     if (linkBtn) linkBtn.onclick = () => modalAlleLinks(teams);
     v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = async e => {
-      if (e.target.closest('[data-uitnodig-team]') || e.target.closest('[data-modules-team]') || e.target.closest('[data-dagen-team]')) return;
+      if (e.target.closest('[data-uitnodig-team]') || e.target.closest('[data-modules-team]') || e.target.closest('[data-dagen-team]') || e.target.closest('[data-sportlink-team]')) return;
       (await teamsModule()).openTeam(b.dataset.openTeam);
     });
     v.querySelectorAll('[data-uitnodig-team]').forEach(b => b.onclick = e => {
@@ -2122,6 +2286,11 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       e.stopPropagation();
       const team = teams.find(t => t.id === b.dataset.dagenTeam);
       modalTrainingsdagen(team);
+    });
+    v.querySelectorAll('[data-sportlink-team]').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const team = teams.find(t => t.id === b.dataset.sportlinkTeam);
+      modalSportlinkTeam(team, teams);
     });
   }
   if (tab === 'trainingen'){
