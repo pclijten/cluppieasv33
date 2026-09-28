@@ -5001,3 +5001,11 @@ textarea.lj-namen{min-height:130px}
 /* [20260925d] bouw-indeling: teams die alleen in een eigen bouw zitten */
 .bi-eigen{ border:1px dashed var(--hair); box-shadow:none; background:transparent; }
 .bi-tags span em{ font-style:normal; font-weight:500; opacity:.75; }
+
+/* ==================== TE LAAT MET MINUUT (20260928a) ==================== */
+/* Minuut-invoer naast de te-laat-chip in de wedstrijdselectie */
+.pres-telaat-rij{ align-items:center;gap:10px;flex-wrap:wrap; }
+.telaat-minuut{ display:inline-flex;align-items:center;gap:6px;font-size:calc(12px * var(--fs));color:var(--ink-2);font-weight:600; }
+.telaat-minuut .invoer{ width:64px;padding:6px 8px;text-align:center;font-size:calc(14px * var(--fs)); }
+/* Label onder een te-late speler op de bank */
+.chip .telaat-label{ font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(11px * var(--fs));line-height:1;color:#1a1200;background:var(--warn);padding:2px 6px;border-radius:99px;white-space:nowrap; }
