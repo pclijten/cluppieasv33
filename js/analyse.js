@@ -136,10 +136,43 @@ export function disciplinaireTijd(w){
   }
   return uit;
 }
+/* Te-laat-tijd per speler over de hele wedstrijd (in seconden).
+   Een speler met een te-laat-vlag (w.telaat) en een ingestelde wedstrijdminuut
+   (w.telaatVanaf[pid]) was vóór die minuut niet beschikbaar. Die tijd telt in
+   speeltijdReserve() niet mee in zijn PERSOONLIJKE noemer, zodat te laat komen
+   zijn speelminuten-percentage niet drukt. De minuut is de doorlopende
+   wedstrijdminuut (periode 2 begint na de duur van periode 1, enz.).
+   Zonder minuut of zonder te-laat-vlag: 0 — alles telt dan exact zoals voorheen. */
+export function telaatTijd(w){
+  const uit = {}; // pid -> seconden niet beschikbaar
+  const vanaf = w.telaatVanaf || {};
+  const laat = new Set(Array.isArray(w.telaat) ? w.telaat : []);
+  const spelers = Object.entries(vanaf)
+    .map(([pid, m]) => [pid, Number(m)])
+    .filter(([pid, m]) => laat.has(pid) && m > 0);
+  if (!spelers.length) return uit;
+  let start = 0; // begin van deze periode in wedstrijdseconden
+  for (const nr of periodeNrs(w)){
+    const k = w.kwarten?.[nr];
+    const gespeeld = k && kwartGespeeld(k);
+    const D = gespeeld ? kwartDuurSec(w, k) : Math.round((w.kwartduur || 0) * 60);
+    if (gespeeld){
+      for (const [pid, m] of spelers){
+        const s = Math.min(D, Math.max(0, m * 60 - start));
+        if (s > 0) uit[pid] = (uit[pid]||0) + s;
+      }
+    }
+    start += D;
+  }
+  return uit;
+}
+
 /* Speeltijd- en reserve-aggregatie over meerdere wedstrijden, alleen geteld
    voor wedstrijden waarin de speler in de selectie zat (de eerlijke noemer).
    Geeft per speler: speeltijd (sec), reserve (sec) en speelbaar (sec).
-   reserve = speelbaar - speeltijd; percentages worden in de UI berekend. */
+   reserve = speelbaar - speeltijd; percentages worden in de UI berekend.
+   Te-laat-tijd (telaatTijd) en disciplinaire banktijd gaan beide van de
+   persoonlijke noemer af; samen nooit onder de al gespeelde tijd. */
 export function speeltijdReserve(wedstrijden){
   const uit = {}; // pid -> {speeltijd, reserve, speelbaar, wedstrijden}
   for (const w of wedstrijden){
@@ -147,20 +180,29 @@ export function speeltijdReserve(wedstrijden){
     if (!a.kwarten || !a.matchduur) continue;
     const selectie = Array.isArray(w.selectie) ? w.selectie : [];
     const disc = disciplinaireTijd(w); // pid -> disciplinaire banktijd (sec)
+    const laat = telaatTijd(w);        // pid -> tijd vóór aankomst (sec)
     for (const pid of selectie){
-      const gespeeld = a.tijd[pid] || 0;
-      // Disciplinaire banktijd uit de PERSOONLIJKE noemer halen: die tijd was
-      // de speler wel beschikbaar, maar de bank was een straf — dat mag zijn
-      // percentage niet drukken. Nooit onder de al gespeelde tijd zakken.
-      const strafTijd = Math.min(disc[pid] || 0, Math.max(0, a.matchduur - gespeeld));
-      const speelbaar = Math.max(gespeeld, a.matchduur - strafTijd);
-      const r = (uit[pid] ||= {speeltijd:0, reserve:0, speelbaar:0, wedstrijden:0, disciplinair:0});
-      r.speeltijd += gespeeld;
-      r.speelbaar += speelbaar;
-      r.reserve   += Math.max(0, speelbaar - gespeeld);
-      r.disciplinair += strafTijd;
+      const n = persoonlijkeNoemer(a, pid, disc[pid] || 0, laat[pid] || 0);
+      const r = (uit[pid] ||= {speeltijd:0, reserve:0, speelbaar:0, wedstrijden:0, disciplinair:0, telaat:0});
+      r.speeltijd += n.gespeeld;
+      r.speelbaar += n.speelbaar;
+      r.reserve   += Math.max(0, n.speelbaar - n.gespeeld);
+      r.disciplinair += n.straf;
+      r.telaat += n.laat;
       r.wedstrijden++;
     }
   }
   return uit;
+}
+
+/* Persoonlijke noemer voor één speler in één wedstrijd. Te-laat-tijd en
+   disciplinaire banktijd worden van de wedstrijdduur afgehaald, maar samen
+   nooit meer dan de tijd die hij NIET speelde (een verkeerd ingestelde minuut
+   kan zo nooit tot een percentage boven 100% leiden). */
+export function persoonlijkeNoemer(a, pid, disc = 0, laat = 0){
+  const gespeeld = a.tijd[pid] || 0;
+  const ruimte = Math.max(0, a.matchduur - gespeeld);
+  const l = Math.min(laat, ruimte);
+  const straf = Math.min(disc, ruimte - l);
+  return {gespeeld, laat: l, straf, speelbaar: Math.max(gespeeld, a.matchduur - l - straf)};
 }

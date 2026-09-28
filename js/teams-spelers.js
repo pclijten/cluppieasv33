@@ -17,7 +17,7 @@ import {
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
 } from './config.js?v=20260922c';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260922c';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20260928a';
 import { isBouwCoordinator } from './coordinatoren.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 
@@ -30,7 +30,7 @@ import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260925d');
+  const m = await import('./teams.js?v=20260928a');
   m.renderTeam();
 }
 
@@ -219,9 +219,10 @@ function tipsBalk(score){
 function wisselInfoVoorSpeler(w, pid){
   const a = analyseWedstrijd(w);
   const disc = disciplinaireTijd(w)[pid] || 0;
+  const laatSec = telaatTijd(w)[pid] || 0;
   const gespeeld = a.tijd?.[pid] || 0;
-  // percentage over de eerlijke (disciplinair-gecorrigeerde) noemer
-  const speelbaar = a.matchduur ? Math.max(gespeeld, a.matchduur - Math.min(disc, Math.max(0, a.matchduur - gespeeld))) : 0;
+  // percentage over de eerlijke noemer (gecorrigeerd voor straf en te laat komen)
+  const speelbaar = a.matchduur ? persoonlijkeNoemer(a, pid, disc, laatSec).speelbaar : 0;
   const pct = speelbaar > 0 ? Math.round((gespeeld / speelbaar) * 100) : null;
 
   // reden verzamelen: vooraf ingestelde bankbeurt of een wissel-event met reden
@@ -240,6 +241,13 @@ function wisselInfoVoorSpeler(w, pid){
     const e = wisselEvents[wisselEvents.length-1];
     const r = e.reden ? wisselReden(e.reden) : null;
     redenTekst = `${r?r.emoji+' '+r.label+' gewisseld':'Gewisseld'}${e.disciplinair?' · disciplinaire reservebeurt':''}`;
+  }
+
+  if (laatSec > 0){
+    const m = (w.telaatVanaf||{})[pid];
+    redenTekst = redenTekst
+      ? `${redenTekst} · ⏱ te laat, erbij vanaf minuut ${m}`
+      : `⏱ Te laat, erbij vanaf minuut ${m}`;
   }
 
   let label, klasse;

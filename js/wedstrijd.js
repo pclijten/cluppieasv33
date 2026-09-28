@@ -14,12 +14,12 @@ import {
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
 } from './config.js?v=20260922c';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260922c';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260928a';
 import { ico } from './icons.js?v=20260922c';
 
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260925d';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20260928a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -504,7 +504,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20260925d').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20260928a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -550,7 +550,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20260925d').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20260928a').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2296,7 +2296,7 @@ export function htmlStats(){
       }).join('')}</tbody>
     </table>
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">
-      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage. De exacte minuten staan in het spelersprofiel.
+      <b>Speeltijd</b>/<b>Res.</b> = % gespeeld resp. reserve, over de wedstrijden waarin de speler in de selectie zat (samen 100%). Een <span class="disc-badge">disc.</span>-beurt telt niet mee in het percentage, en de tijd vóór aankomst van een te-late speler (minuut ingevuld bij Selectie) ook niet. De exacte minuten staan in het spelersprofiel.
       ${kol.length ? '<br>' + kol.map(k => `${k.th} ${k.titel.toLowerCase()}`).join(' · ') + '.' : ''}
       ${heeftUitleen ? ' Uitgeleende tijd telt niet mee in de eerlijkheidsscore hierboven, en verdwijnt zodra de uitlening wordt teruggezet.' : ''}
       ${modAan('evaluaties') ? '<br>Het lijntje achter een naam is zijn ontwikkeling uit de beoordelingen — oudste meting links.' : ''}</p>`;
@@ -2376,7 +2376,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20260925d').then(m => m.renderTeam?.());
+    import('./teams.js?v=20260928a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2599,11 +2599,13 @@ export function renderWedstrijd(){
     const aanv = aanvoerderVan(w, S.kwart) === pid;
     // Vooraf ingestelde disciplinaire bankbeurt (start op de bank met straf)
     const straf = bron === 'bank' && (w.startBankReden||{})[pid]?.disciplinair;
+    // Te laat met ingestelde minuut: klein label op de bank ("⏱ 30'")
+    const laatMin = bron === 'bank' && (w.telaat||[]).includes(pid) ? (w.telaatVanaf||{})[pid] : null;
     return `<div class="chip ${slotId==='K'?'keeper':''} ${sel?'geselecteerd':''} ${straf?'straf-chip':''}"
       data-chip="${pid}" data-bron="${bron}" data-chipslot="${slotId}">
       ${bron === 'bank' && veldVol ? `<button class="chip-reden ${straf?'straf':''}" data-bankreden="${pid}" title="Reden bankbeurt">⚑</button>` : ''}
       <div class="shirt">${esc(spelerNr(pid))}${aanv ? '<span class="aanvoerder-band">C</span>' : ''}</div>
-      <div class="naam">${esc(spelerNaam(pid))}</div>${dotsHtml(pid)}</div>`;
+      <div class="naam">${esc(spelerNaam(pid))}</div>${laatMin ? `<div class="telaat-label" title="Te laat · erbij vanaf minuut ${esc(laatMin)}">⏱ ${esc(laatMin)}'</div>` : ''}${dotsHtml(pid)}</div>`;
   };
 
   const inHuidigeW = g => !isToernooi(w) || toernooiWnr(w, g.kwart) === toernooiWnr(w);
@@ -2859,7 +2861,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20260925d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20260928a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3377,6 +3379,9 @@ function modalSelectie(){
   const w = S.wedstrijd;
   let sel = new Set(w.selectie || []);
   let telaat = new Set(w.telaat || []);   // erbij, maar te laat gekomen
+  // wedstrijdminuut waarop een te-late speler erbij was (optioneel, per pid)
+  let vanaf = {...(w.telaatVanaf || {})};
+  const maxMin = Math.round((w.periodes || 4) * (w.kwartduur || 0)) || 90;
   // afwezig-redenen op de wedstrijd; kopie zodat annuleren niks wijzigt
   let redenen = JSON.parse(JSON.stringify(w.afwezigRedenen || {}));
 
@@ -3398,7 +3403,8 @@ function modalSelectie(){
         `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-selreden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-seltelaat="${p.id}">⏱ Te laat</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ` : isLaat ? `
-      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-seltelaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-seltelaat="${p.id}">⏱ Te laat — tik om te wissen</button>
+        <label class="telaat-minuut">erbij vanaf min.<input type="number" inputmode="numeric" min="1" max="${maxMin}" class="invoer" data-selvanaf="${p.id}" value="${esc(vanaf[p.id] ?? '')}" placeholder="—"></label></div>
       ` : ''}
     </div>`;
   }).join('');
@@ -3406,6 +3412,7 @@ function modalSelectie(){
   openModal(`
     <h2>Selectie voor deze wedstrijd</h2>
     <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Iedereen staat op <b>erbij</b>. Tik wie er <b>niet</b> is en geef eventueel de reden. Afwezige spelers verschijnen niet op de bank.</p>
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin:-4px 0 12px">Kwam iemand <b>te laat</b>? Vul in vanaf welke wedstrijdminuut hij erbij was (doorlopend geteld over alle periodes). De tijd daarvóór telt dan niet mee in zijn speeltijd-%.</p>
     <div id="mSelLijst">${rijenHtml()}</div>
     <button class="knop vol" id="mSelOk" style="margin-top:6px">Klaar</button>`);
 
@@ -3430,6 +3437,11 @@ function modalSelectie(){
       else redenen[id] = {type, notitie: huidig?.notitie || ''};
       $('#mSelLijst').innerHTML = rijenHtml(); koppel();
     });
+    $$('#mSelLijst [data-selvanaf]').forEach(inp => inp.oninput = () => {
+      const id = inp.dataset.selvanaf;
+      const m = parseInt(inp.value, 10);
+      if (m > 0) vanaf[id] = Math.min(m, maxMin); else delete vanaf[id];
+    });
     $$('#mSelLijst .pres-reden-notitie').forEach(inp => inp.oninput = () => {
       const id = inp.dataset.pid;
       if (redenen[id]) redenen[id].notitie = inp.value;
@@ -3441,6 +3453,10 @@ function modalSelectie(){
     w.selectie = [...sel];
     // alleen te-laat-vlaggen bewaren van wie ook echt in de selectie zit
     w.telaat = [...telaat].filter(pid => sel.has(pid));
+    // minuut alleen bewaren voor wie ook echt als te laat staat
+    const schoonVanaf = {};
+    for (const pid of w.telaat) if (vanaf[pid] > 0) schoonVanaf[pid] = vanaf[pid];
+    w.telaatVanaf = schoonVanaf;
     // alleen redenen bewaren van wie ook echt afwezig is
     const schoon = {};
     for (const [pid, r] of Object.entries(redenen)) if (!sel.has(pid)) schoon[pid] = r;
