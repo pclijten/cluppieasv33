@@ -30,7 +30,7 @@ import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260928a');
+  const m = await import('./teams.js?v=20260928b');
   m.renderTeam();
 }
 
@@ -246,8 +246,8 @@ function wisselInfoVoorSpeler(w, pid){
   if (laatSec > 0){
     const m = (w.telaatVanaf||{})[pid];
     redenTekst = redenTekst
-      ? `${redenTekst} · ⏱ te laat, erbij vanaf minuut ${m}`
-      : `⏱ Te laat, erbij vanaf minuut ${m}`;
+      ? `${redenTekst} · ⏱ kwam later, erbij vanaf minuut ${m}`
+      : `⏱ Kwam later, erbij vanaf minuut ${m}`;
   }
 
   let label, klasse;

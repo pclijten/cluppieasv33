@@ -190,6 +190,9 @@ export function htmlPresWedstrijd(){
      normaliseerWedstrijd in wedstrijd.js). */
   const sel = new Set(Array.isArray(w.selectie) && w.selectie.length ? w.selectie : S.spelers.map(p => p.id));
   const redenen = w.afwezigRedenen || {};
+  const laat = new Set(w.telaat || []);          // erbij, maar komt later
+  const vanaf = w.telaatVanaf || {};             // wedstrijdminuut van aankomst
+  const maxMin = Math.round((w.periodes || 4) * (w.kwartduur || 0)) || 90;
   const aanwezigN = S.spelers.filter(p => sel.has(p.id)).length;
 
   const kiezer = `
@@ -202,25 +205,31 @@ export function htmlPresWedstrijd(){
 
   const rijen = S.spelers.map(p => {
     const aanwezig = sel.has(p.id);
+    const isLaat = aanwezig && laat.has(p.id);
     const info = redenen[p.id] ? afwezigRedenInfo(redenen[p.id]) : null;
+    const klasse = !aanwezig ? 'afwezig' : (isLaat ? 'telaat' : 'aanwezig');
     return `
-    <div class="pres-speler ${aanwezig ? 'aanwezig' : 'afwezig'}">
+    <div class="pres-speler ${klasse}">
       <button type="button" class="pres-speler-kop" data-pw-toggle="${p.id}">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${aanwezig ? 'Erbij' : 'Afwezig'}</span>
+        <span class="pres-status">${!aanwezig ? 'Afwezig' : (isLaat ? 'Komt later' : 'Erbij')}</span>
       </button>
       ${!aanwezig ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-pw-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-pw-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-pw-laat="${p.id}">⏱ Komt later</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pw-notitie="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ` : isLaat ? `
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-pw-laat="${p.id}">⏱ Komt later — tik om te wissen</button>
+        <label class="telaat-minuut">erbij vanaf min.<input type="number" inputmode="numeric" min="1" max="${maxMin}" class="invoer" data-pw-vanaf="${p.id}" value="${esc(vanaf[p.id] ?? '')}" placeholder="—"></label></div>
       ` : ''}
     </div>`;
   }).join('');
 
   return `
     ${kiezer}
-    <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee · wijzigingen worden direct bewaard</div>
+    <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee${laat.size ? ` (${[...laat].filter(id => sel.has(id)).length} later)` : ''} · wijzigingen worden direct bewaard</div>
+    <div class="pw-tel" style="margin-top:-4px">Komt iemand later? Tik hem op afwezig, kies <b>⏱ Komt later</b> en vul eventueel de wedstrijdminuut in. De tijd daarvóór telt niet mee in zijn speeltijd-%.</div>
     ${S.spelers.length ? rijen : `<div class="kaart leeg">Nog geen spelers in dit team.</div>`}
     <button class="knop vol" id="pwKlaar" style="margin-top:16px">Klaar</button>`;
 }
@@ -262,12 +271,19 @@ export async function presWedstrijdBewaar(wijzig){
   if (!w) return;
   const sel = new Set(Array.isArray(w.selectie) && w.selectie.length ? w.selectie : S.spelers.map(p => p.id));
   const redenen = JSON.parse(JSON.stringify(w.afwezigRedenen || {}));
-  wijzig(sel, redenen);
+  const laat = new Set(w.telaat || []);
+  const vanaf = {...(w.telaatVanaf || {})};
+  wijzig(sel, redenen, laat, vanaf);
 
   const update = { selectie: [...sel] };
   const schoon = {};
   for (const [pid, r] of Object.entries(redenen)) if (!sel.has(pid)) schoon[pid] = r;
   update.afwezigRedenen = schoon;
+  // "Komt later" alleen voor wie erbij is; minuut alleen voor wie later komt
+  update.telaat = [...laat].filter(pid => sel.has(pid));
+  const schoonVanaf = {};
+  for (const pid of update.telaat) if (vanaf[pid] > 0) schoonVanaf[pid] = vanaf[pid];
+  update.telaatVanaf = schoonVanaf;
 
   if (w.kwarten){
     const toegestaan = new Set(update.selectie);
