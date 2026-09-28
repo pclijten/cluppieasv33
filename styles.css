@@ -5014,3 +5014,95 @@ textarea.lj-namen{min-height:130px}
 .bw-sel-tel{ font-size:calc(13px * var(--fs));color:var(--ink);font-weight:600;padding:2px 4px 6px; }
 .bw-sel-chips{ display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 4px; }
 .bijwerk-blok .bw-selchip{ white-space:normal; }
+
+/* ==================== ELFTALLEN + ASSISTS (20260928e) ====================
+   Selectie met een 1e + 2e elftal: pillen, filter, selectie-dashboard op de
+   team-hub, toewijs-modal, assist-stap bij een doelpunt, desktop-stats. */
+:root,
+[data-thema="donker"]{ --elf2:#4f9dff; }
+[data-thema="licht"]{ --elf2:#2a6fd6; }
+
+.elf-pillen{ display:inline-flex; gap:3px; margin-left:6px; vertical-align:1px; }
+.elf-pill{ display:inline-block; font-family:'Inter',sans-serif; font-weight:700; font-size:calc(10px * var(--fs)); line-height:1.5;
+  padding:0 6px; border-radius:99px; letter-spacing:.02em; margin-right:6px; }
+.elf-pillen .elf-pill{ margin-right:0; }
+.elf-pill.e1{ background:color-mix(in srgb, var(--accent) 20%, transparent); color:var(--accent); }
+.elf-pill.e2{ background:color-mix(in srgb, var(--elf2) 20%, transparent); color:var(--elf2); }
+.elf-filter{ margin-bottom:12px; }
+.pres-speler.afwezig.nietmee{ background:var(--surface); border-color:var(--hair); }
+.pres-speler.afwezig.nietmee .pres-shirt{ background:var(--surface-2); color:var(--ink-2); }
+.pres-speler.afwezig.nietmee .pres-status{ color:var(--ink-2); }
+.pres-speler.afwezig.nietmee .pres-naam{ color:var(--ink-2); }
+.elf-groep{ font-size:calc(11px * var(--fs)); font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--ink-2); padding:12px 2px 6px; }
+
+/* selectie-dashboard (team-hub) */
+.sel-dash-sub{ display:block; font-family:'Inter',sans-serif; font-weight:500; font-size:calc(12px * var(--fs));
+  text-transform:none; letter-spacing:0; color:var(--ink-2); margin-top:2px; }
+.sel-kpis{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.sel-kpis > div{ background:var(--surface-2); border:1px solid var(--hair); border-radius:12px; padding:10px 4px; text-align:center; }
+.sel-kpis b{ display:block; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:calc(24px * var(--fs)); line-height:1;
+  font-variant-numeric:tabular-nums; color:var(--ink); }
+.sel-kpis small{ font-size:calc(10.5px * var(--fs)); color:var(--ink-2); text-transform:uppercase; letter-spacing:.3px; }
+.sel-tabel{ background:var(--surface-2); border:1px solid var(--hair); border-radius:14px; overflow:hidden; }
+.sel-rij{ display:grid; grid-template-columns:24px minmax(0,1fr) repeat(3,28px) 38px; align-items:center; gap:6px;
+  width:100%; padding:9px 10px; border-top:1px solid var(--hair); text-align:center; color:var(--ink);
+  font-size:calc(13px * var(--fs)); font-variant-numeric:tabular-nums; background:none; }
+.sel-rij:first-child{ border-top:0; }
+.sel-rij.sel-kop{ font-size:calc(10px * var(--fs)); text-transform:uppercase; letter-spacing:.06em; color:var(--ink-2); padding-block:7px; font-weight:600; }
+.sel-rij .nr{ font-family:'Barlow Condensed',sans-serif; font-weight:700; color:var(--ink-2); }
+.sel-rij .n{ text-align:left; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sel-rij.sel-kop span:nth-child(2){ text-align:left; }
+.sel-rij .sterk{ font-weight:700; }
+.sel-rij .klein{ font-size:calc(12px * var(--fs)); }
+.sel-rij .nul{ color:var(--ink-2); opacity:.6; }
+.sel-meer{ display:block; width:100%; padding:10px; border-top:1px solid var(--hair); font-size:calc(13px * var(--fs)); font-weight:600; color:var(--accent); background:none; }
+.sel-leeg{ padding:14px; font-size:calc(13px * var(--fs)); color:var(--ink-2); text-align:center; }
+.sel-uitleg{ font-size:calc(11.5px * var(--fs)); color:var(--ink-2); line-height:1.5; margin:8px 2px 10px; }
+.sel-knoppen{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+/* toewijs-modal */
+.elf-tel{ font-size:calc(13px * var(--fs)); color:var(--ink); margin-bottom:10px; }
+.elf-toew-rij{ display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--hair); }
+.elf-toew-rij:first-child{ border-top:0; }
+.elf-toew-rij .n{ flex:1; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.elf-keuze{ flex:0 0 170px; }
+.elf-keuze button{ padding:7px 2px; font-size:calc(12.5px * var(--fs)); }
+.elf-keuze button.actief.e1{ background:var(--accent); color:#fff; }
+.elf-keuze button.actief.e2{ background:var(--elf2); color:#fff; }
+.elf-keuze button.actief.eb{ background:linear-gradient(90deg, var(--accent) 50%, var(--elf2) 50%); color:#fff; }
+
+/* per-elftal verdeling in het spelersprofiel */
+.elf-split .veldlabel .elf-pillen{ margin-left:8px; }
+.elf-split-rij{ display:grid; grid-template-columns:40px repeat(4,minmax(0,1fr)); align-items:center; gap:6px; padding:6px 0;
+  border-top:1px solid var(--hair); font-size:calc(13px * var(--fs)); font-variant-numeric:tabular-nums; }
+.elf-split-rij:first-of-type{ border-top:0; }
+
+/* assist bij een doelpunt */
+.goal-assist{ display:block; font-size:calc(11.5px * var(--fs)); font-weight:500; color:var(--ink-2); }
+.bw-naam .goal-assist{ display:inline; margin-left:4px; }
+.goal-scorer-sam{ font-size:calc(14px * var(--fs)); color:var(--ink-2); text-align:center; margin:0 0 6px; }
+.goal-scorer-sam b{ color:var(--ink); }
+.goal-kies .chip.goal-chip-uit{ opacity:.3; pointer-events:none; }
+
+/* team-hub op tablet/desktop: dashboard over de volle breedte */
+@media (min-width:700px) and (min-height:520px){
+  #view-team.actief:has(> .hub-sectie) > .hub-sectie.sel-dash{ grid-column:1 / -1; }
+}
+
+/* desktop-stats */
+.dk-elf-filter{ margin:0; }
+.dk-elf-split{ display:block; font-size:10.5px; color:var(--ink-2); font-weight:500; }
+.dk-elf-uitleg{ font-size:12px; color:var(--ink-2); margin:10px 4px 0; }
+.dk-elf-wed{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; width:100%;
+  padding:8px 0; border-top:1px solid var(--line-d); text-align:left; color:var(--ink); font-size:13px; background:none; }
+.dk-elf-wed:first-of-type{ border-top:0; }
+.dk-elf-wed small{ display:block; color:var(--ink-2); font-size:11px; }
+.dk-elf-wed b{ font-family:'Barlow Condensed',sans-serif; font-size:17px; font-variant-numeric:tabular-nums; }
+.dk-elf-bal{ padding:5px 0; }
+.dk-elf-bal > div{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; }
+.dk-elf-bal small{ color:var(--ink-2); font-variant-numeric:tabular-nums; }
+.dk-elf-bal i{ display:flex; height:6px; border-radius:3px; overflow:hidden; background:var(--op-vlak); }
+.dk-elf-bal i b{ display:block; height:100%; }
+.dk-elf-bal i b.e1{ background:var(--accent); }
+.dk-elf-bal i b.e2{ background:var(--elf2); }
