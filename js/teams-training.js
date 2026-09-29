@@ -7,7 +7,7 @@ import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
 } from './firebase.js?v=20260922c';
 import {
-  S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon
+  S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon, isBeheerder
 } from './state.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
@@ -385,8 +385,18 @@ export function htmlTeamVideos(){
   }).join('');
 }
 
+/* [20260929b] Teamnaam en teamcode wijzigen mag alleen een beheerder: de
+   app-beheerder of een admin van de club waar dit team bij hoort. Gewone
+   coaches zien die opties niet (de echte afdwinging hoort in de Firestore-regels). */
+export function magTeamBeheren(){
+  if (isBeheerder()) return true;
+  const clubId = S.team && S.team.club;
+  return !!clubId && (S.clubs || []).some(c => c.id === clubId);
+}
+
 /* ---------- Tab: instellingen (incl. ledenbeheer) ---------- */
 export function htmlInstellingen(){
+  const beheer = magTeamBeheren();
   const ledenInfo = S.team.ledenInfo || {};
   const ledenIds = Object.keys(S.team.leden || {});
   const ledenHtml = ledenIds.length ? ledenIds.map(uid => {
@@ -401,7 +411,7 @@ export function htmlInstellingen(){
   }).join('') : '<p style="font-size:calc(14px * var(--fs))">—</p>';
 
   return `
-    <div class="kaart">
+    ${beheer ? `<div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Teamnaam</div>
       <input class="invoer" id="iTeamNaam" value="${esc(S.team.naam)}" autocomplete="off" style="margin-bottom:10px">
       <label class="lid-rij" style="cursor:pointer;margin-bottom:10px">
@@ -410,7 +420,7 @@ export function htmlInstellingen(){
           <span style="display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);font-weight:400">Bijv. ASVJO10-2 — let op: oude uitnodigingslinks werken dan niet meer</span></div>
       </label>
       <button class="knop vol" id="iNaamOk">Naam opslaan</button>
-    </div>
+    </div>` : ''}
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Teamcode voor coaches</div>
       <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2)">Deel deze code of een uitnodigingslink met collega-coaches. Zij loggen in met e-mail of Google en zitten direct in dit team.</p>
@@ -419,7 +429,7 @@ export function htmlInstellingen(){
         <button class="knop licht vol" id="deelCode">Code kopiëren</button>
         <button class="knop fluo vol" id="deelLink">📲 Uitnodigen</button>
       </div>
-      <button class="knop licht vol" id="wijzigCode" style="margin-top:8px">✏️ Code handmatig wijzigen</button>
+      ${beheer ? `<button class="knop licht vol" id="wijzigCode" style="margin-top:8px">✏️ Code handmatig wijzigen</button>` : ''}
     </div>
     <div class="kaart">
       <div class="sectie-kop" style="margin-top:0">Coaches (${ledenIds.length})</div>

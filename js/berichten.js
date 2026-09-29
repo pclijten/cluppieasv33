@@ -45,7 +45,10 @@ export function berichtenVoorTeam(){
 /* Actieve, niet-weggeklikte berichten — voor de balk. */
 export function actieveBerichten(){
   const weg = weggeklikt();
-  return berichtenVoorTeam().filter(b => !b.verlopen && !weg.has(b.id));
+  /* [20260929b] Een clubadmin ziet zijn eigen (club)berichten niet als melding/balk/
+     badge — die heeft hij zelf geplaatst. Ze blijven wel terug te lezen in het archief. */
+  const eigenClub = new Set((S.clubs || []).map(c => c.id));
+  return berichtenVoorTeam().filter(b => !b.verlopen && !weg.has(b.id) && !eigenClub.has(b.club));
 }
 
 /* Aantal ongelezen (= actief en niet weggeklikt), voor het tegel-badge. */
