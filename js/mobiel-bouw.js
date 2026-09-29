@@ -10,11 +10,11 @@
 ================================================================= */
 import { S, $, esc, meld, toon } from './state.js?v=20260922c';
 import { BOUWEN } from './config.js?v=20260922c';
-import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20260928h';
-import { zetBouwContext, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928h';
-import { trekUitleningIn } from './teams-spelers.js?v=20260928h';
-import { htmlMobielTeam } from './desktop-schermen.js?v=20260928h';
-import { isSelectieBouw, htmlRadarMobiel, htmlSelectieTegelMobiel, htmlSelectieMobiel, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928h';
+import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20260929a';
+import { zetBouwContext, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260929a';
+import { trekUitleningIn } from './teams-spelers.js?v=20260929a';
+import { htmlMobielTeam } from './desktop-schermen.js?v=20260929a';
+import { isSelectieBouw, htmlRadarMobiel, htmlSelectieTegelMobiel, htmlSelectieMobiel, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260929a';
 
 let st = null;   // { clubId, bouw, tab:'dash'|'teams'|'uit'|'selmaken', teamId, pag:'sel'|'evs'|'evw'|'stat', keuze:{} }
 let cache = null;
@@ -113,7 +113,7 @@ function dashboard(){
           <span class="mb-vorm">${(r.u?.vorm || []).map(x => `<i class="${x}">${x.toUpperCase()}</i>`).join('')}</span></span>
         <span class="mb-cijfers"><span><b>${(r.d.spelers || []).length}</b><small>SPELERS</small></span><span><b class="g">${r.tr != null ? r.tr + '%' : '\u2013'}</b><small>TRAINING</small></span>
           <span><b class="bl">${r.wd != null ? r.wd + '%' : '\u2013'}</b><small>WEDSTR.</small></span><span><b>${r.kaart ?? '\u2013'}</b><small>GEM. KAART</small></span></span>
-        <span class="mb-pills">${r.open ? `<em class="mb-pill geel">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</em>` : '<em class="mb-pill groen">evaluaties bij</em>'}</span></button>`).join('')}</div>
+        <span class="mb-pills">${r.open ? `<em class="mb-pill geel">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</em>` : '<em class="mb-pill groen">evaluaties bij</em>'}${r.ronde ? `<em class="mb-pill ${r.ronde.klaarAlles ? 'groen' : 'geel'}">${esc(r.ronde.ronde.naam)} ${r.ronde.klaar}/${r.ronde.totaal}</em>` : ''}</span></button>`).join('')}</div>
     ${sel ? rij.map(r => htmlRadarMobiel(cache, r.t)).join('') + htmlSelectieTegelMobiel(cache) : ''}
     <div class="mb-kaart"><div class="mb-lbl">Opkomst per team<span>seizoen</span></div>${rij.map(r => `<div class="mb-opk"><b>${esc(r.t.naam)}</b><i><em class="g" style="width:${r.tr ?? 0}%"></em></i><i><em class="bl" style="width:${r.wd ?? 0}%"></em></i></div>`).join('')}
       <div class="mb-leg"><span><i class="g"></i>training</span><span><i class="bl"></i>wedstrijd</span></div></div>
@@ -144,7 +144,7 @@ async function klik(e){
   if (a === 'terug'){
     if (st.teamId){ st.teamId = null; st.keuze = {}; teken(); return; }
     if (st.tab === 'selmaken'){ st.tab = 'dash'; teken(); window.scrollTo(0, 0); return; }
-    const m = await import('./teams.js?v=20260928h'); m.renderTeams(); toon('teams'); return;
+    const m = await import('./teams.js?v=20260929a'); m.renderTeams(); toon('teams'); return;
   }
   if (a === 'tab'){ st.tab = id; st.teamId = null; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
   if (a === 'team'){ st.teamId = id; st.pag = 'sel'; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
@@ -152,7 +152,7 @@ async function klik(e){
   if (a === 'selmaken'){ st.tab = 'selmaken'; st.teamId = null; teken(); window.scrollTo(0, 0); return; }
   if (a === 'speler'){ st.pag = 'evs'; st.keuze = { speler:id }; teken(); return; }
   if (a === 'wedstrijd'){ st.keuze = { wedstrijd:id }; teken(); return; }
-  if (a === 'eigen'){ const m = await import('./teams.js?v=20260928h'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
+  if (a === 'eigen'){ const m = await import('./teams.js?v=20260929a'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
   if (a === 'nieuwleen'){ zetBouwContext(cache); modalNieuweUitleningVanuitBouw(() => teken()); return; }
   if (a === 'terug-leen'){ const u = cache.uitleningen.find(x => x.id === id); if (!u) return;
     try { if (await trekUitleningIn(u, st.clubId)){ cache.uitleningen = cache.uitleningen.filter(x => x.id !== id); teken(); } }

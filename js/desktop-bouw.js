@@ -12,10 +12,11 @@ import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20260922c';
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260928a';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260928h';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928h';
-import { htmlMeekijk } from './desktop-schermen.js?v=20260928h';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260928h';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20260929a';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260929a';
+import { htmlMeekijk } from './desktop-schermen.js?v=20260929a';
+import { rondeStatusTeam } from './evaluatierondes.js?v=20260929a';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20260929a';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -129,7 +130,9 @@ export function teamRijen(ctx){
     const u = (() => { try { return uitslagenTeam(t); } catch(e){ return {}; } })();
     const kom = (d.wedstrijden || []).filter(w => !gespeeld(w)).sort((a, b) => (a.datum + (a.aftrap || '')).localeCompare(b.datum + (b.aftrap || '')))[0] || null;
     return { t, d, u, kom, tr: (() => { try { return presentiePctTeam(t); } catch(e){ return null; } })(),
-      wd: (() => { try { return presentiePctWedstrijdTeam(t); } catch(e){ return null; } })(), kaart: gemKaart(d), open: openEvaluaties(d) };
+      wd: (() => { try { return presentiePctWedstrijdTeam(t); } catch(e){ return null; } })(), kaart: gemKaart(d), open: openEvaluaties(d),
+      /* [20260929a] lopende evaluatieronde van de club */
+      ronde: (() => { try { return rondeStatusTeam(ctx.rondes, t.id, (d.spelers || []), (d.beoordelingen || [])); } catch(e){ return null; } })() };
   });
 }
 function htmlDashboard(ctx){
@@ -145,7 +148,7 @@ function htmlDashboard(ctx){
             <div class="dkb-vorm">${(r.u?.vorm || []).map(x => `<i class="${x}">${x.toUpperCase()}</i>`).join('')}</div></div>
           <div class="dkb-cijfers"><span><b>${(r.d.spelers || []).length}</b><small>SPELERS</small></span><span><b class="g">${r.tr != null ? r.tr + '%' : '\u2013'}</b><small>TRAINING</small></span>
             <span><b class="bl">${r.wd != null ? r.wd + '%' : '\u2013'}</b><small>WEDSTR.</small></span><span><b>${r.kaart ?? '\u2013'}</b><small>GEM. KAART</small></span></div>
-          <div class="dk-pills">${r.open ? `<span class="dk-pill oranje">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</span>` : '<span class="dk-pill groen">evaluaties bij</span>'}${r.u?.stand?.positie ? `<span class="dk-pill">${esc(String(r.u.stand.positie))}e in de poule</span>` : ''}</div></button>`;
+          <div class="dk-pills">${r.open ? `<span class="dk-pill oranje">${r.open} evaluatie${r.open === 1 ? '' : 's'} open</span>` : '<span class="dk-pill groen">evaluaties bij</span>'}${r.ronde ? `<span class="dk-pill ${r.ronde.klaarAlles ? 'groen' : 'oranje'}">${esc(r.ronde.ronde.naam)} ${r.ronde.klaar}/${r.ronde.totaal}</span>` : ''}${r.u?.stand?.positie ? `<span class="dk-pill">${esc(String(r.u.stand.positie))}e in de poule</span>` : ''}</div></button>`;
   return `<div class="dk-scherm">
     ${kop('Dashboard', knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'football-substitution'))}
     <div class="dkb-body${sel ? ' sbw-dash' : ''}">

@@ -6,7 +6,7 @@
    club (thematisch dezelfde "speler"-context, vandaar in één bestand). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc,
-  getDoc, getDocs, query, where, serverTimestamp, documentId
+  getDoc, getDocs, query, where, serverTimestamp, documentId, deleteField
 } from './firebase.js?v=20260922c';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan, isBeheerder
@@ -20,6 +20,7 @@ import {
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20260928a';
 import { isBouwCoordinator } from './coordinatoren.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20260929a';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
@@ -31,7 +32,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20260928h');
+  const m = await import('./teams.js?v=20260929a');
   m.renderTeam();
 }
 
@@ -617,6 +618,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       return `<span class="rv-seg ${kl}"></span>`;
     }).join('');
     return `<div class="ronde-voortgang">
+      ${r.ronde ? `<div class="veldlabel" style="margin:0 0 4px">${esc(r.ronde.naam)}</div>` : ''}
       <div class="rv-top">
         <div class="rv-teller"><b>${positie}</b> / ${totaal} spelers</div>
         <div class="rv-klaar">${teGaan > 0 ? 'nog '+teGaan+' te gaan' : 'laatste speler'}</div>
@@ -691,6 +693,8 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       tags:[...gekozenTags], notities:{algemeen:$('#mSnNotitie').value.trim()},
       door:deelnemer(), gemaaktMs:Date.now(),
     };
+    /* [20260929a] snelle ronde vanuit een evaluatieronde van de club */
+    if (!bestaande && S._snelRonde?.ronde) data.ronde = S._snelRonde.ronde.id;
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
@@ -735,7 +739,20 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   const scores = {...(bestaande?.scores || {})};
   const notities = {...(bestaande?.notities || {})};
   const moment = bestaande?.bron?.label || '';
-  const officieel = bestaande?.officieel === true;
+  /* [20260929a] "Hoort bij": een lopende evaluatieronde van de club, of een losse meting.
+     Vervangt het vinkje "officiële halfjaarevaluatie". */
+  const flow = (!bestaande && S._evalRonde && S._evalRonde.ids[S._evalRonde.index] === spelerId) ? S._evalRonde : null;
+  if (!flow) S._evalRonde = null;
+  const lopend = rondesVoorTeam(S._clubRondes, S.teamId).filter(r => r.soort !== 'snel');
+  const rondeOpties = [...lopend];
+  if (bestaande?.ronde && !rondeOpties.some(r => r.id === bestaande.ronde)){
+    const oud = (S._clubRondes || []).find(r => r.id === bestaande.ronde);
+    rondeOpties.push({ id: bestaande.ronde, naam: oud?.naam || 'Evaluatieronde', tot: null });
+  }
+  const alInRonde = r => S.beoordelingen.some(b => b.ronde === r.id && b.spelerId === spelerId && b.id !== bestaande?.id);
+  const rondeStart = flow ? flow.ronde.id
+    : bestaande ? (bestaande.ronde || (bestaande.officieel ? '_oud' : ''))
+    : (lopend.find(r => !alInRonde(r))?.id || '');
 
   const domeinKaart = (d) => `
     <div class="kaart">
@@ -746,17 +763,28 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
       <textarea class="invoer" data-not="${d.id}" rows="2" placeholder="Toelichting ${d.naam.toLowerCase()}...">${esc(notities[d.id]||'')}</textarea>
     </div>`;
 
+  const rondeVoortgang = flow ? `<div class="ronde-voortgang">
+      <div class="veldlabel" style="margin:0 0 4px">${esc(flow.ronde.naam)}</div>
+      <div class="rv-top"><div class="rv-teller"><b>${flow.index + 1}</b> / ${flow.ids.length} nog te doen</div>
+        <div class="rv-klaar">${flow.ids.length - flow.index - 1 > 0 ? 'daarna nog ' + (flow.ids.length - flow.index - 1) : 'laatste speler'}</div></div>
+      <div class="rv-track">${flow.ids.map((id, i) => `<span class="rv-seg ${i < flow.index ? 'gedaan' : i === flow.index ? 'nu' : ''}"></span>`).join('')}</div>
+    </div>` : '';
+
   openModal(`
     <h2>Volledige beoordeling</h2>
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</p>
+    ${rondeVoortgang}
+    <div class="veldgroep"><label>Hoort bij</label>
+      <select class="invoer" id="mVbRonde">
+        ${rondeOpties.map(r => `<option value="${esc(r.id)}" ${rondeStart === r.id ? 'selected' : ''}>${esc(r.naam)}${r.tot ? ' (t/m ' + esc(datumKort(r.tot)) + ')' : ''}${alInRonde(r) ? ' · al beoordeeld' : ''}</option>`).join('')}
+        ${rondeStart === '_oud' ? `<option value="_oud" selected>Officiële halfjaarevaluatie (eerder ingevuld)</option>` : ''}
+        <option value="" ${rondeStart === '' ? 'selected' : ''}>Geen ronde · losse meting</option>
+      </select></div>
     <div class="veldgroep"><label>Moment</label>
       <input class="invoer" id="mVbMoment" value="${esc(moment)}" placeholder="Bijv. Kwartaalmeting Q3"></div>
-    <label class="lid-rij" style="cursor:pointer;align-items:flex-start;gap:10px;padding:10px 12px">
-      <input type="checkbox" id="mVbOfficieel" ${officieel ? 'checked' : ''} style="margin-top:3px">
-      <span style="font-size:calc(13px * var(--fs))">Dit is de <b>officiële halfjaarevaluatie</b> — telt mee in het voortgangsoverzicht van de bouwcoördinator en wordt in het ontwikkelprofiel bovenaan getoond.</span>
-    </label>
     ${SKILLS.map(domeinKaart).join('')}
-    <button class="knop vol fluo" id="mVbOk" style="margin-top:6px">${bestaande?'Bijwerken':'Beoordeling opslaan'}</button>
+    <button class="knop vol fluo" id="mVbOk" style="margin-top:6px">${bestaande?'Bijwerken':flow?'Opslaan en volgende →':'Beoordeling opslaan'}</button>
+    ${flow ? `<button class="knop licht vol" id="mVbSkip" style="margin-top:8px">Speler overslaan →</button>` : ''}
     ${bestaande?`<button class="knop vol gevaar" id="mVbWeg" style="margin-top:8px">Verwijderen</button>`:''}
     <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler — die lopen door over meerdere beoordelingen.</p>`);
 
@@ -771,25 +799,62 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   $('#mVbOk').onclick = async () => {
     if (!Object.keys(scores).length) return meld('Geef minstens één score');
     SKILLS.forEach(d => { const t = $(`[data-not="${d.id}"]`); if (t) notities[d.id] = t.value.trim(); });
+    const rondeKeuze = $('#mVbRonde')?.value || '';
+    const rondeId = rondeKeuze && rondeKeuze !== '_oud' ? rondeKeuze : null;
+    const rondeNaam = rondeId ? (rondeOpties.find(r => r.id === rondeId)?.naam || '') : '';
     const data = {
       soort:'volledig', spelerId, datum:bestaande?.datum || vandaagISO(),
-      bron:{type:'los', label:$('#mVbMoment').value.trim() || 'Periodieke meting'},
-      officieel: $('#mVbOfficieel').checked,
+      bron:{type:'los', label:$('#mVbMoment').value.trim() || rondeNaam || 'Periodieke meting'},
+      officieel: !!rondeId || rondeKeuze === '_oud',
       scores, notities, door:deelnemer(), gemaaktMs:Date.now(),
     };
+    if (rondeId) data.ronde = rondeId;
+    else if (bestaande?.ronde) data.ronde = deleteField();
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
     try {
       if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
-      else { await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data); telGebruik('volledige_beoordeling'); }
-      sluitModal(); herrenderTeam(); meld('Beoordeling opgeslagen');
+      else { await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data); telGebruik(rondeId ? 'ronde_beoordeling' : 'volledige_beoordeling'); }
+      sluitModal();
+      if (flow) volgendeEvalRonde(); else { herrenderTeam(); meld('Beoordeling opgeslagen'); }
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
   };
+  const skipVb = $('#mVbSkip');
+  if (skipVb) skipVb.onclick = () => { sluitModal(); volgendeEvalRonde(); };
   const wegBtn = $('#mVbWeg');
   if (wegBtn) wegBtn.onclick = async () => {
     if (!confirm('Deze beoordeling verwijderen?')) return;
     await deleteDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id));
     sluitModal(); herrenderTeam();
   };
+}
+
+/* ---------- Evaluatieronde van de club: speler voor speler ----------
+   [20260929a] Start bij de eerste speler die nog niet in de ronde beoordeeld is.
+   Volledige ronde: de volledige beoordeling met "Hoort bij" = de ronde.
+   Snelle ronde: de bestaande snelle ronde, met de ronde-id mee. */
+export function startRondeFlow(rondeId){
+  if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
+  const ronde = (S._clubRondes || []).find(r => r.id === rondeId);
+  if (!ronde) return meld('Deze evaluatieronde bestaat niet meer');
+  const spelers = rondeSpelers(S.spelers);
+  if (!spelers.length) return meld('Voeg eerst spelers toe');
+  const gedaan = new Set(S.beoordelingen.filter(b => b.ronde === rondeId).map(b => b.spelerId));
+  const ids = spelers.filter(p => !gedaan.has(p.id)).map(p => p.id);
+  if (!ids.length) return meld(`Alle spelers zijn al beoordeeld voor ${ronde.naam}`);
+  telGebruik('ronde_start');
+  if (ronde.soort === 'snel'){
+    S._snelRonde = { index:0, ids, overgeslagen:new Set(), ronde:{ id:ronde.id, naam:ronde.naam } };
+    modalSnelBeoordeling(ids[0]);
+  } else {
+    S._evalRonde = { index:0, ids, ronde:{ id:ronde.id, naam:ronde.naam } };
+    modalVolledigeBeoordeling(ids[0]);
+  }
+}
+function volgendeEvalRonde(){
+  const r = S._evalRonde; if (!r){ herrenderTeam(); return; }
+  r.index++;
+  if (r.index >= r.ids.length){ S._evalRonde = null; herrenderTeam(); meld(`${r.ronde.naam}: ronde doorlopen ✓`); return; }
+  modalVolledigeBeoordeling(r.ids[r.index]);
 }
 
 /* --- Leerpunten (array op spelerdoc) --- */

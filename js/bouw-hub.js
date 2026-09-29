@@ -26,10 +26,22 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260928h';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20260929a';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20260928a';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
+import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20260929a';
+
+/* [20260929a] Voortgang van de "verplichte" evaluatie per team: de lopende
+   evaluatieronde van de club als die er is, anders (zoals voorheen) de
+   officiële halfjaarevaluaties. Telt alleen spelers die nu in het team staan. */
+function evalMeting(t, d){
+  const st = rondeStatusTeam(huidigeContext?.rondes, t.id, d.spelers, d.beoordelingen);
+  if (st) return { naam: st.ronde.naam, klaar: st.klaar, totaal: st.totaal, losse: d.beoordelingen.filter(b => b.ronde !== st.ronde.id).length, ronde: st.ronde };
+  const ids = new Set(d.spelers.map(p => p.id));
+  const klaar = new Set(d.beoordelingen.filter(b => b.officieel && ids.has(b.spelerId)).map(b => b.spelerId)).size;
+  return { naam: 'Halfjaarevaluatie', klaar, totaal: d.spelers.length, losse: d.beoordelingen.filter(b => !b.officieel).length, ronde: null };
+}
 
 let laag = null;           // DOM-referentie naar de pagina, één instantie tegelijk
 let huidigeContext = null; // {clubId, bouw, teams, data: Map(teamId -> {...}), uitleningen}
@@ -85,7 +97,7 @@ const WIDGET_DEFS = [
   { id:'presentieTraining', label:'Presentie — trainingen' },
   { id:'presentieWedstrijd',label:'Presentie — wedstrijden' },
   { id:'evalRadar',         label:'Evaluatie-radar (gemiddelde + laatste)' },
-  { id:'evalVoortgang',     label:'Evaluatie-voortgang (najaar)' },
+  { id:'evalVoortgang',     label:'Evaluatie-voortgang (lopende ronde)' },
   { id:'teamEval',          label:'Teamevaluaties (na de wedstrijd)' },
   { id:'uitleningen',       label:'Uitleningen die dit team raken' },
 ];
@@ -190,7 +202,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20260928h'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20260929a'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -217,6 +229,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
                         : query(collection(db,'teams'), where('club','==',clubId))),
       getDoc(doc(db,'clubs',clubId)),
     ]);
+    var rondesClub = rondesVan(clubSnap.exists() ? clubSnap.data() : null);
     /* [20260923e] eigen bouw: alleen de gekoppelde teams */
     const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
     teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id))
@@ -229,7 +242,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   }
   if (!teams.length){
     inhoud.innerHTML = `<div class="kaart leeg">Nog geen teams met dit bouw-veld gevonden.<br>Bestaande teams hebben mogelijk nog geen <code>bouw</code>-veld — zie de migratienotitie.</div>`;
-    huidigeContext = {clubId, bouw, teams: [], data: new Map(), uitleningen: []};
+    huidigeContext = {clubId, bouw, teams: [], data: new Map(), uitleningen: [], rondes: rondesClub};
     return;
   }
 
@@ -241,7 +254,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
       haalUitleningenVoorTeams(clubId, teams.map(t => t.id)),
     ]);
     const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
-    huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen};
+    huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, rondes: rondesClub};
   } catch(e){
     console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
@@ -271,7 +284,7 @@ export async function laadBouwData(clubId, bouw){
   ]);
   const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
   /* [20260928f] eigenBouw mee in de context: selectie-bouw.js leest daaruit of dit een selectie (1e + 2e) is */
-  huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, eigenBouw: eigen || null};
+  huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, eigenBouw: eigen || null, rondes: rondesVan(clubSnap.exists() ? clubSnap.data() : null)};
   return huidigeContext;
 }
 export function zetBouwContext(ctx){ huidigeContext = ctx; }
@@ -527,9 +540,9 @@ function aandachtSignalen(){
   const signalen = [];
   for (const t of huidigeContext.teams){
     const d = huidigeContext.data.get(t.id);
-    const officieelCount = new Set(d.beoordelingen.filter(b=>b.officieel).map(b=>b.spelerId)).size;
-    if (d.spelers.length && officieelCount === 0){
-      signalen.push({ernst:2, tekst: `<b>${esc(t.naam)}</b> heeft nog geen enkele officiële halfjaarevaluatie.`});
+    const m = evalMeting(t, d);
+    if (m.totaal && m.klaar === 0){
+      signalen.push({ernst:2, tekst: m.ronde ? `<b>${esc(t.naam)}</b> is nog niet begonnen aan ${esc(m.naam)}.` : `<b>${esc(t.naam)}</b> heeft nog geen enkele officiële halfjaarevaluatie.`});
     }
     const pct = presentiePctTeam(t);
     if (pct != null && pct < 70){
@@ -663,9 +676,10 @@ function renderDashboard(){
       const pctWedstrijd = presentiePctWedstrijdTeam(t);
       const pctWedstrijdKleur = pctWedstrijd==null ? 'var(--ink-2)' : pctWedstrijd>=85 ? 'var(--ok)' : pctWedstrijd>=70 ? 'var(--warn)' : 'var(--uit)';
 
-      const officieelCount = new Set(d.beoordelingen.filter(b=>b.officieel).map(b=>b.spelerId)).size;
-      const losseCount = d.beoordelingen.filter(b => !b.officieel).length;
-      const evalTotaal = d.spelers.length;
+      const em = evalMeting(t, d);
+      const officieelCount = em.klaar;
+      const losseCount = em.losse;
+      const evalTotaal = em.totaal;
       const evalPct = evalTotaal ? Math.round(officieelCount/evalTotaal*100) : 0;
       const evalKleur = evalPct===100 ? 'var(--ok)' : evalPct>=50 ? 'var(--warn)' : 'var(--uit)';
 
@@ -730,7 +744,7 @@ function renderDashboard(){
         ${balkjesRij.length ? `<div style="display:flex;gap:14px;margin-top:12px">${balkjesRij.join('')}</div>` : ''}
         ${w.evalVoortgang ? `<div style="margin-top:${balkjesRij.length?'8':'12'}px">
           <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
-            <span>Najaarsevaluatie${losseCount>0?` · +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
+            <span>${esc(em.naam)}${losseCount>0?` · +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
           </div>
           <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:${evalPct}%;background:${evalKleur};border-radius:3px"></div>
@@ -832,7 +846,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20260928h');
+      const m = await import('./teams.js?v=20260929a');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1118,14 +1132,13 @@ function renderEvaluatiesScherm(){
     const d = huidigeContext.data.get(t.id);
     const perSpeler = {};
     d.beoordelingen.forEach(b => { (perSpeler[b.spelerId] ||= []).push(b); });
-    const spelersMetOfficieel = Object.values(perSpeler).filter(ms => ms.some(m=>m.officieel)).length;
+    const em = evalMeting(t, d);
     const totaalMetingen = d.beoordelingen.length;
-    const losseMetingen = d.beoordelingen.filter(b => !b.officieel).length;
-    return { team:t, officieel:spelersMetOfficieel, totaal:d.spelers.length, totaalMetingen, losseMetingen };
+    return { team:t, officieel:em.klaar, totaal:em.totaal, totaalMetingen, losseMetingen:em.losse, naam:em.naam };
   }).sort((a,b) => (a.totaal ? a.officieel/a.totaal : 1) - (b.totaal ? b.officieel/b.totaal : 1));
 
   inhoud.innerHTML = `
-    <div class="sectie-kop" style="margin-top:0">Halfjaarevaluatie · per team</div>
+    <div class="sectie-kop" style="margin-top:0">${esc([...new Set(rijen.map(r => r.naam))].join(' / ') || 'Halfjaarevaluatie')} · per team</div>
     <p style="color:var(--ink-2);font-size:calc(12px * var(--fs));margin:-6px 0 12px">Inclusief losse beoordelingen tussendoor (bij wedstrijden/trainingen) — tik een team voor het volledige overzicht.</p>
     ${rijen.map(r => {
       const ratio = r.totaal ? r.officieel/r.totaal : 0;
@@ -1134,7 +1147,7 @@ function renderEvaluatiesScherm(){
         <div class="team-shirt" style="background:${kleur};color:#12140f">${r.officieel}/${r.totaal}</div>
         <div class="li-tekst">
           <div class="titel">${esc(r.team.naam)}</div>
-          <div class="meta">officiële halfjaarevaluatie${r.losseMetingen>0?` · +${r.losseMetingen} losse beoordeling${r.losseMetingen===1?'':'en'}`:''}</div>
+          <div class="meta">${esc(r.naam)}${r.losseMetingen>0?` · +${r.losseMetingen} losse beoordeling${r.losseMetingen===1?'':'en'}`:''}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;

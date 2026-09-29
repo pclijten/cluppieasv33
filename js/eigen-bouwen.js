@@ -15,7 +15,7 @@
    plus eigenBouwCoachesInfo: { uid:{naam} } voor de weergave.
    Alleen een clubadmin mag het clubdocument wijzigen (rules), dus een coach
    kan zichzelf geen toegang geven.
-   Getekend in Club → Instellingen, direct onder de bouwcoördinatoren.
+   Getekend in Club → Bouwen (sinds 20260929a), onder de standaardbouwen.
 ======================================================== */
 import { S, esc, meld } from './state.js?v=20260922c';
 import { db, doc, updateDoc } from './firebase.js?v=20260922c';
@@ -79,13 +79,28 @@ const isMeiden = t => /^MO\d/i.test(String(t.categorie || t.naam || ''));
 
 function binnen(teams){
   const lijst = eigenBouwenVan(S.club);
-  const rij = b => `
-    <div class="kaart eb-kaart" style="margin-bottom:10px">
-      <div class="eb-kop"><span class="eb-kleur" style="background:${esc(b.kleur || KLEUREN[0])}"></span>
-        <div class="eb-naam">${esc(b.naam)}<small>${(b.teams || []).length} team${(b.teams || []).length === 1 ? '' : 's'} \u00b7 ${Object.keys(b.coaches || {}).length} coach${Object.keys(b.coaches || {}).length === 1 ? '' : 'es'}</small></div>
-        <button class="knop licht klein" data-eb-bewerk="${esc(b.id)}">Bewerken</button></div>
-      ${(b.teams || []).length ? `<div class="eb-tags">${sorteer(teams.filter(t => b.teams.includes(t.id))).map(t => `<span>${esc(t.naam)}</span>`).join('')}</div>` : ''}
+  /* [20260929a] zelfde kaart als de standaardbouwen (Club → Bouwen): teams + gekoppelde coaches */
+  const alleCoaches = coachesVan(teams);
+  const coachNaam = uid => S.club?.eigenBouwCoachesInfo?.[uid]?.naam || alleCoaches.find(c => c.uid === uid)?.naam || 'Coach';
+  const twee = n => { const w = String(n || '?').trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] || '?') + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(); };
+  const rij = b => {
+    const uids = Object.keys(b.coaches || {}).filter(u => b.coaches[u] === true);
+    const bt = sorteer(teams.filter(t => (b.teams || []).includes(t.id)));
+    return `
+    <div class="cb-bouw" style="--kl:${esc(b.kleur || KLEUREN[0])}">
+      <div class="cb-bouw-kop"><div class="eb-naam">${esc(b.naam)}<small>${bt.length} team${bt.length === 1 ? '' : 's'} \u00b7 ${uids.length} gekoppelde coach${uids.length === 1 ? '' : 'es'}</small></div>
+        <span class="cb-soort">${isSelectie(b) ? 'Selectie 1e + 2e' : 'Eigen bouw'}</span></div>
+      <div class="cb-bouw-sub">
+        <div class="cb-bouw-lbl">Teams <button class="cb-link" data-eb-bewerk="${esc(b.id)}">Bewerken</button></div>
+        <div class="eb-tags" style="margin-top:0">${bt.map(t => `<span>${esc(t.naam)}</span>`).join('') || '<em>Nog geen teams</em>'}</div>
+      </div>
+      <div class="cb-bouw-sub">
+        <div class="cb-bouw-lbl">Gekoppelde coaches <button class="cb-link" data-eb-bewerk="${esc(b.id)}">+ Toevoegen</button></div>
+        ${uids.length ? uids.map(u => ({ u, n: coachNaam(u) })).sort((x, y) => x.n.localeCompare(y.n, 'nl')).map(({ u, n }) => `<div class="cb-persoon"><div class="cb-av">${esc(twee(n))}</div><div class="cb-persoon-n">${esc(n)}${u === S.user?.uid ? ' <small class="cb-inline">jij</small>' : ''}</div><button class="lid-weg cb-weg" data-eb-coachweg="${esc(b.id)}|${esc(u)}" aria-label="${esc(n)} ontkoppelen">✕</button></div>`).join('')
+          : '<span class="cb-tag geen">Nog niemand</span>'}
+      </div>
     </div>`;
+  };
   const editor = () => {
     const c = concept;
     return `
@@ -108,11 +123,11 @@ function binnen(teams){
     </div>`;
   };
   return `
-    <div class="sectie-kop" style="font-size:calc(13px * var(--fs))">Eigen bouwen</div>
-    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);line-height:1.5;margin:0 0 10px">Naast ${BOUWEN.map(b => b.naam).join(', ').replace(/, ([^,]*)$/, ' en $1')} (automatisch op categorie) kun je zelf bouwen maken, zoals een Meidenbouw. Een team mag in meerdere bouwen zitten. Oefenstof en coördinatoren blijven bij de standaardbouw; alleen een beheerder maakt ze aan en koppelt er coaches aan.</p>
+    <div class="sectie-kop">Eigen bouwen</div>
+    <p class="cb-legenda">Maak zelf bouwen, zoals een Meidenbouw of Selectie. Een team mag in meerdere bouwen zitten. Oefenstof blijft bij de standaardbouw; gekoppelde coaches krijgen dezelfde rechten als een bouwcoördinator.</p>
     ${lijst.map(b => concept && !concept.nieuw && concept.id === b.id ? editor() : rij(b)).join('')}
     ${concept?.nieuw ? editor() : ''}
-    ${concept ? '' : `<button class="knop licht klein" id="ebNieuw">+ Nieuwe bouw</button>${lijst.some(b => /meiden/i.test(b.naam)) ? '' : ' <button class="knop licht klein" id="ebMeiden">+ Meidenbouw met alle MO-teams</button>'}`}`;
+    ${concept ? '' : `<div class="cb-acties"><button class="knop licht klein" id="ebNieuw">+ Nieuwe bouw</button>${lijst.some(b => /meiden/i.test(b.naam)) ? '' : '<button class="knop licht klein" id="ebMeiden">+ Meidenbouw met alle MO-teams</button>'}</div>`}`;
 }
 
 export function htmlEigenBouwenBeheer(teams){
@@ -150,6 +165,17 @@ export function koppelEigenBouwenBeheer(v, teams){
     naamBijhouden(); concept.teams = b.dataset.ebSnel === 'mo' ? [...new Set([...concept.teams, ...teams.filter(isMeiden).map(t => t.id)])] : []; teken();
   }));
   blok.querySelector('#ebAnnuleer')?.addEventListener('click', () => { concept = null; teken(); });
+  /* [20260929a] coach direct ontkoppelen vanaf de bouwkaart */
+  blok.querySelectorAll('[data-eb-coachweg]').forEach(b => b.addEventListener('click', async () => {
+    const [bid, uid] = b.dataset.ebCoachweg.split('|');
+    const lijst = eigenBouwenVan(S.club); const e = lijst.find(x => x.id === bid); if (!e) return;
+    const naam = b.closest('.cb-persoon')?.querySelector('.cb-persoon-n')?.firstChild?.textContent?.trim() || 'deze coach';
+    if (!confirm(`${naam} ontkoppelen van ${e.naam}?`)) return;
+    const coaches = { ...(e.coaches || {}) }; delete coaches[uid];
+    const volgende = lijst.map(x => x.id === bid ? { ...x, coaches } : x);
+    try { await bewaar(volgende, teams); if (S.club) S.club.eigenBouwen = volgende; meld(`${naam} ontkoppeld van ${e.naam}`); teken(); }
+    catch(err){ meld('Opslaan mislukt: ' + (err.code || err.message)); }
+  }));
   blok.querySelector('#ebOpslaan')?.addEventListener('click', async () => {
     naamBijhouden();
     const naam = (concept.naam || '').trim();

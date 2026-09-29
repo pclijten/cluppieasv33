@@ -18,6 +18,7 @@ import { analyseWedstrijd } from './analyse.js?v=20260928a';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { ongelezenBerichten } from './berichten.js?v=20260922c';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20260924b';
+import { htmlRondeBalk } from './evaluatierondes.js?v=20260929a';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20260928e';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
@@ -155,6 +156,7 @@ export function htmlHub(updInfo){
     </div>
     ${teamKeuze}
     ${updBanner}
+    ${modAan('evaluaties') ? htmlRondeBalk(S._clubRondes, S.teamId, S.spelers, S.beoordelingen) : ''}
     ${htmlSelectieDashboard()}
     ${secties.map(([kop, tegels]) => `
       <section class="hub-sectie">
