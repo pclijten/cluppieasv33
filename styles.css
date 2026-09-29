@@ -5250,3 +5250,185 @@ textarea.lj-namen{min-height:130px}
 @media (min-width:1100px) and (max-width:1350px) and (min-height:520px){
   .sbw-tegel{ grid-template-columns:1fr 1fr; } .sbw-tegel > div:first-child{ grid-column:1 / -1; }
 }
+
+/* ==================== CLUBBEHEER (herindeling admin + evaluatierondes, 20260929a) ====================
+   Prefix cb- . Alleen tokens (--card, --surface-2, --ink, --ink-2, --line-d,
+   --accent, --ok, --warn) zodat licht en donker automatisch meekantelen. */
+
+/* statusbalk bovenaan de hub (actieve afgelasting) */
+.cb-banner{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;margin-top:14px;
+  background:color-mix(in srgb,var(--accent) 16%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.cb-banner b{font-weight:700}
+.cb-banner .cb-banner-t{flex:1;min-width:0;font-size:calc(13px * var(--fs));line-height:1.35}
+.cb-banner small{display:block;color:var(--ink-2);font-size:calc(11.5px * var(--fs))}
+
+/* acties + filters bovenaan een lijstscherm */
+.cb-acties{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.cb-acties .knop{flex:1;min-width:0;padding:9px 8px}
+.cb-filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 12px;padding:0 16px}
+.cb-filters::-webkit-scrollbar{display:none}
+.cb-filter{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;
+  background:var(--surface-2);color:var(--ink-2);font-weight:600;font-size:calc(12.5px * var(--fs));border:1px solid transparent}
+.cb-filter.aan{background:var(--card);color:var(--ink);border-color:var(--accent)}
+.cb-filter i{width:8px;height:8px;border-radius:3px;display:inline-block}
+.cb-filter em{font-style:normal;opacity:.7;font-weight:500}
+
+/* groepskop per bouw */
+.cb-groep{display:flex;align-items:center;gap:8px;margin:18px 2px 8px}
+.cb-groep:first-of-type{margin-top:6px}
+.cb-groep i{width:10px;height:10px;border-radius:3px}
+.cb-groep b{font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));text-transform:uppercase;letter-spacing:.6px}
+.cb-groep span{font-size:calc(12px * var(--fs));color:var(--ink-2)}
+
+/* teamkaart in het overzicht */
+.cb-team{display:block;width:100%;text-align:left;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  border:1px solid var(--line-d);padding:12px 13px;margin-bottom:8px}
+.cb-team:active{transform:scale(.99)}
+.cb-team-kop{display:flex;align-items:center;gap:10px}
+.cb-fmt{width:36px;height:36px;border-radius:50%;background:var(--accent);color:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs))}
+.cb-team-naam{flex:1;min-width:0;font-weight:700;font-size:calc(15px * var(--fs))}
+.cb-team-naam small{display:block;font-weight:500;font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:1px}
+.cb-pijl{color:var(--ink-2);flex-shrink:0}
+.cb-coaches{display:flex;align-items:center;gap:6px;margin:9px 0 0 46px;font-size:calc(12.5px * var(--fs));color:var(--ink)}
+.cb-coaches svg{color:var(--ink-2);flex-shrink:0}
+.cb-coaches.geen{color:var(--warn);font-weight:600}
+.cb-status{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0 46px}
+.cb-st{display:inline-flex;align-items:center;gap:4px;font-size:calc(11px * var(--fs));font-weight:600;padding:3px 8px;border-radius:99px;
+  background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.cb-st svg{width:12px;height:12px}
+.cb-st.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.cb-st.let{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+
+/* modules-matrix */
+.cb-legenda{font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin:0 2px 10px}
+.cb-matrix{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line-d);overflow:hidden}
+.cb-mrij{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,44px);align-items:center;min-height:44px;border-top:1px solid var(--line-d)}
+.cb-mrij:first-child{border-top:none}
+.cb-mrij.cb-mkop{background:var(--surface-2);min-height:62px}
+.cb-mrij.bouw{min-height:30px;background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
+.cb-mrij.bouw > div{font-size:calc(11px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);padding:0 12px;display:flex;align-items:center;gap:7px}
+.cb-mrij.bouw i{width:8px;height:8px;border-radius:3px}
+.cb-mnaam{padding:0 12px;font-weight:600;font-size:calc(13.5px * var(--fs));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cb-mkol{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--ink-2);font-size:calc(9px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:0;padding:6px 0;width:100%;overflow:hidden}
+.cb-mkol svg{width:18px;height:18px;color:var(--ink)}
+.cb-mcel{display:flex;align-items:center;justify-content:center;height:44px}
+.cb-mcel span{width:22px;height:22px;border-radius:7px;border:2px solid var(--hair);display:flex;align-items:center;justify-content:center;color:#fff}
+.cb-mcel.aan span{background:var(--ok);border-color:var(--ok)}
+.cb-mcel.aan span::after{content:'';width:9px;height:5px;border:2.4px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.cb-telling{font-size:calc(10px * var(--fs));color:var(--ink-2);font-weight:600}
+
+/* teambeheer (detailscherm) */
+.cb-kopblok{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cb-kopblok .cb-fmt{width:48px;height:48px;font-size:calc(18px * var(--fs))}
+.cb-kopblok .cb-team-naam{font-size:calc(20px * var(--fs))}
+.cb-kaart{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line-d);padding:13px 14px;margin-bottom:12px}
+.cb-kaart-kop{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cb-kaart-kop svg{color:var(--accent);flex-shrink:0}
+.cb-kaart-kop b{flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:calc(16px * var(--fs));text-transform:uppercase;letter-spacing:.6px}
+.cb-link{color:var(--accent);font-weight:600;font-size:calc(12.5px * var(--fs))}
+.cb-regel{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line-d);font-size:calc(13.5px * var(--fs))}
+.cb-regel:first-of-type{border-top:none;padding-top:2px}
+.cb-regel .cb-lbl{color:var(--ink-2);width:112px;flex-shrink:0;font-size:calc(12.5px * var(--fs))}
+.cb-regel .cb-val{flex:1;min-width:0;font-weight:600}
+.cb-persoon{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-d)}
+.cb-persoon:first-of-type{border-top:none;padding-top:0}
+.cb-av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs))}
+.cb-av.grijs{background:var(--surface-2);color:var(--ink-2)}
+.cb-persoon-n{flex:1;min-width:0;font-weight:600;font-size:calc(14px * var(--fs))}
+.cb-persoon-n small{display:block;font-weight:500;color:var(--ink-2);font-size:calc(11.5px * var(--fs));margin-top:1px}
+.cb-rol{font-size:calc(10.5px * var(--fs));font-weight:700;padding:2px 7px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.cb-rol.coord{background:color-mix(in srgb,#3b82f6 18%,transparent);color:color-mix(in srgb,#3b82f6 65%,var(--ink))}
+.cb-rol.admin{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.cb-schakelrij{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line-d);width:100%;text-align:left}
+.cb-schakelrij:first-of-type{border-top:none;padding-top:2px}
+.cb-schakelrij svg{color:var(--ink-2);flex-shrink:0}
+.cb-schakelrij .cb-persoon-n{font-size:calc(14px * var(--fs))}
+.cb-uitleg{font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin-top:8px}
+.cb-tags{display:flex;flex-wrap:wrap;gap:5px}
+.cb-tag{display:inline-flex;align-items:center;gap:5px;font-size:calc(11.5px * var(--fs));font-weight:600;padding:3px 9px;border-radius:99px;background:var(--surface-2);color:var(--ink)}
+.cb-tag i{width:7px;height:7px;border-radius:2px}
+.cb-tag.geen{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent)}
+
+/* bouwkaarten */
+.cb-bouw{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line-d);margin-bottom:12px;overflow:hidden;position:relative}
+.cb-bouw::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--kl)}
+.cb-bouw-kop{display:flex;align-items:center;gap:10px;padding:12px 14px 4px 16px}
+.cb-bouw-kop .eb-naam small{margin-top:1px}
+.cb-bouw-sub{padding:8px 14px 12px 16px}
+.cb-bouw-sub + .cb-bouw-sub{border-top:1px solid var(--line-d)}
+.cb-bouw-lbl{display:flex;align-items:center;justify-content:space-between;font-size:calc(11px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin-bottom:7px}
+.cb-soort{font-size:calc(10.5px * var(--fs));font-weight:700;padding:2px 8px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+
+/* coaches-overzicht */
+.cb-zoek{position:relative;margin-bottom:10px}
+.cb-zoek svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-2)}
+.cb-zoek .invoer{padding-left:38px}
+.cb-coachrij{display:flex;align-items:flex-start;gap:11px;background:var(--card);border-radius:12px;border:1px solid var(--line-d);box-shadow:var(--shadow);padding:11px 12px;margin-bottom:8px}
+.cb-coachrij .cb-persoon-n{padding-top:1px}
+.cb-coachrij .cb-tags{margin-top:6px}
+
+/* instellingen */
+.cb-instel-seg{margin-bottom:14px}
+.cb-samenvat{display:flex;gap:8px;margin-bottom:12px}
+.cb-samenvat > div{flex:1;background:var(--card);border:1px solid var(--line-d);border-radius:12px;padding:10px 12px}
+.cb-samenvat b{display:block;font-family:'Barlow Condensed';font-weight:700;font-size:26px;line-height:1}
+.cb-samenvat span{font-size:calc(11px * var(--fs));color:var(--ink-2)}
+.cb-samenvat .ok b{color:var(--ok)} .cb-samenvat .let b{color:var(--warn)}
+.cb-gevaar{border:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+.cb-gevaar .cb-kaart-kop b{color:var(--accent)}
+.cb-inklap{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 2px;color:var(--ink-2);font-weight:600;font-size:calc(12.5px * var(--fs))}
+.cb-regel .cb-val .cb-st{white-space:normal}
+.kop .knop.klein{white-space:nowrap}
+/* evaluatierondes */
+.cb-balk{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:6px}
+.cb-balk span{display:block;height:100%;border-radius:3px}
+.cb-ronde{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line-d);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 14px;margin-bottom:10px}
+.cb-ronde-kop{display:flex;align-items:center;gap:10px}
+.cb-ronde-cijfers{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px;margin-top:10px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
+.cb-ronde-cijfers b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(24px * var(--fs));line-height:1;font-variant-numeric:tabular-nums}
+.cb-ronde-cijfers .cb-st{margin-left:auto}
+.cb-rteam{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line-d)}
+.cb-rteam:first-child{border-top:none}
+.cb-rteam-n{flex:1;min-width:0;font-weight:600;font-size:calc(14px * var(--fs))}
+.cb-rteam-n small{display:block;font-weight:500;font-size:calc(11.5px * var(--fs));color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cb-rteam-v{width:92px;flex-shrink:0;text-align:right;font-weight:700;font-size:calc(13px * var(--fs));font-variant-numeric:tabular-nums}
+.cb-rondebalk{background:color-mix(in srgb,var(--accent) 10%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-radius:var(--radius);padding:13px 14px}
+.cb-rondebalk-kop{display:flex;align-items:center;gap:10px}
+.cb-rondebalk-kop > svg{color:var(--accent);flex-shrink:0}
+.cb-datums{display:flex;gap:8px;align-items:center}
+.cb-datums .invoer{min-width:0;flex:1}
+
+/* aanvullingen productie */
+.cb-banner-ico{font-size:18px;line-height:1}
+.cb-mnaam{text-align:left;width:100%;color:var(--ink)}
+button.cb-mnaam{height:44px}
+.cb-mkoptekst{color:var(--ink-2);font-size:calc(11px * var(--fs));text-transform:uppercase;letter-spacing:.5px}
+.cb-legenda-iconen{display:flex;flex-wrap:wrap;gap:4px 12px}
+.cb-legenda-iconen b{color:var(--ink);font-weight:700;text-transform:uppercase;font-size:calc(10.5px * var(--fs))}
+.cb-mcel:disabled{opacity:.6}
+.cb-waarschuwing{color:var(--warn);font-weight:600;font-size:calc(13px * var(--fs));margin:0 0 4px}
+.cb-let{border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.cb-let .cb-kaart-kop svg,.cb-let-ico{color:var(--warn)}
+.cb-inline{display:inline!important;font-weight:600;color:var(--accent)!important;margin-left:4px}
+.cb-persoon-n small.cb-inline{font-size:calc(11px * var(--fs))}
+.cb-weg{color:var(--ink-2)!important;padding:6px}
+.cb-link:disabled{opacity:.4}
+.cb-kopblok .knop{flex-shrink:0;white-space:nowrap}
+.cb-rondebalk{margin-top:14px}
+.cb-rondebalk + .cb-rondebalk{margin-top:10px}
+.cb-rondebalk.klaar{background:color-mix(in srgb,var(--ok) 10%,var(--card));border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.cb-rondebalk.klaar .cb-rondebalk-kop > svg{color:var(--ok)}
+.cb-bouw .bi-tags span,.cb-bouw .eb-tags span{margin:0}
+/* voortgang in een beoordelingsronde (snelle ronde en evaluatieronde) — had nog geen opmaak */
+.ronde-voortgang{background:var(--surface-2);border-radius:12px;padding:10px 12px;margin:0 0 12px}
+.ronde-voortgang .rv-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
+.ronde-voortgang .rv-teller{color:var(--ink)}
+.ronde-voortgang .rv-teller b{font-family:'Barlow Condensed',sans-serif;font-size:calc(18px * var(--fs))}
+.ronde-voortgang .rv-track{display:flex;gap:3px;margin-top:8px}
+.ronde-voortgang .rv-seg{flex:1;height:5px;border-radius:3px;background:var(--hair)}
+.ronde-voortgang .rv-seg.gedaan{background:var(--ok)}
+.ronde-voortgang .rv-seg.oversla{background:var(--warn)}
+.ronde-voortgang .rv-seg.nu{background:var(--accent)}
+.tok-invoer input{background:var(--surface-2);color:var(--ink);border-color:var(--line-d)}
