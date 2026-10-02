@@ -125,6 +125,70 @@ function dagChipTekst(datum){
   return s.charAt(0).toUpperCase() + s.slice(1).replace('.', '');
 }
 
+/* ---------- Eerstvolgende training + latere afmeldingen ----------
+   [20261002] De kaart bovenaan het presentie-tabblad volgt nu de trainingsdagen
+   van het team (S.team.trainingsdagen, 1 = ma … 7 = zo) in plaats van simpelweg
+   de eerste vooraf ingevulde registratie. Zo kaapt een afmelding voor over een
+   week de kaart niet meer. Afmeldingen NA de eerstvolgende training staan achter
+   de knop "later afgemeld". Teams zonder trainingsdagen vallen terug op het oude
+   gedrag (eerste registratie vanaf vandaag). */
+function presentieOverzicht(){
+  const vandaag = new Date().toISOString().slice(0,10);
+  const dagen = (Array.isArray(S.team?.trainingsdagen) ? S.team.trainingsdagen : []).filter(d => d >= 1 && d <= 7);
+  const toekomstig = S.presentie
+    .filter(p => (p.datum||'') >= vandaag)
+    .sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  let gepland = null;
+  for (let i = 0; i < 14 && dagen.length && !gepland; i++){
+    const d = new Date(vandaag+'T12:00'); d.setDate(d.getDate() + i);
+    if (dagen.includes(((d.getDay() + 6) % 7) + 1)) gepland = d.toISOString().slice(0,10);
+  }
+  // een extra, vooraf geregistreerde dag vóór de eerste geplande training telt ook
+  const datum = [gepland, toekomstig[0]?.datum].filter(Boolean).sort()[0] || null;
+  const kaart = datum ? (toekomstig.find(p => p.datum === datum) || null) : null;
+  const later = datum ? toekomstig.filter(p => p.datum > datum && (p.afwezig||[]).length) : [];
+  return { vandaag, datum, kaart, later };
+}
+
+/* 'vandaag' / 'morgen' / 'over 10 dagen' */
+function dagenTotTekst(iso, vandaag){
+  const n = Math.round((new Date(iso+'T12:00') - new Date(vandaag+'T12:00')) / 86400000);
+  return n <= 0 ? 'vandaag' : n === 1 ? 'morgen' : `over ${n} dagen`;
+}
+
+/* 'Ma 12 okt' */
+function datKort(iso){
+  const s = new Date(iso+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* Venster met alle afmeldingen na de eerstvolgende training. Tik op een datum
+   om die registratie aan te passen. */
+export function modalLaterAfgemeld(){
+  const { vandaag, later } = presentieOverzicht();
+  const rij = (p) => {
+    const namen = (p.afwezig || []).map(id => speler(id)?.naam).filter(Boolean);
+    return `
+      <button type="button" class="later-rij" data-lp="${p.id}">
+        <span class="later-kop">
+          <span class="pr-dag">${esc(datKort(p.datum))}</span>
+          <span class="pr-over">${esc(dagenTotTekst(p.datum, vandaag))}</span>
+          <span class="later-tel">${(p.afwezig||[]).length} afwezig</span>
+        </span>
+        <span class="later-namen">${namen.map(n => `<span class="later-chip">${esc(n)}</span>`).join('')}</span>
+      </button>`;
+  };
+  openModal(`
+    <h2>Later afgemeld</h2>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Trainingen na de eerstvolgende waarvoor al afmeldingen staan. Tik op een datum om aan te passen.</p>
+    ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">Geen latere afmeldingen.</div>'}`);
+  document.querySelectorAll('#modalInhoud .later-rij').forEach(b => b.onclick = () => {
+    const p = S.presentie.find(x => x.id === b.dataset.lp);
+    sluitModal();
+    if (p) modalPresentie(p);
+  });
+}
+
 /* ---------- Tab: Presentie training ----------
    Eigen tabblad sinds de hub-navigatie (voorheen een sectie bovenaan de
    Training-tab). Zelfde gedrag: "Wie is er vandaag?"-knop, lijst per maand
@@ -144,7 +208,7 @@ export function htmlPresentieTraining(){
   }
   const TOON_PER_MAAND = 4;   // standaard aantal per maand voordat "toon meer" verschijnt
 
-  const rijHtml = (p) => {
+  const rijHtml = (p, chip = '') => {
     const afw = (p.afwezig || []);
     const laat = (p.telaat || []);
     const aanwezig = Math.max(0, S.spelers.length - afw.length);
@@ -161,7 +225,7 @@ export function htmlPresentieTraining(){
       : '';
     return `
       <div class="presentie-rij" data-presentie="${p.id}" style="cursor:pointer">
-        <div class="pr-datum"><span class="pr-dag">${datMooi}</span></div>
+        <div class="pr-datum"><span class="pr-dag">${datMooi}</span>${chip ? `<span class="pr-over">${esc(chip)}</span>` : ''}</div>
         <div class="pr-info">
           ${afw.length
             ? `<span class="pr-afw">${aanwezig} aanwezig${laat.length?` · ${laat.length} te laat`:''} · ${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
@@ -179,17 +243,15 @@ export function htmlPresentieTraining(){
   // geschiedenis nu eenmaal aflopend sorteert. Feedback van Paul: de
   // dienstdoende trainer kijkt naar het bovenste blok en moet daar dus
   // altijd de eerstvolgende training zien, niet de verst-vooruit-geplande.
-  const toekomstig = S.presentie
-    .filter(p => (p.datum||'') >= vandaag)
-    .sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
-  const eerstvolgende = toekomstig[0] || null;
+  const { datum: kaartDatum, kaart: eerstvolgende, later } = presentieOverzicht();
+  const laterIds = new Set(later.map(p => p.id));
 
   // groepeer presentie per maand (S.presentie is al gesorteerd nieuw → oud) —
-  // de eerstvolgende (hierboven al apart getoond) blijft hier buiten beeld.
+  // de kaart bovenaan en de latere afmeldingen (achter de knop) blijven hier buiten beeld.
   let presentieLijst;
-  const historie = eerstvolgende ? S.presentie.filter(p => p.id !== eerstvolgende.id) : S.presentie;
+  const historie = S.presentie.filter(p => p.id !== eerstvolgende?.id && !laterIds.has(p.id));
   if (!historie.length){
-    presentieLijst = eerstvolgende ? '' : `<div class="kaart leeg" style="margin-bottom:14px">Nog geen presentie geregistreerd.</div>`;
+    presentieLijst = (eerstvolgende || kaartDatum) ? '' : `<div class="kaart leeg" style="margin-bottom:14px">Nog geen presentie geregistreerd.</div>`;
   } else {
     const perMaand = new Map();
     for (const p of historie){
@@ -212,19 +274,40 @@ export function htmlPresentieTraining(){
           </button>
           ${open ? `
             <div class="maand-inhoud">
-              ${zichtbaar.map(rijHtml).join('')}
+              ${zichtbaar.map(p => rijHtml(p)).join('')}
               ${(!toonAlles && meer > 0) ? `<button class="toon-meer" data-toonmeer="${ym}">Toon ${meer} eerdere uit deze maand</button>` : ''}
             </div>` : ''}
         </div>`;
     }).join('');
   }
 
-  const eerstvolgendeSectie = eerstvolgende ? `
-    <div class="sectie-kop" style="margin-top:0">${eerstvolgende.datum===vandaag ? 'Vandaag' : 'Eerstvolgende training'}</div>
-    <div class="kaart" style="padding:0;margin-bottom:14px;overflow:hidden">${rijHtml(eerstvolgende)}</div>
-    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:16px">${ico('planning-calendar',18)} Andere datum invullen</button>`
-    : `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>
-    <button class="knop licht vol" id="presentieAndereDatum" style="margin-bottom:12px">${ico('planning-calendar',18)} Andere datum invullen</button>`;
+  const chip = kaartDatum && kaartDatum !== vandaag ? dagenTotTekst(kaartDatum, vandaag) : '';
+  const knoppenRij = `
+    <div class="pres-knoprij">
+      <button class="knop licht" id="presentieAndereDatum">${ico('planning-calendar',18)} Andere datum invullen</button>
+      ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} later afgemeld"><span class="pres-later-n">${later.length}</span><span class="pres-later-t">later<br>afgemeld</span></button>` : ''}
+    </div>`;
+
+  // kaart bovenaan: een bestaande registratie, of — op een geplande trainingsdag
+  // die nog niets heeft — een lege kaart waar je op tikt om presentie in te vullen
+  let eerstvolgendeSectie;
+  if (kaartDatum && (eerstvolgende || kaartDatum !== vandaag)){
+    const kaartInhoud = eerstvolgende
+      ? rijHtml(eerstvolgende, chip)
+      : `
+      <div class="presentie-rij" data-nieuwedatum="${kaartDatum}" style="cursor:pointer">
+        <div class="pr-datum"><span class="pr-dag">${esc(datKort(kaartDatum))}</span>${chip ? `<span class="pr-over">${esc(chip)}</span>` : ''}</div>
+        <div class="pr-info"><span class="pr-geen">Nog geen afmeldingen</span></div>
+        <span class="acties"><button title="Presentie invullen">${ico('admin-edit', 16)}</button></span>
+      </div>`;
+    eerstvolgendeSectie = `
+    <div class="sectie-kop" style="margin-top:0">${kaartDatum===vandaag ? 'Vandaag' : 'Eerstvolgende training'}</div>
+    <div class="kaart" style="padding:0;margin-bottom:14px;overflow:hidden">${kaartInhoud}</div>
+    ${knoppenRij}`;
+  } else {
+    eerstvolgendeSectie = `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>
+    ${knoppenRij}`;
+  }
 
   return `${afgelastSectie}
     ${eerstvolgendeSectie}
@@ -554,7 +637,7 @@ export function modalMijnNaam(){
 export function modalPresentie(bestaande = null, opties = {}){
   if (!S.spelers.length) return meld('Voeg eerst spelers toe onder het tabblad Spelers');
   const vandaag = new Date().toISOString().slice(0,10);
-  let datum = bestaande ? bestaande.datum : vandaag;
+  let datum = bestaande ? bestaande.datum : (opties.datum || vandaag);
   let afwezig = new Set(bestaande ? (bestaande.afwezig || []) : []);
   let telaat  = new Set(bestaande ? (bestaande.telaat  || []) : []);  // aanwezig, maar te laat
   let redenen = bestaande ? JSON.parse(JSON.stringify(bestaande.afwezigRedenen || {})) : {};
