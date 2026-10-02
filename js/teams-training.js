@@ -179,9 +179,9 @@ export function modalLaterAfgemeld(){
       </button>`;
   };
   openModal(`
-    <h2>Later afgemeld</h2>
+    <h2>Vooruit afgemeld</h2>
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Trainingen na de eerstvolgende waarvoor al afmeldingen staan. Tik op een datum om aan te passen.</p>
-    ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">Geen latere afmeldingen.</div>'}`);
+    ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">"Geen toekomstige afmeldingen.</div>'}`);
   document.querySelectorAll('#modalInhoud .later-rij').forEach(b => b.onclick = () => {
     const p = S.presentie.find(x => x.id === b.dataset.lp);
     sluitModal();
@@ -285,7 +285,7 @@ export function htmlPresentieTraining(){
   const knoppenRij = `
     <div class="pres-knoprij">
       <button class="knop licht" id="presentieAndereDatum">${ico('planning-calendar',18)} Andere datum invullen</button>
-      ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} later afgemeld"><span class="pres-later-n">${later.length}</span><span class="pres-later-t">later<br>afgemeld</span></button>` : ''}
+      ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} Vooruit afgemeld><span class="pres-later-n">${later.length}</span><span class="pres-later-t">vooruit<br>afgemeld</span></button>` : ''}
     </div>`;
 
   // kaart bovenaan: een bestaande registratie, of — op een geplande trainingsdag
