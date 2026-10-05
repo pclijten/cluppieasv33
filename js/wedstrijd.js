@@ -12,14 +12,14 @@ import {
   tijdstrafSec, KAART_ICOON, KAART_NAAM,
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
-  WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo
+  WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo, slotPositieNaam
 } from './config.js?v=20260922c';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260928a';
 import { ico } from './icons.js?v=20260922c';
 
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261003a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261005a';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
   elftalFilter, elftalFilterHtml } from './elftallen.js?v=20260928e';
 
@@ -539,7 +539,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261003a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261005a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -585,7 +585,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261003a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261005a').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -1283,6 +1283,32 @@ export function toonBijwerkScherm(){
       <button class="bijwerk-toevoeg" id="bwSelectie">✎ Selectie &amp; afwezigheid aanpassen</button>
     </div>`;
 
+  /* Startopstelling van deze periode: k.lineup (wie BEGON), niet de opstelling
+     na wissels. Hier corrigeer je achteraf wie er op welke plek begon; de
+     wissels blijven staan en de speeltijd rekent zichzelf opnieuw uit. */
+  const startBlok = (() => {
+    if (!k) return '';
+    const kF = kwartFormatie(w, k);
+    const slotsB = bouwSlots(w.format, kF);
+    const bezet = slotsB.filter(sl => (k.lineup || {})[sl.id] && speler(k.lineup[sl.id])).length;
+    const rij = sl => {
+      const pid = (k.lineup || {})[sl.id];
+      const sp = pid && speler(pid) ? pid : null;
+      return `<div class="bijwerk-regel bw-start" data-bw-start="${esc(sl.id)}">
+        <span class="bw-start-slot${sl.id === 'K' ? ' keeper' : ''}">${esc(sl.id)}</span>
+        <span class="bw-start-nr">${sp ? esc(spelerNr(sp)) : '–'}</span>
+        <span class="bw-naam">${sp ? esc(spelerNaam(sp)) : '<i>Leeg</i>'}</span>
+        <span class="bw-tijd"><span class="bw-pen">✎</span></span></div>`;
+    };
+    return `<div class="bijwerk-blok">
+      <div class="bijwerk-blok-kop"><span class="t">📋 Startopstelling ${esc(periodeLabel(w, nr))}</span>
+        <span class="bw-start-tel">${bezet} van ${slotsB.length} spelers</span></div>
+      <div class="bw-start-hint">Wie begon er op welke plek? Tik op een plek om de speler te wijzigen.</div>
+      ${slotsB.map(rij).join('')}
+      <div class="bw-start-hint onder">Wissels blijven staan. De speeltijd wordt opnieuw berekend.</div>
+    </div>`;
+  })();
+
   openModal(`
     <h2>Achteraf bijwerken</h2>
     <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:14px;line-height:1.5">${esc(w.tegenstander ? 'Tegen '+w.tegenstander : periodeOmschrijving(w))} · zet hier na afloop alles recht wat je tijdens de wedstrijd niet kon invoeren.</p>
@@ -1291,6 +1317,8 @@ export function toonBijwerkScherm(){
 
     <div class="bijwerk-tabs">${periodeNrs(w).map(p =>
       `<button data-bw-p="${p}" class="${p===nr?'actief':''}">${esc(periodeLabel(w, p))}</button>`).join('')}</div>
+
+    ${startBlok}
 
     <div class="bijwerk-blok">
       <div class="bijwerk-blok-kop"><span class="t">🔄 Wissels</span></div>
@@ -1321,6 +1349,7 @@ export function toonBijwerkScherm(){
   /* periode-tabs */
   $$('#modalInhoud [data-bw-p]').forEach(b => b.onclick = () => { S.bijwerkKwart = b.dataset.bwP; toonBijwerkScherm(); });
   /* rij-koppelingen */
+  $$('#modalInhoud [data-bw-start]').forEach(el => el.onclick = () => modalStartSpeler(nr, el.dataset.bwStart));
   $$('#modalInhoud [data-bw-wissel]').forEach(el => el.onclick = () => modalWisselAchteraf(nr, Number(el.dataset.bwWissel)));
   $$('#modalInhoud [data-bw-goal]').forEach(el => el.onclick = () => modalGoalCorrigeren(Number(el.dataset.bwGoal), {terugNaarBijwerk:true}));
   $$('#modalInhoud [data-bw-kaart]').forEach(el => el.onclick = () => modalKaartCorrigeren(Number(el.dataset.bwKaart), {terugNaarBijwerk:true}));
@@ -1330,6 +1359,93 @@ export function toonBijwerkScherm(){
   $('#bwSelectie').onclick = () => modalSelectie({terugNaarBijwerk:true, kwart:nr});
   $('#bwGoalNieuw').onclick = () => modalGoalToevoegen(nr);
   $('#bwKaartNieuw').onclick = () => modalKaart({kwart:nr, terugNaarBijwerk:true});
+}
+
+/* Houdt de wissels kloppend nadat de startopstelling is gewijzigd. Wissels
+   horen bij een plek: het eerste "eruit" op die plek is de speler die er op dat
+   moment stond. Wie er nu begon, kan dus afwijken van wie de wissel eerder
+   noemde; dan zetten we de wissel om naar de juiste speler. true = er is
+   iets aangepast. Alleen wissels op de gewijzigde plekken (slots) worden
+   aangeraakt; de rest van de historie blijft zoals hij was. */
+function harmoniseerWissels(k, slots){
+  let veranderd = false;
+  const bezet = Object.assign({}, k.lineup || {});
+  for (const e of [...(k.events || [])].sort((a, b) => (a.sec || 0) - (b.sec || 0))){
+    const nu = bezet[e.slot];
+    if (slots.has(e.slot) && nu && e.uit !== nu && (e.uit || e.in)){ e.uit = nu; veranderd = true; }
+    if (e.in) bezet[e.slot] = e.in; else delete bezet[e.slot];
+  }
+  return veranderd;
+}
+
+/* Zet pid (of niemand) als starter op slotId. Staat pid al op een andere
+   startplek, dan wisselen de twee van plek. */
+function zetStartSpeler(nr, slotId, pid){
+  const w = S.wedstrijd, k = w.kwarten[nr];
+  if (!k) return;
+  k.lineup ||= {};
+  const vorige = k.lineup[slotId];
+  if (pid && vorige === pid){ S.bijwerkKwart = nr; toonBijwerkScherm(); return; }
+  let van = null;
+  if (pid){
+    van = Object.keys(k.lineup).find(sl => k.lineup[sl] === pid) || null;
+    if (van && van !== slotId){
+      if (vorige) k.lineup[van] = vorige; else delete k.lineup[van];
+    }
+    k.lineup[slotId] = pid;
+  } else {
+    delete k.lineup[slotId];
+  }
+  const wisselsAangepast = harmoniseerWissels(k, new Set([slotId, van].filter(Boolean)));
+  telGebruik('startopstelling_achteraf');
+  bewaarWedstrijd();
+  meld(wisselsAangepast ? 'Startopstelling bijgewerkt · wissels aangepast' : 'Startopstelling bijgewerkt');
+  S.bijwerkKwart = nr; toonBijwerkScherm();
+}
+
+/* Kies wie er op een plek begon (vanuit het bijwerk-scherm). */
+function modalStartSpeler(startNr, slotId){
+  const w = S.wedstrijd;
+  const nr = String(startNr);
+  const k = w.kwarten[nr];
+  if (!k){ toonBijwerkScherm(); return; }
+  const kF = kwartFormatie(w, k);
+  const pos = slotPositieNaam(w.format, kF, slotId);
+  const huidig = (k.lineup || {})[slotId];
+  const startSlot = pid => Object.keys(k.lineup || {}).find(sl => k.lineup[sl] === pid);
+  /* Wie in deze periode pas via een wissel erin komt, kan niet óók starter
+     worden (dan stond hij op twee plekken). Eerst de wissel aanpassen. */
+  const komtLater = new Map();
+  for (const e of (k.events || [])) if (e.in && !komtLater.has(e.in)) komtLater.set(e.in, e.sec || 0);
+
+  const ids = [...new Set([...(w.selectie || []), ...(huidig ? [huidig] : [])])].filter(pid => speler(pid));
+  const rij = pid => {
+    const sl = startSlot(pid);
+    const geblokkeerd = !sl && komtLater.has(pid);
+    const status = sl ? 'op ' + esc(sl) : geblokkeerd ? 'wissel ' + gebeurtenisTijd(komtLater.get(pid), w) : 'bank';
+    return `<div class="bijwerk-regel bw-start${geblokkeerd ? ' bw-auto' : ''}" data-bw-sp="${esc(pid)}"${geblokkeerd ? ' data-bw-blok="1"' : ''}>
+      <span class="bw-start-nr">${esc(spelerNr(pid))}</span>
+      <span class="bw-naam">${esc(spelerNaam(pid))}</span>
+      <span class="bw-tijd">${status}${pid === huidig ? ' ✓' : ''}</span></div>`;
+  };
+
+  openModal(`
+    <h2>Wie begon op ${esc(slotId)}?</h2>
+    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">${esc(periodeOmschrijving(w, nr))}${pos ? ' · ' + esc(pos) : ''}. Kies je een speler die op een andere startplek staat, dan wisselen die twee van plek.</p>
+    <div class="bijwerk-blok">
+      ${ids.map(rij).join('')}
+      <div class="bijwerk-regel bw-start" data-bw-leeg="1"><span class="bw-naam" style="color:var(--ink-2)">Plek leeg laten</span></div>
+    </div>
+    <button class="knop licht vol" id="bwStTerug" style="margin-top:8px">‹ Terug naar overzicht</button>`);
+
+  const terug = () => { S.bijwerkKwart = nr; toonBijwerkScherm(); };
+  kruisNaarBijwerk(terug);
+  $$('#modalInhoud [data-bw-sp]').forEach(el => el.onclick = () => {
+    if (el.dataset.bwBlok){ meld('Deze speler komt pas via een wissel erin. Pas eerst die wissel aan.'); return; }
+    zetStartSpeler(nr, slotId, el.dataset.bwSp);
+  });
+  $('#modalInhoud [data-bw-leeg]').onclick = () => zetStartSpeler(nr, slotId, null);
+  $('#bwStTerug').onclick = terug;
 }
 
 /* Wissel achteraf toevoegen of een bestaande wissel-event bewerken — mét
@@ -2500,7 +2616,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261003a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261005a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2686,6 +2802,26 @@ export async function exportStatsExcel(knop){
 }
 
 /* ==================== WEERGAVE ==================== */
+/* Melding "X van Y spelers op het veld". Alleen zinvol zolang de periode nog
+   loopt: na het eindsignaal is de eindopstelling gewoon wat hij is, en na een
+   rode kaart speel je terecht met minder. Dan geen alarm, maar (bij rood) een
+   neutrale mededeling. */
+function veldMelding(w, k, aantalOpVeld, aantalSlots){
+  if (aantalOpVeld <= 0 || aantalOpVeld >= aantalSlots) return '';
+  const duurSec = Math.round((w.kwartduur || 0) * 60);
+  const afgelopen = !k.klok.running && k.klok.base > 0 && k.klok.base >= duurSec;
+  if (afgelopen) return '';
+  /* Een rode kaart geldt voor de rest van de wedstrijd (ook in latere periodes);
+     bij een toernooi telt hij alleen binnen de eigen periode. */
+  const nu = Number(S.kwart);
+  const rood = new Set((w.kaarten || [])
+    .filter(c => c.type === 'rood' && (String(c.kwart) === String(S.kwart) || (!isToernooi(w) && Number(c.kwart) < nu)))
+    .map(c => c.pid));
+  if (rood.size && aantalOpVeld >= aantalSlots - rood.size)
+    return `<div class="waarschuwing neutraal"><span>${KAART_ICOON.rood}</span><span>Je speelt met ${aantalOpVeld} spelers na ${rood.size > 1 ? 'rode kaarten' : 'een rode kaart'}.</span></div>`;
+  return `<div class="waarschuwing"><span>⚠️</span><span>Er staan ${aantalOpVeld} van ${aantalSlots} spelers op het veld — vul de opstelling aan.</span></div>`;
+}
+
 export function renderWedstrijd(){
   const w = S.wedstrijd; if (!w) return;
   /* Scrollpositie vasthouden: elke tik op een speler (of geplande wissel, doelpunt,
@@ -2780,7 +2916,7 @@ ${confroHtml}
       </div>
     </div>
 
-    ${opVeld.size > 0 && opVeld.size < slots.length ? `<div class="waarschuwing"><span>⚠️</span><span>Er staan ${opVeld.size} van ${slots.length} spelers op het veld — vul de opstelling aan.</span></div>` : ''}
+    ${veldMelding(w, k, opVeld.size, slots.length)}
     ${(w.selectie||[]).filter(pid => speler(pid)).length < slots.length ? `<div class="waarschuwing"><span>⚠️</span><span>Selectie heeft maar ${(w.selectie||[]).filter(pid => speler(pid)).length} spelers, je hebt er ${slots.length} nodig voor ${w.format} tegen ${w.format}.</span></div>` : ''}
 
     <div class="kwarten" style="${(w.periodes||4) > 5 ? 'flex-wrap:wrap' : ''}">${periodeNrs(w).map(nr => {
@@ -2989,7 +3125,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261003a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261005a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

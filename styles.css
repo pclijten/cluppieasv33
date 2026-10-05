@@ -3735,6 +3735,16 @@ textarea.trw-vel-in{min-height:80px;resize:none}
 .bijwerk-seg button{flex:1;padding:10px 4px;border-radius:10px;background:var(--op-vlak);font-weight:700;font-size:calc(13px * var(--fs));color:var(--ink-2)}
 .bijwerk-seg button.aan{background:var(--pitch-ink);color:var(--fluo)}
 
+/* Startopstelling achteraf (bijwerk-scherm) + neutrale veldmelding */
+.bijwerk-regel.bw-start{min-height:46px}
+.bw-start-slot{width:36px;flex-shrink:0;text-align:center;padding:4px 0;border-radius:8px;background:var(--op-vlak);color:var(--ink-2);font-family:'Barlow Condensed';font-weight:700;font-size:calc(14px * var(--fs))}
+.bw-start-slot.keeper{background:color-mix(in srgb, var(--keeper) 16%, transparent);color:var(--keeper)}
+.bw-start-nr{width:24px;flex-shrink:0;font-family:'Barlow Condensed';font-weight:700;font-size:calc(19px * var(--fs));line-height:1;color:var(--ink)}
+.bw-start-tel{font-size:calc(12px * var(--fs));color:var(--ink-2)}
+.bw-start-hint{font-size:calc(12.5px * var(--fs));line-height:1.5;color:var(--ink-2);padding:0 4px 6px}
+.bw-start-hint.onder{font-size:calc(11.5px * var(--fs));font-style:italic;padding:8px 4px 4px}
+.waarschuwing.neutraal{background:var(--op-vlak);color:var(--ink);border-left:none}
+
 /* ==================== INZICHT: statistiek-tabs & rapporten ==================== */
 .segment.inzicht-tabs{margin-bottom:calc(12px * var(--fs));overflow-x:auto;}
 .segment.inzicht-tabs button{white-space:nowrap;}
