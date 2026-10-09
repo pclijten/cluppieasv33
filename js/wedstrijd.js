@@ -14,14 +14,15 @@ import {
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo, slotPositieNaam
 } from './config.js?v=20260922c';
-import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd } from './analyse.js?v=20260928a';
+import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd,
+  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261009a';
 import { ico } from './icons.js?v=20260922c';
 
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261005a';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261009a';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
-  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20260928e';
+  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261009a';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -539,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261005a').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261009a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -585,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261005a').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261009a').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -987,7 +988,8 @@ function tikKlok(){
    kiest de coach dat de app op het wisselmoment automatisch de speler met de
    minste speeltijd van de bank inbrengt. Zo hoeft hij vooraf niet te weten wie
    het minst gespeeld heeft — dat rekent de app pas uit als de wissel valt. */
-const WISSEL_BEURT = '__beurt__';
+/* WISSEL_BEURT komt uit analyse.js (zodat de verwachte-speeltijdberekening
+   dezelfde sentinel gebruikt). */
 
 /* Wie is er "aan de beurt": de beschikbare bankspeler met de minste speeltijd
    over de hele wedstrijd. uitgesloten = spelers die op dit moment al ingepland
@@ -2616,7 +2618,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261005a').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261009a').then(m => m.renderTeam?.());
   });
 }
 
@@ -3049,35 +3051,60 @@ ${confroHtml}
       </div>`;
     })()}
 
-    <details class="uitklap" id="speeltijdUitklap"><summary>Speeltijd deze wedstrijd</summary>
+    <details class="uitklap" id="speeltijdUitklap"${(() => { const o = S._speeltijdOpen; S._speeltijdOpen = false; return o ? ' open' : ''; })()}><summary>Speeltijd deze wedstrijd</summary>
       ${(() => {
         /* Alle periodes naast elkaar: per periode een kolom, plus het wedstrijdtotaal.
            Spelernaam en Totaal blijven bij horizontaal scrollen staan (sticky), zodat
            een toernooi met veel periodes ook op een telefoon leesbaar blijft. */
         const nrs = periodeNrs(w);
-        const perP = {};
+        const perP = {}, perV = {};
         for (const nr of nrs){
           const kk = w.kwarten?.[nr];
           perP[nr] = kk ? analyseKwart(w, kk) : {tijd:{}, keeper:new Set(), lijn:{}};
+          perV[nr] = kk ? analyseKwartVerwacht(w, kk) : null;
         }
+        /* Verwachte speeltijd (geplande wissels als of ze doorgaan): puur weergave.
+           De echte speeltijd (perP / aWed) blijft ongemoeid en voedt alle statistieken. */
+        const toonVerw = S._toonVerwacht !== false;
+        const aVerw = analyseWedstrijdVerwacht(w);
+        const heeftPlan = nrs.some(nr => perV[nr] && perV[nr].wissels.length);
+        const heeftBeurt = nrs.some(nr => perV[nr] && perV[nr].wissels.some(x => x.beurt));
         let keeperGezien = false;
         const rijen = (w.selectie||[]).filter(pid => speler(pid))
           .sort((a,b) => (aWed.tijd[b]||0) - (aWed.tijd[a]||0)).map(pid => {
           const cellen = nrs.map(nr => {
             const kk = w.kwarten?.[nr];
-            const sec = perP[nr].tijd[pid];
-            const opDoel = perP[nr].keeper.has(pid);
+            const rol = toonVerw && perV[nr] ? perV[nr].rol[pid] : null; // zit in een geplande wissel
+            const sec = rol ? perV[nr].tijd[pid] : perP[nr].tijd[pid];
+            const opDoel = (rol ? perV[nr].keeper : perP[nr].keeper).has(pid);
             if (opDoel) keeperGezien = true;
             const aangepast = kk && kk.correcties && kk.correcties[pid] != null;
-            const kl = ['p-cel','bewerkbaar', sec ? '' : 'leeg', nr === S.kwart ? 'nu' : '', aangepast ? 'aangepast' : ''].filter(Boolean).join(' ');
-            return `<td class="${kl}" data-corrigeer-speeltijd="${pid}" data-corrigeer-periode="${nr}" title="Tik om speeltijd ${esc(periodeLabel(w, nr))} aan te passen">${sec ? mmss(sec) : '—'}${opDoel ? '<span class="keep" title="Stond op doel">K</span>' : ''}<span class="bewerk-hint">✎</span></td>`;
+            const wk = rol ? 'w-' + 'abc'[rol.set % 3] : '';
+            const kl = ['p-cel','bewerkbaar', sec ? '' : 'leeg', nr === S.kwart ? 'nu' : '', aangepast ? 'aangepast' : '', rol ? 'verw' : '', wk].filter(Boolean).join(' ');
+            const tijdTxt = rol ? '~' + mmss(sec || 0) + (rol.beurt ? '★' : '') : (sec ? mmss(sec) : '—');
+            const tag = rol ? `<div><span class="wtag ${wk}" title="Geplande wissel">${rol.soort === 'uit' ? 'uit' : 'in'} ${mmss(Math.round(rol.min * 60)).replace(/^0/, '')}</span></div>` : '';
+            return `<td class="${kl}" data-corrigeer-speeltijd="${pid}" data-corrigeer-periode="${nr}" title="Tik om speeltijd ${esc(periodeLabel(w, nr))} aan te passen"><div>${tijdTxt}${opDoel ? '<span class="keep" title="Stond op doel">K</span>' : ''}<span class="bewerk-hint">✎</span></div>${tag}</td>`;
           }).join('');
-          return `<tr><td class="naam-cel">${esc(spelerNaam(pid))}</td>${cellen}<td class="tijd-cel tot">${aWed.tijd[pid] ? uurMin(aWed.tijd[pid]) : '—'}</td></tr>`;
+          const totV = aVerw.tijd[pid] || 0;
+          const subTot = toonVerw && Math.round(totV) !== Math.round(aWed.tijd[pid] || 0)
+            ? `<div class="verw-tot" title="Verwacht als alle geplande wissels doorgaan">~${uurMin(totV)}</div>` : '';
+          return `<tr><td class="naam-cel">${esc(spelerNaam(pid))}</td>${cellen}<td class="tijd-cel tot"><div>${aWed.tijd[pid] ? uurMin(aWed.tijd[pid]) : '—'}</div>${subTot}</td></tr>`;
         }).join('');
+        /* Schakelaar + uitleg verschijnen alleen als er geplande wissels zijn;
+           zonder plan is de tabel exact zoals voorheen. */
+        const schakel = heeftPlan
+          ? `<button type="button" class="verw-schakel" id="verwSchakel" aria-pressed="${toonVerw}"><span class="knop"><i></i></span><span>Verwachte speeltijd tonen</span></button>` : '';
+        const legenda = !heeftPlan ? '' : toonVerw
+          ? `<p class="st-legenda"><span class="verw-v">~0:00</span> = verwacht door geplande wissels. Telt niet mee in statistieken, profielen of verslag.</p>
+          <p class="st-legenda">Zelfde kleur = één wissel: <span class="wtag w-a">uit</span> <span class="wtag w-a">in</span>. Een volgende wissel in dezelfde periode krijgt een andere kleur.</p>
+          ${heeftBeurt ? `<p class="st-legenda">★ = invaller “wie aan de beurt is”; die telt pas mee zodra de wissel is doorgevoerd.</p>` : ''}`
+          : `<p class="st-legenda">Zo zien de statistieken de wedstrijd: alleen opstelling en doorgevoerde wissels.</p>`;
         return `<div class="inhoud">
+          ${schakel}
           <div class="st-scroll"><table class="stat-tabel st-periodes">
             <thead><tr><th>Speler</th>${nrs.map(nr => `<th class="${nr === S.kwart ? 'nu' : ''}">${esc(periodeLabel(w, nr))}</th>`).join('')}<th class="tot">Totaal</th></tr></thead>
             <tbody>${rijen}</tbody></table></div>
+          ${legenda}
           ${keeperGezien ? `<p class="st-legenda"><span class="keep">K</span> = stond die periode op doel</p>` : ''}
           <p class="st-uitleg">Tik op een speeltijd om die periode voor een speler handmatig te corrigeren — bijvoorbeeld als een wissel vergeten is door te voeren.</p>
         </div>`;
@@ -3125,7 +3152,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261005a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261009a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3204,6 +3231,8 @@ ${confroHtml}
   };
   v.querySelector('#kiesSelectie').onclick = modalSelectie;
   v.querySelector('#planWissel').onclick = modalPlanWissel;
+  { const vs = v.querySelector('#verwSchakel');
+    if (vs) vs.onclick = () => { S._toonVerwacht = S._toonVerwacht === false; S._speeltijdOpen = true; renderWedstrijd(); }; }
   v.querySelectorAll('[data-plan-uitvoer]').forEach(b => b.onclick = e => { e.stopPropagation(); voerPlanUit(Number(b.dataset.planUitvoer)); });
   v.querySelectorAll('[data-plan-weg]').forEach(b => b.onclick = e => { e.stopPropagation(); (huidigKwart().plan||[]).splice(Number(b.dataset.planWeg),1); bewaarWedstrijd(); renderWedstrijd(); });
   v.querySelectorAll('[data-weg-ev]').forEach(b => b.onclick = e => { e.stopPropagation(); verwijderEvent(Number(b.dataset.wegEv)); });
