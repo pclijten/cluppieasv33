@@ -96,6 +96,117 @@ export function analyseWedstrijd(w){
   return tot;
 }
 
+/* ==================== VERWACHTE SPEELTIJD (PLANNING) ====================
+   Een geplande wissel (k.plan) is een herinnering, geen gebeurtenis. De gewone
+   berekening hierboven (analyseKwart / analyseWedstrijd) kijkt er daarom
+   BEWUST NIET naar: statistieken, spelersprofielen, het verslag en de
+   selectie-bouw tellen alleen wat echt gebeurd is. Zo blijft de daadwerkelijke
+   speeltijd onaangetast door plannen die nooit worden uitgevoerd.
+   Om te kunnen plannen willen we wél zien wat de speeltijd wordt áls de
+   geplande wissels doorgaan. Dat rekenen de functies hieronder uit, uitsluitend
+   ter weergave in het wedstrijdscherm. Ze lezen k.plan alleen, schrijven niets
+   weg en hergebruiken analyseKwart, zodat Math.min(sec, duur), handmatige
+   correcties en keeper-registratie op precies dezelfde manier meetellen. */
+
+/* Sentinel voor "wie aan de beurt is": de invaller staat pas vast op het
+   wisselmoment. Zelfde waarde als in wedstrijd.js en teams-hub.js. */
+export const WISSEL_BEURT = '__beurt__';
+
+/* Opstelling (slot -> speler) op tijdstip t, uit startopstelling + echte events. */
+function veldBijTijd(k, t){
+  const l = {...(k.lineup||{})};
+  for (const e of [...(k.events||[])].sort((a,b) => a.sec - b.sec)){
+    if (e.sec > t) break;
+    if (e.in) l[e.slot] = e.in;
+    else delete l[e.slot];
+  }
+  return l;
+}
+
+/* Een periode is afgelopen als de klok stilstaat op (of voorbij) de periodeduur.
+   Wissels die dan nog in het plan staan zijn vergeten door te voeren; die
+   behandelen we niet als uitgevoerd (daarvoor is de speeltijd-correctie). */
+function kwartAfgelopen(w, k){
+  const duur = Math.round((w.kwartduur || 0) * 60);
+  return duur > 0 && !k.klok.running && klokSecRaw(k) >= duur - 1;
+}
+
+/* De geplande wissels van één periode die nog kunnen doorgaan, op volgorde van
+   minuut. Per wissel: set (0,1,2… — voor het kleurpaar in de weergave), min, t
+   (seconden), uit, in (null bij "wie aan de beurt is"), beurt, slot.
+   Een geplande wissel telt niet mee als hij niet (meer) kan:
+   - de uitgaande speler staat dan niet op het veld, of verlaat het veld alsnog
+     via een echte wissel;
+   - de invaller staat dan al op het veld, of komt er alsnog via een echte
+     wissel in;
+   - de minuut valt buiten de periode. */
+export function geplandeWissels(w, k){
+  const lijst = [];
+  if (!k || !Array.isArray(k.plan) || !k.plan.length) return lijst;
+  if (kwartAfgelopen(w, k)) return lijst;
+  const D = kwartDuurSec(w, k);
+  const events = k.events || [];
+  const uitGebruikt = new Set(), inGebruikt = new Set();
+  for (const p of [...k.plan].sort((a,b) => a.min - b.min)){
+    const t = Math.round(p.min * 60);
+    if (!(t >= 0 && t < D)) continue;
+    const veld = veldBijTijd(k, t);
+    const slot = Object.keys(veld).find(s => veld[s] === p.uit);
+    if (!slot || uitGebruikt.has(p.uit)) continue;
+    if (events.some(e => e.uit === p.uit && e.sec > t)) continue;
+    const beurt = p.in === WISSEL_BEURT;
+    if (!beurt){
+      if (Object.values(veld).includes(p.in) || inGebruikt.has(p.in)) continue;
+      if (events.some(e => e.in === p.in && e.sec > t)) continue;
+      inGebruikt.add(p.in);
+    }
+    uitGebruikt.add(p.uit);
+    lijst.push({set: lijst.length, min: p.min, t, uit: p.uit, in: beurt ? null : p.in, beurt, slot});
+  }
+  return lijst;
+}
+
+/* Verwachte speeltijd van één periode: de gewone berekening plus de geplande
+   wissels alsof ze op hun minuut doorgaan.
+   Geeft {tijd, keeper, wissels, rol, verschilt}:
+   - tijd: pid -> verwachte seconden in deze periode
+   - rol: pid -> {soort:'uit'|'in', min, set, beurt} voor wie in een geplande wissel zit
+   - verschilt: Set met spelers waarvan de verwachte tijd afwijkt van de echte
+   Bij "wie aan de beurt is" wordt alleen de uitgaande speler ingekort: de
+   invaller staat pas op het wisselmoment vast en telt dus nog niet mee. */
+export function analyseKwartVerwacht(w, k){
+  const echt = analyseKwart(w, k);
+  const wissels = geplandeWissels(w, k);
+  if (!wissels.length) return {tijd: echt.tijd, keeper: echt.keeper, wissels, rol: {}, verschilt: new Set()};
+  const extra = wissels.map(x => {
+    const e = {uit: x.uit, slot: x.slot, sec: x.t};
+    if (x.in) e.in = x.in;
+    return e;
+  });
+  const a = analyseKwart(w, {...k, events: [...(k.events||[]), ...extra]});
+  const rol = {};
+  for (const x of wissels){
+    rol[x.uit] = {soort: 'uit', min: x.min, set: x.set, beurt: x.beurt};
+    if (x.in) rol[x.in] = {soort: 'in', min: x.min, set: x.set, beurt: false};
+  }
+  const verschilt = new Set();
+  for (const pid of new Set([...Object.keys(echt.tijd), ...Object.keys(a.tijd)]))
+    if (Math.round(a.tijd[pid]||0) !== Math.round(echt.tijd[pid]||0)) verschilt.add(pid);
+  return {tijd: a.tijd, keeper: a.keeper, wissels, rol, verschilt};
+}
+
+/* Verwachte speeltijd over de hele wedstrijd (alleen perioden met een opstelling). */
+export function analyseWedstrijdVerwacht(w){
+  const tot = {tijd: {}, wissels: 0};
+  for (const nr of periodeNrs(w)){
+    const k = w.kwarten?.[nr]; if (!k || !kwartGespeeld(k)) continue;
+    const a = analyseKwartVerwacht(w, k);
+    tot.wissels += a.wissels.length;
+    for (const [pid, s] of Object.entries(a.tijd)) tot.tijd[pid] = (tot.tijd[pid]||0) + s;
+  }
+  return tot;
+}
+
 /* Disciplinaire banktijd per speler over de hele wedstrijd (in seconden).
    Een 'uit'-event met disciplinair:true markeert het begin van een strafbeurt op
    de bank; die loopt tot de speler weer een 'in'-event krijgt of tot het einde
