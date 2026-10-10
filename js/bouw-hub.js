@@ -26,11 +26,11 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261009a';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261010a';
 import { telGebruik } from './tracker.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20261009a';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20260929a';
+import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261010a';
 
 /* [20260929a] Voortgang van de "verplichte" evaluatie per team: de lopende
    evaluatieronde van de club als die er is, anders (zoals voorheen) de
@@ -181,7 +181,7 @@ async function haalTeamData(team, seizoen){
     // (met uitslag-veld) — het losse uitslagen-doc is alleen nog fallback.
     getDoc(doc(db,'teams',team.id,'poule','programma')).catch(e => { console.warn(`[Cluppie] bouw-hub: poule/programma niet gelezen voor ${team.naam}`, e.code); return null; }),
   ]);
-  const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend);
+  const spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend && !p.gearchiveerd);
   const wedstrijden = wsnap.docs.map(d => ({id:d.id, ...d.data()})).filter(w => w.datum).sort((a,b) => a.datum.localeCompare(b.datum));
   const presentie = psnap.docs.map(d => ({id:d.id, ...d.data()})).filter(s => s.datum);
   const stand = poulesnap.exists() ? poulesnap.data() : null;
@@ -202,7 +202,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261009a'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261010a'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -846,7 +846,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261009a');
+      const m = await import('./teams.js?v=20261010a');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1050,7 +1050,7 @@ export async function modalNieuweUitleningVanuitBouw(verversScherm){
     try {
       // Team binnen deze bouw? Spelers zijn al gecached — anders alsnog ophalen.
       const d = huidigeContext.data.get(vanTeam);
-      const spelers = d ? d.spelers : (await getDocs(collection(db,'teams',vanTeam,'spelers'))).docs.map(x => ({id:x.id, ...x.data()})).filter(p=>!p.gast&&!p._ingeleend);
+      const spelers = d ? d.spelers : (await getDocs(collection(db,'teams',vanTeam,'spelers'))).docs.map(x => ({id:x.id, ...x.data()})).filter(p=>!p.gast&&!p._ingeleend&&!p.gearchiveerd);
       const gesorteerd = [...spelers].sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
       spelerSel.innerHTML = gesorteerd.length
         ? '<option value="">Kies een speler…</option>' + gesorteerd.map(p => `<option value="${p.id}">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</option>`).join('')

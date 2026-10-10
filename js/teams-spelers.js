@@ -20,7 +20,7 @@ import {
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261009a';
 import { isBouwCoordinator } from './coordinatoren.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
-import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20260929a';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261010a';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
@@ -32,7 +32,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261009a');
+  const m = await import('./teams.js?v=20261010a');
   m.renderTeam();
 }
 
@@ -221,6 +221,189 @@ function tipsBalk(score){
   return `<div class="tips-track">${segs}</div>`;
 }
 
+/* ===================== Vorige teams: scope-toggle + dossier-weergave =====================
+ * Een definitief overgezette speler heeft bij het nieuwe team bevroren dossiers
+ * (subcollectie vorigeTeams, zie bouwOverdrachtDossier). Alleen het spelersprofiel
+ * kijkt ernaar; teamcijfers blijven puur van het eigen team.
+ * Scopes: 'team' (Bij dit team, standaard) · 'seizoen' (Heel seizoen) · 'carriere'. */
+const OV_SUBS = [['wed','Wedstrijden'], ['beo','Beoordelingen'], ['tr','Trainingen'], ['lp','Leerpunten']];
+
+function stintsVoor(p){
+  if (!p || !p.heeftVorigeTeams) return [];
+  return (S._vorigeTeams || {})[`${S.teamId}/${p.id}`] || [];
+}
+
+// Laadt de dossiers één keer per speler (lazy); daarna een her-render.
+function ovZorgVoorDossier(p){
+  if (!p || !p.heeftVorigeTeams || !S.teamId) return;
+  const sl = `${S.teamId}/${p.id}`;
+  S._vorigeTeams = S._vorigeTeams || {};
+  if (S._vorigeTeams[sl] || S._vtBezig === sl) return;
+  S._vtBezig = sl;
+  getDocs(collection(db,'teams',S.teamId,'spelers',p.id,'vorigeTeams'))
+    .then(snap => {
+      S._vorigeTeams[sl] = snap.docs.map(d => ({ id:d.id, ...d.data() }))
+        .sort((a, b) => (b.tot || '').localeCompare(a.tot || ''));
+    })
+    .catch(() => { S._vorigeTeams[sl] = []; })      // geen toegang/fout: geen herhaald laden
+    .finally(() => { if (S._vtBezig === sl) S._vtBezig = null; herrenderTeam(); });
+}
+
+const ovSeizoenNu = () => S.huidigSeizoen || SEIZOEN_FALLBACK;
+const ovScopeNu = (p) => stintsVoor(p).length ? (S._ovScope || 'team') : 'team';
+
+// Tellers uit het eigen team, optioneel beperkt tot één seizoen.
+function telEigen(p, seizoen){
+  const sz = x => x.seizoen || ovSeizoenNu();
+  const weds = (S.wedstrijden || []).filter(w => !seizoen || sz(w) === seizoen);
+  let wedstrijden = 0, tijd = 0, goals = 0, assists = 0;
+  for (const w of weds){
+    for (const g of (w.goals || [])){
+      if (g.type !== 'voor') continue;
+      if (g.pid === p.id) goals++;
+      if (g.assist === p.id) assists++;
+    }
+    const a = analyseWedstrijd(w);
+    if (a.kwarten && a.tijd[p.id]){ tijd += a.tijd[p.id]; wedstrijden++; }
+  }
+  const sr = speeltijdReserve(weds)[p.id] || { speeltijd:0, reserve:0, speelbaar:0 };
+  const sessies = (S.presentie || []).filter(s => teltMee(s, p) && (!seizoen || sz(s) === seizoen));
+  const aanwezig = sessies.filter(s => !(s.afwezig || []).includes(p.id)).length;
+  return { wedstrijden, tijd, goals, assists, speeltijd:sr.speeltijd, reserve:sr.reserve, speelbaar:sr.speelbaar,
+    trainingen:sessies.length, aanwezig };
+}
+
+// Stats voor de gekozen scope; percentages opnieuw uit de opgetelde tellers.
+function ovStatsVoor(p, st){
+  const scope = ovScopeNu(p);
+  if (scope === 'team') return st;
+  const cur = scope === 'seizoen' ? ovSeizoenNu() : null;
+  const e = telEigen(p, cur);
+  const som = { wedstrijden:e.wedstrijden, tijd:e.tijd, goals:e.goals, assists:e.assists, reserve:e.reserve,
+    speelbaar:e.speelbaar, speeltijd:e.speeltijd, trainingen:e.trainingen, aanwezig:e.aanwezig };
+  for (const s of stintsVoor(p)){
+    for (const z of (s.seizoenen || [])){
+      if (cur && z.seizoen !== cur) continue;
+      som.wedstrijden += z.wedstrijden || 0; som.tijd += z.tijd || 0; som.goals += z.goals || 0;
+      som.assists += z.assists || 0; som.reserve += z.reserve || 0; som.speelbaar += z.speelbaar || 0;
+      som.speeltijd += Math.min(z.tijd || 0, z.speelbaar || 0);
+      som.trainingen += z.trainingen || 0; som.aanwezig += z.aanwezig || 0;
+    }
+  }
+  const pctSpeeltijd = som.speelbaar > 0 ? Math.min(100, Math.round((som.speeltijd / som.speelbaar) * 100)) : null;
+  return { ...st, wedstrijden:som.wedstrijden, tijd:som.tijd, goals:som.goals, assists:som.assists,
+    reserve:som.reserve, speelbaar:som.speelbaar, pctSpeeltijd,
+    pctReserve: pctSpeeltijd != null ? 100 - pctSpeeltijd : null,
+    opkomst: som.trainingen > 0 ? Math.round((som.aanwezig / som.trainingen) * 100) : null };
+}
+
+function ovScopeKop(p){
+  if (!stintsVoor(p).length) return '';
+  const sc = ovScopeNu(p);
+  const tekst = {
+    team: `Alleen wat ${esc(p.naam.split(' ')[0])} bij ${esc(S.team.naam)} heeft gedaan.`,
+    seizoen: `Dit seizoen, inclusief de wedstrijden en trainingen bij eerdere teams.`,
+    carriere: `Alles bij elkaar, ook uit eerdere seizoenen en teams.`,
+  }[sc];
+  return `<div class="ov-scope-kop">
+    <div class="segment" id="ovScope">
+      <button data-ov-scope="team" class="${sc==='team'?'actief':''}">Bij dit team</button>
+      <button data-ov-scope="seizoen" class="${sc==='seizoen'?'actief':''}">Heel seizoen</button>
+      <button data-ov-scope="carriere" class="${sc==='carriere'?'actief':''}">Carrière</button>
+    </div>
+    <p class="ov-hint">${tekst}</p>
+  </div>`;
+}
+
+// Per team (en seizoen) een regel, alleen bij Heel seizoen / Carrière.
+function ovPerTeam(p){
+  const sc = ovScopeNu(p);
+  if (sc === 'team') return '';
+  const cur = sc === 'seizoen' ? ovSeizoenNu() : null;
+  const rij = (naam, sub, x) => `<div class="ov-team-rij">
+    <div class="ov-tn"><b>${esc(naam)}</b><span>${esc(sub)}</span></div>
+    <span>${x.wedstrijden} wedstr.</span><span>${x.tijd ? uurMin(x.tijd) : '—'}</span><span>${x.goals} G</span></div>`;
+  let h = rij(S.team.naam, cur || 'nu', telEigen(p, cur));
+  for (const s of stintsVoor(p)){
+    for (const z of (s.seizoenen || [])){
+      if (cur && z.seizoen !== cur) continue;
+      h += rij(s.teamNaam || 'Vorig team', z.seizoen && z.seizoen !== 'onbekend' ? z.seizoen : 'seizoen onbekend', z);
+    }
+  }
+  return `<div class="kaart"><div class="veldlabel" style="margin-top:0">Per team</div>${h}</div>`;
+}
+
+function ovWedRij(r){
+  const pct = r.speelbaar > 0 ? Math.round((r.tijd / r.speelbaar) * 100) : null;
+  let label = '—', klasse = 'leeg';
+  if (r.straf > 0){ label = 'Straf'; klasse = 'straf'; }
+  else if (pct != null){ label = pct + '%'; klasse = pct >= 90 ? 'vol' : 'deel'; }
+  const extra = [];
+  if (r.goals) extra.push(`⚽ ${r.goals}`);
+  if (r.assists) extra.push(`🅰 ${r.assists}`);
+  if (r.geel) extra.push(`🟨 ${r.geel}`);
+  if (r.rood) extra.push(`🟥 ${r.rood}`);
+  if (r.keeper) extra.push(`🧤 ${uurMin(r.keeper)}`);
+  if (r.laat) extra.push('⏱ kwam later');
+  if (r.startBank?.reden){ const w = wisselReden(r.startBank.reden); extra.push(`${w ? w.emoji+' '+w.label : 'bank'}`); }
+  const uitslag = (r.voor || r.tegen || r.inSelectie) ? ` · ${r.voor}-${r.tegen}` : '';
+  return `<div class="wed-hist-rij">
+    <span class="whr-datum">${r.datum ? datumNL(r.datum) : '—'}</span>
+    <div class="whr-mid"><div class="whr-teg">${esc(r.tegenstander)}${uitslag}</div>
+      ${extra.length ? `<div class="whr-reden">${extra.join(' · ')}</div>` : ''}</div>
+    <span class="whr-status ${klasse}">${label}</span></div>`;
+}
+
+function ovPaneel(s, sub){
+  const leeg = t => `<p class="ov-hint" style="padding:6px 0">${t}</p>`;
+  if (sub === 'wed')
+    return (s.wedstrijden || []).length ? s.wedstrijden.map(ovWedRij).join('') : leeg(s.mee?.wed === false ? 'Niet meegenomen bij het overzetten.' : 'Geen wedstrijden.');
+  if (sub === 'beo')
+    return (s.beoordelingen || []).length
+      ? s.beoordelingen.map(b => htmlTijdlijnItem(b).replace(/\sdata-open-beoordeling="[^"]*"/g, '')).join('')
+      : leeg(s.mee?.beo === false ? 'Niet meegenomen bij het overzetten.' : 'Geen beoordelingen.');
+  if (sub === 'tr')
+    return (s.presentie || []).length ? s.presentie.map(r => {
+      let info = null; try { info = r.reden ? afwezigRedenInfo(r.reden) : null; } catch {}
+      const txt = r.aanwezig ? 'Aanwezig' : info ? `${info.emoji} ${esc(info.label)}` : '❔ Zonder reden';
+      return `<div class="presentie-hist-rij"><span>${r.datum ? datumNL(r.datum) : '—'}</span><span class="phr-status ${r.aanwezig?'aanw':'afw'}">${txt}</span></div>`;
+    }).join('') : leeg(s.mee?.tr === false ? 'Niet meegenomen bij het overzetten.' : 'Geen trainingen.');
+  return (s.leerpunten || []).length ? s.leerpunten.map(l => {
+    const d = SKILLS.find(x => x.id === l.domein);
+    return `<div class="ov-lp"><span class="ov-lp-dom">${esc(l.domein || '')}</span><div><div>${esc(l.tekst || '')}</div>
+      <div class="ov-hint">${d ? esc(d.naam)+' · ' : ''}${l.klaar ? 'afgerond' + (l.klaarOp ? ' ' + datumNL(isoDatum(l.klaarOp) || l.klaarOp) : '') : 'open'}</div></div></div>`;
+  }).join('') : leeg(s.mee?.lp === false ? 'Niet meegenomen bij het overzetten.' : 'Geen leerpunten.');
+}
+
+function ovStintKaart(p, s){
+  const tot = (s.seizoenen || []).reduce((a, z) => ({
+    w: a.w + (z.wedstrijden || 0), t: a.t + (z.tijd || 0), g: a.g + (z.goals || 0), a: a.a + (z.assists || 0),
+    tr: a.tr + (z.trainingen || 0), aw: a.aw + (z.aanwezig || 0) }), { w:0, t:0, g:0, a:0, tr:0, aw:0 });
+  const open = S._ovOpen === s.id;
+  const sub = S._ovSub || 'wed';
+  const tel = { wed:(s.wedstrijden||[]).length, beo:(s.beoordelingen||[]).length, tr:(s.presentie||[]).length, lp:(s.leerpunten||[]).length };
+  const periode = s.van ? `${datumNL(s.van)} – ${s.tot ? datumNL(s.tot) : ''}` : (s.tot ? `t/m ${datumNL(s.tot)}` : '');
+  return `<div class="kaart ov-stint">
+    <div class="veldlabel" style="margin-top:0">Vorig team · ${esc(s.teamNaam || 'onbekend')}</div>
+    ${periode ? `<div class="ov-hint" style="margin:-4px 0 8px">${periode}</div>` : ''}
+    <div class="ov-samen"><span><b>${tot.w}</b> wedstr.</span><span><b>${tot.t ? uurMin(tot.t) : '—'}</b></span>
+      <span><b>${tot.g}</b> goals</span><span><b>${tot.a}</b> assists</span>
+      <span><b>${tot.tr ? Math.round(tot.aw / tot.tr * 100) + '%' : '—'}</b> training</span></div>
+    <button class="knop licht klein" style="width:100%;margin-top:10px" data-ov-open="${esc(s.id)}">${open ? 'Inklappen' : `Alles uit ${esc(s.teamNaam || 'vorig team')} tonen`}</button>
+    ${open ? `
+      <div class="segment ov-sub" id="ovSub">
+        ${OV_SUBS.map(([k, n]) => `<button data-ov-sub="${k}" class="${sub===k?'actief':''}">${n} (${tel[k]})</button>`).join('')}
+      </div>
+      <div class="ov-paneel">${ovPaneel(s, sub)}</div>
+      <p class="ov-voet">Bevroren op ${s.bevroren ? datumNL(s.bevroren) : '—'}. Het origineel blijft bewaard bij ${esc(s.teamNaam || 'het oude team')}.</p>
+      ${isBeheerder() ? `<button class="knop licht klein" data-ov-herbereken="${esc(s.id)}">Herbereken uit ${esc(s.teamNaam || 'oud team')}</button>` : ''}` : ''}
+  </div>`;
+}
+
+function htmlVorigeTeams(p){
+  return stintsVoor(p).map(s => ovStintKaart(p, s)).join('');
+}
+
 /* ---------- Spelerprofiel ---------- */
 /* Bepaalt voor één speler in één wedstrijd: speeltijd-label + eventuele
    wisselreden (inclusief vooraf ingestelde disciplinaire bankbeurt). Gebruikt
@@ -307,6 +490,8 @@ export function htmlProfiel(){
   if (!leerlijnAan && S._profielTab === 'leerlijn') S._profielTab = 'overzicht';
   const tab = S._profielTab || 'overzicht';
   const st = spelerStats(p.id);
+  ovZorgVoorDossier(p);
+  const stS = ovStatsVoor(p, st);   // st = alleen dit team; stS = volgens de gekozen scope
   const vol = laatsteVolledig(p.id);
   const eigen = S.beoordelingen.filter(b => b.spelerId === p.id);
 
@@ -346,29 +531,31 @@ export function htmlProfiel(){
     </div>
 
     ${tab === 'overzicht' ? `
+      ${ovScopeKop(p)}
       <div class="stat-grid">
-        <div class="stat-box"><div class="v">${st.wedstrijden}</div><div class="l">Wedstr.</div></div>
-        <div class="stat-box"><div class="v">${st.tijd ? uurMin(st.tijd) : '—'}</div><div class="l">Speeltijd</div>${st.pctSpeeltijd!=null?`<div class="sub">${st.pctSpeeltijd}% van speelbaar</div>`:''}</div>
-        <div class="stat-box"><div class="v">${st.reserve ? uurMin(st.reserve) : '—'}</div><div class="l">Reserve</div>${st.pctReserve!=null?`<div class="sub">${st.pctReserve}% van speelbaar</div>`:''}</div>
-        <div class="stat-box"><div class="v">${st.goals}</div><div class="l">Goals</div><div class="sub">${st.assists} assist${st.assists === 1 ? '' : 's'}</div></div>
+        <div class="stat-box"><div class="v">${stS.wedstrijden}</div><div class="l">Wedstr.</div></div>
+        <div class="stat-box"><div class="v">${stS.tijd ? uurMin(stS.tijd) : '—'}</div><div class="l">Speeltijd</div>${stS.pctSpeeltijd!=null?`<div class="sub">${stS.pctSpeeltijd}% van speelbaar</div>`:''}</div>
+        <div class="stat-box"><div class="v">${stS.reserve ? uurMin(stS.reserve) : '—'}</div><div class="l">Reserve</div>${stS.pctReserve!=null?`<div class="sub">${stS.pctReserve}% van speelbaar</div>`:''}</div>
+        <div class="stat-box"><div class="v">${stS.goals}</div><div class="l">Goals</div><div class="sub">${stS.assists} assist${stS.assists === 1 ? '' : 's'}</div></div>
       </div>
-      ${heeftElftallen() ? (() => {
+      ${(heeftElftallen() && ovScopeNu(p) === 'team') ? (() => {
         const e1 = spelerStats(p.id, '1'), e2 = spelerStats(p.id, '2');
         const r = (e, x) => `<div class="elf-split-rij"><span class="elf-pill e${e}">${e}e</span><span>${x.wedstrijden} wedstr.</span><span>${Math.round(x.tijd / 60)} min</span><span>${x.goals} G</span><span>${x.assists} A</span></div>`;
         return `<div class="kaart elf-split"><div class="veldlabel" style="margin-top:0">Per elftal${elftalPillen(p)}</div>${r('1', e1)}${r('2', e2)}</div>`;
       })() : ''}
-      ${st.pctSpeeltijd != null ? `
+      ${stS.pctSpeeltijd != null ? `
       <div class="kaart" style="margin-top:-2px">
         <div class="veldlabel" style="margin-top:0">Verhouding speeltijd / bank</div>
         <div class="speeltijd-split">
-          <div class="veld" style="width:${st.pctSpeeltijd}%"></div>
-          <div class="bank" style="width:${st.pctReserve}%"></div>
+          <div class="veld" style="width:${stS.pctSpeeltijd}%"></div>
+          <div class="bank" style="width:${stS.pctReserve}%"></div>
         </div>
         <div class="split-legend">
-          <span><span class="dotje" style="background:var(--ok)"></span> Op het veld · ${uurMin(st.tijd)}</span>
-          <span><span class="dotje" style="background:var(--warn)"></span> Reserve · ${uurMin(st.reserve)}</span>
+          <span><span class="dotje" style="background:var(--ok)"></span> Op het veld · ${uurMin(stS.tijd)}</span>
+          <span><span class="dotje" style="background:var(--warn)"></span> Reserve · ${uurMin(stS.reserve)}</span>
         </div>
       </div>` : ''}
+      ${ovPerTeam(p)}
       ${Object.keys(st.afwPerReden||{}).length ? `
       <div class="presentie-uitsplitsing" style="margin:-6px 0 14px">
         ${Object.entries(st.afwPerReden).sort((a,b)=>b[1]-a[1]).map(([id,n]) => {
@@ -378,6 +565,7 @@ export function htmlProfiel(){
         }).join('')}
       </div>` : ''}
 
+      ${htmlVorigeTeams(p)}
       ${(() => {
         const notitie = (p.notitie || '').trim();
         return `<div class="notitie-kaart${notitie ? '' : ' leeg'}">
@@ -1281,17 +1469,149 @@ export function modalLeenOverlay(spelerId){
   };
 }
 
+/* ===================== Overdrachtsdossier (definitief overzetten) =====================
+ * Bij een definitieve overzet verhuist het spelerdocument (zelfde id) naar het
+ * ontvangende team. Het ORIGINEEL bij het bronteam wordt NIET verwijderd maar
+ * gearchiveerd (gearchiveerd:true, naarTeam, gearchiveerdOp): al zijn gegevens
+ * daar blijven bewaard, en de wedstrijden/presentie/beoordelingen van het
+ * bronteam blijven onaangeroerd. Teamlijsten negeren gearchiveerde spelers
+ * (zie de spelers-listener in teams.js).
+ *
+ * Het ontvangende team krijgt daarnaast een BEVROREN dossier met alleen de
+ * eigen gegevens van deze speler uit het bronteam, als subcollectie
+ *   teams/{naarTeam}/spelers/{id}/vorigeTeams/{stintId}
+ * (valt onder de bestaande /{sub=**}-regel, dus geen rules-wijziging nodig).
+ * Het dossier staat bewust buiten S.wedstrijden/S.presentie: het telt nooit mee
+ * in teamcijfers, alleen in het spelersprofiel (scope Heel seizoen / Carrière).
+ * Andere spelers van het bronteam gaan nooit mee. */
+const DOSSIER_VERSIE = 1;
+
+// 'YYYY-MM-DD' uit een Firestore-timestamp, Date of datumtekst; null als onbekend.
+function isoDatum(x){
+  try {
+    if (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}/.test(x)) return x.slice(0, 10);
+    const d = x && x.toDate ? x.toDate() : (x instanceof Date ? x : null);
+    if (!d || isNaN(d)) return null;
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  } catch { return null; }
+}
+const vandaagIso = () => isoDatum(new Date());
+
+/* Berekent het ruwe dossier van één speler uit het bronteam. Leest alleen; schrijft niets. */
+async function bouwOverdrachtDossier({ vanTeam, vanTeamNaam, spelerId, speler: bron, uitleen }){
+  const pid = spelerId;
+  const [wSnap, pSnap, bSnap] = await Promise.all([
+    getDocs(collection(db,'teams',vanTeam,'wedstrijden')),
+    getDocs(collection(db,'teams',vanTeam,'presentie')),
+    getDocs(query(collection(db,'teams',vanTeam,'beoordelingen'), where('spelerId','==',pid))),
+  ]);
+
+  const wedstrijden = [];
+  for (const d of wSnap.docs){
+    const w = { id:d.id, ...d.data() };
+    const inSel = Array.isArray(w.selectie) && w.selectie.includes(pid);
+    let a = {tijd:{}, keeper:{}, lijn:{}, kwarten:0, matchduur:0}, disc = 0, laat = 0;
+    try { a = analyseWedstrijd(w); disc = disciplinaireTijd(w)[pid] || 0; laat = telaatTijd(w)[pid] || 0; } catch(e){ /* beschadigde wedstrijd: tel alleen wat zeker is */ }
+    const goalsLijst = Array.isArray(w.goals) ? w.goals : [];
+    const goals   = goalsLijst.filter(g => g.type === 'voor' && g.pid === pid).length;
+    const assists = goalsLijst.filter(g => g.type === 'voor' && g.assist === pid).length;
+    const kaarten = (Array.isArray(w.kaarten) ? w.kaarten : []).filter(c => c.pid === pid);
+    const tijd = a.tijd?.[pid] || 0;
+    if (!inSel && !tijd && !goals && !assists && !kaarten.length) continue;
+    const n = (inSel && a.kwarten && a.matchduur) ? persoonlijkeNoemer(a, pid, disc, laat) : null;
+    const wissels = [];
+    for (const nr of Object.keys(w.kwarten || {})){
+      for (const e of (w.kwarten[nr]?.events || [])){
+        if (e.uit === pid) wissels.push({ kwart: Number(nr) || nr, sec: e.sec ?? null, soort:'uit', reden: e.reden || null, disciplinair: !!e.disciplinair });
+        if (e.in === pid)  wissels.push({ kwart: Number(nr) || nr, sec: e.sec ?? null, soort:'in',  reden: null, disciplinair: false });
+      }
+    }
+    wedstrijden.push({
+      id: w.id, datum: w.datum || null, seizoen: w.seizoen || null,
+      tegenstander: w.tegenstander || (isToernooi(w) ? 'Toernooi' : 'Wedstrijd'),
+      soort: w.type || 'normaal', thuis: !!w.thuis, elftal: w.elftal || null,
+      voor: goalsLijst.filter(g => g.type === 'voor').length,
+      tegen: goalsLijst.filter(g => g.type === 'tegen').length,
+      inSelectie: inSel, tijd, speelbaar: n ? n.speelbaar : 0, keeper: a.keeper?.[pid] || 0,
+      goals, assists,
+      geel: kaarten.filter(c => c.type === 'geel').length,
+      rood: kaarten.filter(c => c.type === 'rood').length,
+      posities: Object.entries(a.lijn?.[pid] || {}).map(([naam, k]) => ({ naam, n:k })),
+      wissels, straf: disc, laat, startBank: w.startBankReden?.[pid] || null,
+    });
+  }
+  wedstrijden.sort((x, y) => (y.datum || '').localeCompare(x.datum || ''));
+
+  // Training-aanwezigheid per datum, alleen sessies die voor deze speler meetellen (zie opkomst.js).
+  const spInfo = { id: pid, meetelVanaf: bron.meetelVanaf || null };
+  const presentie = [];
+  for (const d of pSnap.docs){
+    const s = { id:d.id, ...d.data() };
+    if (!teltMee(s, spInfo)) continue;
+    const afw = (s.afwezig || []).includes(pid);
+    const rec = (s.afwezigRedenen || {})[pid];
+    const info = rec ? afwezigRedenInfo(rec) : null;
+    presentie.push({ id: s.id, datum: s.datum || null, seizoen: s.seizoen || null, aanwezig: !afw, reden: afw ? (info?.id || null) : null });
+  }
+  presentie.sort((x, y) => (y.datum || '').localeCompare(x.datum || ''));
+
+  const beoordelingen = bSnap.docs.map(d => ({ id:d.id, ...d.data() }))
+    .sort((x, y) => (y.datum || '').localeCompare(x.datum || '') || (y.gemaaktMs || 0) - (x.gemaaktMs || 0));
+
+  return {
+    spelerId: pid, naam: bron.naam || null, teamId: vanTeam, teamNaam: vanTeamNaam || null,
+    wedstrijden, presentie, beoordelingen,
+    leerpunten: Array.isArray(bron.leerpunten) ? bron.leerpunten : [],
+    uitleen: uitleen ? { sinds: isoDatum(uitleen.gemaakt), overlay: uitleen.overlay || null } : null,
+  };
+}
+
+// Per seizoen optellen uit tellers (nooit gemiddelden middelen): zo kunnen scopes later
+// percentages opnieuw uitrekenen over de som.
+function dossierSeizoenen(wedstrijden, presentie){
+  const per = {};
+  const sz = k => (per[k] ||= { seizoen:k, wedstrijden:0, tijd:0, speelbaar:0, reserve:0, goals:0, assists:0, trainingen:0, aanwezig:0 });
+  for (const r of wedstrijden){
+    const s = sz(r.seizoen || 'onbekend');
+    if (r.tijd > 0) s.wedstrijden++;
+    s.tijd += r.tijd; s.goals += r.goals; s.assists += r.assists;
+    if (r.inSelectie){ s.speelbaar += r.speelbaar; s.reserve += Math.max(0, r.speelbaar - r.tijd); }
+  }
+  for (const r of presentie){ const s = sz(r.seizoen || 'onbekend'); s.trainingen++; if (r.aanwezig) s.aanwezig++; }
+  return Object.values(per).sort((x, y) => String(y.seizoen).localeCompare(String(x.seizoen)));
+}
+
+// Ruw dossier + keuzes → het document zoals het wordt opgeslagen.
+function dossierDoc(raw, mee, datum){
+  const wedstrijden = mee.wed ? raw.wedstrijden : [];
+  const presentie   = mee.tr  ? raw.presentie   : [];
+  const datums = [...wedstrijden.map(r => r.datum), ...presentie.map(r => r.datum)].filter(Boolean).sort();
+  return {
+    versie: DOSSIER_VERSIE, spelerId: raw.spelerId, naam: raw.naam,
+    teamId: raw.teamId, teamNaam: raw.teamNaam,
+    tot: datum || null, van: datums[0] || null, laatste: datums[datums.length - 1] || null,
+    bevroren: vandaagIso(), mee: { ...mee },
+    seizoenen: dossierSeizoenen(wedstrijden, presentie),
+    wedstrijden, presentie,
+    beoordelingen: mee.beo ? raw.beoordelingen : [],
+    leerpunten: mee.lp ? raw.leerpunten : [],
+    uitleen: raw.uitleen,
+  };
+}
+
 /* Definitief overzetten — clubadmin, of de bouwcoördinator van het
-   ontvangende team. Echte verhuizing: het
-   spelerdocument wordt naar het ontvangende team gekopieerd (met de overlay
-   als nieuwe basiswaarde), daarna bij het bronteam verwijderd en het
+   ontvangende team. Echte verhuizing: het spelerdocument wordt naar het
+   ontvangende team gekopieerd (met de overlay als nieuwe basiswaarde) en het
    leen-record opgeruimd. De speler-id verandert bewust NIET, zodat de
-   historie in beide teams intact blijft.
-   [20260918] Zelfde generalisatie als trekUitleningIn hierboven: accepteert
-   nu ook een volledig uitlening-object + expliciete clubId/bouwHint, voor
-   gebruik buiten teamcontext (bouw-hub). `bouwHint` is de bouw waarin de
-   actie wordt geïnitieerd — bij ontbreken valt dit terug op S.team.bouw
-   (ongewijzigd gedrag voor bestaande aanroepen). */
+   historie die in beide teams aan spelerId hangt intact blijft.
+   [20261010] Het origineel bij het bronteam wordt gearchiveerd i.p.v.
+   verwijderd, het ontvangende team krijgt een bevroren dossier (zie hierboven),
+   een gekoppelde gast wordt samengevoegd i.p.v. overschreven, en
+   overlay.meetelVanaf blijft bewaard. De bevestiging is nu een dialoog.
+   [20260918] accepteert ook een volledig uitlening-object + expliciete
+   clubId/bouwHint, voor gebruik buiten teamcontext (bouw-hub). Geeft true bij
+   gelukt, false bij annuleren of mislukken. */
 export async function definitiefOverzetten(uitleenIdOfObject, clubIdOverride, bouwHint){
   const u = typeof uitleenIdOfObject === 'string'
     ? (S.uitleningenIn||[]).find(x => x.id === uitleenIdOfObject) || (S.uitleningenUit||[]).find(x => x.id === uitleenIdOfObject)
@@ -1302,32 +1622,119 @@ export async function definitiefOverzetten(uitleenIdOfObject, clubIdOverride, bo
   if (!isBeheerder() && !isBouwCoordinator(bouw)) return meld('Alleen de clubadmin of de bouwcoördinator kan een speler definitief overzetten');
   if (!u) return meld('Uitlening niet gevonden');
   const naam = u.snapshot?.naam || 'De speler';
-  if (!confirm(`${naam} definitief toevoegen aan ${u.naarTeamNaam}? De speler verhuist echt: weg bij ${u.vanTeamNaam}, voortaan eigendom van ${u.naarTeamNaam}. De historie in beide teams blijft behouden.`)) return;
+
+  openModal(`<h2>${esc(naam)} overzetten</h2><p class="ov-tekst">Gegevens uit ${esc(u.vanTeamNaam || 'het bronteam')} laden…</p>`, { vorm:'dialoog' });
+  let bronRef, bron, raw;
   try {
-    // 1) origineel ophalen uit het bronteam
-    const bronRef = doc(db,'teams',u.vanTeam,'spelers',u.spelerId);
+    bronRef = doc(db,'teams',u.vanTeam,'spelers',u.spelerId);
     const snap = await getDoc(bronRef);
-    if (!snap.exists()) return meld('Origineel niet meer gevonden bij het bronteam');
-    const data = snap.data();
-    // 2) overlay als nieuwe basiswaarde toepassen
+    if (!snap.exists()){ sluitModal(); meld('Origineel niet meer gevonden bij het bronteam'); return false; }
+    bron = snap.data();
+    raw = await bouwOverdrachtDossier({ vanTeam:u.vanTeam, vanTeamNaam:u.vanTeamNaam, spelerId:u.spelerId, speler:bron, uitleen:u });
+  } catch(e){
+    sluitModal();
+    meld(e.code === 'permission-denied'
+      ? 'Overzetten mislukt: je hebt niet over beide teams (coach- of coördinatorrechten) genoeg toegang.'
+      : 'Overzetten mislukt: ' + (e.code || e.message));
+    return false;
+  }
+
+  const datumStart = isoDatum(u.overlay?.meetelVanaf) || isoDatum(u.gemaakt) || vandaagIso();
+  openModal(htmlOverzetDialoog(u, naam, raw, bron, datumStart), { vorm:'dialoog' });
+  return new Promise(resolve => {
+    $('#ovAnnuleer').onclick = () => { sluitModal(); resolve(false); };
+    $('#ovZet').onclick = async () => {
+      const knop = $('#ovZet'); knop.disabled = true; knop.textContent = 'Bezig met overzetten…';
+      const mee = { wed:$('#ovMee_wed').checked, beo:$('#ovMee_beo').checked, tr:$('#ovMee_tr').checked, lp:$('#ovMee_lp').checked, not:$('#ovMee_not') ? $('#ovMee_not').checked : false };
+      const d = $('#ovDatum').value;
+      const datum = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : datumStart;
+      const ok = await voerOverzettenUit(u, clubId, bronRef, bron, raw, mee, datum);
+      sluitModal();
+      resolve(ok);
+    };
+  });
+}
+
+function htmlOverzetDialoog(u, naam, raw, bron, datum){
+  const tijd = raw.wedstrijden.reduce((s, r) => s + r.tijd, 0);
+  const goals = raw.wedstrijden.reduce((s, r) => s + r.goals, 0);
+  const assists = raw.wedstrijden.reduce((s, r) => s + r.assists, 0);
+  const aanw = raw.presentie.filter(r => r.aanwezig).length;
+  const lpKlaar = raw.leerpunten.filter(l => l.klaar).length;
+  const n = (k, een, meer) => `${k} ${k === 1 ? een : meer}`;
+  const rij = (k, titel, sub) => `<label class="ov-mee-rij"><input type="checkbox" id="ovMee_${k}" checked><span>${titel}<span class="ov-n">${sub}</span></span></label>`;
+  const van = esc(u.vanTeamNaam || 'het bronteam'), naar = esc(u.naarTeamNaam || 'het nieuwe team');
+  return `
+    <h2>${esc(naam)} overzetten</h2>
+    <p class="ov-tekst">Van ${van} naar ${naar}. ${esc(naam)} blijft bij ${van} bewaard als gearchiveerde speler, met al zijn gegevens. Kies wat er naar ${naar} wordt gekopieerd.</p>
+    <div class="ov-mee">
+      ${rij('wed', 'Wedstrijden', `${n(raw.wedstrijden.length, 'wedstrijd', 'wedstrijden')} · ${uurMin(tijd)} · ${goals} goals · ${assists} assists`)}
+      ${rij('beo', 'Beoordelingen', n(raw.beoordelingen.length, 'beoordeling', 'beoordelingen'))}
+      ${rij('tr', 'Trainingsaanwezigheid per datum', `${n(raw.presentie.length, 'training', 'trainingen')}, ${aanw}× aanwezig`)}
+      ${rij('lp', 'Leerpunten', `${n(raw.leerpunten.length, 'leerpunt', 'leerpunten')}, ${lpKlaar} afgerond`)}
+      ${bron.notitie ? rij('not', 'Spelernotitie', 'Gaat mee, zoals nu') : ''}
+    </div>
+    <div class="avg-balk" style="margin-bottom:12px"><span class="slot">🔒</span><span>Alleen de eigen gegevens van ${esc(naam)} gaan mee. Geen andere spelers uit ${van}.</span></div>
+    <div class="veldgroep"><label for="ovDatum">Bij ${naar} sinds</label>
+      <input class="invoer" id="ovDatum" type="date" value="${datum}">
+      <div class="ov-hint">Opkomst op trainingen telt vanaf deze datum.</div></div>
+    <button class="knop fluo vol" id="ovZet">Definitief overzetten</button>
+    <button class="knop licht vol" id="ovAnnuleer" style="margin-top:8px">Annuleren</button>`;
+}
+
+/* Voert de overzet uit. Volgorde is bewust: eerst alles bijschrijven bij het
+   ontvangende team, dan pas het origineel archiveren en het leen-record
+   opruimen. Mislukt het halverwege, dan is er niets kwijt (het origineel staat
+   er nog) en kan de admin het opnieuw proberen: alle writes zijn merge:true. */
+async function voerOverzettenUit(u, clubId, bronRef, bron, raw, mee, datum){
+  const naam = u.snapshot?.naam || 'De speler';
+  try {
+    const naarId = u.adopteertGast || u.spelerId;           // id van het document bij het ontvangende team
+    const naarRef = doc(db,'teams',u.naarTeam,'spelers',naarId);
+    const stintenRef = collection(db,'teams',u.naarTeam,'spelers',naarId,'vorigeTeams');
+
+    // 1) dossier: eerdere dossiers van deze speler (keten A→B→C) + het nieuwe
+    const eerdere = await getDocs(collection(db,'teams',u.vanTeam,'spelers',u.spelerId,'vorigeTeams'));
+    for (const d of eerdere.docs) await setDoc(doc(stintenRef, d.id), d.data(), { merge:true });
+    await setDoc(doc(stintenRef, `${u.vanTeam}_${datum}`), dossierDoc(raw, mee, datum), { merge:true });
+
+    // 2) spelerdocument: kopie van het origineel met overlay als nieuwe basiswaarde
+    const data = { ...bron };
     if (u.overlay?.nummer !== undefined && u.overlay.nummer !== null) data.nummer = u.overlay.nummer;
     if (u.overlay?.positie) data.positie = u.overlay.positie;
-    delete data.gast;   // een definitief overgezette speler is nooit meer een gast
+    data.meetelVanaf = datum;
+    data.heeftVorigeTeams = true;
+    if (!mee.not) delete data.notitie;
+    if (!mee.lp) data.leerpunten = [];
+    data.gast = deleteField();                              // een definitief overgezette speler is nooit meer een gast
+    data.gearchiveerd = deleteField(); data.naarTeam = deleteField();
+    data.naarTeamNaam = deleteField(); data.gearchiveerdOp = deleteField();
 
     if (u.adopteertGast){
       /* Koppeling aan een gast: het ontvangende team heeft al een gast-document
-         (met eigen id) waar alle opstellingen aan hangen. Dat document wordt
-         overschreven met de echte spelergegevens — id blijft, historie intact. */
-      await setDoc(doc(db,'teams',u.naarTeam,'spelers',u.adopteertGast), data);
-    } else {
-      /* Directe uitleen: met DEZELFDE id naar het ontvangende team schrijven,
-         zodat ook daar de historie die al aan spelerId hing blijft kloppen. */
-      await setDoc(doc(db,'teams',u.naarTeam,'spelers',u.spelerId), data);
+         (met eigen id) waar alle opstellingen aan hangen. Wat de coach daar zelf
+         bij de gast noteerde (leerpunten, notitie) wordt SAMENGEVOEGD met de
+         gegevens van het bronteam; het document zelf blijft, dus id en
+         opstellingen blijven intact. */
+      const gSnap = await getDoc(naarRef);
+      if (gSnap.exists()){
+        const g = gSnap.data();
+        const lp = [...(Array.isArray(data.leerpunten) ? data.leerpunten : [])];
+        const ids = new Set(lp.map(l => l.id));
+        for (const l of (Array.isArray(g.leerpunten) ? g.leerpunten : [])) if (!ids.has(l.id)) lp.push(l);
+        data.leerpunten = lp;
+        if (g.notitie && data.notitie && g.notitie !== data.notitie) data.notitie = `${data.notitie}\n\n${g.notitie}`;
+        else if (g.notitie && !data.notitie) data.notitie = g.notitie;
+      }
     }
-    // origineel bij bronteam verwijderen + leen-record opruimen
-    await deleteDoc(bronRef);
+    await setDoc(naarRef, data, { merge:true });
+
+    // 3) origineel archiveren (NIET verwijderen) + leen-record opruimen
+    await updateDoc(bronRef, { gearchiveerd:true, naarTeam:u.naarTeam, naarTeamNaam:u.naarTeamNaam || null, gearchiveerdOp:vandaagIso() });
     await deleteDoc(doc(db,'clubs',clubId,'uitleningen',u.id));
+
     telGebruik('uitlenen_definitief');
+    S._vtBezig = null; if (S._vorigeTeams) delete S._vorigeTeams[`${u.naarTeam}/${naarId}`];
     meld(`${naam} nu definitief bij ${u.naarTeamNaam}`);
     if (S.teamId) herrenderTeam();
     return true;
@@ -1340,6 +1747,31 @@ export async function definitiefOverzetten(uitleenIdOfObject, clubIdOverride, bo
     return false;
   }
 }
+
+/* Clubadmin: het bevroren dossier opnieuw uit het (gearchiveerde) origineel
+   berekenen, bijvoorbeeld na een correctie bij het oude team. Bewaart de
+   keuzes (mee) en de uitleen-info van het oorspronkelijke dossier. */
+export async function herberekenDossier(stintId){
+  if (!isBeheerder()) return meld('Alleen de clubadmin kan een dossier herberekenen');
+  const p = speler(S._beoordeelProfiel); if (!p) return;
+  const sl = `${S.teamId}/${p.id}`;
+  const s = ((S._vorigeTeams || {})[sl] || []).find(x => x.id === stintId);
+  if (!s) return meld('Dossier niet gevonden');
+  try {
+    const bSnap = await getDoc(doc(db,'teams',s.teamId,'spelers',s.spelerId));
+    if (!bSnap.exists()) return meld('Het origineel bij het oude team bestaat niet meer');
+    const raw = await bouwOverdrachtDossier({ vanTeam:s.teamId, vanTeamNaam:s.teamNaam, spelerId:s.spelerId, speler:bSnap.data(), uitleen:null });
+    raw.uitleen = s.uitleen || null;
+    const nieuw = dossierDoc(raw, s.mee || { wed:true, beo:true, tr:true, lp:true, not:true }, s.tot);
+    await setDoc(doc(db,'teams',S.teamId,'spelers',p.id,'vorigeTeams',stintId), nieuw, { merge:true });
+    delete S._vorigeTeams[sl];
+    meld('Dossier opnieuw berekend');
+    herrenderTeam();
+  } catch(e){
+    meld('Herberekenen mislukt: ' + (e.code === 'permission-denied' ? 'geen toegang tot het oude team' : (e.code || e.message)));
+  }
+}
+
 
 /* ===================== Gastspelers ===================== *
  * Een gast is een lokaal placeholder-spelerdocument in het EIGEN team
