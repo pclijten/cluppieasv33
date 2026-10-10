@@ -18,7 +18,7 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20260929a';
-import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20260929a';
+import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261010a';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -35,7 +35,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261009a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261010a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -81,7 +81,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261009a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261010a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -188,8 +188,8 @@ async function clubDashboardOphalen(teams){
       getDocs(query(collection(db,'teams',t.id,'wedstrijden'), ...seizoenFilter)),
       getDocs(query(collection(db,'teams',t.id,'presentie'), ...seizoenFilter)),
     ]);
-    const spelersAantal = spelersSnap.size;
-    const spelersDocs = spelersSnap.docs.map(d => ({id:d.id, ...d.data()}));
+    const spelersDocs = spelersSnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gearchiveerd);
+    const spelersAantal = spelersDocs.length;
     const wedstrijden = wedstrijdenSnap.docs.map(d => d.data());
     const presentie = presentieSnap.docs.map(d => d.data());
 

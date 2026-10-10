@@ -89,7 +89,7 @@ export async function bootDeelPagina(deelId){
     ]);
     if (!tsnap.exists()){ el.innerHTML = foutHtml('Deze training is niet meer beschikbaar.'); return; }
     training = tsnap.data();
-    spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend)
+    spelers = ssnap.docs.map(d => ({id:d.id, ...d.data()})).filter(p => !p.gast && !p._ingeleend && !p.gearchiveerd)
       .sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
   } catch(e){
     el.innerHTML = foutHtml('Ophalen mislukt: ' + (e.code||e.message));

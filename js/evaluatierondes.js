@@ -99,7 +99,7 @@ export async function voortgangOphalen(teams, rondes){
         getDocs(collection(db, 'teams', t.id, 'spelers')),
         getDocs(query(collection(db, 'teams', t.id, 'beoordelingen'), where('ronde', 'in', ids))),
       ]);
-      return { t, spelers: ssnap.docs.map(d => ({ id:d.id, ...d.data() })), beoordelingen: bsnap.docs.map(d => ({ id:d.id, ...d.data() })) };
+      return { t, spelers: ssnap.docs.map(d => ({ id:d.id, ...d.data() })).filter(p => !p.gearchiveerd), beoordelingen: bsnap.docs.map(d => ({ id:d.id, ...d.data() })) };
     } catch(e){
       console.warn('[Cluppie] evaluatierondes: team niet gelezen', t.naam, e.code || e.message);
       return { t, spelers: [], beoordelingen: [], fout: true };
