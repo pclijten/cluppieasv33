@@ -880,6 +880,35 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .later-namen{ display:flex;flex-wrap:wrap;gap:6px; }
 .later-chip{ font-size:calc(13px * var(--fs));padding:3px 10px;border-radius:999px;background:var(--op-vlak,rgba(0,0,0,.05)); }
 
+/* ---------- Vaste afmeldingen [20261012] ---------- */
+.pres-vast-knop .pres-vast-ico{ font-size:calc(19px * var(--fs));line-height:1; }
+.vast-tel{ font-family:'Inter',sans-serif;font-size:calc(11px * var(--fs));font-weight:700;letter-spacing:0;background:var(--op-vlak);border-radius:10px;padding:1px 8px; }
+.vast-lijst{ display:flex;flex-direction:column;gap:7px;margin-bottom:16px; }
+.vast-rij{ display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--hair);border-left:3px solid var(--uit);border-radius:12px;padding:9px 10px 9px 12px; }
+.vast-info{ flex:1;min-width:0;display:flex;flex-direction:column;gap:2px; }
+.vast-info b{ font-size:calc(14px * var(--fs));font-weight:600; }
+.vast-info small{ font-size:calc(12px * var(--fs));color:var(--ink-2); }
+.vast-stop{ flex-shrink:0;background:var(--surface-2);border:none;border-radius:9px;padding:8px 11px;font:inherit;font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--uit);cursor:pointer;min-height:36px; }
+.vast-veld{ display:flex;align-items:center;gap:10px;margin-bottom:12px; }
+.vast-veld > label{ width:96px;flex-shrink:0;font-size:calc(12px * var(--fs));font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2); }
+.vast-veld > .invoer{ flex:1;min-width:0; }
+.vast-blok{ margin-bottom:12px; }
+.vast-blok > label{ display:block;margin-bottom:6px;font-size:calc(12px * var(--fs));font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-2); }
+.vast-blok .dag-opt:disabled{ opacity:.35;cursor:default; }
+.vast-hint{ font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin-top:6px; }
+.vast-stepper{ display:flex;align-items:center;background:var(--surface-2);border-radius:11px;overflow:hidden; }
+.vast-stepper button{ width:44px;height:42px;border:none;background:none;font:inherit;font-size:calc(20px * var(--fs));font-weight:600;color:var(--ink);cursor:pointer; }
+.vast-stepper span{ min-width:84px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums; }
+.pres-reden-rij.vast-redenen{ flex-wrap:wrap;padding:0; }
+.vast-preview{ background:var(--surface-2);border-radius:12px;padding:11px 12px; }
+.vast-preview-kop{ font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px; }
+.vast-preview-kop b{ color:var(--ink); }
+.vast-data{ display:flex;flex-wrap:wrap;gap:5px; }
+.vast-dchip{ font-size:calc(12px * var(--fs));font-variant-numeric:tabular-nums;background:var(--op-vlak);border-radius:7px;padding:3px 8px; }
+.vast-dchip.al{ background:color-mix(in srgb, var(--uit) 20%, transparent); }
+.pres-vast-regel{ display:flex;align-items:center;gap:8px;padding:0 11px 9px;font-size:calc(12px * var(--fs));color:var(--ink-2); }
+.pres-vast-tag{ flex-shrink:0;background:color-mix(in srgb, var(--uit) 18%, transparent);color:var(--uit);border-radius:999px;padding:2px 8px;font-size:calc(11px * var(--fs));font-weight:700; }
+
 /* Speler-knoppen in de presentie-modal */
 .pres-lijst{ display:flex;flex-direction:column;gap:7px; }
 .pres-speler{

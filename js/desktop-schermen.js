@@ -22,11 +22,12 @@ import { SKILLS, NIVEAUS, niveauKleur, LEERCURVE, leercurveRelevant, bouwSlots, 
   TEAM_CATEGORIEEN, TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK, POSITIE_GROEPEN } from './config.js?v=20260922c';
 import { analyseWedstrijd, speeltijdReserve, kwartGespeeld } from './analyse.js?v=20261009a';
 import { teltMee } from './opkomst.js?v=20260922c';
+import { vastOp, vastePrefill } from './vaste-afmeldingen.js?v=20261012a';
 import { ico } from './icons.js?v=20260922c';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261010a';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261012a';
 import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20261010a';
-import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261010a';
-import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20261010a';
+import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261012a';
+import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20261012a';
 import { oefHtml } from './training-weergave.js?v=20260922c';
 import { rondesVoorTeam, rondeTelling, datumKort } from './evaluatierondes.js?v=20261010a';
 import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
@@ -646,8 +647,10 @@ function trItem(iso){
 }
 async function zetPresentie(datum, pid, reden){
   const s = sessieOp(datum);
-  const afwezig = new Set(s?.afwezig || []), telaat = new Set(s?.telaat || []);
-  const redenen = JSON.parse(JSON.stringify(s?.afwezigRedenen || {}));
+  /* [20261012] nog geen record: vaste afmeldingen vormen de beginstand (js/vaste-afmeldingen.js) */
+  const pf = s ? null : vastePrefill(S.team, datum, S.spelers.map(p => p.id));
+  const afwezig = new Set(s ? (s.afwezig || []) : pf.afwezig), telaat = new Set(s?.telaat || []);
+  const redenen = JSON.parse(JSON.stringify(s ? (s.afwezigRedenen || {}) : pf.redenen));
   if (reden){ afwezig.add(pid); telaat.delete(pid); redenen[pid] = { type: reden, notitie: redenen[pid]?.notitie || '' }; }
   else { afwezig.delete(pid); delete redenen[pid]; }
   /* zelfde documentvorm als modalPresentie in teams-training.js */
@@ -669,12 +672,16 @@ function htmlTrainingen(){
   const stof = datum ? oefenstofVoorDatum(datum) : null;
   const oef = stof && Array.isArray(stof.oefeningen) ? stof.oefeningen : [];
   const spelers = [...S.spelers].sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99));
+  const vast = !sessie && datum ? vastOp(S.team, datum, S.spelers.map(x => x.id)) : new Map();
   const tegel = p => {
     const telt = !sessie || teltMee(sessie, p);
-    const af = sessie && (sessie.afwezig || []).includes(p.id);
-    const info = af && sessie.afwezigRedenen?.[p.id] ? afwezigRedenInfo(sessie.afwezigRedenen[p.id]) : null;
+    const vastR = vast.get(p.id);
+    const af = (sessie && (sessie.afwezig || []).includes(p.id)) || !!vastR;
+    const rr = sessie ? sessie.afwezigRedenen?.[p.id] : (vastR ? { type: vastR.reden } : null);
+    const info = af && rr ? afwezigRedenInfo(rr) : null;
+    const isVast = !!vastR || !!(sessie && sessie.afwezigRedenen?.[p.id]?.vast);
     return `<div class="dk-awwrap"><button class="dk-at ${!telt ? 'nvt' : af ? 'n' : sessie ? 'j' : ''}" data-dk="awopen" data-id="${esc(p.id)}">
-        <i>${esc(p.nummer ?? voornaam(p).charAt(0))}</i><span>${esc(voornaam(p))}<small>${!telt ? 'telt niet mee' : af ? esc(info?.label || 'afwezig') : sessie ? 'aanwezig' : 'nog niet bevestigd'}</small></span></button>
+        <i>${esc(p.nummer ?? voornaam(p).charAt(0))}</i><span>${esc(voornaam(p))}<small>${!telt ? 'telt niet mee' : af ? esc(info?.label || 'afwezig') + (isVast ? ' \u00b7 \ud83d\udd01 vast' : '') : sessie ? 'aanwezig' : 'nog niet bevestigd'}</small></span></button>
       ${awOpen === p.id ? `<div class="dk-reden">${af ? `<button data-dk="awzet" data-id="${esc(p.id)}" data-r="">\u2713 Weer aanwezig</button>` : ''}${AFWEZIG_REDENEN.map(r => `<button data-dk="awzet" data-id="${esc(p.id)}" data-r="${esc(r.id)}">${r.ico ? ico(r.ico, 16) : r.emoji} ${esc(r.label)}</button>`).join('')}</div>` : ''}</div>`;
   };
   const aanw = sessie ? aanwezigTel(sessie) : spelers.length, tel = sessie ? meetellers(sessie) : spelers.length;
@@ -955,22 +962,22 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261010a'); m.openWedstrijd(id); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261010a'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261012a'); m.openWedstrijd(id); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261012a'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
-  if (a === 'presentie'){ const m = await import('./teams-training.js?v=20261002a'); m.modalPresentie(); return; }
-  if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20261002a'); m.modalPresentie(null, { startAnder:true }); return; }
-  if (a === 'presentiewijzig'){ const s = (S.presentie || []).find(x => x.id === id); const m = await import('./teams-training.js?v=20261002a'); m.modalPresentie(s || null); return; }
+  if (a === 'presentie'){ const m = await import('./teams-training.js?v=20261012a'); m.modalPresentie(); return; }
+  if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20261012a'); m.modalPresentie(null, { startAnder:true }); return; }
+  if (a === 'presentiewijzig'){ const s = (S.presentie || []).find(x => x.id === id); const m = await import('./teams-training.js?v=20261012a'); m.modalPresentie(s || null); return; }
   if (a === 'stof'){ openOefenstof(id); return; }
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261010a'); m.startRondeFlow(b.dataset.id); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261010a'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalSpeler(null); return; }
+  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261012a'); m.startRondeFlow(b.dataset.id); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261012a'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftal'){ S._elftalFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftaltoew'){ modalElftalToewijzen(renderTeam); return; }
@@ -980,8 +987,8 @@ async function actie(b){
   /* [20260923a] */
   if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
-  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261010a');
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261012a');
     if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
   if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
   if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
@@ -1000,8 +1007,8 @@ async function actie(b){
     if ($('#dkSpNaam')){ $('#dkSpNaam').value = bewaard.naam ?? ''; $('#dkSpNr').value = bewaard.nr ?? ''; $('#dkSpAchter').value = bewaard.achter ?? ''; $('#dkSpNotitie').value = bewaard.notitie ?? ''; }
     return; }
   if (a === 'spopslaan'){ await bewaarSpelerDesk(); return; }
-  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261010a'); m.modalUitlenen(S._beoordeelProfiel); return; }
-  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261010a'); await m.trekUitleningIn(id); renderTeam(); return; }
+  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261012a'); m.modalUitlenen(S._beoordeelProfiel); return; }
+  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261012a'); await m.trekUitleningIn(id); renderTeam(); return; }
   if (a === 'sphis'){ S._dkModus = null; S._profielTab = 'historie'; renderTeam(); return; }
   if (a === 'spweg'){ const p = speler(S._beoordeelProfiel); if (!p) return;
     if (p._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen — zet hem terug naar het bronteam');
@@ -1013,13 +1020,13 @@ async function actie(b){
     if (!d) planMaand = vandaagISO().slice(0, 7);
     else { const [j, m] = planMaand.split('-').map(Number); const x = new Date(j, m - 1 + d, 1, 12); planMaand = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0'); }
     renderTeam(); return; }
-  if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20261002a'); m.modalEigenDag(); return; }
+  if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20261012a'); m.modalEigenDag(); return; }
   if (a === 'plandag'){ const { datum, bron, doc: did } = b.dataset;
-    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261010a'); m.openWedstrijd(did); return; }
+    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261012a'); m.openWedstrijd(did); return; }
     if (bron === 'training'){ selTraining = datum; zetTeamTab('presentietraining'); return; }
     if (bron === 'lijst' && did){ S._lijstOpen = did; S._ljFilter = 'alle'; S._ljToonEerder = false; zetTeamTab('lijst'); return; }
     const it = planningItems().find(x => x.datum === datum && x.bron === bron);
-    if (it){ const m = await import('./teams-training.js?v=20261002a'); m.modalPlanDag(it); } return; }
+    if (it){ const m = await import('./teams-training.js?v=20261012a'); m.modalPlanDag(it); } return; }
   if (a === 'seldoc'){ selDoc = id; renderTeam(); markeerGelezen(id); return; }
   if (a === 'docgroot'){ const d = (S.documenten || []).find(x => x.id === id); if (!d?.url) return; const { openPdfViewer } = await import('./pdf-viewer.js?v=20260922c'); openPdfViewer({ url: d.url, titel: d.titel || 'Document', meta: '' }); markeerGelezen(id); return; }
 }
