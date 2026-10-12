@@ -18,6 +18,9 @@ import {
 } from './config.js?v=20260922c';
 import { htmlKompas } from './teams-leerlijn.js?v=20260922c';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922c';
+import {
+  MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
+} from './vaste-afmeldingen.js?v=20261012a';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -147,7 +150,32 @@ function presentieOverzicht(){
   const datum = [gepland, toekomstig[0]?.datum].filter(Boolean).sort()[0] || null;
   const kaart = datum ? (toekomstig.find(p => p.datum === datum) || null) : null;
   const later = datum ? toekomstig.filter(p => p.datum > datum && (p.afwezig||[]).length) : [];
+  // [20261012] Vaste afmeldingen op datums zonder record tellen ook als
+  // "vooruit afgemeld" — als virtueel item (geen id; tik = presentie openen).
+  if (datum){
+    const ids = S.spelers.map(p => p.id);
+    const metRecord = new Set(toekomstig.map(p => p.datum));
+    const virt = new Map();
+    for (const r of actieveRegels(S.team, vandaag)){
+      for (const d of regelDatums(r)){
+        if (d <= datum || metRecord.has(d) || virt.has(d)) continue;
+        const afw = vastePrefill(S.team, d, ids).afwezig;
+        if (afw.length) virt.set(d, afw);
+      }
+    }
+    for (const [d, afw] of virt) later.push({ id:null, datum:d, afwezig:afw, virtueel:true });
+    later.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+  }
   return { vandaag, datum, kaart, later };
+}
+
+/* 'Elke maandag · 19 okt t/m 21 dec · School' */
+const DAGNAMEN = ['', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag'];
+function vastRegelTekst(r, metReden = true){
+  const kortD = iso => new Date(iso+'T12:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
+  const info = r.reden ? afwezigRedenInfo({ type: r.reden }) : null;
+  return [`Elke ${DAGNAMEN[Number(r.dag)] || ''}`, `${kortD(r.van)} t/m ${kortD(r.tot)}`,
+    metReden && info ? info.label : null].filter(Boolean).join(' · ');
 }
 
 /* 'vandaag' / 'morgen' / 'over 10 dagen' */
@@ -167,22 +195,24 @@ function datKort(iso){
 export function modalLaterAfgemeld(){
   const { vandaag, later } = presentieOverzicht();
   const rij = (p) => {
-    const namen = (p.afwezig || []).map(id => speler(id)?.naam).filter(Boolean);
+    const vast = id => p.virtueel || !!(p.afwezigRedenen||{})[id]?.vast;
+    const namen = (p.afwezig || []).map(id => { const n = speler(id)?.naam; return n ? esc(n) + (vast(id) ? ' 🔁' : '') : null; }).filter(Boolean);
     return `
-      <button type="button" class="later-rij" data-lp="${p.id}">
+      <button type="button" class="later-rij" ${p.virtueel ? `data-ld="${esc(p.datum)}"` : `data-lp="${p.id}"`}>
         <span class="later-kop">
           <span class="pr-dag">${esc(datKort(p.datum))}</span>
           <span class="pr-over">${esc(dagenTotTekst(p.datum, vandaag))}</span>
           <span class="later-tel">${(p.afwezig||[]).length} afwezig</span>
         </span>
-        <span class="later-namen">${namen.map(n => `<span class="later-chip">${esc(n)}</span>`).join('')}</span>
+        <span class="later-namen">${namen.map(n => `<span class="later-chip">${n}</span>`).join('')}</span>
       </button>`;
   };
   openModal(`
     <h2>Vooruit afgemeld</h2>
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Trainingen na de eerstvolgende waarvoor al afmeldingen staan. Tik op een datum om aan te passen.</p>
-    ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">"Geen toekomstige afmeldingen.</div>'}`);
+    ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">Geen toekomstige afmeldingen.</div>'}`);
   document.querySelectorAll('#modalInhoud .later-rij').forEach(b => b.onclick = () => {
+    if (b.dataset.ld){ sluitModal(); modalPresentie(null, {startAnder:true, datum:b.dataset.ld}); return; }
     const p = S.presentie.find(x => x.id === b.dataset.lp);
     sluitModal();
     if (p) modalPresentie(p);
@@ -218,7 +248,7 @@ export function htmlPresentieTraining(){
       ? afw.map(id => {
           const sp = S.spelers.find(s => s.id === id); if (!sp) return null;
           const reden = (p.afwezigRedenen||{})[id];
-          const icoon = reden?.type === 'blessure' ? ' 🩹' : reden?.type === 'reden' ? ' 📋' : '';
+          const icoon = (reden?.type === 'blessure' ? ' 🩹' : reden?.type === 'reden' ? ' 📋' : '') + (reden?.vast ? ' 🔁' : '');
           const opm = reden?.notitie ? ` <span style="color:var(--ink-2);font-style:italic">“${esc(reden.notitie)}”</span>` : '';
           return esc(sp.naam) + icoon + opm;
         }).filter(Boolean).join(', ')
@@ -285,8 +315,9 @@ export function htmlPresentieTraining(){
   const knoppenRij = `
     <div class="pres-knoprij">
       <button class="knop licht" id="presentieAndereDatum">${ico('planning-calendar',18)} Andere datum invullen</button>
-      ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} Vooruit afgemeld><span class="pres-later-n">${later.length}</span><span class="pres-later-t">vooruit<br>afgemeld</span></button>` : ''}
-    </div>`;
+      <button class="knop licht pres-later pres-vast-knop" id="presentieVast" aria-label="Vaste afmelding instellen"><span class="pres-vast-ico" aria-hidden="true">🔁</span><span class="pres-later-t">vaste<br>afmelding</span></button>
+      ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} vooruit afgemeld"><span class="pres-later-n">${later.length}</span><span class="pres-later-t">vooruit<br>afgemeld</span></button>` : ''}
+    </div>${vasteRegelsHtml()}`;
 
   // kaart bovenaan: een bestaande registratie, of — op een geplande trainingsdag
   // die nog niets heeft — een lege kaart waar je op tikt om presentie in te vullen
@@ -297,7 +328,12 @@ export function htmlPresentieTraining(){
       : `
       <div class="presentie-rij" data-nieuwedatum="${kaartDatum}" style="cursor:pointer">
         <div class="pr-datum"><span class="pr-dag">${esc(datKort(kaartDatum))}</span>${chip ? `<span class="pr-over">${esc(chip)}</span>` : ''}</div>
-        <div class="pr-info"><span class="pr-geen">Nog geen afmeldingen</span></div>
+        <div class="pr-info">${(() => {
+          const vast = [...vastOp(S.team, kaartDatum, S.spelers.map(p => p.id)).keys()].map(id => speler(id)?.naam).filter(Boolean);
+          return vast.length
+            ? `<span class="pr-afw">${vast.length} vast afgemeld</span><span class="pr-namen">${vast.map(n => esc(n) + ' 🔁').join(', ')}</span>`
+            : '<span class="pr-geen">Nog geen afmeldingen</span>';
+        })()}</div>
         <span class="acties"><button title="Presentie invullen">${ico('admin-edit', 16)}</button></span>
       </div>`;
     eerstvolgendeSectie = `
@@ -643,6 +679,13 @@ export function modalPresentie(bestaande = null, opties = {}){
   let redenen = bestaande ? JSON.parse(JSON.stringify(bestaande.afwezigRedenen || {})) : {};
   const kanDatumWijzigen = !bestaande;
   const startAnder = kanDatumWijzigen && !!opties.startAnder;
+  // [20261012] Nog geen record voor deze datum? Dan staan spelers met een
+  // vaste afmelding alvast op afwezig (zie js/vaste-afmeldingen.js).
+  const vulVastIn = () => {
+    const pf = vastePrefill(S.team, datum, S.spelers.map(p => p.id));
+    afwezig = new Set(pf.afwezig); telaat = new Set(); redenen = pf.redenen;
+  };
+  if (!bestaande && !S.presentie.find(p => p.datum === datum)) vulVastIn();
 
   const datLeesbaar = (d) => {
     const s = new Date(d+'T12:00').toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'});
@@ -666,6 +709,10 @@ export function modalPresentie(bestaande = null, opties = {}){
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
         `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-telaat="${p.id}">⏱ Te laat</button></div>
       ${info ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel) — bv. 'last van hamstring' of 'trein gemist'" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+      ${redenen[p.id]?.vast ? (() => {
+        const r = (S.team?.vasteAfmeldingen || []).find(x => x.id === redenen[p.id].vast);
+        return `<div class="pres-vast-regel"><span class="pres-vast-tag">🔁 vast</span><span>${r ? esc(vastRegelTekst(r, false)) + '. ' : ''}Tik op de naam als hij er toch is.</span></div>`;
+      })() : ''}
       ` : isLaat ? `
       <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
       ` : ''}
@@ -857,6 +904,7 @@ export function modalPresentie(bestaande = null, opties = {}){
     afwezig = new Set(bestaandRecord ? (bestaandRecord.afwezig || []) : []);
     telaat  = new Set(bestaandRecord ? (bestaandRecord.telaat  || []) : []);
     redenen = bestaandRecord ? JSON.parse(JSON.stringify(bestaandRecord.afwezigRedenen || {})) : {};
+    if (!bestaandRecord) vulVastIn();
     // op een datum met een bestaand record is er al iets vastgelegd → knop "Klaar";
     // op een lege datum nog niet → knop nodigt uit om te bevestigen
     ietsOpgeslagen = !!bestaandRecord;
@@ -933,6 +981,164 @@ export function modalPresentie(bestaande = null, opties = {}){
   };
 
   werkKnopBij();   // begintekst zetten
+}
+
+/* ---------- Vaste afmeldingen (terugkerend afwezig) ----------
+   [20261012] Instellen, tonen en stoppen. Het datamodel en de reden waarom er
+   geen records vooruit worden aangemaakt staan in js/vaste-afmeldingen.js. */
+
+/* Lijstje actieve regels onder de knoppen op het presentie-tabblad. */
+function vasteRegelsHtml(){
+  const vandaag = new Date().toISOString().slice(0,10);
+  const regels = actieveRegels(S.team, vandaag).filter(r => speler(r.spelerId));
+  if (!regels.length) return '';
+  return `
+    <div class="sectie-kop" style="margin-top:0">Vaste afmeldingen <span class="vast-tel">${regels.length}</span></div>
+    <div class="vast-lijst">${regels.map(r => `
+      <div class="vast-rij">
+        <div class="vast-info"><b>${esc(speler(r.spelerId)?.naam || '')}</b><small>${esc(vastRegelTekst(r))}${r.notitie ? ` · <i>“${esc(r.notitie)}”</i>` : ''}</small></div>
+        <button type="button" class="vast-stop" data-vaststop="${esc(r.id)}">Stoppen</button>
+      </div>`).join('')}
+    </div>`;
+}
+
+/* Spelers in een presentie-record afwezig zetten (of weer weghalen) zonder
+   de rest van het record aan te raken. `fn(afwezig:Set, telaat:Set, redenen)`
+   past de stand aan; geeft false als er niets veranderde. */
+async function wijzigRecord(rec, fn){
+  const afwezig = new Set(rec.afwezig || []), telaat = new Set(rec.telaat || []);
+  const redenen = JSON.parse(JSON.stringify(rec.afwezigRedenen || {}));
+  if (fn(afwezig, telaat, redenen) === false) return;
+  const aantalSpelers = Array.isArray(rec.selectie) ? rec.selectie.length : (rec.aantalSpelers || S.spelers.length);
+  await updateDoc(doc(db,'teams',S.teamId,'presentie',rec.id), {
+    afwezig: [...afwezig], telaat: [...telaat], afwezigRedenen: redenen,
+    aantalAanwezig: Math.max(0, aantalSpelers - afwezig.size), aantalTeLaat: telaat.size,
+    door: S.user?.displayName || S.user?.email || '', gewijzigd: serverTimestamp(),
+  });
+}
+
+export function modalVasteAfmelding(){
+  if (!S.spelers.length) return meld('Voeg eerst spelers toe onder het tabblad Spelers');
+  const vandaag = new Date().toISOString().slice(0,10);
+  const tdagen = (Array.isArray(S.team?.trainingsdagen) ? S.team.trainingsdagen : []).filter(d => d >= 1 && d <= 7);
+  const kiesbaar = tdagen.length ? tdagen : [1,2,3,4,5,6,7];
+  const redenOpties = AFWEZIG_REDENEN.filter(r => r.id !== 'nietAfgemeld');
+  const spelers = [...S.spelers].sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl'));
+  let dag = kiesbaar[0], weken = 10, reden = null;
+  const kortD = iso => { const s = new Date(iso+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'}).replace('.',''); return s.charAt(0).toUpperCase()+s.slice(1); };
+  const DAGKORT = ['', 'Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
+  openModal(`
+    <h2>Vaste afmelding</h2>
+    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Meld een speler in één keer af voor een vaste trainingsdag, een aantal weken lang.</p>
+    <div class="vast-veld"><label for="mVastSpeler">Speler</label>
+      <select class="invoer" id="mVastSpeler">${spelers.map(p => `<option value="${esc(p.id)}">${esc(p.naam)}</option>`).join('')}</select></div>
+    <div class="vast-blok"><label>Trainingsdag</label>
+      <div class="dag-opties" id="mVastDag">${[1,2,3,4,5,6,7].map(d =>
+        `<button type="button" class="dag-opt ${d===dag?'aan':''}" data-d="${d}" ${kiesbaar.includes(d)?'':'disabled'}>${DAGKORT[d]}</button>`).join('')}</div>
+      ${tdagen.length ? '<p class="vast-hint">Alleen de trainingsdagen van het team zijn te kiezen.</p>' : '<p class="vast-hint">Er zijn nog geen trainingsdagen ingesteld; je kunt elke dag kiezen.</p>'}
+    </div>
+    <div class="vast-veld"><label for="mVastVanaf">Vanaf</label><input class="invoer" type="date" id="mVastVanaf" min="${vandaag}" value="${eersteOpDag(vandaag, dag)}"></div>
+    <div class="vast-veld"><label>Aantal weken</label>
+      <div class="vast-stepper"><button type="button" id="mVastMin" aria-label="Eén week minder">−</button><span id="mVastWeken"></span><button type="button" id="mVastPlus" aria-label="Eén week meer">+</button></div></div>
+    <div class="vast-blok"><label>Reden</label>
+      <div class="pres-reden-rij vast-redenen" id="mVastReden">${redenOpties.map(r =>
+        `<button type="button" class="pres-reden-chip" data-reden="${r.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div></div>
+    <input class="invoer" id="mVastNotitie" maxlength="120" placeholder="Toelichting (optioneel) — bv. 'bijles op maandag'" style="margin-bottom:12px">
+    <div class="vast-preview"><div class="vast-preview-kop" id="mVastKop"></div><div class="vast-data" id="mVastData"></div></div>
+    <p class="vast-hint" style="margin:10px 0 14px">De speler staat op deze datums alvast op afwezig zodra je de presentie opent. Er wordt pas iets vastgelegd als je de presentie die dag invult, zodat een training die niet doorgaat niet meetelt in de opkomst.</p>
+    <button class="knop vol" id="mVastBewaar">Afmelding bewaren</button>`);
+
+  const datums = () => {
+    const start = eersteOpDag($('#mVastVanaf').value || vandaag, dag);
+    return Array.from({length: weken}, (_, i) => plusDagen(start, i * 7));
+  };
+  const teken = () => {
+    const lijst = datums();
+    const metRecord = new Set(S.presentie.map(p => p.datum));
+    $('#mVastWeken').textContent = `${weken} ${weken === 1 ? 'week' : 'weken'}`;
+    $('#mVastKop').innerHTML = `Afwezig op <b>${weken} ${DAGNAMEN[dag]}${weken===1?'':'en'}</b>, t/m ${esc(kortD(lijst[lijst.length-1]))}`;
+    $('#mVastData').innerHTML = lijst.map(d => `<span class="vast-dchip ${metRecord.has(d)?'al':''}" ${metRecord.has(d)?'title="Hier staat al presentie; de speler wordt erbij gezet"':''}>${esc(kortD(d))}</span>`).join('');
+  };
+  $$('#mVastDag .dag-opt:not([disabled])').forEach(b => b.onclick = () => {
+    $$('#mVastDag .dag-opt').forEach(x => x.classList.remove('aan'));
+    b.classList.add('aan'); dag = Number(b.dataset.d);
+    const v = $('#mVastVanaf');
+    v.value = eersteOpDag(v.value && v.value >= vandaag ? v.value : vandaag, dag);
+    teken();
+  });
+  $('#mVastVanaf').onchange = () => {
+    const v = $('#mVastVanaf');
+    if (!v.value || v.value < vandaag) v.value = vandaag;
+    v.value = eersteOpDag(v.value, dag);
+    teken();
+  };
+  $('#mVastMin').onclick = () => { weken = Math.max(1, weken - 1); teken(); };
+  $('#mVastPlus').onclick = () => { weken = Math.min(MAX_WEKEN, weken + 1); teken(); };
+  $$('#mVastReden .pres-reden-chip').forEach(b => b.onclick = () => {
+    const aan = b.classList.contains('actief');
+    $$('#mVastReden .pres-reden-chip').forEach(x => x.classList.remove('actief'));
+    if (!aan){ b.classList.add('actief'); reden = b.dataset.reden; } else reden = null;
+  });
+  teken();
+
+  $('#mVastBewaar').onclick = async () => {
+    const knop = $('#mVastBewaar');
+    const spelerId = $('#mVastSpeler').value;
+    const lijst = datums();
+    const r = {
+      id: 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      spelerId, dag, van: lijst[0], tot: lijst[lijst.length - 1],
+      reden: reden || 'anders', notitie: $('#mVastNotitie').value.trim(),
+      door: S.user?.displayName || S.user?.email || '', gemaakt: new Date().toISOString(),
+    };
+    // dubbele regel voor dezelfde speler + dag die overlapt? Dan niet nog eens.
+    const overlap = (S.team?.vasteAfmeldingen || []).some(x => x.spelerId === spelerId && Number(x.dag) === dag && x.tot >= r.van && x.van <= r.tot);
+    if (overlap) return meld(`${speler(spelerId)?.naam || 'Deze speler'} heeft al een vaste afmelding op die dag in deze periode`);
+    knop.disabled = true; knop.textContent = 'Bewaren…';
+    try {
+      // opgeruimd meeschrijven: verlopen regels gaan eruit
+      const nieuw = [...(S.team?.vasteAfmeldingen || []).filter(x => x && x.tot >= vandaag), r];
+      await updateDoc(doc(db,'teams',S.teamId), { vasteAfmeldingen: nieuw });
+      if (S.team) S.team.vasteAfmeldingen = nieuw;
+      // bestaande (vooruit ingevulde) records op deze datums: speler erbij zetten
+      const datSet = new Set(lijst);
+      for (const rec of S.presentie.filter(p => datSet.has(p.datum) && p.datum >= vandaag)){
+        await wijzigRecord(rec, (afwezig, telaat, redenen) => {
+          if (afwezig.has(spelerId)) return false;
+          afwezig.add(spelerId); telaat.delete(spelerId); redenen[spelerId] = redenVanRegel(r);
+        });
+      }
+      sluitModal();
+      meld(`${speler(spelerId)?.naam?.split(' ')[0] || 'Speler'} afgemeld voor ${weken} ${DAGNAMEN[dag]}${weken===1?'':'en'}`);
+      if (!S.wedstrijdId && S.teamTab === 'presentietraining') S._navRerender?.();
+    } catch(e){
+      knop.disabled = false; knop.textContent = 'Afmelding bewaren';
+      meld('Opslaan mislukt: ' + (e.code || e.message));
+    }
+  };
+}
+
+/* Regel stoppen. Toekomstige records (na vandaag) waarin de speler nog via
+   deze regel afwezig staat, zetten we terug; vandaag en eerder blijft zoals
+   de coach het heeft vastgelegd. */
+export async function stopVasteAfmelding(id){
+  const lijst = S.team?.vasteAfmeldingen || [];
+  const r = lijst.find(x => x.id === id);
+  if (!r) return;
+  const naam = speler(r.spelerId)?.naam || 'deze speler';
+  if (!confirm(`Vaste afmelding van ${naam} stoppen? Hij staat dan weer gewoon op aanwezig.`)) return;
+  const vandaag = new Date().toISOString().slice(0,10);
+  try {
+    const nieuw = lijst.filter(x => x.id !== id && x.tot >= vandaag);
+    await updateDoc(doc(db,'teams',S.teamId), { vasteAfmeldingen: nieuw });
+    if (S.team) S.team.vasteAfmeldingen = nieuw;
+    for (const rec of S.presentie.filter(p => p.datum > vandaag && (p.afwezigRedenen||{})[r.spelerId]?.vast === id)){
+      await wijzigRecord(rec, (afwezig, telaat, redenen) => { afwezig.delete(r.spelerId); delete redenen[r.spelerId]; });
+    }
+    meld('Vaste afmelding gestopt');
+    if (!S.wedstrijdId && S.teamTab === 'presentietraining') S._navRerender?.();
+  } catch(e){ meld('Stoppen mislukt: ' + (e.code || e.message)); }
 }
 
 /* ---------- Planning: eigen dag toevoegen ---------- */
