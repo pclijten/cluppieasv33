@@ -52,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261013e'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013f'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261013e').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013f').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2813,6 +2813,7 @@ function modalMeerdereTrainingen(files, teams){
   };
   const keuze = files.map(f => raad(f.name));
   let mmModel = 'standaard';                 // [20261013c] AI-model voor deze upload
+  let mmZicht = '';                          // [20261013f] zichtbaar vanaf (leeg = meteen)
 
   if (!groepen.length){
     // zonder groepen heeft de multi-flow weinig zin: bied beheer aan, of val
@@ -2856,12 +2857,16 @@ function modalMeerdereTrainingen(files, teams){
         <input class="invoer" id="mmWeek" value="Week ${weekNr}" autocomplete="off"></div>
       <div class="mm-lijst">${rijen}</div>
       ${samenv}
+      <div class="veldgroep"><label for="mmZicht">Zichtbaar voor het team vanaf</label>
+      <input class="invoer" type="date" id="mmZicht" value="${esc(mmZicht)}">
+      <p class="bp-hint">Leeg laten = meteen zichtbaar. Tot die datum zie jij hem wel in het beheer, coaches nog niet.</p></div>
       ${htmlModelKeuze('mmModel', mmModel)}
       <button class="knop vol" id="mmStart" ${zonder?'disabled':''}>Verwerken en verdelen</button>
       <button class="link" id="mmGroepen" style="display:block;margin:10px auto 0">⚙️ Groepen beheren</button>`);
 
     $$('.mm-select').forEach(s => s.onchange = () => { keuze[+s.dataset.i] = s.value; teken(); });
     $('#mmModel').onchange = e => { mmModel = e.target.value; };
+    $('#mmZicht').onchange = e => { mmZicht = e.target.value; };
     $('#mmGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
     $('#mmStart').onclick = async () => {
       if (keuze.some(k => !k)) return meld('Kies voor elk bestand een groep');
@@ -2872,7 +2877,8 @@ function modalMeerdereTrainingen(files, teams){
         const g = groepen.find(x => x.id === keuze[i]);
         const tms = (g?.teams || []).filter(id => teams.some(t => t.id === id));
         if (!tms.length){ meld(`Groep ${keuze[i]} heeft geen teams — ${f.name} overgeslagen`); return; }
-        items.push({ file: f, titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`, week: wk, teams: tms, aiModel: mmModel });
+        items.push({ file: f, titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`, week: wk, teams: tms, aiModel: mmModel,
+          ...(mmZicht ? { extra: { zichtbaarVanaf: mmZicht } } : {}) });
       });
       if (!items.length) return;
       $('#mmStart').disabled = true;
@@ -2972,6 +2978,9 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
         ${groepen.length ? '<button class="knop licht klein" id="mTrGroepen">⚙️ Groepen beheren</button>' : ''}
       </div>
     </div>
+    <div class="veldgroep"><label for="mTrZicht">Zichtbaar voor het team vanaf</label>
+      <input class="invoer" type="date" id="mTrZicht" value="">
+      <p class="bp-hint">Leeg laten = meteen zichtbaar. Tot die datum zie jij hem wel in het beheer, coaches nog niet.</p></div>
     ${htmlModelKeuze('mTrModel', 'standaard')}
     <button class="knop vol" id="mTrOk">Uploaden en delen</button>`);
   const sync = () => $$('#mTrTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
@@ -2999,10 +3008,13 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     if (dagRaw) meta.trainingsdag = parseInt(dagRaw, 10);        // vaste dag voor álle teams
     // [20261013b] naar de wachtrij: goedgekeurd door de AI-controle = meteen gedeeld,
     // afwijkers wachten bovenaan Trainingen. Het venster sluit meteen.
+    // [20261013f] optionele zichtbaarheidsdatum (zelfde veld als de blokplanning)
+    const zichtVanaf = ($('#mTrZicht')?.value || '').trim();
     const knop = $('#mTrOk'); if (knop){ knop.disabled = true; knop.textContent = 'In de wachtrij…'; }
     await voegToeAanWachtrij({ naam: titel, teamsTxt: teamsTekstVan(gekozen, teams), items: [{
       file, titel, week, teams: gekozen, ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
       aiModel: $('#mTrModel')?.value || 'standaard',
+      ...(zichtVanaf ? { extra: { zichtbaarVanaf: zichtVanaf } } : {}),
     }] });
     if (batchMeta?.onKlaar){ batchMeta.onKlaar(); return; }   // doorrollen in batch (één voor één)
     sluitModal();
@@ -3301,6 +3313,9 @@ function modalBewerkTraining(t, teams){
       <input class="invoer" id="mTbTitel" value="${esc(t.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
       <input class="invoer" id="mTbWeek" value="${esc(t.week || '')}" autocomplete="off"></div>
+    <div class="veldgroep"><label for="mTbZicht">Zichtbaar voor het team vanaf</label>
+      <input class="invoer" type="date" id="mTbZicht" value="${esc(t.zichtbaarVanaf || '')}">
+      <p class="bp-hint">Leeg = meteen zichtbaar.</p></div>
     <div class="veldgroep"><label>Trainingsdoelen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-2)">— getoond als suggestie bij wedstrijden in deze week</span></label>
       <div class="tr-doelen" style="margin:0">
         <div id="mTbDoelLijst">${(Array.isArray(t.doelen)?t.doelen:[]).map(d=>`<div class="tr-doel-rij"><span class="stip"></span><input class="tr-doel-inp mTbDoelInp" value="${esc(d||'')}" placeholder="Trainingsdoel…" maxlength="80"><span class="tr-doel-x" title="Verwijderen">✕</span></div>`).join('')}</div>
@@ -3350,7 +3365,9 @@ function modalBewerkTraining(t, teams){
     const doelen = mTbLeesDoelen();   // lezen vóór sluitModal — daarna is de DOM weg
     sluitModal();
     try {
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen});
+      // [20261013f] zichtbaarheidsdatum ook achteraf aan te passen (leeg = meteen)
+      const zicht = ($('#mTbZicht')?.value || '').trim();
+      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
