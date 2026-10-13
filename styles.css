@@ -5638,3 +5638,31 @@ button.cb-mnaam{height:44px}
 .bp-plan-kop span{font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
 .bp-zv-badge{display:inline-block;margin-top:3px;font-size:calc(11.5px * var(--fs));font-weight:600;color:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 45%, transparent);border-radius:999px;padding:1px 8px}
 .bp-uitleg{font-size:calc(14px * var(--fs));line-height:1.5;margin:0 0 6px}
+
+/* ==================== UPLOADWACHTRIJ (upload-wachtrij.js) ====================
+   [20261013b] Voortgangsblok bovenaan Trainingen + label rechtsonder. */
+.uq-paneel:empty{display:none}
+.uq-paneel{display:flex;flex-direction:column;gap:10px;margin:0 0 16px}
+.uq-kop{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(15px * var(--fs));letter-spacing:.8px;text-transform:uppercase;color:var(--ink-2)}
+.uq-job{display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--card);border-radius:14px;border:1px solid var(--hair)}
+.uq-job.let{border-color:color-mix(in srgb, var(--warn) 55%, transparent)}
+.uq-job.concept{border-style:dashed}
+.uq-titel{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.uq-titel b{font-size:calc(15px * var(--fs))}
+.uq-titel span{font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
+.uq-balkrij{display:flex;align-items:center;gap:10px}
+.uq-balk{flex:1;height:8px;border-radius:4px;background:var(--op-vlak,rgba(0,0,0,.06));overflow:hidden}
+.uq-balk > div{height:100%;background:var(--warn);transition:width .3s ease}
+.uq-balkrij span{font-size:calc(12.5px * var(--fs));color:var(--ink-2);font-variant-numeric:tabular-nums}
+.uq-status{font-size:calc(13.5px * var(--fs));line-height:1.4}
+.uq-afwlijst{display:flex;flex-direction:column;gap:6px}
+.uq-afw{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--warn);background:color-mix(in srgb, var(--warn) 12%, transparent);color:var(--ink);font:inherit;font-size:calc(13.5px * var(--fs));text-align:left;cursor:pointer}
+.uq-afw b{color:var(--warn);white-space:nowrap}
+.uq-acties{display:flex;flex-wrap:wrap;gap:8px}
+.uq-knop{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--hair);background:transparent;color:var(--ink);font:inherit;font-size:calc(13.5px * var(--fs));font-weight:600;cursor:pointer}
+.uq-knop.hoofd{background:var(--warn);border-color:var(--warn);color:#1a1305}
+.uq-label{position:fixed;right:16px;bottom:calc(88px + env(safe-area-inset-bottom, 0px));z-index:45;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--warn);background:var(--card);color:var(--warn);font:inherit;font-size:calc(13px * var(--fs));font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer}
+.uq-label.loopt::before{content:'';display:inline-block;width:8px;height:8px;margin-right:8px;border-radius:50%;background:var(--warn);animation:uqPuls 1.2s ease-in-out infinite;vertical-align:middle}
+html.desk .uq-label{bottom:24px;right:24px}
+@keyframes uqPuls{0%,100%{opacity:.35}50%{opacity:1}}
+@media (prefers-reduced-motion: reduce){.uq-label.loopt::before{animation:none}}
