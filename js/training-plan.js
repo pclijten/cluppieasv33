@@ -9,9 +9,9 @@
    3. laat de admin één keer de teams of trainingsgroep kiezen, de kalender-
       week waarin blokweek 1 valt, eventuele vrije weken en het moment waarop
       de trainingen zichtbaar worden,
-   4. verwerkt alles achter elkaar met de bestaande AI-pijplijn uit
-      training-ai.js en deelt automatisch wat de AI-controle goedkeurt; de rest
-      wacht op een blik via het gewone preview-scherm uit club.js,
+   4. zet alles in de uploadwachtrij (upload-wachtrij.js, [20261013b]), die
+      op de achtergrond verwerkt en automatisch deelt wat de AI-controle
+      goedkeurt; afwijkers wachten bovenaan Trainingen op een blik,
    5. en biedt daarna een "Plannen"-weergave waarin je een week kunt laten
       vervallen: alle latere trainingen schuiven dan een week op, inclusief
       titel ("Week 47 - training 1" → "Week 48 - training 1") en zichtbaarheid.
@@ -26,12 +26,11 @@
 
    club.js levert via `ctx` wat hier nodig is maar daar woont (groepen,
    bouwen, het preview-scherm, renderClub), zodat er geen kringimport ontstaat. */
-import {
-  db, storage, collection, doc, addDoc, writeBatch, serverTimestamp,
-  sRef, uploadBytes, getDownloadURL
-} from './firebase.js?v=20260922c';
+import { db, doc, writeBatch } from './firebase.js?v=20260922c';
 import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
-import { telGebruik } from './tracker.js?v=20260922c';
+import {
+  voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob
+} from './upload-wachtrij.js?v=20261013b';
 
 /* ---------- Datums (lokaal; 12:00 als anker tegen zomertijd-randgevallen) ---------- */
 const pad2 = n => String(n).padStart(2, '0');
@@ -152,13 +151,13 @@ async function bestandenUitInvoer(files){
 }
 
 function analyseer(invoer){
-  const items = [], overzicht = [], onbekend = [];
-  let thema = '';
+  const items = [], onbekend = [];
+  let overzichtAantal = 0, thema = '';
   for (const x of invoer){
     const h = herkenNaam(x.file.name);
     if (!h){ onbekend.push(x); continue; }
-    if (h.overzicht){ overzicht.push(x); continue; }
-    items.push({ ...x, ...h });
+    if (h.overzicht){ overzichtAantal++; continue; }
+    items.push({ ...x, ...h, naam: x.file.name });
     // thema uit de mapnaam in de zip: "Blok 2 - Omschakeling balbezit naar balverlies/…"
     if (!thema){
       const map = x.pad.split('/').slice(-2, -1)[0] || '';
@@ -170,13 +169,28 @@ function analyseer(invoer){
   // dubbele namen (zelfde blok/week/training) maar één keer
   const gezien = new Set();
   const uniek = items.filter(i => { const k = `${i.blok}-${i.week}-${i.nr}`; if (gezien.has(k)) return false; gezien.add(k); return true; });
+  uniek.forEach((it, idx) => { it.idx = idx; });
   const blokken = [...new Set(uniek.map(i => i.blok))];
   const voor = uniek.find(i => i.voor)?.voor || '';
-  return { items: uniek, overzicht, onbekend, blokken, thema, voor };
+  return { items: uniek, overzichtAantal, onbekend, onbekendNamen: onbekend.map(x => x.file.name), blokken, thema, voor };
 }
 
 function planNaam(a){
   return [`Blok ${a.blokken[0]}`, a.voor, a.thema].filter(Boolean).join(' · ');
+}
+
+/* Wat van de instellingen in het concept (IndexedDB) wordt bewaard. */
+function conceptVan(st){
+  const a = st.a;
+  return {
+    stap: st.stap, teams: [...st.teams], groepId: st.groepId, losOpen: st.losOpen,
+    start: st.start, vrij: st.vrij, zichtbaar: st.zichtbaar, weken: st.weken,
+    a: {
+      items: a.items.map(({ file, pad, ...rest }) => rest),
+      overzichtAantal: a.overzichtAantal, onbekendNamen: a.onbekendNamen,
+      blokken: a.blokken, thema: a.thema, voor: a.voor,
+    },
+  };
 }
 
 /* ==================== De upload-flow ==================== */
@@ -194,7 +208,7 @@ export async function startBlokUpload(files, ctx){
   if (!a.items.length){
     // niets herkend: gewoon de bestaande flow met de (niet-overzicht) PDF's
     sluitModal();
-    const pdfs = [...a.onbekend.map(x => x.file)];
+    const pdfs = a.onbekend.map(x => x.file);
     if (!pdfs.length) return meld('Geen trainingen gevonden in deze bestanden');
     return ctx.oudeFlow(pdfs);
   }
@@ -203,33 +217,39 @@ export async function startBlokUpload(files, ctx){
     start: plusDagen(maandagVan(vandaagIso()), 7),     // standaard: volgende week
     vrij: [], zichtbaar:'zo',
     weken: Math.max(...a.items.map(i => i.week)),
-    werk:null, plan:null, bezig:false, inCheck:false, dicht:false, forceer:false,
   };
+  // [20261013b] meteen als concept bewaren: per ongeluk wegklikken kost niets meer
+  const job = await voegConceptToe({ soort:'blok', naam: planNaam(a), blok: conceptVan(st) }, a.items.map(i => i.file));
+  st.conceptId = job.id;
   teken(st, ctx);
 }
 
-const TITELS = { teams:'Trainingen uploaden', planning:'Planning', verwerken:'Verwerken' };
+/* Een concept uit de wachtrij weer openen ("Verder instellen"). */
+export async function hervatBlokUpload(job, ctx){
+  const c = job.blok; if (!c) return;
+  const files = await bestandenVanJob(job.id);
+  if (files.some(f => !f)){ meld('Niet alle bestanden staan nog op dit apparaat. Upload het blok opnieuw.'); return; }
+  const a = { ...c.a, onbekend: [], items: c.a.items.map(it => ({ ...it, file: files[it.idx] })) };
+  const st = {
+    a, stap: c.stap === 'planning' ? 'planning' : 'teams',
+    teams: new Set(c.teams || []), groepId: c.groepId || null, losOpen: !!c.losOpen,
+    start: c.start, vrij: c.vrij || [], zichtbaar: c.zichtbaar || 'zo', weken: c.weken,
+    conceptId: job.id,
+  };
+  openModal(`<h2>Trainingen uploaden</h2><div id="bpRoot"></div>`);
+  teken(st, ctx);
+}
+
+const TITELS = { teams:'Trainingen uploaden', planning:'Planning' };
 
 function teken(st, ctx){
-  let root = document.getElementById('bpRoot');
-  if (!root){
-    if (st.inCheck){
-      // controle-scherm open; is dat intussen door de gebruiker gesloten?
-      if (!$('#modalAchter')?.classList.contains('open')){ st.inCheck = false; st.dicht = true; }
-      return;
-    }
-    if (!st.forceer){ st.dicht = true; return; }        // bewust gesloten: niet opdringen
-    st.forceer = false; st.dicht = false;
-    openModal(`<h2>${TITELS[st.stap]}</h2><div id="bpRoot"></div>`);
-    root = document.getElementById('bpRoot');
-    if (!root) return;
-  }
+  const root = document.getElementById('bpRoot');
+  if (!root) return;
   const h = document.querySelector('#modalInhoud .modal-kop h2');
   if (h) h.textContent = TITELS[st.stap];
-  root.innerHTML = st.stap === 'teams' ? htmlTeams(st, ctx)
-    : st.stap === 'planning' ? htmlPlanning(st, ctx)
-    : htmlVerwerken(st);
+  root.innerHTML = st.stap === 'teams' ? htmlTeams(st, ctx) : htmlPlanning(st, ctx);
   koppel(st, ctx, root);
+  if (st.conceptId) bewaarConcept(st.conceptId, conceptVan(st), planNaam(st.a), st.teams.size ? teamsTekst(st, ctx) : '');
 }
 
 function teamsTekst(st, ctx){
@@ -255,7 +275,9 @@ function htmlTeams(st, ctx){
     <div class="bp-bouw">${esc(b.naam)}</div>
     <div class="team-chip-kies">${b.teams.map(t =>
       `<label class="${st.teams.has(t.id) ? 'aan' : ''}"><input type="checkbox" data-bp-team="${esc(t.id)}" ${st.teams.has(t.id) ? 'checked' : ''}><span>${esc(t.naam)}</span></label>`).join('')}</div>`).join('');
-  const onbekendNamen = a.onbekend.slice(0, 4).map(x => esc(x.file.name)).join(', ') + (a.onbekend.length > 4 ? ` en ${a.onbekend.length - 4} meer` : '');
+  const onb = a.onbekendNamen || [];
+  const onbekendTekst = onb.slice(0, 4).map(esc).join(', ') + (onb.length > 4 ? ` en ${onb.length - 4} meer` : '');
+  const ov = a.overzichtAantal || 0;
   return `
     <div class="bp-blok">
       <div class="bp-bloknr">Blok ${a.blokken.map(Number).join(' + ')}</div>
@@ -267,8 +289,8 @@ function htmlTeams(st, ctx){
       </div>
       <ul class="bp-check">
         <li class="ok">Blok, week en training herkend uit de bestandsnamen</li>
-        ${a.overzicht.length ? `<li>${a.overzicht.length} overzichtsblad${a.overzicht.length === 1 ? '' : 'en'} (… Overzicht.pdf) sla${a.overzicht.length === 1 ? '' : 'an'} we over</li>` : ''}
-        ${a.onbekend.length ? `<li class="let">Niet herkend en niet meegenomen: ${onbekendNamen}</li>` : ''}
+        ${ov ? `<li>${ov} overzichtsblad${ov === 1 ? '' : 'en'} (… Overzicht.pdf) sla${ov === 1 ? '' : 'an'} we over</li>` : ''}
+        ${onb.length ? `<li class="let">Niet herkend en niet meegenomen: ${onbekendTekst}</li>` : ''}
       </ul>
     </div>
     ${meerBlok ? `<div class="mm-samenv warn">Er zitten meerdere blokken in deze upload. Upload één blok tegelijk, dan kun je elk blok apart inplannen.</div>` : ''}
@@ -281,13 +303,14 @@ function htmlTeams(st, ctx){
       <p class="bp-hint">Elk team krijgt zijn eigen trainingsdagen: training 1 op de eerste dag, training 2 op de tweede. Zo werkt Cluppie nu ook al.</p>
     </div>
     <button class="knop vol" id="bpVerder" ${!st.teams.size || meerBlok ? 'disabled' : ''}>Verder naar planning</button>
-    <button class="link" id="bpOud" style="display:block;margin:12px auto 0">Toch zoals nu verdelen (zonder planning)</button>`;
+    <button class="link" id="bpOud" style="display:block;margin:12px auto 0">Toch zoals nu verdelen (zonder planning)</button>
+    <p class="bp-hint" style="text-align:center">Wegklikken mag: je vindt deze upload terug bovenaan Trainingen.</p>`;
 }
 
 /* ---------- Stap 2: planning ---------- */
 function dubbeleItems(st, ctx){
   return st.a.items.filter(it => (ctx.trainingen || []).some(t =>
-    t.bestandsnaam === it.file.name && (t.teams || []).some(id => st.teams.has(id))));
+    t.bestandsnaam === it.naam && (t.teams || []).some(id => st.teams.has(id))));
 }
 
 function htmlPlanning(st, ctx){
@@ -323,56 +346,14 @@ function htmlPlanning(st, ctx){
       <p class="bp-hint">Eén keuze voor het hele blok: alle trainingen van een week worden tegelijk zichtbaar.</p>
     </div>
     <table class="bp-tabel"><thead><tr><th>Blok</th><th>Week</th><th>Zichtbaar vanaf</th></tr></thead><tbody>${rijen}</tbody></table>
-    <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - 1], eerste.nr))}</b><span>${esc(eerste.file.name)}</span></div>
+    <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - 1], eerste.nr))}</b><span>${esc(eerste.naam)}</span></div>
     ${dubbel.length ? `<div class="mm-samenv warn">${dubbel.length} training${dubbel.length === 1 ? ' staat' : 'en staan'} al bij deze teams en ${dubbel.length === 1 ? 'wordt' : 'worden'} overgeslagen.</div>` : ''}
     <button class="knop vol" id="bpStart" ${aantal ? '' : 'disabled'}>Verwerk ${aantal} training${aantal === 1 ? '' : 'en'}</button>
-    <button class="link" id="bpTerug" style="display:block;margin:12px auto 0">Terug</button>`;
+    <p class="bp-hint" style="text-align:center">Het verwerken loopt op de achtergrond; je kunt meteen verder.</p>
+    <button class="link" id="bpTerug" style="display:block;margin:10px auto 0">Terug</button>`;
 }
 
 const pijl = r => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${r === 'l' ? 'M15 18l-6-6 6-6' : 'M9 6l6 6-6 6'}"/></svg>`;
-
-/* ---------- Stap 3: verwerken ---------- */
-function htmlVerwerken(st){
-  const werk = st.werk;
-  const klaarSet = new Set(['ok', 'check', 'fout', 'skip']);
-  const verwerkt = werk.filter(i => klaarSet.has(i.status)).length;
-  const gedeeld = werk.filter(i => i.status === 'ok').length;
-  const open = werk.filter(i => i.status === 'check' || i.status === 'fout').length;
-  const pct = werk.length ? Math.round(verwerkt / werk.length * 100) : 100;
-  const perWeek = new Map();
-  werk.forEach((it, idx) => {
-    if (!perWeek.has(it.week)) perWeek.set(it.week, { weekStart: it.weekStart, items: [] });
-    perWeek.get(it.week).items.push({ it, idx });
-  });
-  const chip = ({ it, idx }) => {
-    const t = `T${it.nr}`;
-    if (it.status === 'ok')    return `<span class="bp-st ok">✓ ${t}</span>`;
-    if (it.status === 'skip')  return `<span class="bp-st skip" title="Staat al bij deze teams">${t} bestaat al</span>`;
-    if (it.status === 'bezig') return `<span class="bp-st bezig">… ${t}</span>`;
-    if (it.status === 'check') return `<button type="button" class="bp-st check" data-bp-check="${idx}">! ${t} bekijken</button>`;
-    if (it.status === 'fout')  return `<button type="button" class="bp-st check" data-bp-check="${idx}">! ${t} mislukt</button>`;
-    return `<span class="bp-st wacht">${t}</span>`;
-  };
-  const rijen = [...perWeek.entries()].sort((x, y) => x[0] - y[0]).map(([wk, g]) => `
-    <div class="bp-vrij"><b>Week ${wk}</b><span>wk ${isoWeekNr(g.weekStart)}</span>
-      <div class="bp-chips">${g.items.sort((x, y) => x.it.nr - y.it.nr).map(chip).join('')}</div></div>`).join('');
-  const samenv = st.bezig
-    ? `${gedeeld} automatisch gedeeld${open ? `, ${open} wacht${open === 1 ? '' : 'en'} op jouw blik` : ''}. Laat de app open staan tot alles klaar is.`
-    : open
-      ? `${gedeeld} gedeeld. ${open} training${open === 1 ? '' : 'en'} ${open === 1 ? 'wacht' : 'wachten'} op jouw blik: tik erop om te bekijken en te delen.`
-      : `Klaar: ${gedeeld} training${gedeeld === 1 ? '' : 'en'} gedeeld.`;
-  const eerste = werk.map(i => i.zichtbaarVanaf).filter(Boolean).sort()[0];
-  return `
-    <div class="bp-sub">${esc(st.plan.naam)} · ${esc(st.teamsTxt)}</div>
-    <div class="bp-voortgang">
-      <div class="bp-vg-kop"><b>${verwerkt} van ${werk.length} verwerkt</b><span>${pct}%</span></div>
-      <div class="bp-balk"><div style="width:${pct}%"></div></div>
-      <p>${samenv}</p>
-    </div>
-    <div class="bp-vlijst">${rijen}</div>
-    <p class="bp-hint">Alles gaat naar ${esc(st.teamsTxt)} en wordt zichtbaar volgens de planning${eerste ? `, de eerste op ${esc(kortDatum(eerste))}` : ''}. Valt er later een week uit? Dat pas je aan via Trainingen → Plannen.</p>
-    ${st.bezig ? '' : `<button class="knop vol" id="bpKlaar">${open ? 'Later bekijken' : 'Klaar'}</button>`}`;
-}
 
 /* ---------- Events ---------- */
 function koppel(st, ctx, root){
@@ -394,48 +375,34 @@ function koppel(st, ctx, root){
     const verder = root.querySelector('#bpVerder');
     if (verder) verder.onclick = () => { st.stap = 'planning'; teken(st, ctx); };
     const oud = root.querySelector('#bpOud');
-    if (oud) oud.onclick = () => { sluitModal(); ctx.oudeFlow(st.a.items.map(i => i.file)); };
+    if (oud) oud.onclick = async () => {
+      const files = st.a.items.map(i => i.file);
+      if (st.conceptId) await verwijderJob(st.conceptId);
+      sluitModal(); ctx.oudeFlow(files);
+    };
     return;
   }
-  if (st.stap === 'planning'){
-    q('[data-bp-start]').forEach(b => b.onclick = () => { st.start = plusDagen(st.start, Number(b.dataset.bpStart)); st.vrij = st.vrij.filter(m => m > st.start); teken(st, ctx); });
-    q('[data-bp-wk]').forEach(b => b.onclick = () => {
-      const m = b.dataset.bpWk;
-      if (m === st.start && !st.vrij.includes(m)){ st.start = plusDagen(st.start, 7); }   // eerste week vrij = later beginnen
-      else st.vrij = st.vrij.includes(m) ? st.vrij.filter(x => x !== m) : [...st.vrij, m].sort();
-      teken(st, ctx);
-    });
-    const z = root.querySelector('#bpZicht');
-    if (z) z.onchange = () => { st.zichtbaar = z.value; teken(st, ctx); };
-    const terug = root.querySelector('#bpTerug');
-    if (terug) terug.onclick = () => { st.stap = 'teams'; teken(st, ctx); };
-    const start = root.querySelector('#bpStart');
-    if (start) start.onclick = () => startVerwerken(st, ctx);
-    return;
-  }
-  // verwerken
-  q('[data-bp-check]').forEach(b => b.onclick = () => controleer(st, ctx, st.werk[Number(b.dataset.bpCheck)]));
-  const klaar = root.querySelector('#bpKlaar');
-  if (klaar) klaar.onclick = () => { sluitModal(); ctx.renderClub?.(); };
+  q('[data-bp-start]').forEach(b => b.onclick = () => { st.start = plusDagen(st.start, Number(b.dataset.bpStart)); st.vrij = st.vrij.filter(m => m > st.start); teken(st, ctx); });
+  q('[data-bp-wk]').forEach(b => b.onclick = () => {
+    const m = b.dataset.bpWk;
+    if (m === st.start && !st.vrij.includes(m)){ st.start = plusDagen(st.start, 7); }   // eerste week vrij = later beginnen
+    else st.vrij = st.vrij.includes(m) ? st.vrij.filter(x => x !== m) : [...st.vrij, m].sort();
+    teken(st, ctx);
+  });
+  const z = root.querySelector('#bpZicht');
+  if (z) z.onchange = () => { st.zichtbaar = z.value; teken(st, ctx); };
+  const terug = root.querySelector('#bpTerug');
+  if (terug) terug.onclick = () => { st.stap = 'teams'; teken(st, ctx); };
+  const start = root.querySelector('#bpStart');
+  if (start) start.onclick = () => naarWachtrij(st, ctx);
 }
 
-/* ---------- Verwerken ---------- */
-function extraVelden(it, st){
-  return {
-    plan: st.plan,
-    blokWeek: it.week,
-    trainingNr: it.nr,
-    weekStart: it.weekStart,
-    zichtbaarVanaf: it.zichtbaarVanaf || null,
-  };
-}
-
-function startVerwerken(st, ctx){
+/* ---------- Naar de wachtrij ---------- */
+async function naarWachtrij(st, ctx){
   const map = planWeken(st.start, st.vrij, st.weken);
   const dubbel = new Set(dubbeleItems(st, ctx));
-  st.teamsArr = [...st.teams];
-  st.teamsTxt = teamsTekst(st, ctx);
-  st.plan = {
+  const teams = [...st.teams];
+  const plan = {
     id: 'p' + Date.now().toString(36),
     naam: planNaam(st.a),
     blok: st.a.blokken[0],
@@ -445,123 +412,23 @@ function startVerwerken(st, ctx){
     weken: st.weken,
     ...(st.groepId ? { groep: st.groepId } : {}),
   };
-  st.werk = st.a.items.map(it => {
+  const items = st.a.items.map(it => {
     const ws = map[it.week - 1];
     return {
-      ...it, weekStart: ws,
-      titel: titelVoor(ws, it.nr),
-      weekTekst: weekLabel(ws),
-      zichtbaarVanaf: zichtbaarDatum(ws, st.zichtbaar),
+      idx: it.idx, naam: it.naam, file: it.file,
+      titel: titelVoor(ws, it.nr), week: weekLabel(ws), teams,
+      extra: { plan, blokWeek: it.week, trainingNr: it.nr, weekStart: ws, zichtbaarVanaf: zichtbaarDatum(ws, st.zichtbaar) || null },
       status: dubbel.has(it) ? 'skip' : 'wacht',
     };
   });
-  st.stap = 'verwerken';
-  teken(st, ctx);
-  verwerkAlles(st, ctx);
-}
-
-const waarschuwBijSluiten = e => { e.preventDefault(); e.returnValue = ''; };
-
-async function verwerkAlles(st, ctx){
-  if (st.bezig) return;
-  st.bezig = true;
-  window.addEventListener('beforeunload', waarschuwBijSluiten);
-  let ai = null;
-  try { ai = await import('./training-ai.js?v=20260922c'); }
-  catch(e){ console.error('[blokplan] training-ai laden mislukt', e); }
-  let it;
-  while ((it = st.werk.find(i => i.status === 'wacht'))){
-    it.status = 'bezig'; teken(st, ctx);
-    try {
-      if (!ai) throw new Error('AI-module niet geladen');
-      await verwerkEen(it, st, ai);
-    } catch(e){
-      console.error('[blokplan] verwerken mislukt', it.file.name, e);
-      it.status = 'fout';
-    }
-    teken(st, ctx);
-  }
-  st.bezig = false;
-  window.removeEventListener('beforeunload', waarschuwBijSluiten);
-  const gedeeld = st.werk.filter(i => i.status === 'ok').length;
-  const open = st.werk.filter(i => i.status === 'check' || i.status === 'fout').length;
-  meld(open ? `${gedeeld} gedeeld · ${open} wacht op jouw blik` : `${gedeeld} training${gedeeld === 1 ? '' : 'en'} gedeeld`);
-  if (open && !st.inCheck) st.forceer = true;     // openstaande controles: scherm terughalen
-  teken(st, ctx);
+  const knop = document.getElementById('bpStart'); if (knop){ knop.disabled = true; knop.textContent = 'Bezig…'; }
+  const naam = planNaam(st.a), teamsTxt = teamsTekst(st, ctx);
+  if (st.conceptId) await conceptNaarRij(st.conceptId, items, naam, teamsTxt);
+  else await voegToeAanWachtrij({ soort:'blok', naam, teamsTxt, items });
+  sluitModal();
+  const n = items.filter(i => i.status !== 'skip').length;
+  meld(`${n} training${n === 1 ? '' : 'en'} in de wachtrij · voortgang bovenaan Trainingen`);
   ctx.renderClub?.();
-}
-
-function basisDoc(it, st){
-  return {
-    club: S.clubId, clubNaam: S.club?.naam || '',
-    titel: it.titel, week: it.weekTekst, bestandsnaam: it.file.name,
-    teams: st.teamsArr,
-    gemaakt: serverTimestamp(),
-    door: S.user?.displayName || S.user?.email || '',
-    ...extraVelden(it, st),
-  };
-}
-
-/* Zelfde stappen als startTrainingVerwerking in club.js, maar zonder scherm:
-   PDF lezen → origineel + diagrammen opslaan → AI → score → delen of laten wachten. */
-async function verwerkEen(it, st, ai){
-  const file = it.file;
-  const mapId = String(Date.now());
-  const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const pdfPath = `clubs/${S.clubId}/trainingen/${mapId}/${veiligeNaam}`;
-
-  const { paginas, diagramBlobs, bytes } = await ai.leesPdf(file);
-  const pdfRef = sRef(storage, pdfPath);
-  await uploadBytes(pdfRef, new Blob([bytes], { type:'application/pdf' }), { contentType:'application/pdf' });
-  const pdfUrl = await getDownloadURL(pdfRef);
-  const diagramUrls = await ai.uploadDiagrammen(S.clubId, mapId, diagramBlobs);
-
-  let oefeningen = null, doelen = [];
-  for (let poging = 0; poging < 2 && !oefeningen; poging++){
-    try { ({ oefeningen, doelen } = await ai.structureer(paginas)); }
-    catch(e){ console.warn('[blokplan] AI-poging', poging + 1, 'mislukt', e); }
-  }
-  if (!oefeningen){
-    it.status = 'fout';
-    it.aiCtx = { mapId, pdfPath, pdfUrl };
-    return;
-  }
-  telGebruik('training_upload');
-  const score = ai.berekenScore(paginas.map(p => p.tekst).join(' '), oefeningen);
-  const aiCtx = { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, doelen, score, paginas };
-  if (!ai.scoreGoed(score)){
-    it.status = 'check'; it.aiCtx = aiCtx;
-    return;
-  }
-  const doelLijst = (Array.isArray(doelen) ? doelen : [])
-    .map(d => String(d || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 4);
-  await addDoc(collection(db, 'trainingen'), {
-    ...basisDoc(it, st),
-    path: pdfPath, url: pdfUrl, mapId,
-    oefeningen, diagramUrls, doelen: doelLijst,
-    paginas: paginas.map(p => ({ pagina: p.pagina, tekst: p.tekst })),
-    aiScore: { dekking: score.dekkingPct, verzonnen: score.verzonnenAantal },
-  });
-  it.status = 'ok';
-}
-
-/* Een training die op een blik wacht: het gewone preview-scherm uit club.js,
-   met de planvelden erbij (meta.extra) en terug naar dit overzicht na delen. */
-function controleer(st, ctx, it){
-  if (!it) return;
-  if (!it.aiCtx){                       // mislukt vóór het opslaan: gewoon opnieuw
-    it.status = 'wacht'; teken(st, ctx);
-    verwerkAlles(st, ctx);
-    return;
-  }
-  const meta = {
-    titel: it.titel, week: it.weekTekst, teams: st.teamsArr,
-    extra: extraVelden(it, st),
-    onKlaar: () => { it.status = 'ok'; st.inCheck = false; st.forceer = true; teken(st, ctx); ctx.renderClub?.(); },
-  };
-  st.inCheck = true;
-  if (it.status === 'check') ctx.toonPreview(it.file, meta, it.aiCtx);
-  else ctx.toonAlleenPdf(it.file, meta, it.aiCtx, 'De automatische opmaak lukte niet. Je kunt de training als PDF delen of het opnieuw proberen.');
 }
 
 /* ==================== Plannen-weergave (clubbeheer → Trainingen) ==================== */

@@ -18,8 +18,24 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20260929a';
-import { isBlokUpload, isZip, startBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013a';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013b';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel } from './upload-wachtrij.js?v=20261013b';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261010a';
+
+/* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
+   De wachtrij leeft in upload-wachtrij.js; de schermen die hij nodig heeft
+   (preview, alleen-PDF, navigatie, concept hervatten) wonen hier. */
+initWachtrij({
+  toonPreview: (file, meta, ctx) => toonPreview(file, meta, ctx),
+  toonAlleenPdf: (file, meta, ctx, boodschap) => toonAlleenPdfKeuze(file, meta, ctx, boodschap),
+  naarTrainingen: (clubId) => {
+    if (!clubId) return;
+    if (S.clubId === clubId && S.club){ S.clubTab = 'trainingen'; toon('club'); renderClub(); }
+    else { openClub(clubId); S.clubTab = 'trainingen'; }
+  },
+  trainingenGewijzigd: () => { if (S.club && S.clubTab === 'trainingen') renderClub(); },
+  hervatConcept: (job) => hervatBlokUpload(job, blokCtx(S.clubTeams || [], S.clubTrainingen || [])),
+});
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
 const DASH_DAGEN_INACTIEF = 14;
@@ -36,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261013a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -82,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261013a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1506,7 +1522,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
       <button class="trd-knop" id="trGroepenBeheer" type="button">${ico('navigation-settings', 16)}${groepen.length ? 'Groepen beheren' : 'Trainingsgroepen instellen'}</button>
     </div>`;
 
-  return `<div class="trd">${werkbalk}${weergave === 'overzicht'
+  return `<div class="trd">${werkbalk}${htmlUploadPaneel()}${weergave === 'overzicht'
     ? trdOverzicht() : weergave === 'plannen' ? `<div class="bp-plannen">${htmlPlannen(trainingen, teams, groepen)}</div>` : trdLijst()}</div>`;
 
   /* ---------- Overzicht per groep ---------- */
@@ -1700,6 +1716,7 @@ function htmlClubTrainingen(teams, trainingen){
   if (weergave === 'plannen'){
     return `
       ${uploadBlok}
+      ${htmlUploadPaneel()}
       ${weergaveKies}
       <div class="bp-plannen">${htmlPlannen(trainingen, teams, groepen)}</div>`;
   }
@@ -1707,6 +1724,7 @@ function htmlClubTrainingen(teams, trainingen){
   if (weergave === 'overzicht'){
     return `
       ${uploadBlok}
+      ${htmlUploadPaneel()}
       ${weergaveKies}
       ${htmlClubTrainingenOverzicht(teams, trainingen)}`;
   }
@@ -1744,6 +1762,7 @@ function htmlClubTrainingen(teams, trainingen){
 
   return `
     ${uploadBlok}
+    ${htmlUploadPaneel()}
     ${weergaveKies}
     ${lijst}`;
 }
@@ -2730,18 +2749,32 @@ function isoWeek(d){
    meerdere PDF's met blok-namen ("Blok 2 - Week 1 - Training 1"), gaat naar
    de blokplanning in training-plan.js; al het andere werkt precies als
    voorheen (één PDF → losse upload, meerdere → verdelen per groep). */
+function blokCtx(teams, trainingen){
+  return {
+    teams, trainingen,
+    groepen: trainingsGroepen(),
+    bouwGroepen: bouwGroepen(teams),
+    renderClub: () => renderClub(),
+    oudeFlow: lijst => lijst.length === 1 ? modalNieuweTraining(lijst[0], teams) : modalMeerdereTrainingen(lijst, teams),
+  };
+}
+
+/* "Groep D · 10 teams" als de selectie precies een trainingsgroep is, anders namen of aantal. */
+function teamsTekstVan(ids, teams){
+  const set = new Set(ids);
+  const g = trainingsGroepen().find(x => {
+    const gi = (x.teams || []).filter(id => teams.some(t => t.id === id));
+    return gi.length && gi.length === set.size && gi.every(id => set.has(id));
+  });
+  if (g) return `${g.naam || ('Groep ' + g.id)} · ${ids.length} team${ids.length === 1 ? '' : 's'}`;
+  if (ids.length <= 3) return ids.map(id => teams.find(t => t.id === id)?.naam || '?').join(', ');
+  return `${ids.length} teams`;
+}
+
 function uploadGekozen(files, teams, trainingen){
   const pdfs = files.filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
   const oudeFlow = lijst => lijst.length === 1 ? modalNieuweTraining(lijst[0], teams) : modalMeerdereTrainingen(lijst, teams);
-  if (isBlokUpload(files)){
-    return startBlokUpload(files, {
-      teams, trainingen,
-      groepen: trainingsGroepen(),
-      bouwGroepen: bouwGroepen(teams),
-      renderClub: () => renderClub(),
-      toonPreview, toonAlleenPdf: toonAlleenPdfKeuze, oudeFlow,
-    });
-  }
+  if (isBlokUpload(files)) return startBlokUpload(files, blokCtx(teams, trainingen));
   if (!pdfs.length) return meld('Alleen PDF- of zip-bestanden kunnen hier worden toegevoegd');
   oudeFlow(pdfs);
 }
@@ -2812,9 +2845,23 @@ function modalMeerdereTrainingen(files, teams){
 
     $$('.mm-select').forEach(s => s.onchange = () => { keuze[+s.dataset.i] = s.value; teken(); });
     $('#mmGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
-    $('#mmStart').onclick = () => {
+    $('#mmStart').onclick = async () => {
       if (keuze.some(k => !k)) return meld('Kies voor elk bestand een groep');
-      verwerkRij(0, false);
+      // [20261013b] alles in één keer naar de wachtrij; verwerken loopt op de achtergrond
+      const wk = week();
+      const items = [];
+      files.forEach((f, i) => {
+        const g = groepen.find(x => x.id === keuze[i]);
+        const tms = (g?.teams || []).filter(id => teams.some(t => t.id === id));
+        if (!tms.length){ meld(`Groep ${keuze[i]} heeft geen teams — ${f.name} overgeslagen`); return; }
+        items.push({ file: f, titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`, week: wk, teams: tms });
+      });
+      if (!items.length) return;
+      $('#mmStart').disabled = true;
+      await voegToeAanWachtrij({ naam: `${items.length} training${items.length===1?'':'en'} · ${wk}`, teamsTxt: 'per trainingsgroep', items });
+      sluitModal();
+      meld(`${items.length} training${items.length===1?'':'en'} in de wachtrij · voortgang bovenaan Trainingen`);
+      renderClub();
     };
   };
 
@@ -2825,7 +2872,7 @@ function modalMeerdereTrainingen(files, teams){
     if (vasteWeek === null) vasteWeek = week();   // vastleggen vóór de modal wisselt
     if (i >= files.length){
       sluitModal(); renderClub();
-      meld(`${files.length} training${files.length===1?'':'en'} verwerkt`);
+      meld(`${files.length} training${files.length===1?'':'en'} in de wachtrij · voortgang bovenaan Trainingen`);
       return;
     }
     const f = files[i];
@@ -2931,8 +2978,16 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     const dagRaw = $('#mTrDag')?.value || '';
     const meta = { titel, week, teams: gekozen };
     if (dagRaw) meta.trainingsdag = parseInt(dagRaw, 10);        // vaste dag voor álle teams
-    if (batchMeta?.onKlaar) meta.onKlaar = batchMeta.onKlaar;   // doorrollen in batch
-    startTrainingVerwerking(file, meta);
+    // [20261013b] naar de wachtrij: goedgekeurd door de AI-controle = meteen gedeeld,
+    // afwijkers wachten bovenaan Trainingen. Het venster sluit meteen.
+    const knop = $('#mTrOk'); if (knop){ knop.disabled = true; knop.textContent = 'In de wachtrij…'; }
+    await voegToeAanWachtrij({ naam: titel, teamsTxt: teamsTekstVan(gekozen, teams), items: [{
+      file, titel, week, teams: gekozen, ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
+    }] });
+    if (batchMeta?.onKlaar){ batchMeta.onKlaar(); return; }   // doorrollen in batch (één voor één)
+    sluitModal();
+    meld('Training in de wachtrij · voortgang bovenaan Trainingen');
+    renderClub();
   };
 }
 
