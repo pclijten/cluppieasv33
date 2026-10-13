@@ -5615,6 +5615,7 @@ button.cb-mnaam{height:44px}
 .bp-tabel td{padding:8px 12px;border-bottom:1px solid var(--hair);white-space:nowrap}
 .bp-tabel tr:last-child td{border-bottom:none}
 .bp-bw{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:calc(16px * var(--fs));white-space:nowrap}
+.bp-bw small{display:block;font-family:'Barlow',sans-serif;font-weight:500;font-size:calc(11.5px * var(--fs));color:var(--ink-2);white-space:normal;max-width:130px}
 .bp-zv{color:var(--warn);font-weight:600;white-space:nowrap}
 .bp-voorbeeld{display:flex;flex-direction:column;gap:3px;padding:11px 13px;margin-bottom:14px;background:var(--card);border-radius:12px;border:1px solid var(--hair)}
 .bp-voorbeeld small{font-size:calc(11.5px * var(--fs));font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2)}

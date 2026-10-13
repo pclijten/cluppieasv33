@@ -96,14 +96,20 @@ export const weekLabel = weekStart => `Week ${isoWeekNr(weekStart)}`;
 export const titelVoor = (weekStart, nr) => `${weekLabel(weekStart)} - training ${nr}`;
 
 /* ---------- Bestanden herkennen ---------- */
-const BLOK_RE = /blok\s*(\d+)\s*[-–_.,: ]+\s*week\s*(\d+)\s*[-–_.,: ]+\s*training\s*(\d+)/i;
+/* [20261013e] "Blok N" is optioneel en tussen week en training mag een thema
+   staan: "Blok 2 - Week 1 - Training 1", "JO7 - Week 2 - Bal = Vriend - Training 1"
+   en "Week 6 - Behendigheid - Training 2" worden alle drie herkend. */
+const SCHEIDING = '[-–_.,: ]+';
+const BLOK_RE = new RegExp(`(?:blok\\s*(\\d+)\\s*${SCHEIDING})?\\bweek\\s*(\\d+)\\s*${SCHEIDING}(?:(.*?)\\s*${SCHEIDING})?training\\s*(\\d+)`, 'i');
 const isPdf = f => f?.type === 'application/pdf' || /\.pdf$/i.test(f?.name || '');
 export const isZip = f => /\.zip$/i.test(f?.name || '') || /zip/i.test(f?.type || '');
-/* Deze flow alleen bij een zip of bij meerdere PDF's met blok-namen; één
-   losse PDF (ook met blok-naam) gaat zoals altijd via de gewone upload. */
+/* Deze flow bij een zip, of bij PDF's met blok-namen die over minstens twee
+   weken gaan (een echt blok). Het wekelijkse setje voor meerdere groepen (alles
+   dezelfde week) en één losse PDF gaan zoals altijd via de gewone upload. */
 export function isBlokUpload(files){
   if (files.some(isZip)) return true;
-  return files.filter(f => isPdf(f) && BLOK_RE.test(f.name)).length >= 2;
+  const weken = new Set(files.filter(isPdf).map(f => herkenNaam(f.name)).filter(h => h && !h.overzicht).map(h => h.week));
+  return weken.size >= 2;
 }
 export function herkenNaam(naam){
   const kaal = String(naam || '').replace(/^.*[\\/]/, '');
@@ -111,8 +117,8 @@ export function herkenNaam(naam){
   if (/overzicht/i.test(kaal)) return { overzicht:true };
   const m = kaal.match(BLOK_RE);
   if (!m) return null;
-  const voor = kaal.slice(0, m.index).replace(/[\s\-–_]+$/, '').trim();   // bv. "JO 8&9"
-  return { blok:+m[1], week:+m[2], nr:+m[3], voor };
+  const voor = kaal.slice(0, m.index).replace(/[\s\-–_]+$/, '').trim();   // bv. "JO 8&9" of "JO7"
+  return { blok: m[1] ? +m[1] : 0, week:+m[2], nr:+m[4], voor, thema:(m[3] || '').trim() };
 }
 
 /* JSZip pas laden als er een zip binnenkomt (zelfde patroon als ExcelJS/pdf.js). */
@@ -176,7 +182,12 @@ function analyseer(invoer){
 }
 
 function planNaam(a){
-  return [`Blok ${a.blokken[0]}`, a.voor, a.thema].filter(Boolean).join(' · ');
+  const delen = [a.blokken[0] ? `Blok ${a.blokken[0]}` : '', a.voor, a.thema].filter(Boolean);
+  return delen.length ? delen.join(' · ') : 'Trainingsreeks';
+}
+/* thema per blokweek uit de bestandsnamen ("Week 2 - Bal = Vriend - …") */
+function weekThema(a, week){
+  return a.items.find(i => i.week === week && i.thema)?.thema || '';
 }
 
 /* Wat van de instellingen in het concept (IndexedDB) wordt bewaard. */
@@ -280,8 +291,8 @@ function htmlTeams(st, ctx){
   const ov = a.overzichtAantal || 0;
   return `
     <div class="bp-blok">
-      <div class="bp-bloknr">Blok ${a.blokken.map(Number).join(' + ')}</div>
-      ${a.thema || a.voor ? `<div class="bp-thema">${esc([a.voor, a.thema].filter(Boolean).join(' · '))}</div>` : ''}
+      <div class="bp-bloknr">${a.blokken.some(Boolean) ? `Blok ${a.blokken.filter(Boolean).map(Number).join(' + ')}` : esc(a.voor || 'Trainingsreeks')}</div>
+      ${a.thema || (a.voor && a.blokken.some(Boolean)) ? `<div class="bp-thema">${esc([a.blokken.some(Boolean) ? a.voor : '', a.thema].filter(Boolean).join(' · '))}</div>` : ''}
       <div class="bp-tellers">
         <div><b>${st.weken}</b><span>weken</span></div>
         <div><b>${perWeek}</b><span>per week</span></div>
@@ -327,7 +338,8 @@ function htmlPlanning(st, ctx){
   }).join('');
   const rijen = map.map((m, i) => {
     const zv = zichtbaarDatum(m, st.zichtbaar);
-    return `<tr><td class="bp-bw">Week ${i + 1}</td><td>wk ${isoWeekNr(m)} · ${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
+    const th = weekThema(st.a, i + 1);
+    return `<tr><td class="bp-bw">Week ${i + 1}${th ? `<small>${esc(th)}</small>` : ''}</td><td>wk ${isoWeekNr(m)} · ${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
   }).join('');
   const dubbel = dubbeleItems(st, ctx);
   const aantal = st.a.items.length - dubbel.length;
