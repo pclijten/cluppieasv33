@@ -21,7 +21,7 @@
    Geen wijziging aan het Firestore-model: een gedeelde training is exact
    hetzelfde document als via de oude flow. */
 import {
-  db, storage, collection, addDoc, serverTimestamp, sRef, uploadBytes, getDownloadURL
+  db, storage, collection, addDoc, serverTimestamp, sRef, uploadBytes, getDownloadURL, deleteObject
 } from './firebase.js?v=20260922c';
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
@@ -205,7 +205,7 @@ function openstaand(job){
 function telling(job){
   const t = { totaal: 0, klaar: 0, ok: 0, check: 0, wacht: 0, bezig: 0 };
   for (const it of job.items){
-    if (it.status === 'skip') continue;
+    if (it.status === 'skip' || it.status === 'weg') continue;
     t.totaal++;
     if (it.status === 'ok') { t.ok++; t.klaar++; }
     else if (it.status === 'check' || it.status === 'fout') { t.check++; t.klaar++; }
@@ -385,10 +385,15 @@ function htmlJob(job){
   else if (actief) status = `In de wachtrij · ${t.wacht} te doen`;
   else if (t.check) status = `${t.ok} gedeeld · ${t.check} wacht${t.check === 1 ? '' : 'en'} op jouw blik`;
   else status = `✓ Klaar · ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`;
-  const afwijkers = job.items.filter(it => it.status === 'check' || it.status === 'fout').map(it =>
-    `<button type="button" class="uq-afw" data-uq="bekijk" data-job="${esc(job.id)}" data-idx="${it.idx}">
-      <span>${esc(it.titel || it.naam)}</span><b>${it.status === 'check' ? 'Bekijken' : 'Mislukt · opnieuw'}</b></button>`).join('');
+  const afwijkers = job.items.filter(it => it.status === 'check' || it.status === 'fout').map(it => `
+    <div class="uq-afwrij">
+      <button type="button" class="uq-afw" data-uq="bekijk" data-job="${esc(job.id)}" data-idx="${it.idx}">
+        <span>${esc(it.titel || it.naam)}</span><b>${it.status === 'check' ? 'Bekijken' : 'Mislukt · opnieuw'}</b></button>
+      <button type="button" class="uq-weg" data-uq="afwijs" data-job="${esc(job.id)}" data-idx="${it.idx}" aria-label="${esc(it.titel || it.naam)} weggooien" title="Weggooien">✕</button>
+    </div>`).join('');
+  const aantalAfw = job.items.filter(it => it.status === 'check' || it.status === 'fout').length;
   const acties = [
+    aantalAfw > 1 && !(t.wacht || t.bezig) ? knop('afwijsalle', `Alle ${aantalAfw} afwijkers weggooien`) : '',
     job.gepauzeerd && t.wacht ? knop('verder', 'Verder gaan', 'hoofd') : '',
     job.gepauzeerd && t.wacht ? knop('weg', 'Rest weggooien') : '',
     job.afgerond ? knop('sluit', 'Sluiten') : '',
@@ -447,9 +452,51 @@ async function klik(e){
     await Promise.all(job.items.filter(it => it.status === 'skip').map(it => wisBestand(job.id, it.idx)));
     if (openstaand(job)) await bewaarJob(job); else await wisJob(job);
     wijziging();
+  } else if (actie === 'afwijs' || actie === 'afwijsalle'){
+    const items = actie === 'afwijs'
+      ? job.items.filter(i => i.idx === Number(b.dataset.idx))
+      : job.items.filter(i => i.status === 'check' || i.status === 'fout');
+    if (items.length) bevestigAfwijzen(job, items);
   } else if (actie === 'sluit'){
     await wisJob(job); wijziging();
   } else if (actie === 'hervat'){
     ctx.hervatConcept?.(job);
   }
+}
+
+/* ---------- Afwijzen (weggooien) ---------- [20261013d]
+   Een afwijker die je niet wilt delen: de AI-versie vervalt, en de al
+   geüploade PDF en diagrammen in Storage worden opgeruimd. Er is nog geen
+   trainingsdocument, dus coaches merken er niets van. */
+function bevestigAfwijzen(job, items){
+  const een = items.length === 1;
+  openModal(`
+    <h2>${een ? 'Training weggooien?' : `${items.length} trainingen weggooien?`}</h2>
+    <p style="font-size:calc(14px * var(--fs));line-height:1.5;margin:0 0 14px">${een
+      ? `<b>${esc(items[0].titel || items[0].naam)}</b> wordt niet gedeeld. De AI-versie en de geüploade PDF worden verwijderd.`
+      : `Deze trainingen worden niet gedeeld. De AI-versies en de geüploade PDF's worden verwijderd.`}</p>
+    <div class="rij">
+      <button class="knop licht vol" id="uqAfwNee">Annuleren</button>
+      <button class="knop vol" id="uqAfwJa" style="background:var(--uit)">Weggooien</button>
+    </div>`, { vorm:'dialoog' });
+  document.getElementById('uqAfwNee').onclick = () => sluitModal();
+  document.getElementById('uqAfwJa').onclick = async () => {
+    sluitModal();
+    for (const it of items) await afwijzen(job, it);
+    await bewaarJob(job);
+    if (!openstaand(job)) await jobKlaar(job);
+    meld(een ? 'Training weggegooid' : `${items.length} trainingen weggegooid`);
+    wijziging();
+  };
+}
+
+async function afwijzen(job, it){
+  const c = it.aiCtx;
+  if (c?.pdfPath){
+    const paden = [c.pdfPath, ...Object.keys(c.diagramUrls || {}).map(n => `clubs/${job.clubId}/trainingen/${c.mapId}/diagram${n}.png`)];
+    await Promise.all(paden.map(p => deleteObject(sRef(storage, p)).catch(() => {})));
+  }
+  it.status = 'weg';
+  delete it.aiCtx;
+  await wisBestand(job.id, it.idx);
 }

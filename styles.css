@@ -5008,6 +5008,13 @@ textarea.lj-namen{min-height:130px}
 .trd-chip svg{ color:var(--in); flex-shrink:0; }
 .trd-chip:hover{ border-color:rgba(53,196,122,.55); background:rgba(53,196,122,.2); }
 .trd-gat{ display:block; text-align:center; padding:6px; border-radius:7px; background:rgba(245,177,61,.10); color:var(--uit); font-size:12px; font-weight:600; }
+/* [20261013d] matrix horizontaal scrollbaar, team-kolom blijft staan */
+.trd-mxscroll{ overflow-x:auto; border:1px solid var(--line-d); border-radius:10px; scrollbar-width:thin; }
+.trd-mxscroll .trd-mx{ width:max-content; min-width:100%; border:0; border-radius:0; overflow:visible; }
+.trd-mxscroll .trd-mx thead th:not(.trd-teamkop){ width:150px; min-width:150px; }
+.trd-mxscroll .trd-mx thead th.trd-teamkop,
+.trd-mxscroll .trd-mx tbody th{ position:sticky; left:0; z-index:2; width:150px; min-width:150px; max-width:150px; box-shadow:1px 0 0 var(--line-d); }
+.trd-scrollhint{ font-weight:500 !important; color:var(--ink-2) !important; min-width:0 !important; }
 
 .trd-lijst{ background:var(--card); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
 .trd-rij{ display:grid; grid-template-columns:minmax(0,2.2fr) minmax(0,1.6fr) 100px 200px; gap:14px; align-items:center; padding:10px 16px; border-top:1px solid var(--line-d); }
@@ -5608,6 +5615,7 @@ button.cb-mnaam{height:44px}
 .bp-tabel td{padding:8px 12px;border-bottom:1px solid var(--hair);white-space:nowrap}
 .bp-tabel tr:last-child td{border-bottom:none}
 .bp-bw{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:calc(16px * var(--fs));white-space:nowrap}
+.bp-bw small{display:block;font-family:'Barlow',sans-serif;font-weight:500;font-size:calc(11.5px * var(--fs));color:var(--ink-2);white-space:normal;max-width:130px}
 .bp-zv{color:var(--warn);font-weight:600;white-space:nowrap}
 .bp-voorbeeld{display:flex;flex-direction:column;gap:3px;padding:11px 13px;margin-bottom:14px;background:var(--card);border-radius:12px;border:1px solid var(--hair)}
 .bp-voorbeeld small{font-size:calc(11.5px * var(--fs));font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2)}
@@ -5658,6 +5666,11 @@ button.cb-mnaam{height:44px}
 .uq-afwlijst{display:flex;flex-direction:column;gap:6px}
 .uq-afw{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--warn);background:color-mix(in srgb, var(--warn) 12%, transparent);color:var(--ink);font:inherit;font-size:calc(13.5px * var(--fs));text-align:left;cursor:pointer}
 .uq-afw b{color:var(--warn);white-space:nowrap}
+.uq-afwrij{display:flex;gap:6px;align-items:stretch}
+.uq-afwrij .uq-afw{flex:1;min-width:0}
+.uq-afw span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uq-weg{flex-shrink:0;width:44px;min-height:44px;border-radius:10px;border:1px solid var(--hair);background:transparent;color:var(--ink-2);font:inherit;font-size:calc(15px * var(--fs));cursor:pointer}
+.uq-weg:hover{color:var(--uit);border-color:var(--uit)}
 .uq-acties{display:flex;flex-wrap:wrap;gap:8px}
 .uq-knop{min-height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--hair);background:transparent;color:var(--ink);font:inherit;font-size:calc(13.5px * var(--fs));font-weight:600;cursor:pointer}
 .uq-knop.hoofd{background:var(--warn);border-color:var(--warn);color:#1a1305}
