@@ -5,7 +5,7 @@
    - Elke upload (één PDF, meerdere PDF's per groep, of een heel blok) wordt
      een "job" met items. Na het instellen sluit het venster en loopt de rest
      vanzelf, terwijl de admin gewoon verder klikt in de app.
-   - Items worden één voor één verwerkt (PDF lezen → origineel + diagrammen
+   - Items worden met drie tegelijk verwerkt (PDF lezen → origineel + diagrammen
      opslaan → AI → score). Keurt de AI-controle het goed (training-ai.js
      scoreGoed), dan wordt de training meteen gedeeld; anders blijft hij als
      "afwijker" in de rij staan tot de admin hem bekijkt.
@@ -25,6 +25,19 @@ import {
 } from './firebase.js?v=20260922c';
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
 import { telGebruik } from './tracker.js?v=20260922c';
+
+/* [20261013c] AI-model per upload. Alleen een sleutel; de Cloud Function
+   structureerTraining koppelt die aan een model (whitelist). */
+export const AI_MODELLEN = [
+  { id:'standaard',  label:'Standaard (snel en goedkoop)' },
+  { id:'nauwkeurig', label:'Nauwkeuriger (trager, ongeveer 3× duurder)' },
+];
+export function htmlModelKeuze(id, gekozen = 'standaard'){
+  return `<div class="veldgroep"><label for="${id}">AI-model</label>
+    <select class="invoer" id="${id}">${AI_MODELLEN.map(m =>
+      `<option value="${m.id}" ${m.id === gekozen ? 'selected' : ''}>${m.label}</option>`).join('')}</select>
+    <p class="bp-hint">Geldt alleen voor deze upload. De volgende keer staat het weer op standaard.</p></div>`;
+}
 
 let ctx = {};
 const jobs = [];                       // in geheugen, oudste eerst
@@ -67,8 +80,7 @@ async function opslag(store, mode, fn){
 }
 const sleutel = (jobId, idx) => `${jobId}:${idx}`;
 function bewaarJob(job){
-  const { _bezigTitel, ...kopie } = job;
-  return opslag('jobs', 'readwrite', s => s.put(kopie));
+  return opslag('jobs', 'readwrite', s => s.put(job));
 }
 async function bewaarBestand(jobId, idx, file){
   bestandCache.set(sleutel(jobId, idx), file);
@@ -132,6 +144,7 @@ export async function voegToeAanWachtrij(o){
     idx, naam: x.file.name, titel: x.titel, week: x.week, teams: x.teams,
     ...(x.trainingsdag ? { trainingsdag: x.trainingsdag } : {}),
     ...(x.extra ? { extra: x.extra } : {}),
+    ...(x.aiModel && x.aiModel !== 'standaard' ? { aiModel: x.aiModel } : {}),
     status: x.status === 'skip' ? 'skip' : 'wacht',
   }));
   jobs.push(job);
@@ -166,6 +179,7 @@ export async function conceptNaarRij(jobId, items, naam, teamsTxt){
   job.items = items.map(x => ({
     idx: x.idx, naam: x.naam, titel: x.titel, week: x.week, teams: x.teams,
     ...(x.extra ? { extra: x.extra } : {}),
+    ...(x.aiModel && x.aiModel !== 'standaard' ? { aiModel: x.aiModel } : {}),
     status: x.status === 'skip' ? 'skip' : 'wacht',
   }));
   await Promise.all(job.items.filter(i => i.status === 'skip').map(i => wisBestand(job.id, i.idx)));
@@ -204,36 +218,47 @@ function telling(job){
 /* ---------- Verwerken ---------- */
 const waarschuw = e => { e.preventDefault(); e.returnValue = ''; };
 
-async function draai(){
-  if (loopt) return;
-  loopt = true;
-  window.addEventListener('beforeunload', waarschuw);
-  let ai = null;
-  try {
-    for (;;){
-      const job = jobs.find(j => !j.concept && !j.gepauzeerd && j.items.some(i => i.status === 'wacht'));
-      if (!job) break;
-      const it = job.items.find(i => i.status === 'wacht');
-      it.status = 'bezig'; job._bezigTitel = it.titel;
-      wijziging();
-      try {
-        if (!ai) ai = await import('./training-ai.js?v=20260922c');
-        await verwerkItem(job, it, ai);
-      } catch(e){
-        console.error('[wachtrij] verwerken mislukt', it.naam, e);
-        it.status = 'fout';
-      }
-      delete job._bezigTitel;
-      if (it.status === 'ok') await wisBestand(job.id, it.idx);
-      await bewaarJob(job);
-      if (!job.items.some(i => i.status === 'wacht' || i.status === 'bezig')) await jobKlaar(job);
-      wijziging();
-    }
-  } finally {
-    loopt = false;
-    window.removeEventListener('beforeunload', waarschuw);
-    wijziging();
+/* [20261013c] Drie items tegelijk (over alle uploads heen, oudste eerst).
+   Meer raden we af i.v.m. de limieten van het Anthropic-account. */
+const MAX_TEGELIJK = 3;
+let actief = 0;
+let aiBelofte = null;
+const aiModule = () => (aiBelofte ||= import('./training-ai.js?v=20261013c'));
+
+function volgende(){
+  for (const job of jobs){
+    if (job.concept || job.gepauzeerd) continue;
+    const it = job.items.find(i => i.status === 'wacht');
+    if (it) return { job, it };
   }
+  return null;
+}
+
+function draai(){
+  let v;
+  while (actief < MAX_TEGELIJK && (v = volgende())){
+    const { job, it } = v;
+    it.status = 'bezig';                    // meteen claimen: niet dubbel oppakken
+    if (actief++ === 0){ loopt = true; window.addEventListener('beforeunload', waarschuw); }
+    verwerkEnBewaar(job, it).finally(() => {
+      if (--actief === 0){ loopt = false; window.removeEventListener('beforeunload', waarschuw); }
+      wijziging();
+      draai();
+    });
+  }
+  wijziging();
+}
+
+async function verwerkEnBewaar(job, it){
+  try {
+    await verwerkItem(job, it, await aiModule());
+  } catch(e){
+    console.error('[wachtrij] verwerken mislukt', it.naam, e);
+    it.status = 'fout';
+  }
+  if (it.status === 'ok') await wisBestand(job.id, it.idx);
+  await bewaarJob(job);
+  if (!job.items.some(i => i.status === 'wacht' || i.status === 'bezig')) await jobKlaar(job);
 }
 
 async function jobKlaar(job){
@@ -262,7 +287,7 @@ async function verwerkItem(job, it, ai){
 
   let oefeningen = null, doelen = [];
   for (let poging = 0; poging < 2 && !oefeningen; poging++){
-    try { ({ oefeningen, doelen } = await ai.structureer(paginas)); }
+    try { ({ oefeningen, doelen } = await ai.structureer(paginas, it.aiModel || 'standaard')); }
     catch(e){ console.warn('[wachtrij] AI-poging', poging + 1, 'mislukt', e); }
   }
   if (!oefeningen){
@@ -356,7 +381,7 @@ function htmlJob(job){
   const actief = !job.gepauzeerd && (t.wacht || t.bezig);
   let status;
   if (job.gepauzeerd && t.wacht) status = `Onderbroken · nog ${t.wacht} te doen`;
-  else if (t.bezig) status = `Bezig: ${esc(job._bezigTitel || '')}`;
+  else if (t.bezig) status = `Bezig met ${t.bezig} training${t.bezig === 1 ? '' : 'en'} · nog ${t.wacht} in de rij`;
   else if (actief) status = `In de wachtrij · ${t.wacht} te doen`;
   else if (t.check) status = `${t.ok} gedeeld · ${t.check} wacht${t.check === 1 ? '' : 'en'} op jouw blik`;
   else status = `✓ Klaar · ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`;

@@ -18,8 +18,8 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20260929a';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013b';
-import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel } from './upload-wachtrij.js?v=20261013b';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013c';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261013c';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261010a';
 
 /* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
@@ -52,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261013b'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261013b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2797,6 +2797,7 @@ function modalMeerdereTrainingen(files, teams){
     return groepen.some(g => g.id === l) ? l : '';
   };
   const keuze = files.map(f => raad(f.name));
+  let mmModel = 'standaard';                 // [20261013c] AI-model voor deze upload
 
   if (!groepen.length){
     // zonder groepen heeft de multi-flow weinig zin: bied beheer aan, of val
@@ -2840,10 +2841,12 @@ function modalMeerdereTrainingen(files, teams){
         <input class="invoer" id="mmWeek" value="Week ${weekNr}" autocomplete="off"></div>
       <div class="mm-lijst">${rijen}</div>
       ${samenv}
+      ${htmlModelKeuze('mmModel', mmModel)}
       <button class="knop vol" id="mmStart" ${zonder?'disabled':''}>Verwerken en verdelen</button>
       <button class="link" id="mmGroepen" style="display:block;margin:10px auto 0">⚙️ Groepen beheren</button>`);
 
     $$('.mm-select').forEach(s => s.onchange = () => { keuze[+s.dataset.i] = s.value; teken(); });
+    $('#mmModel').onchange = e => { mmModel = e.target.value; };
     $('#mmGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
     $('#mmStart').onclick = async () => {
       if (keuze.some(k => !k)) return meld('Kies voor elk bestand een groep');
@@ -2854,7 +2857,7 @@ function modalMeerdereTrainingen(files, teams){
         const g = groepen.find(x => x.id === keuze[i]);
         const tms = (g?.teams || []).filter(id => teams.some(t => t.id === id));
         if (!tms.length){ meld(`Groep ${keuze[i]} heeft geen teams — ${f.name} overgeslagen`); return; }
-        items.push({ file: f, titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`, week: wk, teams: tms });
+        items.push({ file: f, titel: `Week ${weekNr} - ${f.name.replace(/\.pdf$/i,'')}`, week: wk, teams: tms, aiModel: mmModel });
       });
       if (!items.length) return;
       $('#mmStart').disabled = true;
@@ -2954,6 +2957,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
         ${groepen.length ? '<button class="knop licht klein" id="mTrGroepen">⚙️ Groepen beheren</button>' : ''}
       </div>
     </div>
+    ${htmlModelKeuze('mTrModel', 'standaard')}
     <button class="knop vol" id="mTrOk">Uploaden en delen</button>`);
   const sync = () => $$('#mTrTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
   $$('#mTrTeams input').forEach(c => c.onchange = sync);
@@ -2983,6 +2987,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     const knop = $('#mTrOk'); if (knop){ knop.disabled = true; knop.textContent = 'In de wachtrij…'; }
     await voegToeAanWachtrij({ naam: titel, teamsTxt: teamsTekstVan(gekozen, teams), items: [{
       file, titel, week, teams: gekozen, ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
+      aiModel: $('#mTrModel')?.value || 'standaard',
     }] });
     if (batchMeta?.onKlaar){ batchMeta.onKlaar(); return; }   // doorrollen in batch (één voor één)
     sluitModal();
@@ -3036,7 +3041,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20260922c');
+    const ai = await import('./training-ai.js?v=20261013c');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -3214,7 +3219,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20260922c');
+    const ai = await import('./training-ai.js?v=20261013c');
     // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
     // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
     // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden

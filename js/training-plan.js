@@ -29,8 +29,8 @@
 import { db, doc, writeBatch } from './firebase.js?v=20260922c';
 import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
 import {
-  voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob
-} from './upload-wachtrij.js?v=20261013b';
+  voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob, htmlModelKeuze
+} from './upload-wachtrij.js?v=20261013c';
 
 /* ---------- Datums (lokaal; 12:00 als anker tegen zomertijd-randgevallen) ---------- */
 const pad2 = n => String(n).padStart(2, '0');
@@ -346,6 +346,7 @@ function htmlPlanning(st, ctx){
       <p class="bp-hint">Eén keuze voor het hele blok: alle trainingen van een week worden tegelijk zichtbaar.</p>
     </div>
     <table class="bp-tabel"><thead><tr><th>Blok</th><th>Week</th><th>Zichtbaar vanaf</th></tr></thead><tbody>${rijen}</tbody></table>
+    ${htmlModelKeuze('bpModel', st.aiModel || 'standaard')}
     <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - 1], eerste.nr))}</b><span>${esc(eerste.naam)}</span></div>
     ${dubbel.length ? `<div class="mm-samenv warn">${dubbel.length} training${dubbel.length === 1 ? ' staat' : 'en staan'} al bij deze teams en ${dubbel.length === 1 ? 'wordt' : 'worden'} overgeslagen.</div>` : ''}
     <button class="knop vol" id="bpStart" ${aantal ? '' : 'disabled'}>Verwerk ${aantal} training${aantal === 1 ? '' : 'en'}</button>
@@ -391,6 +392,8 @@ function koppel(st, ctx, root){
   });
   const z = root.querySelector('#bpZicht');
   if (z) z.onchange = () => { st.zichtbaar = z.value; teken(st, ctx); };
+  const mdl = root.querySelector('#bpModel');
+  if (mdl) mdl.onchange = () => { st.aiModel = mdl.value; };
   const terug = root.querySelector('#bpTerug');
   if (terug) terug.onclick = () => { st.stap = 'teams'; teken(st, ctx); };
   const start = root.querySelector('#bpStart');
@@ -416,7 +419,7 @@ async function naarWachtrij(st, ctx){
     const ws = map[it.week - 1];
     return {
       idx: it.idx, naam: it.naam, file: it.file,
-      titel: titelVoor(ws, it.nr), week: weekLabel(ws), teams,
+      titel: titelVoor(ws, it.nr), week: weekLabel(ws), teams, aiModel: st.aiModel || 'standaard',
       extra: { plan, blokWeek: it.week, trainingNr: it.nr, weekStart: ws, zichtbaarVanaf: zichtbaarDatum(ws, st.zichtbaar) || null },
       status: dubbel.has(it) ? 'skip' : 'wacht',
     };
