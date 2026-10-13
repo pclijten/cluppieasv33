@@ -18,8 +18,8 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20260929a';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013c';
-import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261013c';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013d';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261013d';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261010a';
 
 /* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
@@ -52,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261013c'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261013c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1550,27 +1550,29 @@ function htmlClubTrainingenDesk(teams, trainingen){
       return { ok:false, tekst:`${mist.size} team${mist.size>1?'s':''} mist ${gaten} slot${gaten>1?'s':''}`, kort:`${gaten} gat${gaten>1?'en':''}` };
     };
 
+    // [20261013d] de matrix toont álle weken en scrolt horizontaal (team-kolom
+    // blijft staan); de status/tegels kijken nog naar het venster `weken`.
+    const kolommen = alleWeken;
     const matrix = ids => {
-      if (!weken.length) return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
-      const kop = `<thead><tr><th class="trd-teamkop">Team</th>${weken.map(w => {
+      if (!kolommen.length) return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
+      const kop = `<thead><tr><th class="trd-teamkop">Team</th>${kolommen.map(w => {
         const nu = w.nr === nuWeek;
         return `<th class="${nu?'nu':''}">${esc(w.label)}${nu?'<small>deze week</small>':''}</th>`;
       }).join('')}</tr></thead>`;
       const rijen = ids.map(id => {
-        let gevuld = 0;
-        const cellen = weken.map(w => {
+        const gevuld = weken.filter(w => trsVoor(id, w.key).length).length;
+        const cellen = kolommen.map(w => {
           const nu = w.nr === nuWeek ? ' class="nu"' : '';
           const items = trsVoor(id, w.key)
             .slice().sort((a, b) => trdChipLabel(a).localeCompare(trdChipLabel(b), 'nl', { numeric:true }));
           if (!items.length) return `<td${nu}><span class="trd-gat">— niets</span></td>`;
-          gevuld++;
           return `<td${nu}><div class="trd-cel">${items.map(t =>
             `<button class="trd-chip" data-tdownload="${esc(t.url)}" title="${esc(t.bestandsnaam || t.titel || '')}">${ico('action-check', 12)}<span>${esc(trdChipLabel(t))}</span></button>`
           ).join('')}</div></td>`;
         }).join('');
-        return `<tr><th>${esc(teamById.get(id)?.naam || '?')}<small>${gevuld}/${weken.length} ${weken.length===1?'week':'weken'}</small></th>${cellen}</tr>`;
+        return `<tr><th>${esc(teamById.get(id)?.naam || '?')}<small>${gevuld}/${weken.length} recente ${weken.length===1?'week':'weken'}</small></th>${cellen}</tr>`;
       }).join('');
-      return `<table class="trd-mx">${kop}<tbody>${rijen}</tbody></table>`;
+      return `<div class="trd-mxscroll"><table class="trd-mx">${kop}<tbody>${rijen}</tbody></table></div>`;
     };
 
     const inGroep = new Set(groepen.flatMap(g => g.teams || []));
@@ -1594,11 +1596,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
       </button>` : ''}</div>`;
 
     const venster = alleWeken.length > TRD_WEKEN ? `
-      <div class="trd-venster">
-        <button type="button" data-trd-venster="${terug + 1}" ${terug >= maxTerug ? 'disabled' : ''}>‹ Eerder</button>
-        <span>${esc(bereik)}</span>
-        <button type="button" data-trd-venster="${terug - 1}" ${terug <= 0 ? 'disabled' : ''}>Later ›</button>
-      </div>` : '';
+      <div class="trd-venster"><span class="trd-scrollhint">‹ Scroll opzij voor andere weken · status over ${esc(bereik)} ›</span></div>` : '';
 
     const blokken = gdata.map(({ g, ids, st }) => `
       <div class="tm-groep trd-groep${st.ok ? ' dicht' : ''}" id="trd-g-${esc(g.id)}">
@@ -2239,6 +2237,23 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       doel.classList.remove('dicht');
       doel.scrollIntoView({ behavior:'smooth', block:'start' });
     });
+    // [20261013d] matrix: naar deze week scrollen en alle groepen synchroon laten scrollen
+    const scrollers = [...v.querySelectorAll('.trd-mxscroll')];
+    if (scrollers.length){
+      const eerste = scrollers[0];
+      const doel = eerste.querySelector('thead th.nu') || eerste.querySelector('thead th:last-child');
+      const teamKol = eerste.querySelector('thead th.trd-teamkop')?.offsetWidth || 150;
+      const x = doel ? Math.max(0, doel.offsetLeft - teamKol - 24) : 0;
+      let bezig = false;
+      scrollers.forEach(sc => {
+        sc.scrollLeft = x;
+        sc.addEventListener('scroll', () => {
+          if (bezig) return; bezig = true;
+          scrollers.forEach(o => { if (o !== sc) o.scrollLeft = sc.scrollLeft; });
+          bezig = false;
+        }, { passive:true });
+      });
+    }
     // desktop: weekvenster verschuiven (runtime-veld op S, geen state.js-wijziging)
     v.querySelectorAll('[data-trd-venster]').forEach(b => b.onclick = () => {
       S._trdVenster = Math.max(0, Number(b.dataset.trdVenster) || 0); renderClub();

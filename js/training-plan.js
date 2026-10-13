@@ -30,7 +30,7 @@ import { db, doc, writeBatch } from './firebase.js?v=20260922c';
 import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
 import {
   voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob, htmlModelKeuze
-} from './upload-wachtrij.js?v=20261013c';
+} from './upload-wachtrij.js?v=20261013d';
 
 /* ---------- Datums (lokaal; 12:00 als anker tegen zomertijd-randgevallen) ---------- */
 const pad2 = n => String(n).padStart(2, '0');
