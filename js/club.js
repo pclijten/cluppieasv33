@@ -52,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261013f'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013g'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261013f').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013g').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -3363,10 +3363,10 @@ function modalBewerkTraining(t, teams){
     const titel = $('#mTbTitel').value.trim() || t.bestandsnaam || 'Training';
     const week  = $('#mTbWeek').value.trim();
     const doelen = mTbLeesDoelen();   // lezen vóór sluitModal — daarna is de DOM weg
+    // [20261013g] zichtbaarheidsdatum ook vóór sluitModal lezen (leeg = meteen)
+    const zicht = ($('#mTbZicht')?.value || '').trim();
     sluitModal();
     try {
-      // [20261013f] zichtbaarheidsdatum ook achteraf aan te passen (leeg = meteen)
-      const zicht = ($('#mTbZicht')?.value || '').trim();
       await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
