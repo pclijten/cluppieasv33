@@ -18,6 +18,7 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20260922c';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20260929a';
+import { isBlokUpload, isZip, startBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261013a';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261010a';
 
 /* drempels voor het clubdashboard ("aandacht nodig") */
@@ -35,7 +36,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261012a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261013a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -81,7 +82,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261012a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261013a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1494,18 +1495,19 @@ function htmlClubTrainingenDesk(teams, trainingen){
       <button class="trd-drop" id="trainingUpload" type="button">
         <span class="trd-drop-ic">${ico('admin-upload', 20)}</span>
         <span class="trd-drop-t"><b>PDF-training(en) toevoegen</b>
-          <small>Sleep PDF's hierheen of klik om te kiezen — meerdere tegelijk verdeel je daarna per groep</small></span>
-        <input type="file" id="trainingFile" accept="application/pdf" multiple style="display:none">
+          <small>Sleep PDF's of een zip hierheen of klik om te kiezen — meerdere tegelijk verdeel je per groep, een heel blok plan je in één keer in</small></span>
+        <input type="file" id="trainingFile" accept="application/pdf,.zip,application/zip" multiple style="display:none">
       </button>
       <div class="segment trd-seg" id="trainWeergave">
         <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
         <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per groep</button>
+        <button data-weergave="plannen" class="${weergave==='plannen'?'actief':''}">Plannen</button>
       </div>
       <button class="trd-knop" id="trGroepenBeheer" type="button">${ico('navigation-settings', 16)}${groepen.length ? 'Groepen beheren' : 'Trainingsgroepen instellen'}</button>
     </div>`;
 
   return `<div class="trd">${werkbalk}${weergave === 'overzicht'
-    ? trdOverzicht() : trdLijst()}</div>`;
+    ? trdOverzicht() : weergave === 'plannen' ? `<div class="bp-plannen">${htmlPlannen(trainingen, teams, groepen)}</div>` : trdLijst()}</div>`;
 
   /* ---------- Overzicht per groep ---------- */
   function trdOverzicht(){
@@ -1640,7 +1642,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
         <div class="trd-rij">
           <div class="trd-rt"><span class="trd-pdf${ai?' ai':''}">${ai?'AI':'PDF'}</span>
             <div class="trd-rt-m"><div class="trd-tt">${esc(t.titel || t.bestandsnaam || 'Training')}</div>
-              ${toonBest ? `<div class="trd-fb">${esc(t.bestandsnaam)}</div>` : ''}</div></div>
+              ${toonBest ? `<div class="trd-fb">${esc(t.bestandsnaam)}</div>` : ''}${zichtbaarLabel(t) ? `<div class="bp-zv-badge">${esc(zichtbaarLabel(t))}</div>` : ''}</div></div>
           <div class="trd-teams">${teamsHtml(t)}</div>
           <span class="trd-ai${ai?' ja':''}">${ai ? '✓ uitgelezen' : '—'}</span>
           <div class="trd-act">
@@ -1681,9 +1683,9 @@ function htmlClubTrainingen(teams, trainingen){
   // weergave identiek zijn.
   const uploadBlok = `
     <button class="upload-knop" id="trainingUpload">📄 PDF-training(en) toevoegen
-      <input type="file" id="trainingFile" accept="application/pdf" multiple style="display:none"></button>
+      <input type="file" id="trainingFile" accept="application/pdf,.zip,application/zip" multiple style="display:none"></button>
     <div class="tr-boven-acties">
-      <span class="tr-boven-hint">Meerdere PDF's tegelijk kan — je verdeelt ze daarna per groep.</span>
+      <span class="tr-boven-hint">Meerdere PDF's, of een zip met een heel blok, kan ook.</span>
       <button class="link" id="trGroepenBeheer">${groepen.length ? '⚙️ Groepen beheren' : '＋ Trainingsgroepen instellen'}</button>
     </div>`;
 
@@ -1692,7 +1694,15 @@ function htmlClubTrainingen(teams, trainingen){
     <div class="segment tr-weergave" id="trainWeergave" style="margin-bottom:14px">
       <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
       <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per groep</button>
+      <button data-weergave="plannen" class="${weergave==='plannen'?'actief':''}">Plannen</button>
     </div>`;
+
+  if (weergave === 'plannen'){
+    return `
+      ${uploadBlok}
+      ${weergaveKies}
+      <div class="bp-plannen">${htmlPlannen(trainingen, teams, groepen)}</div>`;
+  }
 
   if (weergave === 'overzicht'){
     return `
@@ -1718,7 +1728,8 @@ function htmlClubTrainingen(teams, trainingen){
         <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           ${toonBest ? `<div class="t-best">${esc(t.bestandsnaam)}</div>` : ''}
-          <div class="t-meta">${esc(t.week || '')}${t.week?' · ':''}${esc(teamNamen)}</div></div>
+          <div class="t-meta">${esc(t.week || '')}${t.week?' · ':''}${esc(teamNamen)}</div>
+          ${zichtbaarLabel(t) ? `<div class="bp-zv-badge">${esc(zichtbaarLabel(t))}</div>` : ''}</div>
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
           ${tekstKnop}
@@ -2201,8 +2212,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     input.onchange = e => {
       const files = [...e.target.files]; if (!files.length) return;
       e.target.value = '';   // zelfde bestand later opnieuw kunnen kiezen
-      if (files.length === 1) modalNieuweTraining(files[0], teams);
-      else modalMeerdereTrainingen(files, teams);
+      uploadGekozen(files, teams, trainingen);
     };
     // [20260925a] desktop: groepstegel → groep openklappen en ernaartoe scrollen
     v.querySelectorAll('[data-trd-naar]').forEach(b => b.onclick = () => {
@@ -2216,16 +2226,17 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     });
     // PDF's op het uploadvlak slepen (werkt overal waar slepen kan)
     const pdfUitDrop = e => [...(e.dataTransfer?.files || [])]
-      .filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+      .filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name) || isZip(f));
     ['dragenter','dragover'].forEach(n => knop.addEventListener(n, e => { e.preventDefault(); knop.classList.add('sleep'); }));
     knop.addEventListener('dragleave', () => knop.classList.remove('sleep'));
     knop.addEventListener('drop', e => {
       e.preventDefault(); knop.classList.remove('sleep');
       const files = pdfUitDrop(e);
-      if (!files.length){ meld('Alleen PDF-bestanden kunnen hier worden toegevoegd'); return; }
-      if (files.length === 1) modalNieuweTraining(files[0], teams);
-      else modalMeerdereTrainingen(files, teams);
+      if (!files.length){ meld('Alleen PDF- of zip-bestanden kunnen hier worden toegevoegd'); return; }
+      uploadGekozen(files, teams, trainingen);
     });
+    // [20261013a] Plannen-weergave: week laten vervallen / terugzetten
+    koppelPlannen(v, trainingen, { renderClub: () => renderClub() });
     const grpBeheer = v.querySelector('#trGroepenBeheer');
     if (grpBeheer) grpBeheer.onclick = () => modalTrainingsGroepen(teams);
     v.querySelectorAll('[data-tdownload]').forEach(b => b.onclick = () => window.open(b.dataset.tdownload, '_blank'));
@@ -2715,6 +2726,26 @@ function isoWeek(d){
   return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 }
 
+/* [20261013a] Eén ingang voor alles wat op het uploadvlak landt. Een zip, of
+   meerdere PDF's met blok-namen ("Blok 2 - Week 1 - Training 1"), gaat naar
+   de blokplanning in training-plan.js; al het andere werkt precies als
+   voorheen (één PDF → losse upload, meerdere → verdelen per groep). */
+function uploadGekozen(files, teams, trainingen){
+  const pdfs = files.filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  const oudeFlow = lijst => lijst.length === 1 ? modalNieuweTraining(lijst[0], teams) : modalMeerdereTrainingen(lijst, teams);
+  if (isBlokUpload(files)){
+    return startBlokUpload(files, {
+      teams, trainingen,
+      groepen: trainingsGroepen(),
+      bouwGroepen: bouwGroepen(teams),
+      renderClub: () => renderClub(),
+      toonPreview, toonAlleenPdf: toonAlleenPdfKeuze, oudeFlow,
+    });
+  }
+  if (!pdfs.length) return meld('Alleen PDF- of zip-bestanden kunnen hier worden toegevoegd');
+  oudeFlow(pdfs);
+}
+
 /* ==================== MEERDERE TRAININGEN TEGELIJK ====================
    De club-admin krijgt wekelijks een setje PDF's binnen en wil ze in één keer
    verdelen. Dit scherm laat per bestand een trainingsgroep kiezen (met een gok
@@ -3083,6 +3114,7 @@ function toonPreview(file, meta, ctx){
         club: S.clubId, clubNaam: S.club.naam,
         titel: meta.titel, week: meta.week, bestandsnaam: file.name,
         ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
+        ...(meta.extra || {}),
         path: ctx.pdfPath, url: ctx.pdfUrl,
         mapId: ctx.mapId,
         oefeningen, diagramUrls, doelen,
@@ -3155,6 +3187,7 @@ async function deelAlleenPdf(file, meta, ctx){
       club: S.clubId, clubNaam: S.club.naam,
       titel: meta.titel, week: meta.week, bestandsnaam: file.name,
       ...(meta.trainingsdag ? { trainingsdag: meta.trainingsdag } : {}),
+      ...(meta.extra || {}),
       path: ctx.pdfPath, url: ctx.pdfUrl,
       teams: meta.teams,
       gemaakt: serverTimestamp(),

@@ -396,14 +396,20 @@ export function htmlTeamTrainingen(){
     // zodat de eerste PDF op de eerste trainingsdag valt.
     const perWeek = new Map();   // key -> {weekNr, jaar, items[]}
     for (const t of pdfs){
-      const wn = weekNrUit(t.week);
-      const jaar = wn ? jaarVoorWeek(wn, t.gemaakt?.seconds) : null;
+      // [20261013a] ingeplande blok-trainingen hebben een vaste weekStart
+      // (maandag, 'YYYY-MM-DD'): die bepaalt week én jaar, ook ver vooruit.
+      const ws = /^\d{4}-\d{2}-\d{2}$/.test(t.weekStart || '') ? new Date(t.weekStart + 'T12:00') : null;
+      const wn = ws ? isoWeek(ws) : weekNrUit(t.week);
+      const jaar = ws ? new Date(ws.getTime() + 3 * 86400000).getFullYear()
+        : (wn ? jaarVoorWeek(wn, t.gemaakt?.seconds) : null);
       const key = wn ? `${jaar}-${String(wn).padStart(2,'0')}` : 'onbekend';
       if (!perWeek.has(key)) perWeek.set(key, {weekNr:wn, jaar, items:[]});
       perWeek.get(key).items.push(t);
     }
     for (const g of perWeek.values()){
-      g.items.sort((a,b) => (a.gemaakt?.seconds||0) - (b.gemaakt?.seconds||0));
+      g.items.sort((a,b) =>
+        ((a.plan?.id && a.plan.id === b.plan?.id) ? (a.trainingNr||0) - (b.trainingNr||0) : 0)
+        || (a.gemaakt?.seconds||0) - (b.gemaakt?.seconds||0));
     }
 
     // sorteer de weken: bekende weken nieuw → oud, 'onbekend' altijd onderaan.
