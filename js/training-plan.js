@@ -27,10 +27,10 @@
    club.js levert via `ctx` wat hier nodig is maar daar woont (groepen,
    bouwen, het preview-scherm, renderClub), zodat er geen kringimport ontstaat. */
 import { db, doc, writeBatch } from './firebase.js?v=20260922c';
-import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
+import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20261023a';
 import {
   voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob, htmlModelKeuze
-} from './upload-wachtrij.js?v=20261013d';
+} from './upload-wachtrij.js?v=20261023a';
 
 /* ---------- Datums (lokaal; 12:00 als anker tegen zomertijd-randgevallen) ---------- */
 const pad2 = n => String(n).padStart(2, '0');

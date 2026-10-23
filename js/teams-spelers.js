@@ -10,29 +10,29 @@ import {
 } from './firebase.js?v=20260922c';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan, isBeheerder
-} from './state.js?v=20260922c';
+} from './state.js?v=20261023a';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20260922c';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261009a';
-import { isBouwCoordinator } from './coordinatoren.js?v=20260922c';
+} from './config.js?v=20261023a';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261023a';
+import { isBouwCoordinator } from './coordinatoren.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
-import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261010a';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261023a';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20260922c';
-import { telGebruik } from './tracker.js?v=20260922c';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20261023a';
+import { telGebruik } from './tracker.js?v=20261023a';
 import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
-import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261009a';
+import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261023a';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261013g');
+  const m = await import('./teams.js?v=20261023a');
   m.renderTeam();
 }
 

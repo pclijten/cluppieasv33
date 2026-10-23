@@ -9,7 +9,7 @@
    AVG: teamniveau overal; de coach-namenlijst alleen voor beheerders.
    ====================================================================== */
 
-import { esc, isBeheerder } from './state.js?v=20260922c';
+import { esc, isBeheerder } from './state.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
 
 /* ---------- kleine formatteerhelpers ---------- */
