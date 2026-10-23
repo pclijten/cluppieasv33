@@ -275,7 +275,11 @@ async function jobKlaar(job){
 async function verwerkItem(job, it, ai){
   const file = await leesBestand(job.id, it.idx, it.naam);
   if (!file) throw new Error('bestand niet meer beschikbaar op dit apparaat');
-  const mapId = String(Date.now());
+  // Uniek per training: tot nu toe was dit alleen Date.now(). Omdat er drie
+  // trainingen tegelijk verwerkt worden, konden er twee binnen dezelfde
+  // milliseconde starten en dezelfde map delen; hun diagram1…n.png overschreven
+  // elkaar, waardoor trainingen elkaars plaatjes kregen. Daarom + willekeurig deel.
+  const mapId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const pdfPath = `clubs/${job.clubId}/trainingen/${mapId}/${veiligeNaam}`;
 
