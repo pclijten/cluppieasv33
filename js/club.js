@@ -11,6 +11,7 @@ import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bou
 import { teltMee } from './opkomst.js?v=20260922c';
 import { analyseWedstrijd } from './analyse.js?v=20261023a';
 import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261023a';
+import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261023c';
 import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261023a';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261023a';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261023a';
@@ -52,7 +53,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261023b'); }
+async function teamsModule(){ return await import('./teams.js?v=20261023c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +99,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261023b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261023c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1049,7 +1050,7 @@ async function renderClub(opts = {}){
       : htmlRondeDetail(rondes.find(r => r.id === S._clubRonde), rondeVoortgang[S._clubRonde], beheerGroepen(teams));
   }
   else if (tab === 'rondeform')  inhoud = htmlRondeFormulier(beheerGroepen(teams), teams);
-  else if (tab === 'trainingen') inhoud = htmlClubTrainingen(teams, trainingen);
+  else if (tab === 'trainingen') inhoud = htmlDiagramHerstel(trainingen, isBeheerder()) + htmlClubTrainingen(teams, trainingen);
   else if (tab === 'videos')     inhoud = htmlClubVideos(teams, videos);
   else if (tab === 'documenten') inhoud = htmlClubDocumenten(teams, documenten);
   else if (tab === 'berichten'){
@@ -2216,6 +2217,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     if (opheffenBtn) opheffenBtn.onclick = () => clubAfgelastOpheffen(teams);
   }
   if (tab === 'trainingen'){
+    if (isBeheerder()) koppelDiagramHerstel(v, trainingen, { clubId: S.clubId, meld, herteken: () => renderClub() });
     v.querySelectorAll('[data-weergave]').forEach(b => b.onclick = () => {
       S.clubTrainWeergave = b.dataset.weergave; renderClub();
     });
