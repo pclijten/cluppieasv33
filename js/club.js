@@ -18,8 +18,8 @@ import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?
 import { telGebruik, telNav } from './tracker.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261023a';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261023a';
-import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261023a';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261023b';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261023b';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261023a';
 
 /* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
@@ -52,7 +52,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261023a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261023b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -98,7 +98,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261023a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261023b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -3050,7 +3050,7 @@ function zetTrainingModalInhoud(titel, bodyHtml){
 async function startTrainingVerwerking(file, meta){
   const mod = $('.modal'); if (!mod) return;
   const ts = Date.now();
-  const mapId = String(ts);
+  const mapId = `${ts}-${Math.random().toString(36).slice(2, 8)}`;   // uniek, zie upload-wachtrij.js
   const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const pdfPath = `clubs/${S.clubId}/trainingen/${mapId}/${veiligeNaam}`;
 
