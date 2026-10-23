@@ -17,7 +17,7 @@ import {
   storage, sRef, uploadBytes, getDownloadURL,
   functions, httpsCallable
 } from './firebase.js?v=20260922c';
-import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
+import { laadPdfJs } from './pdf-viewer.js?v=20261023a';
 
 /* ---------- PDF → tekst per pagina + diagram-PNG's ---------- */
 
@@ -47,12 +47,12 @@ import { laadPdfJs } from './pdf-viewer.js?v=20260922c';
      1. de ingebedde afbeelding-bitmap rechtstreeks uitlezen (page.objs);
      2. lukt dat niet: de pagina renderen en het beeldgebied uitknippen
         (positie uit de transformatie-matrix). */
-async function veldDiagramBlobs(page){
+async function paginaKandidaten(page){
   const OPS = window.pdfjsLib.OPS;
   const vp = page.getViewport({ scale: 1 });
   let ops;
   try { ops = await page.getOperatorList(); }
-  catch(e){ console.warn('[training-ai] getOperatorList faalde:', e); return []; }
+  catch(e){ console.warn('[training-ai] getOperatorList faalde:', e); return { vp, kandidaten: [] }; }
 
   const kandidaten = [];
   let ctm = [1,0,0,1,0,0];
@@ -74,22 +74,31 @@ async function veldDiagramBlobs(page){
       kandidaten.push({ naam: args[0], rect: { x: bx, y: topY, w: bw, h: bh }, opp: bw * bh });
     }
   }
-  if (!kandidaten.length){ console.warn('[training-ai] geen afbeelding op pagina gevonden'); return []; }
+  return { vp, kandidaten };
+}
 
-  // Kleine afbeeldingen (logo/avatar) wegfilteren. Drempel relatief t.o.v. de
-  // grootste afbeelding op de pagina: velden zijn fors, iconen zijn nietig.
-  const maxOpp = Math.max(...kandidaten.map(k => k.opp));
-  const drempel = Math.max(2500, maxOpp * 0.15);   // absoluut vangnet + relatief
-  const velden = kandidaten
+/* Welke van de gevonden afbeeldingen zijn echte veld-diagrammen?
+   De drempel wordt over de HELE PDF bepaald (grootste afbeelding in het hele
+   document), niet per pagina. Per pagina ging het mis bij een lege kaftpagina:
+   daar is het avatar-icoontje de enige afbeelding en dus "de grootste", waardoor
+   het als diagram meetelde en alle echte plaatjes één oefening opschoven.
+   Velden zijn fors (±40.000 pt²), avatars/logo's nietig (±1.200 pt²). */
+const MIN_DIAGRAM_OPP = 5000;     // absolute ondergrens in PDF-punten²
+const REL_DIAGRAM_OPP = 0.25;     // relatief t.o.v. grootste afbeelding in de PDF
+function kiesVelden(kandidaten, globaalMaxOpp){
+  const drempel = Math.max(MIN_DIAGRAM_OPP, globaalMaxOpp * REL_DIAGRAM_OPP);
+  return kandidaten
     .filter(k => k.opp >= drempel)
     .sort((a, b) => a.rect.y - b.rect.y);            // leesvolgorde: boven → onder
+}
 
+async function veldDiagramBlobs(page, vp, velden){
   const blobs = [];
   for (const v of velden){
     const blob = await extraheerAfbeelding(page, vp, v.naam, v.rect);
     if (blob) blobs.push(blob);
   }
-  if (!blobs.length) console.warn('[training-ai] kon geen diagram maken voor deze pagina');
+  if (velden.length && !blobs.length) console.warn('[training-ai] kon geen diagram maken voor deze pagina');
   return blobs;
 }
 
@@ -222,8 +231,10 @@ export async function leesPdf(file){
 
   const paginas = [];
   const diagramBlobs = [];
-  let volgnr = 0;   // doorlopende teller over alle pagina's heen
+  const perPagina = [];   // { n, page, vp, kandidaten } — voor de diagram-pass hieronder
+  let globaalMaxOpp = 0;
 
+  // PASS 1: tekst + alle afbeeldingen per pagina verzamelen.
   for (let n = 1; n <= pdfDoc.numPages; n++){
     const page = await pdfDoc.getPage(n);
 
@@ -239,18 +250,25 @@ export async function leesPdf(file){
     const tekst = regelsUitTekstItems(content.items);
     paginas.push({ pagina: n, tekst });
 
-    // --- diagrammen: ALLE ingebedde veldjes op deze pagina, in leesvolgorde ---
-    // Eén pagina kan meerdere oefeningen met elk een eigen veld bevatten. We
-    // nummeren de diagrammen dóór (volgnr) zodat oefening N ↔ diagram N klopt,
-    // ook als een eerdere pagina meerdere velden had. De pagina bewaren we mee
-    // voor terugvalkoppeling.
-    const blobs = await veldDiagramBlobs(page);
+    const { vp, kandidaten } = await paginaKandidaten(page);
+    for (const k of kandidaten) if (k.opp > globaalMaxOpp) globaalMaxOpp = k.opp;
+    perPagina.push({ n, page, vp, kandidaten });
+  }
+  if (!globaalMaxOpp) console.warn('[training-ai] geen afbeeldingen in de PDF gevonden');
+
+  // PASS 2: diagrammen — ALLE echte veldjes, in leesvolgorde over de hele PDF.
+  // Eén pagina kan meerdere oefeningen met elk een eigen veld bevatten. We
+  // nummeren de diagrammen dóór (volgnr) zodat oefening N ↔ diagram N klopt,
+  // ook als een eerdere pagina meerdere velden had of helemaal geen (zoals een
+  // lege kaftpagina met alleen een avatar). De pagina bewaren we mee.
+  let volgnr = 0;   // doorlopende teller over alle pagina's heen
+  for (const { n, page, vp, kandidaten } of perPagina){
+    const velden = kiesVelden(kandidaten, globaalMaxOpp);
+    const blobs = await veldDiagramBlobs(page, vp, velden);
     for (const blob of blobs){
       volgnr++;
       diagramBlobs.push({ volgnr, pagina: n, blob });
     }
-    // Ook pagina's zonder diagram tellen niet mee — de weergave koppelt op
-    // volgnr/index, niet op paginanummer.
   }
 
   return { paginas, diagramBlobs, bytes, aantalPaginas: pdfDoc.numPages };

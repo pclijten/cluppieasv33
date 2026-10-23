@@ -11,7 +11,7 @@
    deel-boot.js voor de kant van de ouder, en firestore.rules voor hoe die
    toegang precies is afgebakend (trainingDeel + trainingToegang). */
 import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20260922c';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20260922c';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
 
 let _ctx = null;

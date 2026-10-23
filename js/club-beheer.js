@@ -13,10 +13,10 @@
    per ongeluk wordt overschreven. Dit bestand importeert niets uit club.js
    (geen kringimport): club.js geeft een api-object mee. */
 import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20260922c';
-import { BOUWEN } from './config.js?v=20260922c';
+import { S, esc, meld } from './state.js?v=20261023a';
+import { BOUWEN } from './config.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
-import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20260929a';
+import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261023a';
 
 /* [sleutel, naam, kort, icoon, uitleg] — 'lijstjes' was eerder niet door de beheerder te regelen */
 export const MODULE_DEFS = [
