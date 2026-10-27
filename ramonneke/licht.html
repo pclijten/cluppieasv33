@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volledige beoordeling — mockup (licht)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F2F0; --surface:#F6F6F4; --surface-2:#EAEAE7; --line-d:#E2E2DE;
+  --card:#FFFFFF; --ink:#1D1E1E; --ink-2:#6E6E6C; --hair:#E2E2DE;
+  --accent:#e2342f; --radius:14px;
+  --shadow:0 1px 2px rgba(29,30,30,.08), 0 6px 18px rgba(29,30,30,.06);
+  --n1:#E5484D; --n2:#F2913C; --n3:#F2C94C; --n4:#7DCB6A; --n5:#2EA043;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+
+.modal{background:var(--bg);width:100%;max-width:540px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.modal-kop{display:flex;align-items:center;gap:10px;padding:14px 14px 12px;border-bottom:1px solid var(--hair);background:var(--card);flex-shrink:0;position:sticky;top:0;z-index:2}
+.modal-kop h2{font-family:'Barlow Condensed';font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.3px;flex:1;margin:0}
+.modal-sluit{width:40px;height:40px;border-radius:11px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.modal-body{flex:1;padding:16px 16px 32px}
+
+.snel-kop{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.mini-shirt{width:38px;height:38px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:18px;flex-shrink:0}
+.snel-kop .nm{font-weight:700;font-size:17px}
+.snel-kop .pos{font-size:12px;color:var(--ink-2)}
+
+.veldgroep{margin-bottom:14px}
+.veldgroep label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+.invoer{width:100%;padding:11px 13px;border:1.5px solid var(--hair);border-radius:11px;background:var(--surface);color:var(--ink);font-size:15px}
+select.invoer{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12'%3E%3Cpath fill='%238b95a1' d='M0 4l4 4 4-4z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
+textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:52px}
+.invoer:focus{outline:none;border-color:var(--accent)}
+.invoer::placeholder{color:var(--ink-2)}
+
+.veldlabel{font-size:11.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px}
+.aantal-badge{font-size:10px;font-weight:700;color:var(--ink-2);background:var(--surface-2);padding:1px 7px;border-radius:20px;margin-left:auto}
+
+.kaart{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+.dom-kop{display:flex;align-items:center;gap:6px;margin-bottom:12px}
+.dom-emoji{display:flex;color:var(--ink-2)}
+
+.crit-item{margin-bottom:12px}
+.crit-item:last-of-type{margin-bottom:14px}
+.crit-item.verborgen{display:none}
+.crit-naam-rij{display:flex;align-items:center;gap:5px;margin-bottom:6px}
+.crit-naam{font-size:13px;color:var(--ink);font-weight:500}
+.crit-naam .nieuw{color:var(--accent);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-left:5px}
+.crit-naam .leeftijd-badge{font-size:9px;font-weight:700;color:var(--ink-2);background:var(--surface-2);padding:1px 6px;border-radius:20px;margin-left:5px}
+.mini-schaal{display:flex;gap:5px}
+.mini-schaal button{flex:1;height:32px;border-radius:8px;border:2px solid transparent;font-weight:700;font-size:12px;color:#fff}
+.mini-schaal button:active{transform:scale(.93)}
+.mini-schaal button.gekozen{border-color:var(--ink);box-shadow:0 0 0 2px rgba(29,30,30,.18)}
+.kn1{background:var(--n1)}.kn2{background:var(--n2)}.kn3{background:var(--n3);color:#1D1E1E}.kn4{background:var(--n4);color:#1D1E1E}.kn5{background:var(--n5)}
+
+.legenda{display:flex;gap:5px;margin:2px 0 16px}
+.legenda span{flex:1;text-align:center;font-size:9px;font-weight:700;color:var(--ink-2);letter-spacing:.2px}
+
+.info-knop{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:10.5px;font-weight:700;flex-shrink:0}
+.info-knop:active{background:var(--accent);color:#fff}
+.info-knop.heeft-koppeling{background:color-mix(in srgb, var(--accent) 30%, var(--surface-2));color:var(--accent)}
+
+.knop{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:11px;padding:13px 18px;font-weight:600;font-size:15px;box-shadow:var(--shadow);width:100%}
+.knop.fluo{background:var(--accent);color:#fff}
+
+
+.popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.popup-overlay.toon{display:flex}
+.popup-doos{background:var(--card);border-radius:16px 16px 0 0;padding:18px 18px 22px;max-width:540px;width:100%;box-shadow:var(--shadow);animation:omhoog .15s ease-out}
+@keyframes omhoog{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+.popup-doos .dom-lbl{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.popup-doos h3{font-family:'Barlow Condensed';font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:.2px;margin-bottom:9px}
+.popup-doos p{font-size:14px;color:var(--ink-2);line-height:1.55;margin-bottom:12px}
+.popup-doos .beleidsplan{display:flex;gap:8px;background:var(--surface);border-radius:10px;padding:9px 11px;font-size:12px;color:var(--ink-2);line-height:1.5;margin-bottom:16px}
+.popup-doos .skill4box{display:flex;gap:8px;background:color-mix(in srgb, #F5851E 10%, var(--surface));border:1px solid color-mix(in srgb, #F5851E 35%, transparent);border-radius:10px;padding:9px 11px;font-size:12px;color:var(--ink-2);line-height:1.5;margin-bottom:16px}
+.popup-doos .skill4box b{color:#F5851E;display:block;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.popup-doos .skill4box span:first-child{color:#F5851E;flex-shrink:0}
+.popup-doos .beleidsplan b{color:var(--ink);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px}
+.popup-sluit{width:100%;padding:12px;border-radius:10px;background:var(--surface-2);font-weight:600;font-size:14px}
+
+.samenvatting{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.sv-balk{display:flex;align-items:center;gap:8px;padding:12px 14px}
+.sv-balk .sv-tekst{flex:1;font-size:12px;color:var(--ink-2);line-height:1.5}
+.sv-balk .sv-tekst b{color:var(--ink)}
+.sv-detail{max-height:0;overflow:hidden;transition:max-height .25s ease}
+.samenvatting.open .sv-detail{max-height:900px}
+.sv-inner{padding:2px 14px 16px}
+.sv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px}
+.sv-box{background:var(--surface);border-radius:10px;padding:9px 5px;text-align:center}
+.sv-box .v{font-family:'Barlow Condensed';font-weight:700;font-size:18px;line-height:1.1}
+.sv-box .l{font-size:8.5px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.sv-box .sub{font-size:8px;color:var(--ink-2);opacity:.7;margin-top:1px}
+.sv-sectie-label{font-size:10.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
+.sv-sectie-label .extra{font-weight:400;text-transform:none;letter-spacing:0;opacity:.8}
+.pos-balk{display:flex;height:18px;border-radius:6px;overflow:hidden;margin-bottom:8px}
+.pos-legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.pos-legend span{font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:5px}
+.pos-legend .dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex-shrink:0}
+.dom-mini-rij{display:flex;gap:6px;margin-bottom:16px}
+.dom-mini{flex:1;background:var(--surface);border-radius:10px;padding:8px 2px;text-align:center}
+.dom-mini .id{font-size:10px;font-weight:700;color:var(--ink-2)}
+.dom-mini .stip{width:22px;height:22px;border-radius:50%;margin:5px auto 3px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#1D1E1E}
+.dom-mini .trend{font-size:11px;font-weight:700}
+.trend.op{color:var(--n5)}.trend.gelijk{color:var(--ink-2)}.trend.neer{color:var(--n1)}
+.sv-rij{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-top:1px solid var(--hair)}
+.sv-rij:first-of-type{border-top:none}
+.sv-rij .ic{flex-shrink:0;margin-top:1px;color:var(--ink-2);display:flex}
+.sv-rij .tx{flex:1;font-size:12.5px;color:var(--ink);line-height:1.4}
+.sv-rij .tx b{color:var(--ink);font-weight:600}
+.sv-rij .tx .sub{display:block;font-size:11px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+
+.dom-mini{cursor:pointer}
+.dom-mini:active{background:var(--surface-2)}
+.popup-scroll{max-height:60vh;overflow-y:auto;margin:0 -18px;padding:0 18px}
+.thema-kaart{background:var(--surface);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.thema-kaart:last-child{margin-bottom:0}
+.thema-kop{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.thema-kop b{font-size:13px;color:var(--ink)}
+.thema-kop .leeftijd-badge{font-size:9px;font-weight:700;color:var(--ink-2);background:var(--surface-2);padding:1px 6px;border-radius:20px;flex-shrink:0}
+.thema-kaart p{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin:0}
+.popup-let{font-size:11px;color:var(--ink-2);font-style:italic;margin:10px 0 4px}
+
+.matrix-rij{display:flex;gap:3px;margin-top:6px}
+.matrix-cel{flex:1;height:14px;border-radius:3px;background:var(--surface-2)}
+.matrix-cel.aan{background:var(--accent)}
+.matrix-labels{margin:0 0 2px}
+.matrix-labels span{flex:1;font-size:7px;color:var(--ink-2);text-align:center;line-height:1.2;white-space:nowrap}
+.thema-kaart .thema-kop{margin-bottom:0}
+.citaat-kaart{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;font-size:12.5px;color:var(--ink);line-height:1.5;font-style:italic}
+.citaat-kaart:last-child{margin-bottom:0}
+.citaat-bron{display:block;font-size:10px;color:var(--ink-2);font-style:normal;font-weight:600;margin-top:4px}
+
+
+/* ==================== ONBOARDING / RONDLEIDING ====================
+   1-op-1 overgenomen visuele stijl uit de echte app (onboarding.js + de
+   .ob-* regels in styles.css) — zelfde spotlight/waas/bubbel-mechaniek,
+   hier lokaal nagebouwd zodat de mockup zelfstandig werkt. */
+:root{ --ob-z:4000; --ob-waas:rgba(20,26,34,.42); --ob-ring:var(--accent); }
+.ob-overlay{position:fixed;inset:0;z-index:var(--ob-z);pointer-events:none;opacity:0;transition:opacity .28s ease}
+.ob-overlay.aan{opacity:1}
+.ob-waas{position:fixed;background:var(--ob-waas);pointer-events:none;transition:all .32s cubic-bezier(.4,0,.2,1);display:none}
+.ob-ring{position:fixed;z-index:calc(var(--ob-z) + 1);pointer-events:none;border-radius:16px;display:none;
+  box-shadow:0 0 0 2px rgba(255,255,255,.9),0 0 0 5px var(--ob-ring),0 0 0 10px color-mix(in srgb, var(--ob-ring) 30%, transparent),0 0 26px 6px color-mix(in srgb, var(--ob-ring) 45%, transparent),0 12px 44px rgba(0,0,0,.45);
+  transition:all .32s cubic-bezier(.4,0,.2,1)}
+.ob-ring.puls::after{content:'';position:absolute;inset:-3px;border-radius:inherit;border:2px solid var(--ob-ring);animation:ob-puls 1.6s ease-out infinite}
+@keyframes ob-puls{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+.ob-bubbel{position:fixed;z-index:calc(var(--ob-z) + 3);max-width:330px;width:calc(100vw - 32px);
+  background:linear-gradient(180deg, color-mix(in srgb, #f5b13d 12%, var(--surface-2)), var(--surface-2));
+  border:1px solid color-mix(in srgb, #f5b13d 45%, transparent);border-left:4px solid #f5b13d;border-radius:18px;
+  box-shadow:0 18px 50px rgba(0,0,0,.6), 0 0 22px rgba(245,177,61,.18);padding:16px 16px 14px;
+  pointer-events:auto;opacity:0;transform:translateY(8px) scale(.98);
+  transition:opacity .26s ease, transform .26s cubic-bezier(.34,1.56,.64,1)}
+.ob-bubbel.aan{opacity:1;transform:translateY(0) scale(1)}
+.ob-bubbel.midden{left:50%;top:50%;transform:translate(-50%,-50%) scale(.98)}
+.ob-bubbel.midden.aan{transform:translate(-50%,-50%) scale(1)}
+.ob-b-label{display:inline-flex;align-items:center;gap:6px;margin-bottom:9px;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#f5b13d}
+.ob-b-label-dot{width:6px;height:6px;border-radius:50%;background:#f5b13d;box-shadow:0 0 8px #f5b13d}
+.ob-b-kop{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.ob-b-emoji{display:flex;color:#f5b13d;flex-shrink:0}
+.ob-b-titel{font-family:'Barlow Condensed';font-weight:700;font-size:20px;letter-spacing:.3px;text-transform:uppercase;color:var(--ink);line-height:1.05;flex:1}
+.ob-b-stap{font-size:11px;font-weight:700;background:rgba(245,177,61,.14);border:1px solid rgba(245,177,61,.35);color:#f5b13d;padding:2px 8px;border-radius:99px;flex-shrink:0}
+.ob-b-tekst{font-size:14.5px;line-height:1.6;color:var(--ink)}
+.ob-b-opdr{margin-top:10px;padding:9px 11px;border-radius:11px;background:color-mix(in srgb, var(--accent) 18%, var(--surface-2));border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);font-size:13.5px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+.ob-b-opdr .ob-pijltje{color:var(--accent);font-size:15px}
+.ob-b-voet{display:flex;align-items:center;gap:8px;margin-top:14px}
+.ob-b-voet .ob-links{display:flex;gap:6px;flex:1}
+.ob-knop{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;padding:9px 14px;font-weight:600;font-size:13.5px}
+.ob-knop.prim{background:var(--accent);color:#fff;box-shadow:0 8px 22px rgba(226,52,47,.32)}
+.ob-knop.sec{background:var(--surface-2);color:var(--ink);border:1px solid var(--line-d)}
+.ob-knop.mini{padding:7px 10px;font-size:12.5px}
+.ob-knop:disabled{opacity:.4}
+.ob-knop.wacht{opacity:.6}
+.ob-hud{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:540px;z-index:calc(var(--ob-z) + 4);padding:10px 14px 8px;display:flex;align-items:center;gap:10px}
+.ob-voortgang{flex:1;height:7px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line-d)}
+.ob-voortgang-vul{height:100%;border-radius:inherit;background:linear-gradient(90deg, var(--accent), #ff6a55);width:0;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.ob-hud-badge{font-size:11px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+.ob-hud-knop{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--line-d);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--ink);flex-shrink:0}
+.ob-intro,.ob-klaar{position:fixed;inset:0;z-index:calc(var(--ob-z) + 6);background:radial-gradient(120% 90% at 50% 0%, #16202b 0%, var(--bg) 60%);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px 24px;opacity:0;transition:opacity .4s ease;max-width:540px;margin:0 auto}
+.ob-intro.aan,.ob-klaar.aan{opacity:1}
+.ob-intro-logo{display:flex;justify-content:center;color:var(--accent);margin-bottom:18px}
+.ob-intro-logo svg{width:56px;height:56px}
+.ob-intro h1,.ob-klaar h1{font-family:'Barlow Condensed';font-weight:700;font-size:30px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink);line-height:1.08;margin-bottom:10px}
+.ob-intro p,.ob-klaar p{font-size:15px;line-height:1.6;color:var(--ink-2);max-width:340px;margin-bottom:26px}
+.ob-intro-start{width:100%;max-width:340px;padding:15px;border-radius:14px;background:var(--accent);color:#fff;font-weight:700;font-size:16px;box-shadow:0 10px 30px rgba(226,52,47,.4)}
+.ob-intro-skip{margin-top:14px;font-size:13px;color:var(--ink-2);text-decoration:underline}
+.ob-klaar-emoji{display:flex;justify-content:center;color:#f5b13d;margin-bottom:14px}
+.ob-klaar-emoji svg{width:56px;height:56px}
+
+.snel-kop{cursor:pointer}
+.snel-kop:active{opacity:.75}
+.wissel-chevron{color:var(--ink-2);flex-shrink:0;display:flex;transform:rotate(90deg)}
+.jouw-beoordeling{font-size:11px;color:var(--ink-2);margin:-6px 0 14px;line-height:1.4}
+.speler-rij{display:flex;align-items:center;gap:11px;padding:10px 6px;border-radius:12px}
+.speler-rij:active{background:var(--surface)}
+.speler-rij.huidig{background:color-mix(in srgb, var(--accent) 12%, transparent)}
+.speler-rij .mini-shirt{width:34px;height:34px;font-size:15px}
+.speler-rij .sp-info{flex:1}
+.speler-rij .sp-naam{font-size:14px;font-weight:600;color:var(--ink)}
+.speler-rij .sp-pos{font-size:11.5px;color:var(--ink-2)}
+.speler-rij .sp-badge{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb, var(--accent) 16%, transparent);padding:2px 8px;border-radius:20px}
+.autosave-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:3000;
+  background:var(--surface-2);border:1px solid var(--line-d);border-radius:99px;padding:9px 16px;
+  display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink);
+  box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .25s ease, transform .25s ease;pointer-events:none}
+.autosave-toast.toon{opacity:1;transform:translateX(-50%) translateY(0)}
+.autosave-toast svg{color:var(--n5);flex-shrink:0}
+
+.moment-vergrendeld{width:100%;padding:11px 13px;border:1.5px solid var(--hair);border-radius:11px;background:var(--surface);
+  display:flex;align-items:center;gap:9px;font-size:15px;color:var(--ink)}
+.moment-vergrendeld span:first-child{color:var(--ink-2);flex-shrink:0;display:flex}
+.moment-caption{font-size:11px;color:var(--ink-2);line-height:1.45;margin-top:6px}
+.moment-preview-knop{font-size:10.5px;color:var(--ink-2);text-decoration:underline;margin-top:6px;display:block}
+</style>
+</head>
+<body>
+
+<div class="modal">
+  <div class="modal-kop">
+    <h2>Volledige beoordeling</h2>
+    <div class="modal-sluit" id="obHerstart" title="Rondleiding opnieuw bekijken" style="margin-right:6px"></div>
+    <div class="modal-sluit">✕</div>
+  </div>
+  <div class="modal-body">
+
+    <div class="snel-kop" id="spelerWissel">
+      <div class="mini-shirt" id="svShirt">9</div>
+      <div style="flex:1"><div class="nm" id="svNaam">Ramonneke</div><div class="pos" id="svPositie">Spits</div></div>
+      <span class="wissel-chevron" id="icWisselChevron"></span>
+    </div>
+    <div class="jouw-beoordeling">Jouw beoordeling — niet zichtbaar of aanpasbaar voor andere coaches van dit team.</div>
+
+    <div class="samenvatting open" id="samenvatting">
+      <div class="sv-balk">
+        <span class="sv-tekst" id="svTekstKort"></span>
+      </div>
+      <div class="sv-detail"><div class="sv-inner">
+
+        <div class="sv-grid">
+          <div class="sv-box"><div class="v" id="svOpkomst"></div><div class="l">Opkomst</div></div>
+          <div class="sv-box"><div class="v" id="svSpeeltijd"></div><div class="l">Speeltijd</div><div class="sub">v. speelbaar</div></div>
+          <div class="sv-box"><div class="v" id="svReserve"></div><div class="l">Reserve</div><div class="sub">v. speelbaar</div></div>
+          <div class="sv-box"><div class="v" id="svLaatsteKort"></div><div class="l">Laatste beoord.</div><div class="sub" id="svLaatsteDatum"></div></div>
+        </div>
+
+        <div class="sv-sectie-label">Meest gespeelde posities</div>
+        <div class="pos-balk" id="svPosBalk"></div>
+        <div class="pos-legend" id="svPosLegend"></div>
+
+        <div class="sv-sectie-label">Gemiddelde score per domein <span class="extra">— laatste 3 beoordelingen</span></div>
+        <div class="dom-mini-rij" id="svDomRij"></div>
+
+        <div class="sv-rij"><span class="ic" id="icLeerpunten"></span><span class="tx"><b id="svLeerpuntenAantal"></b><span class="sub" id="svLeerpuntenTekst"></span></span></div>
+        <div class="sv-rij"><span class="ic" id="icNotitie"></span><span class="tx"><b>Notitie</b><span class="sub" id="svNotitie"></span></span></div>
+
+      </div></div>
+    </div>
+
+    <div class="popup-overlay" id="spelerPopup">
+      <div class="popup-doos">
+        <div class="dom-lbl">Speler wisselen</div>
+        <h3>Kies een speler</h3>
+        <div class="popup-scroll" id="spelerLijst" style="margin-top:4px;max-height:50vh"></div>
+        <button class="popup-sluit" id="spelerPopupSluit" style="margin-top:14px">Annuleren</button>
+      </div>
+    </div>
+
+    <div class="veldgroep">
+      <label>Moment</label>
+      <div class="moment-vergrendeld" id="momentVergrendeldWeergave">
+        <span id="icMomentSlot"></span>
+        <span id="momentVastTekst">Najaarsevaluatie 2025-2026</span>
+      </div>
+      <input class="invoer" id="momentVeld" value="Najaarsevaluatie 2025-2026" placeholder="Bijv. Kwartaalmeting Q3" style="display:none">
+      <div class="moment-caption" id="momentCaption">Vastgezet door de club voor de Najaarsevaluatie — coaches kunnen deze naam niet wijzigen zolang dit moment actief is.</div>
+      <button class="moment-preview-knop" id="momentPreviewToggle">Preview: moment sluiten (mockup-only)</button>
+    </div>
+
+    <div class="legenda">
+      <span>AAND</span><span>OP WEG</span><span>PRIMA</span><span>STERK</span><span>UITBL</span>
+    </div>
+
+    <div id="kaarten"></div>
+
+    <button class="knop fluo" style="margin-top:6px">Beoordeling opslaan</button>
+    <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad Leerlijn van de speler — die lopen door over meerdere beoordelingen.</p>
+
+  </div>
+</div>
+
+<div class="popup-overlay" id="popup">
+  <div class="popup-doos">
+    <div class="dom-lbl" id="popDom"></div>
+    <h3 id="popTitel"></h3>
+    <div id="popTekst" style="font-size:14px;color:var(--ink-2);line-height:1.55;margin-bottom:12px"></div>
+    <div class="beleidsplan" id="popBeleid" style="display:none"><span id="icBeleid"></span><div><b>Jeugdbeleidsplan §3.3</b><span id="popBeleidTekst"></span></div></div>
+    <div class="skill4box" id="popSkill4" style="display:none"><span id="icSkill4"></span><div><b>4-Skills-methodiek</b><span id="popSkill4Tekst"></span></div></div>
+    <button class="popup-sluit" id="popSluit">Sluiten</button>
+  </div>
+</div>
+
+<!-- ── Onboarding / rondleiding overlay ── -->
+<div class="ob-overlay" id="obOverlay">
+  <div class="ob-waas" id="obWaasT"></div><div class="ob-waas" id="obWaasB"></div>
+  <div class="ob-waas" id="obWaasL"></div><div class="ob-waas" id="obWaasR"></div>
+</div>
+<div class="ob-ring" id="obRing"></div>
+<div class="ob-bubbel" id="obBubbel"></div>
+<div class="ob-hud" id="obHud" style="display:none">
+  <div class="ob-voortgang"><div class="ob-voortgang-vul" id="obVul"></div></div>
+  <span class="ob-hud-badge" id="obBadge">0/0</span>
+  <button class="ob-hud-knop" id="obSluit" title="Later hervatten">✕</button>
+</div>
+<div class="ob-intro" id="obIntro">
+  <div class="ob-intro-logo" id="icIntroLogo"></div>
+  <h1>Welkom bij<br>Volledige beoordeling</h1>
+  <p>Je vult dit scherm voor het eerst in. In ~1 minuut wijzen we je de belangrijkste onderdelen: wat elk veld betekent, wat je kunt inklappen, en waar de ⓘ-popups over gaan.</p>
+  <button class="ob-intro-start" id="obStart">Start de rondleiding</button>
+  <button class="ob-intro-skip" id="obSkip">Overslaan, ik red me wel</button>
+</div>
+<div class="ob-klaar" id="obKlaar">
+  <div class="ob-klaar-emoji" id="icKlaar"></div>
+  <h1>Helemaal klaar!</h1>
+  <p>Je kent nu alle onderdelen van Volledige beoordeling. Via het 🎓-icoontje bovenin kun je deze rondleiding altijd opnieuw bekijken.</p>
+  <button class="ob-intro-start" id="obKlaarOk">Aan de slag ⚽</button>
+</div>
+
+<div class="autosave-toast" id="autosaveToast"><span id="icAutosave"></span><span>Automatisch opgeslagen</span></div>
+
+<script>
+// ── Cluppie iconensysteem: 1-op-1 uit icons.js overgenomen (zelfde paths, zelfde ico()-functie) ──
+const ICOPATHS = {
+  'football-ball': '<path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/>',
+  'football-tactics': '<circle cx="12" cy="12" r="9"/><path d="M12 7.2l4.2 3-1.6 4.9H9.4L7.8 10.2z"/><path d="M12 7.2 9.5 5M12 7.2 14.5 5M16.2 10.2l2.6-.6M14.6 15.1l1.7 2.1M9.4 15.1l-1.7 2.1M7.8 10.2l-2.6-.6"/>',
+  'tag-speed': '<path d="M13 3 5 13h5l-1 8 8-10h-5l1-8Z"/>',
+  'tag-insight': '<circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.5 1.5M16.2 16.2l1.5 1.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5"/>',
+  'tag-handshake': '<path d="m11 6-5 4v5l3 2.5 3-2.5"/><path d="M13 7.5 16 6l4 4v4l-2.5 2"/><path d="M12 12.5 14 14M10 14l1.5 1.4M8.5 15.5l1.3 1.2"/>',
+  'navigation-help': '<circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/>',
+  'tag-leader': '<path d="M4 8.5 8 12l4-6 4 6 4-3.5-1.6 9H5.6L4 8.5Z"/><path d="M5.6 18h12.8"/>',
+  'training-plan': '<rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/>',
+  'action-filter': '<path d="M3.6 5.4h16.8l-6.4 7.4v6.2l-4 1.6v-7.8z"/>',
+  'planning-calendar': '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/>',
+  'tag-duel': '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/>',
+  'communication-chat': '<path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3.2V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  'admin-save': '<path d="M4.8 4.4h10.4l4 4v11.2H4.8z"/><path d="M8.6 4.4h6.4v4.2H8.6z"/><path d="M8.6 19.6v-5.4h6.8v5.4"/>',
+  'admin-document': '<path d="M6 3h9l4 4v14H6z"/><path d="M9 11h8M9 15h8M9 7h3"/>',
+  'communication-message': '<path d="M4 5h16v11H8l-4 3z"/><path d="M8 9h8M8 12h5"/>',
+  'navigation-close': '<path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/>',
+  'action-check': '<path d="M4.6 12.4 9.6 17.4 19.6 6.6"/>',
+  'navigation-forward': '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
+  'stats-bars': '<path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/>',
+  'team-player': '<circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  'admin-permissions': '<rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/>',
+};
+function ICO(naam, grootte = 20, kleur){
+  const p = ICOPATHS[naam]; if (!p) return '';
+  const stijl = kleur ? ` style="color:${kleur}"` : '';
+  return `<svg width="${grootte}" height="${grootte}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"${stijl}>${p}</svg>`;
+}
+
+// Statische icoonplekken vullen (eenmalig, geen emoji meer in de hele mockup)
+document.getElementById('obHerstart').innerHTML = ICO('navigation-help', 18);
+document.getElementById('icLeerpunten').innerHTML = ICO('stats-bars', 16);
+document.getElementById('icNotitie').innerHTML = ICO('communication-message', 16);
+document.getElementById('icBeleid').innerHTML = ICO('admin-document', 15);
+document.getElementById('icIntroLogo').innerHTML = ICO('navigation-help', 56);
+document.getElementById('icKlaar').innerHTML = ICO('tag-leader', 56);
+document.getElementById('icWisselChevron').innerHTML = ICO('navigation-forward', 16);
+document.getElementById('icMomentSlot').innerHTML = ICO('admin-permissions', 16);
+document.getElementById('icSkill4').innerHTML = ICO('admin-document', 15);
+
+// elk criterium: {naam, uitleg, beleid, vanaf, nieuw}
+// vanaf = leeftijd waarop het beleidsplan-thema "aan" gaat (null = geen thema, altijd tonen)
+// ── Echte data uit het Jeugdbeleidsplan ASV'33 2025-2030 ──
+// Matrix (§3.3, p.10): per thema de leeftijdscategorie vanaf wanneer het "aan"
+// gaat. kolomIdx wijst naar BRACKETS hieronder — 1-op-1 overgenomen uit de tabel
+// (geen interpretatie). De TE/TA/FY/ME/GE-domeinindeling zelf staat NIET zo in
+// het beleidsplan, en is ook niet aantoonbaar "de KNVB-richtlijn" — het is
+// Cluppie's eigen indeling van de 14 thema's, gebaseerd op een vocabulaire
+// (technisch/tactisch/fysiek/mentaal/sociaal) die breed gangbaar is in het
+// Nederlandse jeugdvoetbal, maar niet aan één citeerbare bron toe te schrijven.
+const BRACKETS = ['O6/O7','O8/O9','O10','O11/O12','O13','O14/O15','O16/O17','O18/O19'];
+const THEMA_MATRIX = {
+  'Technische vaardigheden': {domein:'TE', kolomIdx:0},
+  'Uitspelen 1:1':           {domein:'TE', kolomIdx:1},
+  'Scoren':                  {domein:'TE', kolomIdx:1},
+  'Verdedigen 1:1':          {domein:'TE', kolomIdx:2},
+  'Positiespel opbouw':      {domein:'TA', kolomIdx:1},
+  'Dieptespel opbouw':       {domein:'TA', kolomIdx:1},
+  'Storen en veroveren':     {domein:'TA', kolomIdx:2},
+  'Verdedigen dieptespel':   {domein:'TA', kolomIdx:2},
+  'Voorkomen van doelpunten':{domein:'TA', kolomIdx:2},
+  'Aanvallen met voorzet':   {domein:'TA', kolomIdx:3},
+  'Verdedigen van voorzet':  {domein:'TA', kolomIdx:3},
+  'Omschakelen balwinst':    {domein:'TA', kolomIdx:5},
+  'Omschakelen balverlies':  {domein:'TA', kolomIdx:5},
+  'Teamsport en plezier':    {domein:'GE', kolomIdx:0},
+};
+// Letterlijke citaten uit het plan, met paginaverwijzing — geen parafrase.
+const CITATEN = {
+  TE: [
+    {tekst:'Spelers de kans bieden om basistechniek en coördinatie te trainen en te verbeteren', bron:'§3.1 Rode draad, p.8'},
+    {tekst:'Iedere speler een bal · Veel herhalingen en balcontacten · Stimuleren om beide benen te gebruiken', bron:'§3.1 Gouden regels, p.8'},
+  ],
+  TA: [
+    {tekst:'Technisch verzorgd, herkenbaar en sportief voetbal spelen', bron:'§3.1 Rode draad, p.8'},
+    {tekst:'Goed positiespel en het gedisciplineerd uitvoeren van tactische opdrachten zijn belangrijke aandachtspunten in de opleiding', bron:'§3.2 Gewenste speelwijze, p.9'},
+  ],
+  FY: [
+    {tekst:'Fitheid en vitaliteit bij onze spelers', bron:'§3.1 Rode draad, p.8'},
+    {tekst:'De conditie verbeter je door veel te voetballen. Trainingsvormen zonder bal leveren geen directe bijdrage aan het beter aanvallen, verdedigen en omschakelen van een speler.', bron:'§3.4 Conditie, p.12'},
+  ],
+  ME: [
+    {tekst:'Spelers leren om onder weerstand te spelen', bron:'§3.1 Rode draad, p.8'},
+    {tekst:'Deze spelers voorbereiden op het spelen onder druk en prestaties leveren onder weerstand', bron:'§2.2 Missie, p.4'},
+  ],
+  GE: [
+    {tekst:'Plezier in het voetbal en een positieve sfeer in en rondom het team', bron:'§2.2 Missie, p.4'},
+    {tekst:'Plezier, inzet en samenspel · Positief coachen', bron:'§3.1 Gouden regels, p.8'},
+    {tekst:'Je bent respectvol naar medespelers, tegenstanders, scheidsrechters, trainers, leiders, publiek en verenigingen', bron:'§5.1 Individuele- en groepsdiscipline, p.23'},
+  ],
+};
+
+const DOMEINEN = [
+  {id:'TE', icoon:'football-ball', naam:'Technisch',
+   omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan',
+   criteria:[
+     {naam:'Balbehandeling / -controle', uitleg:'Neemt de bal soepel aan, houdt hem dicht bij de voet, blijft in balans.', beleid:'Technische vaardigheden', vanaf:6, skill4:'Basistechniek'},
+     {naam:'Schieten / afwerken', uitleg:'Kiest de juiste techniek en plaatsing bij het afronden van een kans.', beleid:'Scoren', vanaf:8, nieuw:true, skill4:'Basistechniek'},
+     {naam:'Passen', uitleg:'Speelt de bal met de juiste snelheid en richting naar een medespeler.', skill4:'Basistechniek'},
+     {naam:'Individuele actie (1:1 uitspelen)', uitleg:'Durft de tegenstander 1-tegen-1 uit te spelen met een schijnbeweging of snelheid.', beleid:'Uitspelen 1:1', vanaf:8, skill4:'Domineren 1v1, Kappen/draaien/trucs'},
+     {naam:'Verdedigen 1-tegen-1', uitleg:'Verdedigt een directe tegenstander individueel: houdt afstand, kiest het juiste moment om in te tikken.', beleid:'Verdedigen 1:1', vanaf:10, nieuw:true, skill4:'Domineren 1v1'},
+   ]},
+  {id:'TA', icoon:'football-tactics', naam:'Tactisch',
+   omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen',
+   criteria:[
+     {naam:'Positiegevoel', uitleg:'Staat op de juiste plek t.o.v. bal, tegenstander en medespelers, zonder dat te hoeven zeggen.', skill4:'De juiste keuze maken'},
+     {naam:'Verdedigen', uitleg:'Kiest het juiste moment om druk te zetten of af te wachten, dekt de juiste man of ruimte.', beleid:'Bundelt Storen en veroveren, Verdedigen dieptespel en Voorkomen van doelpunten (§3.3)', skill4:'Aanvallend/verdedigend spel'},
+     {naam:'Verdedigen van voorzet', uitleg:'Verdedigt een voorzet vanaf de zijkant: kiest positie t.o.v. de tegenstander in het strafschopgebied, timing van inspringen.', beleid:'Verdedigen van voorzet', vanaf:11, nieuw:true, skill4:'Aanvallend/verdedigend spel'},
+     {naam:'Aanvallen', uitleg:'Zoekt de vrije ruimte op, biedt zich aan, maakt het speelveld groot.', beleid:'Bundelt Positiespel opbouw, Dieptespel opbouw en Aanvallen met voorzet (§3.3)', skill4:'Aanvallend/verdedigend spel'},
+     {naam:'Samenspel / oog voor medespeler', uitleg:'Ziet een vrijstaande medespeler en speelt de bal op tijd over.', skill4:'De juiste keuze maken'},
+     {naam:'Omschakelen (bij balwinst/-verlies)', uitleg:'Schakelt direct van aanvallen naar verdedigen en andersom, zodra de bal wisselt van bezit.', beleid:'Omschakelen balwinst + Omschakelen balverlies', vanaf:14, nieuw:true, skill4:'De juiste keuze maken'},
+   ]},
+  {id:'FY', icoon:'tag-speed', naam:'Fysiek',
+   omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid',
+   criteria:[
+     {naam:'Duelkracht', uitleg:'Houdt stand in een fysiek duel, wint de bal terug in een twee-strijd.', skill4:'Kracht'},
+     {naam:'Snelheid', uitleg:'Sprintsnelheid over een korte afstand, bijvoorbeeld bij een counter of terugzakken.', skill4:'Snelheid'},
+     {naam:'Coördinatie', uitleg:'Balans en lichaamsbeheersing bij richting veranderen, springen of draaien.'},
+     {naam:'Conditionele gesteldheid', uitleg:'Houdt hetzelfde niveau vast tot het einde van de training of wedstrijd.', skill4:'Conditie'},
+   ]},
+  {id:'ME', icoon:'tag-insight', naam:'Mentaal',
+   omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand',
+   criteria:[
+     {naam:'Motivatie tijdens trainingen', uitleg:'Werkt actief mee, vraagt door, wil zichzelf steeds verbeteren.', skill4:'Attitude'},
+     {naam:'Omgaan met tegenslag / teleurstelling', uitleg:'Blijft doorzetten en positief na een fout, tegendoelpunt of verlies.', nieuw:true, skill4:'Winnaarsmentaliteit'},
+     {naam:'Zelfvertrouwen', uitleg:'Durft een actie of fout risico te nemen, ook als het eerder misging.', nieuw:true, skill4:'Persoonlijkheid'},
+   ]},
+  {id:'GE', icoon:'tag-handshake', naam:'Gedrag & beleving',
+   omschrijving:'Inzet, teamgevoel, normen & waarden, plezier',
+   criteria:[
+     {naam:'Opkomst', uitleg:'Is op tijd aanwezig bij trainingen, meldt zich tijdig af bij verhindering.'},
+     {naam:'Omgang met andere spelers', uitleg:'Gaat respectvol om met teamgenoten, zowel bij winst als verlies.'},
+     {naam:'Luisteren / aandacht tijdens training', uitleg:'Blijft gefocust tijdens uitleg, kan een aanwijzing direct toepassen.'},
+     {naam:'Teamsport en plezier', uitleg:'Speelt met plezier, viert successen samen, voelt zich onderdeel van het team.', beleid:'Teamsport en plezier', vanaf:6, nieuw:true},
+   ]},
+];
+const NIVEAUS = [1,2,3,4,5];
+
+function beleidTekst(c){
+  if (!c.beleid) return null;
+  return c.vanaf ? `${c.beleid} — vanaf O${c.vanaf}` : c.beleid;
+}
+
+const houder = document.getElementById('kaarten');
+DOMEINEN.forEach(dom => {
+  const kaart = document.createElement('div');
+  kaart.className = 'kaart';
+  kaart.dataset.dom = dom.id;
+  kaart.innerHTML = `
+    <div class="dom-kop">
+      <span class="dom-emoji">${ICO(dom.icoon,17)}</span>
+      <span class="veldlabel">${dom.id} · ${dom.naam}</span>
+      <button class="info-knop" data-dom="${dom.id}" data-type="domein">i</button>
+      <span class="aantal-badge" data-badge="${dom.id}">${dom.criteria.length}</span>
+    </div>
+    ${dom.criteria.map((c, i) => `
+      <div class="crit-item" data-vanaf="${c.vanaf||''}">
+        <div class="crit-naam-rij">
+          <span class="crit-naam">${c.naam}${c.nieuw?'<span class="nieuw">nieuw</span>':''}${c.vanaf?`<span class="leeftijd-badge">vanaf O${c.vanaf}</span>`:''}</span>
+          <button class="info-knop ${(c.beleid||c.skill4)?'heeft-koppeling':''}" data-dom="${dom.id}" data-type="crit" data-idx="${i}">i</button>
+        </div>
+        <div class="mini-schaal" data-crit="${dom.id}-${i}">
+          ${NIVEAUS.map(n => `<button data-niv="${n}" class="kn${n}"></button>`).join('')}
+        </div>
+      </div>
+    `).join('')}
+    <textarea class="invoer" rows="2" placeholder="Toelichting ${dom.naam.toLowerCase()}..."></textarea>
+  `;
+  houder.appendChild(kaart);
+});
+
+document.querySelectorAll('.mini-schaal').forEach(sch => {
+  sch.querySelectorAll('[data-niv]').forEach(b => b.onclick = () => {
+    sch.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', x===b));
+  });
+});
+
+// ── Leeftijdsfilter: zelfde principe als leercurveRelevant() in config.js.
+// Geen handmatige keuze meer — de leeftijd komt automatisch uit het team
+// waaraan deze speler al gekoppeld is (hier: Mo15 → O15). ──
+const TEAM_LEEFTIJD = 15;
+function pasFilterToe(){
+  const lft = TEAM_LEEFTIJD;
+  DOMEINEN.forEach(dom => {
+    let zichtbaar = 0;
+    document.querySelectorAll(`.kaart[data-dom="${dom.id}"] .crit-item`).forEach(el => {
+      const vanaf = Number(el.dataset.vanaf) || 0;
+      const toon = vanaf === 0 || lft >= vanaf;
+      el.classList.toggle('verborgen', !toon);
+      if (toon) zichtbaar++;
+    });
+    document.querySelector(`[data-badge="${dom.id}"]`).textContent = zichtbaar;
+  });
+}
+pasFilterToe();
+
+// ==================== SPELERS-ROSTER, WISSELEN, AUTOSAVE ====================
+const ROSTER = [
+  { rug:9, naam:'Ramonneke', positie:'Spits',
+    opkomst:86, speeltijd:62, reserve:38, laatsteKort:'3 wk', laatsteDatum:'23 jun 2026',
+    posities:[{naam:'Rechtsback',pct:58,kleur:'#5B8DEF'},{naam:'Centrale verdediger',pct:27,kleur:'#9B6BD6'},{naam:'Linksback',pct:15,kleur:'#4FBFA8'}],
+    dom:{TE:{s:4,t:'op',l:'Sterk'},TA:{s:3,t:'gelijk',l:'Prima'},FY:{s:4,t:'op',l:'Sterk'},ME:{s:2,t:'neer',l:'Op weg'},GE:{s:5,t:'gelijk',l:'Uitbl.'}},
+    leerpuntenAantal:2, leerpunten:'Positiespel opbouw (TA) · Zelfvertrouwen (ME)',
+    notitie:'Rustig karakter, bloeit op met individuele aandacht en 1-op-1 momentjes na training.' },
+  { rug:4, naam:'Fien de Wit', positie:'Centrale verdediger',
+    opkomst:94, speeltijd:78, reserve:22, laatsteKort:'1 mnd', laatsteDatum:'26 mei 2026',
+    posities:[{naam:'Centrale verdediger',pct:70,kleur:'#5B8DEF'},{naam:'Rechtsback',pct:20,kleur:'#9B6BD6'},{naam:'Linksback',pct:10,kleur:'#4FBFA8'}],
+    dom:{TE:{s:3,t:'gelijk',l:'Prima'},TA:{s:4,t:'op',l:'Sterk'},FY:{s:3,t:'gelijk',l:'Prima'},ME:{s:4,t:'op',l:'Sterk'},GE:{s:5,t:'gelijk',l:'Uitbl.'}},
+    leerpuntenAantal:1, leerpunten:'Storen en veroveren (TA)',
+    notitie:'Aanvoerdersinstinct, spreekt de groep makkelijk aan.' },
+  { rug:7, naam:'Sanne Verhoeven', positie:'Vleugelspits',
+    opkomst:71, speeltijd:45, reserve:55, laatsteKort:'2 mnd', laatsteDatum:'21 apr 2026',
+    posities:[{naam:'Rechtsvleugel',pct:50,kleur:'#5B8DEF'},{naam:'Linksvleugel',pct:30,kleur:'#9B6BD6'},{naam:'Spits',pct:20,kleur:'#4FBFA8'}],
+    dom:{TE:{s:4,t:'op',l:'Sterk'},TA:{s:2,t:'gelijk',l:'Op weg'},FY:{s:5,t:'op',l:'Uitbl.'},ME:{s:3,t:'gelijk',l:'Prima'},GE:{s:4,t:'gelijk',l:'Sterk'}},
+    leerpuntenAantal:3, leerpunten:'Uitspelen 1:1 (TE) · Positiegevoel (TA) · Tegenslag (ME)',
+    notitie:'Erg snel, moet nog leren de bal vast te houden onder druk.' },
+  { rug:1, naam:'Nora Peters', positie:'Keeper',
+    opkomst:100, speeltijd:90, reserve:10, laatsteKort:'3 wk', laatsteDatum:'23 jun 2026',
+    posities:[{naam:'Keeper',pct:100,kleur:'#5B8DEF'}],
+    dom:{TE:{s:3,t:'gelijk',l:'Prima'},TA:{s:4,t:'op',l:'Sterk'},FY:{s:3,t:'gelijk',l:'Prima'},ME:{s:5,t:'op',l:'Uitbl.'},GE:{s:5,t:'gelijk',l:'Uitbl.'}},
+    leerpuntenAantal:0, leerpunten:'Geen open leerpunten',
+    notitie:'Heel stabiel, durft steeds vaker mee op te bouwen.' },
+  { rug:11, naam:'Elin Bosman', positie:'Middenvelder',
+    opkomst:62, speeltijd:38, reserve:62, laatsteKort:'5 mnd', laatsteDatum:'14 jan 2026',
+    posities:[{naam:'Centraal middenveld',pct:65,kleur:'#5B8DEF'},{naam:'Rechtsmidden',pct:20,kleur:'#9B6BD6'},{naam:'Linksmidden',pct:15,kleur:'#4FBFA8'}],
+    dom:{TE:{s:2,t:'neer',l:'Op weg'},TA:{s:3,t:'gelijk',l:'Prima'},FY:{s:2,t:'gelijk',l:'Op weg'},ME:{s:2,t:'neer',l:'Op weg'},GE:{s:4,t:'gelijk',l:'Sterk'}},
+    leerpuntenAantal:2, leerpunten:'Passen (TE) · Duelkracht (FY)',
+    notitie:'Laatste tijd wat onzeker, extra aandacht nodig.' },
+  { rug:5, naam:'Bo Willems', positie:'Linksback',
+    opkomst:89, speeltijd:55, reserve:45, laatsteKort:'6 wk', laatsteDatum:'6 jun 2026',
+    posities:[{naam:'Linksback',pct:72,kleur:'#5B8DEF'},{naam:'Linksmidden',pct:18,kleur:'#9B6BD6'},{naam:'Centrale verdediger',pct:10,kleur:'#4FBFA8'}],
+    dom:{TE:{s:3,t:'gelijk',l:'Prima'},TA:{s:3,t:'gelijk',l:'Prima'},FY:{s:4,t:'op',l:'Sterk'},ME:{s:4,t:'gelijk',l:'Sterk'},GE:{s:4,t:'gelijk',l:'Sterk'}},
+    leerpuntenAantal:1, leerpunten:'Verdedigen van voorzet (TA)',
+    notitie:'Consistente basisspeler, blijft rustig bij tegendoelpunten.' },
+];
+let huidigeSpeler = 0;
+const trendPijl = {op:'↑', gelijk:'→', neer:'↓'};
+
+function renderSpeler(i){
+  const p = ROSTER[i];
+  document.getElementById('svShirt').textContent = p.rug;
+  document.getElementById('svNaam').textContent = p.naam;
+  document.getElementById('svPositie').textContent = p.positie;
+  document.getElementById('svOpkomst').textContent = p.opkomst+'%';
+  document.getElementById('svSpeeltijd').textContent = p.speeltijd+'%';
+  document.getElementById('svReserve').textContent = p.reserve+'%';
+  document.getElementById('svLaatsteKort').textContent = p.laatsteKort;
+  document.getElementById('svLaatsteDatum').textContent = p.laatsteDatum;
+
+  const topPos = p.posities[0];
+  document.getElementById('svTekstKort').innerHTML =
+    `<b>${p.opkomst}%</b> opkomst · <b>${p.speeltijd}%</b> speeltijd · meestal <b>${topPos.naam}</b> · gem. laatste ronde <b style="color:var(--n${p.dom.TE.s})">${p.dom.TE.l} ${trendPijl[p.dom.TE.t]}</b>`;
+
+  document.getElementById('svPosBalk').innerHTML = p.posities.map(pos => `<div style="width:${pos.pct}%;background:${pos.kleur}"></div>`).join('');
+  document.getElementById('svPosLegend').innerHTML = p.posities.map(pos => `<span><span class="dot" style="background:${pos.kleur}"></span>${pos.naam} · ${pos.pct}%</span>`).join('');
+
+  document.getElementById('svDomRij').innerHTML = ['TE','TA','FY','ME','GE'].map(d => {
+    const g = p.dom[d];
+    return `<div class="dom-mini" data-dom-klik="${d}"><div class="id">${d}</div><div class="stip kn${g.s}">${g.s}</div><div class="trend ${g.t}">${trendPijl[g.t]} ${g.l}</div></div>`;
+  }).join('');
+
+  document.getElementById('svLeerpuntenAantal').textContent = p.leerpuntenAantal ? `${p.leerpuntenAantal} open leerpunten` : 'Geen open leerpunten';
+  document.getElementById('svLeerpuntenTekst').textContent = p.leerpuntenAantal ? p.leerpunten : '';
+  document.getElementById('svNotitie').textContent = p.notitie;
+
+  // Nieuwe speler = nog geen scores/toelichting voor dít moment: formulier leegmaken.
+  document.querySelectorAll('.mini-schaal [data-niv].gekozen').forEach(b => b.classList.remove('gekozen'));
+  document.querySelectorAll('#kaarten textarea').forEach(t => t.value = '');
+}
+
+function toonSpelerLijst(){
+  document.getElementById('spelerLijst').innerHTML = ROSTER.map((p, i) => `
+    <div class="speler-rij ${i===huidigeSpeler?'huidig':''}" data-idx="${i}">
+      <div class="mini-shirt">${p.rug}</div>
+      <div class="sp-info"><div class="sp-naam">${p.naam}</div><div class="sp-pos">${p.positie}</div></div>
+      ${i===huidigeSpeler ? '<span class="sp-badge">nu open</span>' : ''}
+    </div>`).join('');
+  document.getElementById('spelerPopup').classList.add('toon');
+}
+document.getElementById('spelerWissel').onclick = toonSpelerLijst;
+document.getElementById('spelerPopupSluit').onclick = () => document.getElementById('spelerPopup').classList.remove('toon');
+document.getElementById('spelerPopup').onclick = e => { if (e.target.id === 'spelerPopup') e.currentTarget.classList.remove('toon'); };
+document.getElementById('spelerLijst').addEventListener('click', e => {
+  const rij = e.target.closest('.speler-rij');
+  if (!rij) return;
+  huidigeSpeler = Number(rij.dataset.idx);
+  renderSpeler(huidigeSpeler);
+  document.getElementById('spelerPopup').classList.remove('toon');
+});
+
+// ── Autosave: elke wijziging (score, toelichting, moment) slaat direct op ──
+let autosaveTimer = null;
+function autosave(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => {
+    const t = document.getElementById('autosaveToast');
+    t.classList.add('toon');
+    setTimeout(() => t.classList.remove('toon'), 1600);
+  }, 500);
+}
+document.getElementById('icAutosave').innerHTML = ICO('action-check', 15);
+document.querySelectorAll('.mini-schaal').forEach(sch => sch.addEventListener('click', e => { if (e.target.closest('[data-niv]')) autosave(); }));
+document.querySelectorAll('#kaarten textarea').forEach(t => t.addEventListener('input', autosave));
+document.getElementById('momentVeld').addEventListener('input', autosave);
+
+// ── Moment vergrendelen: zolang clubbeheer een campagnemoment (bijv. de
+// Najaarsevaluatie) heeft klaargezet, kan een coach de naam niet wijzigen.
+// Buiten zo'n moment mag de coach zelf een naam kiezen. ──
+let momentVergrendeld = true;
+function pasMomentToe(){
+  document.getElementById('momentVergrendeldWeergave').style.display = momentVergrendeld ? 'flex' : 'none';
+  document.getElementById('momentVeld').style.display = momentVergrendeld ? 'none' : 'block';
+  document.getElementById('momentCaption').style.display = momentVergrendeld ? 'block' : 'none';
+  document.getElementById('momentPreviewToggle').textContent = momentVergrendeld
+    ? 'Preview: moment sluiten (mockup-only)'
+    : 'Preview: moment heropenen (mockup-only)';
+  if (!momentVergrendeld) document.getElementById('momentVeld').value = '';
+}
+document.getElementById('momentPreviewToggle').onclick = () => {
+  momentVergrendeld = !momentVergrendeld;
+  pasMomentToe();
+};
+pasMomentToe();
+
+
+// ── "Opslaan en volgende speler": alles staat al automatisch opgeslagen, dus dit stuurt vooral door ──
+const volgendeBtn = document.querySelector('.knop.fluo');
+volgendeBtn.innerHTML = `Opslaan en volgende speler ${ICO('navigation-forward', 17)}`;
+volgendeBtn.onclick = () => {
+  autosave();
+  huidigeSpeler = (huidigeSpeler + 1) % ROSTER.length;
+  renderSpeler(huidigeSpeler);
+  document.querySelector('.modal-body').scrollTo({top:0, behavior:'auto'});
+};
+
+renderSpeler(0);
+
+
+// ── Popup ──
+const popup = document.getElementById('popup');
+const popupDoos = document.querySelector('.popup-doos');
+
+function matrixBalk(kolomIdx){
+  return `<div class="matrix-rij">${BRACKETS.map((_,i) =>
+    `<span class="matrix-cel ${i>=kolomIdx?'aan':''}"></span>`).join('')}</div>`;
+}
+function matrixHeader(){
+  return `<div class="matrix-rij matrix-labels">${BRACKETS.map(b =>
+    `<span>${b.replace('O','').replace('/O','/')}</span>`).join('')}</div>`;
+}
+
+function toonDomeinPopup(domId){
+  const dom = DOMEINEN.find(d => d.id === domId);
+  const themas = Object.entries(THEMA_MATRIX).filter(([naam,t]) => t.domein === domId);
+  const citaten = CITATEN[domId] || [];
+  document.getElementById('popDom').textContent = dom.id + ' · ' + dom.naam;
+  document.getElementById('popTitel').textContent = dom.naam;
+  document.getElementById('popBeleid').style.display = 'none';
+  document.getElementById('popSkill4').style.display = 'none';
+
+  const citatenHtml = citaten.length ? `
+    <div class="popup-let" style="margin:14px 0 8px">Letterlijk uit het jeugdbeleidsplan</div>
+    ${citaten.map(c => `<div class="citaat-kaart">&ldquo;${c.tekst}&rdquo;<span class="citaat-bron">${c.bron}</span></div>`).join('')}` : '';
+
+  if (!themas.length){
+    document.getElementById('popTekst').innerHTML =
+      `${dom.omschrijving}<div class="popup-let">${dom.naam} heeft geen §3.3-thema's — dit domein staat niet als aparte leercurve in het plan.</div>${citatenHtml}`;
+    return;
+  }
+  const kaarten = themas.map(([naam,t]) => `
+    <div class="thema-kaart">
+      <div class="thema-kop"><b>${naam}</b></div>
+      ${matrixBalk(t.kolomIdx)}
+    </div>`).join('');
+  document.getElementById('popTekst').innerHTML = `
+    ${dom.omschrijving}
+    <div class="popup-scroll" style="margin-top:12px">
+      <div class="popup-let">§3.3 Leercurve — vanaf welke leeftijd dit thema meetelt (p.10)</div>
+      ${matrixHeader()}
+      ${kaarten}
+      ${citatenHtml}
+    </div>`;
+}
+
+document.getElementById('kaarten').addEventListener('click', e => {
+  const mini = e.target.closest('.dom-mini');
+  if (mini){ toonDomeinPopup(mini.dataset.domKlik); popup.classList.add('toon'); return; }
+  const btn = e.target.closest('.info-knop');
+  if (!btn) return;
+  const dom = DOMEINEN.find(d => d.id === btn.dataset.dom);
+  if (btn.dataset.type === 'domein'){
+    toonDomeinPopup(dom.id);
+  } else {
+    document.getElementById('popDom').textContent = dom.id + ' · ' + dom.naam;
+    const c = dom.criteria[btn.dataset.idx];
+    document.getElementById('popTitel').textContent = c.naam;
+    document.getElementById('popTekst').textContent = c.uitleg;
+    const beleid = document.getElementById('popBeleid');
+    const bt = beleidTekst(c);
+    if (bt){
+      document.getElementById('popBeleidTekst').textContent = bt;
+      beleid.style.display = 'flex';
+    } else {
+      beleid.style.display = 'none';
+    }
+    const skill4box = document.getElementById('popSkill4');
+    if (c.skill4){
+      document.getElementById('popSkill4Tekst').textContent = c.skill4;
+      skill4box.style.display = 'flex';
+    } else {
+      skill4box.style.display = 'none';
+    }
+  }
+  popup.classList.add('toon');
+});
+// dom-mini's zitten ook buiten #kaarten (in de samenvatting) — apart afvangen
+document.getElementById('samenvatting').addEventListener('click', e => {
+  const mini = e.target.closest('.dom-mini');
+  if (!mini) return;
+  toonDomeinPopup(mini.dataset.domKlik);
+  popup.classList.add('toon');
+});
+document.getElementById('popSluit').onclick = () => popup.classList.remove('toon');
+popup.onclick = e => { if (e.target === popup) popup.classList.remove('toon'); };
+
+// ==================== ONBOARDING / RONDLEIDING ====================
+// Zelfde principe als de echte onboarding.js: spotlight (waas + ring) rond
+// een bestaand element, een bubbel met uitleg, en waar zinvol wachten op een
+// ECHTE actie i.p.v. alleen "Volgende" klikken.
+const OB_STAPPEN = [
+  { icoon:'training-plan', titel:'Spelersamenvatting', doel:() => document.getElementById('samenvatting'),
+    tekst:'Boven elke beoordeling zie je opkomst, speeltijd/reserve, de meest gespeelde posities en de gemiddelde score van vorige beoordelingen — altijd zichtbaar, in één oogopslag.' },
+  { icoon:'team-player', titel:'Wissel van speler', doel:() => document.getElementById('spelerWissel'),
+    tekst:'Tik op de naam om meteen naar een andere speler van het team te springen — handig om snel door de hele selectie te scrollen.' },
+  { icoon:'planning-calendar', titel:'Moment', doel:() => momentVergrendeld ? document.getElementById('momentVergrendeldWeergave') : document.getElementById('momentVeld'),
+    tekst:'De naam van het beoordelingsmoment. Zet de club een moment klaar (zoals nu de Najaarsevaluatie), dan staat de naam vast voor alle coaches — daarbuiten mag je zelf een naam kiezen.' },
+  { icoon:'football-ball', titel:'De 5 domeinen', doel:() => document.querySelector('#kaarten .kaart[data-dom="TE"] .veldlabel'),
+    tekst:'Elk domein (Technisch, Tactisch, Fysiek, Mentaal, Gedrag & beleving) heeft eigen criteria. Tik op de <b>ⓘ</b> naast de domeinnaam voor de volledige uitleg uit het jeugdbeleidsplan, met bronvermelding.',
+    doelExtra:() => document.querySelector('#kaarten .kaart[data-dom="TE"] .info-knop[data-type="domein"]') },
+  { icoon:'tag-duel', titel:'Score geven', doel:() => document.querySelector('#kaarten .kaart[data-dom="TE"] .mini-schaal[data-crit="TE-0"]'),
+    tekst:'Elk criterium scoor je apart, van Aandacht tot Uitblinker. Alles wordt automatisch opgeslagen, je hoeft dus nooit tussentijds op te slaan.',
+    opdracht:'Tik op een niveau voor Balbehandeling / -controle', wacht: klaar => eenmaligeKlik('#kaarten .kaart[data-dom="TE"] .mini-schaal[data-crit="TE-0"] [data-niv]', klaar) },
+  { icoon:'communication-chat', titel:'Toelichting', doel:() => document.querySelector('#kaarten .kaart[data-dom="TE"] textarea'),
+    tekst:'Per domein is er ruimte voor een korte toelichting — handig voor het gesprek met speler of ouders.' },
+  { icoon:'stats-bars', titel:'Domein-gemiddelden', doel:() => document.querySelector('.dom-mini[data-dom-klik="TE"]'),
+    tekst:'De cirkels bovenin tonen het gemiddelde over eerdere beoordelingen, met een pijltje voor de trend. Ook hier: tikken opent de volledige beleidsplan-info.' },
+  { icoon:'navigation-forward', titel:'Volgende speler', doel:() => document.querySelector('.knop.fluo'),
+    tekst:'Alles staat al automatisch opgeslagen — deze knop stuurt je direct door naar de volgende speler in het team.' },
+];
+
+function eenmaligeKlik(selector, klaar){
+  const h = e => { if (e.target.closest(selector)){ document.removeEventListener('click', h, true); klaar(); } };
+  document.addEventListener('click', h, true);
+  return () => document.removeEventListener('click', h, true);
+}
+
+const ob = { i:0, stopWacht:null };
+
+function obPlaatsSpotlight(el){
+  const ring = document.getElementById('obRing');
+  document.getElementById('obOverlay').classList.add('aan');
+  if (!el){
+    ['obWaasT','obWaasB','obWaasL','obWaasR'].forEach((id,idx) => {
+      const p = document.getElementById(id);
+      p.style.cssText = idx===0 ? 'display:block;inset:0' : 'display:none';
+    });
+    ring.style.display = 'none';
+    return;
+  }
+  const r = el.getBoundingClientRect();
+  const pad = 8, vw = innerWidth, vh = innerHeight;
+  const top = Math.max(0, r.top-pad), bot = Math.max(top, Math.min(vh, r.bottom+pad));
+  const lef = Math.max(0, r.left-pad), rig = Math.max(lef, Math.min(vw, r.right+pad));
+  Object.assign(document.getElementById('obWaasT').style, {display:'block',left:'0',top:'0',width:vw+'px',height:top+'px'});
+  Object.assign(document.getElementById('obWaasB').style, {display:'block',left:'0',top:bot+'px',width:vw+'px',height:Math.max(0,vh-bot)+'px'});
+  Object.assign(document.getElementById('obWaasL').style, {display:'block',left:'0',top:top+'px',width:lef+'px',height:Math.max(0,bot-top)+'px'});
+  Object.assign(document.getElementById('obWaasR').style, {display:'block',left:rig+'px',top:top+'px',width:Math.max(0,vw-rig)+'px',height:Math.max(0,bot-top)+'px'});
+  ring.style.display = 'block'; ring.classList.add('puls');
+  Object.assign(ring.style, {left:lef+'px', top:top+'px', width:(rig-lef)+'px', height:(bot-top)+'px'});
+}
+
+function obPlaatsBubbel(el){
+  const b = document.getElementById('obBubbel');
+  if (!el){ b.style.left=''; b.style.top=''; b.classList.add('midden'); return; }
+  b.classList.remove('midden'); b.style.left=''; b.style.top='';
+  void b.offsetWidth;
+  const r = el.getBoundingClientRect();
+  const bw = b.offsetWidth, bh = b.offsetHeight, vw = innerWidth, vh = innerHeight, m = 12;
+  const maxLeft = Math.max(m, vw-bw-m);
+  const left = Math.min(Math.max(m, r.left + r.width/2 - bw/2), maxLeft);
+  const onder = r.bottom+14, boven = r.top-bh-14, maxTop = Math.max(m, vh-bh-m);
+  let top;
+  if (onder+bh < vh-m) top = onder;
+  else if (boven >= m) top = boven;
+  else top = (vh-r.bottom >= r.top) ? r.bottom+14 : r.top-bh-14;
+  top = Math.min(Math.max(m, top), maxTop);
+  b.style.left = left+'px'; b.style.top = top+'px';
+}
+
+function obToonStap(){
+  if (ob.stopWacht){ ob.stopWacht(); ob.stopWacht = null; }
+  const stap = OB_STAPPEN[ob.i];
+  const el = stap.doel();
+  if (el) el.scrollIntoView({block:'center', behavior:'auto'});
+  const render = () => {
+    obPlaatsSpotlight(stap.doelExtra ? stap.doelExtra() : el);
+    obPlaatsBubbel(el);
+    const b = document.getElementById('obBubbel');
+    b.innerHTML = `
+      <div class="ob-b-label"><span class="ob-b-label-dot"></span>Uitleg</div>
+      <div class="ob-b-kop"><span class="ob-b-emoji">${ICO(stap.icoon,22)}</span><span class="ob-b-titel">${stap.titel}</span><span class="ob-b-stap">${ob.i+1}/${OB_STAPPEN.length}</span></div>
+      <div class="ob-b-tekst">${stap.tekst}</div>
+      ${stap.opdracht ? `<div class="ob-b-opdr"><span class="ob-pijltje">➜</span>${stap.opdracht}</div>` : ''}
+      <div class="ob-b-voet">
+        <div class="ob-links">
+          <button class="ob-knop sec mini" id="obVorig" ${ob.i===0?'disabled':''}>‹ Vorige</button>
+          <button class="ob-knop sec mini" id="obOversla">Overslaan</button>
+        </div>
+        <button class="ob-knop prim ${stap.wacht?'wacht':''}" id="obVolgend">${stap.wacht ? 'Doe dit even' : (ob.i===OB_STAPPEN.length-1 ? 'Afronden ✓' : 'Volgende ›')}</button>
+      </div>`;
+    b.classList.add('aan');
+    document.getElementById('obVorig').onclick = () => { ob.i--; obToonStap(); };
+    document.getElementById('obOversla').onclick = obStop;
+    const volgend = document.getElementById('obVolgend');
+    if (stap.wacht){
+      volgend.disabled = true;
+      ob.stopWacht = stap.wacht(() => {
+        volgend.disabled = false; volgend.classList.remove('wacht');
+        volgend.textContent = ob.i===OB_STAPPEN.length-1 ? 'Afronden ✓' : 'Volgende ›';
+        // Doel kan van vorm/positie veranderd zijn door de actie (bv. inklappen) — herpositioneer.
+        requestAnimationFrame(() => {
+          const elNu = stap.doel();
+          obPlaatsSpotlight(stap.doelExtra ? stap.doelExtra() : elNu);
+          obPlaatsBubbel(elNu);
+        });
+      });
+    }
+    volgend.onclick = () => { if (ob.i === OB_STAPPEN.length-1) obKlaarScherm(); else { ob.i++; obToonStap(); } };
+    document.getElementById('obVul').style.width = ((ob.i+1)/OB_STAPPEN.length*100)+'%';
+    document.getElementById('obBadge').textContent = (ob.i+1)+'/'+OB_STAPPEN.length;
+  };
+  document.getElementById('obBubbel').classList.remove('aan');
+  requestAnimationFrame(() => requestAnimationFrame(render));
+}
+
+function obStart(){
+  document.getElementById('obIntro').classList.remove('aan');
+  setTimeout(() => document.getElementById('obIntro').style.display = 'none', 400);
+  document.getElementById('obHud').style.display = 'flex';
+  ob.i = 0;
+  obToonStap();
+  try{ localStorage.setItem('cluppie_ob_volledige_gezien','1'); }catch(e){}
+}
+function obStop(){
+  if (ob.stopWacht){ ob.stopWacht(); ob.stopWacht = null; }
+  document.getElementById('obOverlay').classList.remove('aan');
+  document.getElementById('obRing').style.display = 'none';
+  document.getElementById('obBubbel').classList.remove('aan');
+  document.getElementById('obHud').style.display = 'none';
+  document.getElementById('obIntro').style.display = 'none';
+  try{ localStorage.setItem('cluppie_ob_volledige_gezien','1'); }catch(e){}
+}
+function obKlaarScherm(){
+  obStop();
+  const k = document.getElementById('obKlaar');
+  k.style.display = 'flex';
+  requestAnimationFrame(() => k.classList.add('aan'));
+}
+document.getElementById('obKlaarOk').onclick = () => {
+  const k = document.getElementById('obKlaar');
+  k.classList.remove('aan');
+  setTimeout(() => k.style.display = 'none', 400);
+};
+document.getElementById('obStart').onclick = obStart;
+document.getElementById('obSkip').onclick = () => {
+  document.getElementById('obIntro').classList.remove('aan');
+  setTimeout(() => document.getElementById('obIntro').style.display = 'none', 400);
+  try{ localStorage.setItem('cluppie_ob_volledige_gezien','1'); }catch(e){}
+};
+document.getElementById('obSluit').onclick = obStop;
+document.getElementById('obHerstart').onclick = () => {
+  document.getElementById('obIntro').style.display = 'flex';
+  requestAnimationFrame(() => document.getElementById('obIntro').classList.add('aan'));
+};
+window.addEventListener('resize', () => { if (document.getElementById('obHud').style.display==='flex') obToonStap(); });
+
+// Eerste keer: toon de intro automatisch (na de content, zodat targets bestaan)
+let algemeenGezien = false;
+try{ algemeenGezien = localStorage.getItem('cluppie_ob_volledige_gezien') === '1'; }catch(e){}
+if (!algemeenGezien){
+  const intro = document.getElementById('obIntro');
+  intro.style.display = 'flex';
+  requestAnimationFrame(() => intro.classList.add('aan'));
+}
+</script>
+</body>
+</html>
