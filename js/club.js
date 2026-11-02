@@ -18,7 +18,8 @@ import { startClubContentListener, htmlClubContent, koppelClubContent } from './
 import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261023a';
 import { telGebruik, telNav } from './tracker.js?v=20261023a';
 import { ico } from './icons.js?v=20260922c';
-import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261023a';
+import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261102a';
+import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261102a';
 import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261023b';
 import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261023b';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261023a';
@@ -53,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261023c'); }
+async function teamsModule(){ return await import('./teams.js?v=20261102a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -99,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261023c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261102a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1037,7 +1038,7 @@ async function renderClub(opts = {}){
   else if (tab === 'teams')      inhoud = htmlTeamsBeheer(teams, syncStatus);
   else if (tab === 'teambeheer') inhoud = htmlTeamBeheer(teams.find(t => t.id === S._cbTeam), syncStatus, teams);
   else if (tab === 'bouwen')     inhoud = `${htmlBouwIndeling(teams)}${htmlEigenBouwenBeheer(teams)}`;
-  else if (tab === 'coaches')    inhoud = htmlCoaches(teams);
+  else if (tab === 'coaches')    inhoud = htmlTraincoKaart(teams) + htmlCoaches(teams);
   else if (tab === 'afgelasten') inhoud = htmlClubAfgelasten(teams, afgelastingen);
   else if (tab === 'evals' || tab === 'ronde'){
     const rondes = rondesVan(S.club);
@@ -1138,7 +1139,7 @@ async function renderClub(opts = {}){
     sportlink: team => modalSportlinkTeam(team, teams),
     naarBouwen: () => naarClubTab('bouwen'),
   });
-  if (tab === 'coaches') koppelCoaches(v, { herteken: hertekenClub, openBeheer });
+  if (tab === 'coaches'){ koppelTraincoKaart(v, { herteken: hertekenClub }); koppelCoaches(v, { herteken: hertekenClub, openBeheer }); }
   if (tab === 'bouwen'){ koppelBouwIndeling(v, teams); koppelEigenBouwenBeheer(v, teams); }
   if (tab === 'evals'){
     v.querySelector('#rondeNieuw')?.addEventListener('click', () => { startConcept(null); naarClubTab('rondeform'); });
