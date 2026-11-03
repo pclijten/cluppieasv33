@@ -13,9 +13,9 @@
 
    De filterkeuze (1e / 2e / totaal) leeft runtime op S._elftalFilter, zodat
    state.js niet geraakt wordt. */
-import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261103b';
+import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
 import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { analyseWedstrijd } from './analyse.js?v=20261103b';
+import { analyseWedstrijd } from './analyse.js?v=20261103e';
 
 /* ---------- basis ---------- */
 export function heeftElftallen(team = S.team){ return !!(team && team.tweedeElftal); }
