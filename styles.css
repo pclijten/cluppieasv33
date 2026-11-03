@@ -5726,6 +5726,7 @@ html.desk .uq-label{bottom:24px;right:24px}
   .tc-link:hover{background:var(--op-vlak);color:var(--ink)}
   .tc-link.actief{background:var(--op-vlak-2);color:var(--ink);font-weight:600}
   .tc-link.actief svg{color:var(--accent)}
+  .tc-terugapp{margin-bottom:6px;color:var(--ink)}
   .tc-ik{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line-d);padding:10px 0 0 4px}
   .tc-ik > span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column}
   .tc-ik b{font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
