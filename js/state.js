@@ -269,6 +269,9 @@ function kanTerug(){
   if (lightboxOpen()) return true;
   if (pdfViewerOpen()) return true;
   if (modalOpen()) return true;
+  /* [20261103] Trainingscoördinator-scherm (trainco.js) legt zijn eigen
+     terug-stappen hier neer; zo hoeft state.js trainco.js niet te importeren. */
+  if (S._traincoTerug) return S._traincoTerug.kan();
   const view = actieveView();
   if (view !== 'teams') return true;          // team / wedstrijd / club
   return false;                                // op het hoofdscherm
@@ -310,28 +313,29 @@ export function bewaakTerug(){
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20261103b').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20261103e').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
   if (tactiekbordOpen()){
-    import('./tactiekbord.js?v=20261103b').then(m => m.sluitTactiekbord());
+    import('./tactiekbord.js?v=20261103e').then(m => m.sluitTactiekbord());
     return true;
   }
   if (leerpleinOpen()){
-    import('./leerplein.js?v=20261103b').then(m => m.sluitLeerplein());
+    import('./leerplein.js?v=20261103e').then(m => m.sluitLeerplein());
     return true;
   }
   if (lightboxOpen()){
-    import('./training-weergave.js?v=20261103b').then(m => m.sluitLightbox());
+    import('./training-weergave.js?v=20261103e').then(m => m.sluitLightbox());
     return true;
   }
   if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20261103b').then(m => m.sluitPdfViewer());
+    import('./pdf-viewer.js?v=20261103e').then(m => m.sluitPdfViewer());
     return true;
   }
   if (modalOpen()){ sluitModal(); return true; }
+  if (S._traincoTerug) return S._traincoTerug.stap();
   const view = actieveView();
   if (view === 'team' && (S._beoordeelProfiel || S._leenProfiel)){
     S._beoordeelProfiel = null; S._leenProfiel = null; S._profielTab = 'overzicht';

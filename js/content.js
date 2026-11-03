@@ -31,7 +31,7 @@
 import {
   db, collection, doc, setDoc, deleteDoc, query, where, onSnapshot
 } from './firebase.js?v=20260922c';
-import { listenMet } from './state.js?v=20261103b';
+import { listenMet } from './state.js?v=20261103e';
 
 let _gepubliceerd = [];   // wat coaches te zien krijgen
 let _alles = [];          // incl. concepten — alleen gebruikt door het admin-tabblad

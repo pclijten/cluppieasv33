@@ -19,12 +19,12 @@
    Rechten staan in firestore.rules (zie TRAININGSCOORDINATOR-RULES.md); dit
    bestand levert alleen de weergave. */
 import { auth, db, signOut, collection, query, where, onSnapshot, getDocs } from './firebase.js?v=20260922c';
-import { S, esc } from './state.js?v=20261103b';
-import { BOUWEN, isoWeek, youtubeId, youtubeThumb, youtubeWatch } from './config.js?v=20261103b';
-import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103b';
-import { oefHtml, bronHtml, diagramVoorOefening, openLightbox } from './training-weergave.js?v=20261103b';
+import { S, esc, bewaakTerug } from './state.js?v=20261103e';
+import { BOUWEN, isoWeek, youtubeId, youtubeThumb, youtubeWatch } from './config.js?v=20261103e';
+import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103e';
+import { oefHtml, bronHtml, diagramVoorOefening, openLightbox } from './training-weergave.js?v=20261103e';
 import { ico } from './icons.js?v=20260922c';
-import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261103b';
+import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261103e';
 
 const T = {
   club: null, teams: [], trainingen: [], videos: [], laden: { teams: true, trainingen: true }, fout: '',
@@ -75,6 +75,19 @@ export function bootTrainco(club, voorbeeld, vanuitApp = false){
   if (T.el) return;
   T.club = club; T.voorbeeld = !!voorbeeld; T.vanuitApp = !!vanuitApp;
   T.laden = { teams: true, trainingen: true }; T.fout = ''; T.detail = null; T.pagina = 'week'; T.weekOffset = 0;
+  T.stapel = [];
+  /* Terugknop van de telefoon: één stap terug binnen dit scherm (training →
+     lijst, pagina → vorige pagina). Vanuit de coach-app geopend en niets meer
+     terug te gaan → terug naar het team. Zie bewaakTerug() in state.js. */
+  S._traincoTerug = {
+    kan: () => T.stapel.length > 0 || T.vanuitApp,
+    stap: () => {
+      const vorige = T.stapel.pop();
+      if (vorige){ Object.assign(T, vorige); teken(); naarBoven(); return true; }
+      if (T.vanuitApp){ sluitTrainco(); return true; }
+      return false;
+    },
+  };
   // bouwVanTeam() leest de club-indeling uit S.club; de coach-app krijgt zijn
   // eigen waarden terug bij sluitTrainco().
   T.oud = { club: S.club, clubId: S.clubId };
@@ -456,8 +469,10 @@ function teken(){
     </div>
     <nav class="tc-onder" aria-label="Menu">${MENU.map(([id, n, ic]) => `<button class="${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 22)}<span>${n}</span></button>`).join('')}</nav>`;
   const h = T.el.querySelector('.tc-hoofd'); if (h) h.scrollTop = sy;
+  bewaakTerug();
 }
 
+function bewaar(){ T.stapel.push({ pagina: T.pagina, detail: T.detail }); if (T.stapel.length > 30) T.stapel.shift(); }
 function naarBoven(){ const h = T.el?.querySelector('.tc-hoofd'); if (h) h.scrollTop = 0; }
 function klik(e){
   const fig = e.target.closest('.trw-diagram[data-zoom]');
@@ -465,12 +480,14 @@ function klik(e){
   const b = e.target.closest('button,a'); if (!b || !T.el.contains(b)) return;
   const d = b.dataset;
   if (d.tcBouw){ T.bouw = d.tcBouw; teken(); }
-  else if (d.tcPagina){ T.pagina = d.tcPagina; T.detail = null; teken(); naarBoven(); }
+  else if (d.tcPagina){ if (d.tcPagina === T.pagina && !T.detail) return; bewaar(); T.pagina = d.tcPagina; T.detail = null; teken(); naarBoven(); }
   else if (d.tcWeek !== undefined){ T.weekOffset = d.tcWeek === '0' ? 0 : T.weekOffset + Number(d.tcWeek); teken(); }
-  else if (d.tcOpen){ T.detail = d.tcOpen; teken(); naarBoven(); }
+  else if (d.tcOpen){ bewaar(); T.detail = d.tcOpen; teken(); naarBoven(); }
   else if (d.tcNaar){ e.preventDefault(); T.el.querySelector('#' + d.tcNaar)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (d.tcZoom){ openLightbox(d.tcZoom, d.tcZoomtitel); }
-  else if (b.hasAttribute('data-tc-terug')){ T.detail = null; teken(); naarBoven(); }
+  // Zelfde weg als de terugknop van de telefoon (vangnet in state.js), zodat
+  // beide altijd precies één stap teruggaan.
+  else if (b.hasAttribute('data-tc-terug')){ history.back(); }
   else if (b.hasAttribute('data-tc-naarapp')){ sluitTrainco(); }
   else if (b.hasAttribute('data-tc-uitloggen')){
     T.unsub.forEach(u => { try { u(); } catch(err){} }); T.unsub = [];
@@ -485,5 +502,7 @@ export function sluitTrainco(){
   T.unsub.forEach(u => { try { u(); } catch(err){} }); T.unsub = [];
   T.el.remove(); T.el = null;
   if (T.oud){ S.club = T.oud.club; S.clubId = T.oud.clubId; T.oud = null; }
+  S._traincoTerug = null; T.stapel = [];
   const app = document.getElementById('app'); if (app) app.style.display = '';
+  bewaakTerug();
 }
