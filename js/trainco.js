@@ -1,9 +1,10 @@
 /* ==================== TRAININGSCOÖRDINATOR ====================
    Eigen, alleen-lezen scherm voor de trainingscoördinator. Menu:
-     • Weekplanning  — per dag: welk team traint wanneer, met welke training
-     • Overzicht     — tabel team × dag per week; laat zien waar een training ontbreekt
-     • Trainingen    — alle trainingen per week; detail met inhoudsopgave,
-                       oefenvormen (diagrammen), de uitgewerkte training en de PDF
+     • Week          — per week: de trainingen van die week (kaarten) en het
+                       schema per team (tabel) of per dag (lijst), met rood waar
+                       een team traint maar geen training heeft. Filter per
+                       teamsoort (O8, MO10, …). Detail: inhoudsopgave,
+                       oefenvormen, de uitgewerkte training en de PDF
      • Video's       — de video's die de club aan teams heeft gekoppeld
 
    Bewust een los scherm naast de coach-app (eigen container #tc-app): het
@@ -28,8 +29,10 @@ import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?
 
 const T = {
   club: null, teams: [], trainingen: [], videos: [], laden: { teams: true, trainingen: true }, fout: '',
-  pagina: 'week',         // 'week' | 'overzicht' | 'trainingen' | 'videos'
-  bouw: 'alle',           // 'alle' | bouw-id | eigen-bouw-id
+  pagina: 'week',         // 'week' | 'videos'
+  groep: 'alle',          // 'alle' | teamsoort (O8, MO10, …)
+  schema: null,           // 'team' | 'dag' | null = kies op schermbreedte
+  alleenMist: false,      // alleen ontbrekende trainingen tonen
   weekOffset: 0,          // weken t.o.v. nu, voor de weekplanning
   detail: null,           // trainingId
   voorbeeld: false,       // beheerder kijkt mee
@@ -76,6 +79,7 @@ export function bootTrainco(club, voorbeeld, vanuitApp = false){
   T.club = club; T.voorbeeld = !!voorbeeld; T.vanuitApp = !!vanuitApp;
   T.laden = { teams: true, trainingen: true }; T.fout = ''; T.detail = null; T.pagina = 'week'; T.weekOffset = 0;
   T.stapel = [];
+  try { T.groep = localStorage.getItem('cluppie_trainco_groep') || 'alle'; } catch(e){ T.groep = 'alle'; }
   /* Terugknop van de telefoon: één stap terug binnen dit scherm (training →
      lijst, pagina → vorige pagina). Vanuit de coach-app geopend en niets meer
      terug te gaan → terug naar het team. Zie bewaakTerug() in state.js. */
@@ -187,25 +191,32 @@ function maandagNu(offset){
 }
 const plusDagen = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 
-/* ---------- groepen (bouwen) ---------- */
-function teamInFilter(team){
-  if (T.bouw === 'alle') return true;
-  if (BOUWEN.some(b => b.id === T.bouw)) return bouwVanTeam(team) === T.bouw;
-  return eigenBouwenVanTeam(team).some(b => b.id === T.bouw);
+/* ---------- groepen ----------
+   Filter per teamsoort: de teamnaam zonder volgnummer (O8-2 → O8, MO10-1 → MO10).
+   bouwNaamVan() blijft voor de kopjes in de tabel. */
+const groepVan = team => String(team.naam || '').trim().replace(/\s*-\s*\d+\s*$/, '') || 'Overig';
+function groepSleutel(g){
+  const m = g.match(/^([A-Za-z]*)(\d+)/);
+  if (!m) return [3, 0, g];
+  const p = m[1].toUpperCase();
+  return [p === 'O' || p === 'JO' ? 0 : p === 'MO' ? 1 : 2, Number(m[2]), g];
 }
+function vergelijkGroep(a, b){
+  const x = groepSleutel(a), y = groepSleutel(b);
+  return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2], 'nl');
+}
+function teamInFilter(team){ return T.groep === 'alle' || groepVan(team) === T.groep; }
 function bouwNaamVan(team){
   const b = bouwVanTeam(team);
   if (b === ALLEEN_EIGEN) return eigenBouwenVanTeam(team)[0]?.naam || 'Overig';
   return BOUWEN.find(x => x.id === b)?.naam || 'Overig';
 }
-/* Filteropties met aantallen. Basis = de teams die op deze pagina meetellen. */
 function filterOpties(teams){
-  const std = BOUWEN.map(b => ({ id: b.id, naam: b.naam, n: teams.filter(t => bouwVanTeam(t) === b.id).length }));
-  const eigen = (Array.isArray(T.club.eigenBouwen) ? T.club.eigenBouwen : []).filter(b => b?.id)
-    .map(b => ({ id: b.id, naam: b.naam || 'Bouw', n: teams.filter(t => eigenBouwenVanTeam(t).some(x => x.id === b.id)).length }));
-  return [{ id: 'alle', naam: 'Alle teams', n: teams.length }, ...std, ...eigen].filter(o => o.id === 'alle' || o.n);
+  const tel = new Map();
+  for (const t of teams){ const g = groepVan(t); tel.set(g, (tel.get(g) || 0) + 1); }
+  return [{ id: 'alle', naam: 'Alle', n: teams.length }, ...[...tel.keys()].sort(vergelijkGroep).map(g => ({ id: g, naam: g, n: tel.get(g) }))];
 }
-const sorteerTeams = l => [...l].sort((a, b) => (a.naam || '').localeCompare(b.naam || '', 'nl', { numeric: true }));
+const sorteerTeams = l => [...l].sort((a, b) => vergelijkGroep(groepVan(a), groepVan(b)) || (a.naam || '').localeCompare(b.naam || '', 'nl', { numeric: true }));
 
 /* ---------- kleine onderdelen ---------- */
 const spelersTekst = team => Number.isFinite(team.spelersAantal) ? `${team.spelersAantal} spelers` : 'aantal onbekend';
@@ -217,9 +228,9 @@ function kop(meta, titel, extra = ''){
 }
 function filterBalk(teams){
   const opties = filterOpties(teams);
-  if (!opties.some(o => o.id === T.bouw)) T.bouw = 'alle';
-  return `<div class="tc-filters" role="tablist" aria-label="Kies een groep">${opties.map(o =>
-    `<button class="tc-filter${T.bouw === o.id ? ' actief' : ''}" data-tc-bouw="${esc(o.id)}" role="tab" aria-selected="${T.bouw === o.id}">${esc(o.naam)}<span>${o.n}</span></button>`).join('')}</div>`;
+  if (!opties.some(o => o.id === T.groep)) T.groep = 'alle';
+  return `<div class="tc-filters" role="tablist" aria-label="Kies teams">${opties.map(o =>
+    `<button class="tc-filter${T.groep === o.id ? ' actief' : ''}" data-tc-groep="${esc(o.id)}" role="tab" aria-selected="${T.groep === o.id}">${esc(o.naam)}<span>${o.n}</span></button>`).join('')}</div>`;
 }
 function weekNav(){
   const ma = maandagNu(T.weekOffset), zo = plusDagen(ma, 6);
@@ -243,120 +254,116 @@ function vanafLabel(tr){
   return v && /^\d{4}-\d{2}-\d{2}$/.test(v) && v > ymd(new Date()) ? `<span class="tc-label wacht">Voor coaches zichtbaar vanaf ${esc(kortDatum(new Date(v + 'T12:00')))}</span>` : '';
 }
 
-/* ---------- pagina: weekplanning (per dag) ---------- */
-function htmlWeek(alle){
-  const ma = maandagNu(T.weekOffset), zo = plusDagen(ma, 6);
-  const rijen = alle.filter(p => teamInFilter(p.team) && p.datum && ymd(p.datum) >= ymd(ma) && ymd(p.datum) <= ymd(zo));
-  const dagen = [0, 1, 2, 3, 4, 5, 6].map(i => ({ d: plusDagen(ma, i), items: rijen.filter(p => ymd(p.datum) === ymd(plusDagen(ma, i))) }))
-    .filter((x, i) => i < 5 || x.items.length);
+/* ---------- pagina: week ----------
+   Eén scherm voor de hele week: bovenaan de trainingen van deze week,
+   daaronder het schema per team (tabel) of per dag (lijst). In beide staat
+   rood "Ontbreekt" waar een team traint maar geen training heeft. */
+function weekData(alle){
+  const ma = maandagNu(T.weekOffset);
+  const teams = sorteerTeams(T.teams.filter(teamInFilter));
+  const ids = new Set(teams.map(t => t.id));
+  const inWeek = alle.filter(p => ids.has(p.team.id) && p.week && ymd(maandagVan(p.week.nr, p.week.jaar)) === ymd(ma));
+  const ontbreekt = [];
+  for (const t of teams) for (const m of momentenVanTeam(t)){
+    const datum = plusDagen(ma, m.dag - 1);
+    if (!inWeek.some(p => p.team.id === t.id && p.datum && ymd(p.datum) === ymd(datum))) ontbreekt.push({ team: t, datum, moment: m });
+  }
+  const perTr = new Map();
+  for (const p of inWeek){ if (!perTr.has(p.tr.id)) perTr.set(p.tr.id, { tr: p.tr, regels: [] }); perTr.get(p.tr.id).regels.push(p); }
+  const trainingen = [...perTr.values()].sort((a, b) => trTitel(a.tr).localeCompare(trTitel(b.tr), 'nl', { numeric: true }));
+  return { ma, teams, inWeek, ontbreekt, trainingen };
+}
+function htmlTrainingKaart(g){
+  const vormen = oefenvormen(g.tr).slice(0, 4);
+  const teams = sorteerTeams([...new Map(g.regels.map(r => [r.team.id, r.team])).values()]);
+  return `<article class="kaart tc-trkaart">
+    <h2 class="cond tc-h2">${esc(trTitel(g.tr))}</h2>
+    ${vormen.length ? `<button class="tc-mini" data-tc-open="${esc(g.tr.id)}" aria-label="Bekijk ${esc(trTitel(g.tr))}">${vormen.map(v => `<img src="${esc(v.url)}" alt="" loading="lazy">`).join('')}</button>` : ''}
+    <div class="tc-labels">${vormen.length ? `<span class="tc-label">${oefenvormen(g.tr).length} oefenvorm${oefenvormen(g.tr).length === 1 ? '' : 'en'}</span>` : ''}${g.tr.url ? '<span class="tc-label">PDF</span>' : ''}<span class="tc-label">${teams.length} team${teams.length === 1 ? '' : 's'}</span>${vanafLabel(g.tr)}</div>
+    <div class="tc-teamchips">${teams.map(t => `<span>${esc(t.naam)}</span>`).join('')}</div>
+    <button class="knop tc-knop-vol" data-tc-open="${esc(g.tr.id)}">Bekijk training</button>
+  </article>`;
+}
+function htmlSchemaTeam(w){
+  const { ma, teams, inWeek, ontbreekt } = w;
+  const gebruikt = new Set([1, 2, 3, 4, 5]);
+  for (const t of teams) for (const m of momentenVanTeam(t)) gebruikt.add(m.dag);
+  for (const p of inWeek) if (p.datum) gebruikt.add((p.datum.getDay() + 6) % 7 + 1);
+  const dagen = [...gebruikt].sort((a, b) => a - b);
+  const mistTeam = new Set(ontbreekt.map(o => o.team.id));
+  const rijTeams = T.alleenMist ? teams.filter(t => mistTeam.has(t.id)) : teams;
+  const cel = (team, dag) => {
+    const datum = plusDagen(ma, dag - 1);
+    const hier = inWeek.filter(p => p.team.id === team.id && p.datum && ymd(p.datum) === ymd(datum));
+    if (hier.length) return `<td class="tc-cel c-ok">${hier.map(p => `<button data-tc-open="${esc(p.tr.id)}" title="${esc(trTitel(p.tr))}"><b>${esc(trTitel(p.tr))}</b>${tijdVan(p.moment) ? `<small>${esc(tijdVan(p.moment))}</small>` : ''}</button>`).join('')}</td>`;
+    const m = momentenVanTeam(team).find(x => x.dag === dag);
+    if (m) return `<td class="tc-cel c-mist"><span><b>Ontbreekt</b>${tijdVan(m) ? `<small>${esc(tijdVan(m))}</small>` : ''}</span></td>`;
+    return '<td class="tc-cel c-leeg"><span>–</span></td>';
+  };
+  const zonderDag = team => inWeek.filter(p => p.team.id === team.id && !p.datum)
+    .map(p => `<button class="tc-zonderdag" data-tc-open="${esc(p.tr.id)}">${esc(trTitel(p.tr))} · geen dag</button>`).join('');
+  const groepen = new Map();
+  for (const t of rijTeams){ const g = bouwNaamVan(t); if (!groepen.has(g)) groepen.set(g, []); groepen.get(g).push(t); }
+  const rij = t => `<tr>
+      <th scope="row" class="tc-teamcel"><b class="cond">${esc(t.naam)}</b><small>${esc(spelersTekst(t))}${momentenVanTeam(t).length ? '' : ' · <em>geen trainingsdag</em>'}</small>${zonderDag(t)}</th>
+      ${dagen.map(d => cel(t, d)).join('')}</tr>`;
+  const body = [...groepen.entries()].map(([g, l]) => `${groepen.size > 1 ? `<tr class="tc-groeprij"><th colspan="${dagen.length + 1}">${esc(g)}</th></tr>` : ''}${l.map(rij).join('')}`).join('');
+  if (!rijTeams.length) return '<div class="kaart tc-leeg">Geen teams om te tonen.</div>';
+  return `<div class="tc-legenda"><span class="l-ok">Training gekoppeld</span><span class="l-mist">Team traint, maar heeft geen training</span><span class="l-leeg">Geen training op die dag</span></div>
+    <div class="tc-tabelwrap"><table class="tc-tabel">
+      <thead><tr><th scope="col" class="tc-teamcel">Team</th>${dagen.map(d => `<th scope="col">${DAGEN_KORT[d - 1]}<small>${esc(kortDatum(plusDagen(ma, d - 1)))}</small></th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody></table></div>`;
+}
+function htmlSchemaDag(w){
+  const { ma, inWeek, ontbreekt } = w;
   const slot = p => `<button class="tc-slot" data-tc-open="${esc(p.tr.id)}">
       <span class="tc-slot-tijd">${tijdVan(p.moment) ? esc(tijdVan(p.moment)) : '<em>tijd?</em>'}</span>
       <span class="tc-slot-tekst"><b class="cond">${esc(p.team.naam)}</b><span>${esc(trTitel(p.tr))}</span><small>${ico('team-members', 14)}${esc(spelersTekst(p.team))}</small></span>
       <span class="tc-slot-pijl">${ico('navigation-forward', 18)}</span>
     </button>`;
-  return `
-    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Weekplanning')}
-    ${filterBalk([...new Map(alle.map(p => [p.team.id, p.team])).values()])}
-    ${weekNav()}
-    <div class="tc-dagen">${dagen.map(x => `<section class="kaart tc-dag">
-      <div class="tc-dag-kop"><b class="cond">${DAGEN_LANG[(x.d.getDay() + 6) % 7]}</b><span>${esc(kortDatum(x.d))}</span><span class="tc-dag-tel">${x.items.length || ''}</span></div>
-      ${x.items.length ? x.items.sort((a, b) => (a.moment?.start || '99').localeCompare(b.moment?.start || '99') || a.team.naam.localeCompare(b.team.naam, 'nl', { numeric: true })).map(slot).join('') : '<div class="tc-leeg-klein">Geen trainingen</div>'}
+  const mist = o => `<div class="tc-slot tc-slot-mist">
+      <span class="tc-slot-tijd">${tijdVan(o.moment) ? esc(tijdVan(o.moment)) : '<em>tijd?</em>'}</span>
+      <span class="tc-slot-tekst"><b class="cond">${esc(o.team.naam)}</b><span>Ontbreekt: geen training gekoppeld</span><small>${ico('team-members', 14)}${esc(spelersTekst(o.team))}</small></span>
+    </div>`;
+  const dagen = [0, 1, 2, 3, 4, 5, 6].map(i => {
+    const d = plusDagen(ma, i);
+    const items = [
+      ...(T.alleenMist ? [] : inWeek.filter(p => p.datum && ymd(p.datum) === ymd(d)).map(p => ({ t: p.moment?.start || '99', n: p.team.naam, h: slot(p) }))),
+      ...ontbreekt.filter(o => ymd(o.datum) === ymd(d)).map(o => ({ t: o.moment?.start || '99', n: o.team.naam, h: mist(o) })),
+    ].sort((a, b) => a.t.localeCompare(b.t) || a.n.localeCompare(b.n, 'nl', { numeric: true }));
+    return { d, i, items };
+  }).filter(x => x.i < 5 || x.items.length);
+  return `<div class="tc-dagen">${dagen.map(x => `<section class="kaart tc-dag">
+      <div class="tc-dag-kop"><b class="cond">${DAGEN_LANG[x.i]}</b><span>${esc(kortDatum(x.d))}</span><span class="tc-dag-tel">${x.items.length || ''}</span></div>
+      ${x.items.length ? x.items.map(it => it.h).join('') : `<div class="tc-leeg-klein">${T.alleenMist ? 'Niets ontbreekt' : 'Geen trainingen'}</div>`}
     </section>`).join('')}</div>`;
 }
-
-/* ---------- pagina: overzicht (tabel team × dag) ---------- */
-function htmlOverzicht(alle){
-  const ma = maandagNu(T.weekOffset), zo = plusDagen(ma, 6);
-  const teams = sorteerTeams(T.teams.filter(teamInFilter));
-  const inWeek = alle.filter(p => p.week && ymd(maandagVan(p.week.nr, p.week.jaar)) === ymd(ma));
-  // welke dagen tonen: ma–vr altijd, za/zo alleen als iemand dan traint of een training heeft
-  const gebruikt = new Set([1, 2, 3, 4, 5]);
-  for (const t of teams) for (const m of momentenVanTeam(t)) gebruikt.add(m.dag);
-  for (const p of inWeek) if (p.datum) gebruikt.add((p.datum.getDay() + 6) % 7 + 1);
-  const dagen = [...gebruikt].sort((a, b) => a - b);
-  let mist = 0, gepland = 0;
-  const cel = (team, dag) => {
-    const datum = plusDagen(ma, dag - 1);
-    const hier = inWeek.filter(p => p.team.id === team.id && p.datum && ymd(p.datum) === ymd(datum));
-    const traintDan = momentenVanTeam(team).find(m => m.dag === dag);
-    if (hier.length){
-      gepland += hier.length;
-      return `<td class="tc-cel c-ok">${hier.map(p => `<button data-tc-open="${esc(p.tr.id)}" title="${esc(trTitel(p.tr))}"><b>${esc(trTitel(p.tr))}</b>${tijdVan(p.moment) ? `<small>${esc(tijdVan(p.moment))}</small>` : ''}</button>`).join('')}</td>`;
-    }
-    if (traintDan){
-      mist++;
-      return `<td class="tc-cel c-mist"><span><b>Ontbreekt</b>${tijdVan(traintDan) ? `<small>${esc(tijdVan(traintDan))}</small>` : ''}</span></td>`;
-    }
-    return '<td class="tc-cel c-leeg"><span>–</span></td>';
-  };
-  const zonderDag = team => {
-    const l = inWeek.filter(p => p.team.id === team.id && !p.datum);
-    if (!l.length) return '';
-    gepland += l.length;
-    return l.map(p => `<button class="tc-zonderdag" data-tc-open="${esc(p.tr.id)}">${esc(trTitel(p.tr))} · geen dag</button>`).join('');
-  };
-  // groeperen per bouw
-  const groepen = new Map();
-  for (const t of teams){ const g = bouwNaamVan(t); if (!groepen.has(g)) groepen.set(g, []); groepen.get(g).push(t); }
-  const rij = t => {
-    const mo = momentenVanTeam(t);
-    const cellen = dagen.map(d => cel(t, d)).join('');
-    return `<tr>
-      <th scope="row" class="tc-teamcel"><b class="cond">${esc(t.naam)}</b><small>${esc(spelersTekst(t))}${mo.length ? '' : ' · <em>geen trainingsdag</em>'}</small>${zonderDag(t)}</th>
-      ${cellen}</tr>`;
-  };
-  const body = [...groepen.entries()].map(([g, l]) =>
-    `<tr class="tc-groeprij"><th colspan="${dagen.length + 1}">${esc(g)}</th></tr>${l.map(rij).join('')}`).join('');
-  const tabel = `<div class="tc-tabelwrap"><table class="tc-tabel">
-      <thead><tr><th scope="col" class="tc-teamcel">Team</th>${dagen.map(d => `<th scope="col">${DAGEN_KORT[d - 1]}<small>${esc(kortDatum(plusDagen(ma, d - 1)))}</small></th>`).join('')}</tr></thead>
-      <tbody>${body}</tbody></table></div>`;
+function htmlWeekScherm(alle){
+  const w = weekData(alle);
+  const schema = T.schema || (window.matchMedia?.('(min-width: 760px)').matches ? 'team' : 'dag');
+  const nMist = w.ontbreekt.length;
+  if (!nMist) T.alleenMist = false;
   return `
-    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Overzicht')}
+    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Week')}
     ${filterBalk(T.teams)}
     ${weekNav()}
-    ${teams.length ? `
     <div class="tc-samenvatting">
-      <div class="kaart"><b class="cond">${gepland}</b><span>trainingen gekoppeld</span></div>
-      <div class="kaart ${mist ? 's-mist' : ''}"><b class="cond">${mist}</b><span>trainingen ontbreken</span></div>
-      <div class="kaart"><b class="cond">${teams.length}</b><span>teams</span></div>
+      <div class="kaart"><b class="cond">${w.trainingen.length}</b><span>training${w.trainingen.length === 1 ? '' : 'en'} deze week</span></div>
+      <div class="kaart"><b class="cond">${w.teams.length}</b><span>teams</span></div>
+      <button class="kaart tc-mistknop ${nMist ? 's-mist' : ''} ${T.alleenMist ? 'actief' : ''}" data-tc-mist ${nMist ? '' : 'disabled'} aria-pressed="${!!T.alleenMist}">
+        <b class="cond">${nMist}</b><span>ontbreken${T.alleenMist ? ' · filter aan' : ''}</span></button>
     </div>
-    <div class="tc-legenda"><span class="l-ok">Training gekoppeld</span><span class="l-mist">Team traint, maar heeft geen training</span><span class="l-leeg">Geen training op die dag</span></div>
-    ${tabel}` : '<div class="kaart tc-leeg">Geen teams in deze groep.</div>'}`;
-}
-
-/* ---------- pagina: alle trainingen ---------- */
-function htmlTrainingen(alle){
-  const nu = maandagNu(0); const nuKey = `${nu.getFullYear()}-${String(isoWeek(plusDagen(nu, 3))).padStart(2, '0')}`;
-  const metFilter = alle.filter(p => teamInFilter(p.team));
-  const perTr = new Map();
-  for (const p of metFilter){ if (!perTr.has(p.tr.id)) perTr.set(p.tr.id, { tr: p.tr, week: p.week, regels: [] }); perTr.get(p.tr.id).regels.push(p); }
-  const perWeek = new Map();
-  for (const g of perTr.values()){ const k = g.week ? g.week.key : 'onbekend'; if (!perWeek.has(k)) perWeek.set(k, { week: g.week, items: [] }); perWeek.get(k).items.push(g); }
-  const keys = [...perWeek.keys()].filter(k => k !== 'onbekend');
-  const volgorde = [...keys.filter(k => k >= nuKey).sort(), ...keys.filter(k => k < nuKey).sort().reverse().slice(0, 8), ...(perWeek.has('onbekend') ? ['onbekend'] : [])];
-  const kaart = g => {
-    g.regels.sort((a, b) => (a.datum?.getTime() || 9e15) - (b.datum?.getTime() || 9e15) || a.team.naam.localeCompare(b.team.naam, 'nl', { numeric: true }));
-    const nd = Object.values(g.tr.diagramUrls || {}).filter(Boolean).length;
-    const groepen = g.regels.map(r => bouwNaamVan(r.team)).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
-    return `<article class="kaart tc-trkaart">
-      <div class="tc-meta">${esc(groepen)}</div>
-      <h2 class="cond tc-h2">${esc(trTitel(g.tr))}</h2>
-      <div class="tc-labels">${nd ? `<span class="tc-label">${nd} oefenvorm${nd === 1 ? '' : 'en'}</span>` : ''}${g.tr.url ? '<span class="tc-label">PDF</span>' : ''}${vanafLabel(g.tr)}</div>
-      <div class="tc-teams">${g.regels.map(teamRij).join('')}</div>
-      <button class="knop tc-knop-vol" data-tc-open="${esc(g.tr.id)}">Bekijk training</button>
-    </article>`;
-  };
-  const weekKop = k => {
-    const w = perWeek.get(k).week;
-    if (!w) return '<div class="sectie-kop">Zonder week</div>';
-    const ma = maandagVan(w.nr, w.jaar);
-    return `<div class="sectie-kop">Week ${w.nr} · ${esc(kortDatum(ma))} – ${esc(kortDatum(plusDagen(ma, 6)))}${k === nuKey ? ' · deze week' : ''}</div>`;
-  };
-  return `
-    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Trainingen')}
-    ${filterBalk([...new Map(alle.map(p => [p.team.id, p.team])).values()])}
-    ${volgorde.length ? volgorde.map(k => `<section>${weekKop(k)}<div class="tc-raster">${perWeek.get(k).items.map(kaart).join('')}</div></section>`).join('')
-      : '<div class="kaart tc-leeg">Voor deze groep staan nog geen trainingen klaar.</div>'}`;
+    <div class="sectie-kop">Trainingen deze week</div>
+    ${w.trainingen.length ? `<div class="tc-raster">${w.trainingen.map(htmlTrainingKaart).join('')}</div>`
+      : '<div class="kaart tc-leeg">Voor deze week staan nog geen trainingen klaar.</div>'}
+    <div class="tc-schemakop">
+      <div class="sectie-kop">Wie traint wanneer</div>
+      <div class="segment tc-schemaknop">
+        <button class="${schema === 'team' ? 'actief' : ''}" data-tc-schema="team">Per team</button>
+        <button class="${schema === 'dag' ? 'actief' : ''}" data-tc-schema="dag">Per dag</button>
+      </div>
+    </div>
+    ${schema === 'team' ? htmlSchemaTeam(w) : htmlSchemaDag(w)}`;
 }
 
 /* ---------- pagina: video's ---------- */
@@ -430,9 +437,7 @@ function htmlDetail(alle){
 
 /* ---------- schil: zijbalk (desktop) en onderbalk (mobiel) ---------- */
 const MENU = [
-  ['week', 'Weekplanning', 'planning-calendar'],
-  ['overzicht', 'Overzicht', 'attendance-overview'],
-  ['trainingen', 'Trainingen', 'football-training'],
+  ['week', 'Week', 'planning-calendar'],
   ['videos', 'Video’s', 'training-video'],
 ];
 function teken(){
@@ -444,7 +449,7 @@ function teken(){
   if (T.fout) inhoud = `<div class="kaart tc-leeg">${esc(T.fout)}</div>`;
   else if (!klaar) inhoud = '<div class="kaart tc-leeg">Bezig met laden…</div>';
   else if (T.detail) inhoud = htmlDetail(alle);
-  else inhoud = ({ week: htmlWeek, overzicht: htmlOverzicht, trainingen: htmlTrainingen, videos: () => htmlVideos() })[T.pagina](alle);
+  else inhoud = T.pagina === 'videos' ? htmlVideos() : htmlWeekScherm(alle);
   const sy = T.el.querySelector('.tc-hoofd')?.scrollTop || 0;
   T.el.innerHTML = `
     ${T.voorbeeld ? '<div class="tc-voorbeeld">Voorbeeld: zo ziet de trainingscoördinator het. <button class="knop licht klein" data-tc-sluitvoorbeeld>Terug naar Cluppie</button></div>' : ''}
@@ -453,9 +458,9 @@ function teken(){
         <div class="tc-merk"><img src="icons/asv-schild.png" alt=""><span><b class="cond">${esc(T.club.naam || 'Cluppie')}</b><small>Trainingscoördinator</small></span></div>
         <nav class="tc-nav" aria-label="Menu">
           <div class="tc-navkop">Trainingen</div>
-          ${MENU.slice(0, 3).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
+          ${MENU.slice(0, 1).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
           <div class="tc-navkop">Media</div>
-          ${MENU.slice(3).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
+          ${MENU.slice(1).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
         </nav>
         ${T.vanuitApp ? `<button class="tc-link tc-terugapp" data-tc-naarapp>${ico('navigation-back', 20)}<span>Terug naar mijn team</span></button>` : ''}
         <div class="tc-ik"><span class="tc-avatar">${esc((naam || '?').charAt(0).toUpperCase())}</span><span><b>${esc(naam)}</b><small>Alleen lezen</small></span>
@@ -479,7 +484,9 @@ function klik(e){
   if (fig && T.el.contains(fig)){ openLightbox(fig.dataset.zoom, fig.dataset.zoomtitel); return; }
   const b = e.target.closest('button,a'); if (!b || !T.el.contains(b)) return;
   const d = b.dataset;
-  if (d.tcBouw){ T.bouw = d.tcBouw; teken(); }
+  if (d.tcGroep){ T.groep = d.tcGroep; try { localStorage.setItem('cluppie_trainco_groep', T.groep); } catch(err){} teken(); }
+  else if (d.tcSchema){ T.schema = d.tcSchema; teken(); }
+  else if (b.hasAttribute('data-tc-mist')){ T.alleenMist = !T.alleenMist; teken(); }
   else if (d.tcPagina){ if (d.tcPagina === T.pagina && !T.detail) return; bewaar(); T.pagina = d.tcPagina; T.detail = null; teken(); naarBoven(); }
   else if (d.tcWeek !== undefined){ T.weekOffset = d.tcWeek === '0' ? 0 : T.weekOffset + Number(d.tcWeek); teken(); }
   else if (d.tcOpen){ bewaar(); T.detail = d.tcOpen; teken(); naarBoven(); }
