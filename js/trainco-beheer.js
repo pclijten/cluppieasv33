@@ -1,0 +1,78 @@
+/* ==================== TRAININGSCOÖRDINATOR — BEHEER ====================
+   Kaart voor de clubbeheerder (tab Coaches): de coördinator uitnodigen,
+   aanvragen accepteren, toegang intrekken en meekijken zoals hij het ziet.
+
+   Uitnodigen = de bestaande clubuitnodiging (?club=CODE). Wie die opent komt in
+   `clubs/{id}.ledenInfo`; hier maakt de beheerder iemand daarna expliciet
+   trainingscoördinator. Rechtenbron: `trainingscoordinatoren.<uid> = true`.
+   Importeert niets uit club.js (geen kringimport). */
+import { db, doc, updateDoc, deleteField } from './firebase.js?v=20260922c';
+import { S, esc, meld } from './state.js?v=20261023a';
+import { ico } from './icons.js?v=20260922c';
+
+const naamKort = n => String(n || 'Naamloos').split('@')[0];
+const twee = n => naamKort(n).split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+function coordinatoren(){
+  const c = S.club?.trainingscoordinatoren || {};
+  return Object.keys(c).filter(u => c[u] === true)
+    .map(uid => ({ uid, naam: naamKort(S.club.trainingscoordinatorenInfo?.[uid]?.naam || S.club.ledenInfo?.[uid]?.naam) }));
+}
+/* Aanvragen: leden van de club die nog geen beheerder of coördinator zijn en
+   in geen enkel team zitten (anders zijn het gewone coaches). */
+function wachtenden(teams){
+  const inTeam = new Set();
+  for (const t of teams || []) for (const u of Object.keys(t.leden || {})) if (t.leden[u] === true) inTeam.add(u);
+  const bezet = new Set([...Object.keys(S.club?.admins || {}), ...coordinatoren().map(c => c.uid)]);
+  return Object.entries(S.club?.ledenInfo || {})
+    .filter(([uid]) => S.club.leden?.[uid] === true && !inTeam.has(uid) && !bezet.has(uid))
+    .map(([uid, i]) => ({ uid, naam: naamKort(i?.naam), email: i?.email || '' }));
+}
+
+export function htmlTraincoKaart(teams){
+  if (!S.club?.admins?.[S.user?.uid]) return '';
+  const co = coordinatoren(), wacht = wachtenden(teams);
+  const link = location.origin + location.pathname + '?club=' + (S.club.code || '');
+  return `
+    <div class="cb-kaart" id="traincoKaart">
+      <div class="cb-kaart-kop">${ico('team-add', 18)}<b>Trainingscoördinator</b><span class="cb-telling">${co.length}</span></div>
+      <p class="cb-uitleg" style="margin:0 0 8px">Een coördinator ziet alle teams waarvoor trainingen klaarstaan: wie wanneer traint, het aantal spelers, de AI-training, de PDF en de diagrammen. Geen spelersnamen, geen video's.</p>
+      ${co.map(c => `<div class="cb-persoon"><div class="cb-av">${esc(twee(c.naam))}</div><div class="cb-persoon-n">${esc(c.naam)} <span class="cb-rol coord">Coördinator</span></div>
+        <button class="knop licht klein" data-tc-weg="${esc(c.uid)}">Toegang intrekken</button></div>`).join('')}
+      ${wacht.length ? `<div class="sectie-kop" style="margin:12px 0 6px">Wacht op acceptatie</div>
+        ${wacht.map(w => `<div class="cb-persoon"><div class="cb-av">${esc(twee(w.naam))}</div><div class="cb-persoon-n">${esc(w.naam)}${w.email ? `<small class="cb-inline">${esc(w.email)}</small>` : ''}</div>
+          <button class="knop klein" data-tc-maak="${esc(w.uid)}">Maak coördinator</button></div>`).join('')}` : ''}
+      <div class="sectie-kop" style="margin:12px 0 6px">Uitnodigen</div>
+      <p class="cb-uitleg" style="margin:0 0 8px">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie". Hij krijgt pas toegang als jij hem accepteert.</p>
+      <div class="uitnodig-link" id="traincoLink">${esc(link)}</div>
+      <div class="cb-acties" style="margin:10px 0 0">
+        <button class="knop licht klein" id="traincoKopieer">Link kopiëren</button>
+        <a class="knop licht klein" id="traincoWhatsapp" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Hoi! Open deze link en log in met je e-mailadres om de trainingen van ASV\'33 te bekijken: ' + link)}">WhatsApp</a>
+        <a class="knop licht klein" href="${esc(location.pathname)}?trainco=1">Bekijk als coördinator</a>
+      </div>
+    </div>`;
+}
+
+/* api: { herteken() } */
+export function koppelTraincoKaart(v, api){
+  const kaart = v.querySelector('#traincoKaart'); if (!kaart) return;
+  const schrijf = async (data, ok) => {
+    try { await updateDoc(doc(db, 'clubs', S.club.id), data); meld(ok); }
+    catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
+  };
+  kaart.querySelectorAll('[data-tc-maak]').forEach(b => b.onclick = async () => {
+    const uid = b.dataset.tcMaak; b.disabled = true;
+    const naam = naamKort(S.club.ledenInfo?.[uid]?.naam);
+    await schrijf({ ['trainingscoordinatoren.' + uid]: true, ['trainingscoordinatorenInfo.' + uid]: { naam } }, naam + ' is nu trainingscoördinator');
+  });
+  kaart.querySelectorAll('[data-tc-weg]').forEach(b => b.onclick = async () => {
+    if (!confirm('Toegang van deze trainingscoördinator intrekken?')) return;
+    const uid = b.dataset.tcWeg; b.disabled = true;
+    await schrijf({ ['trainingscoordinatoren.' + uid]: deleteField(), ['trainingscoordinatorenInfo.' + uid]: deleteField() }, 'Toegang ingetrokken');
+  });
+  const kopie = kaart.querySelector('#traincoKopieer');
+  if (kopie) kopie.onclick = async () => {
+    try { await navigator.clipboard.writeText(kaart.querySelector('#traincoLink').textContent); meld('Link gekopieerd'); }
+    catch(e){ meld('Kopiëren mislukt — selecteer de link handmatig'); }
+  };
+}
