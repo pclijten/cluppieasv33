@@ -1,10 +1,11 @@
 /* ==================== TRAININGSCOÖRDINATOR ====================
    Eigen, alleen-lezen scherm voor de trainingscoördinator. Menu:
-     • Week          — per week: de trainingen van die week (kaarten) en het
-                       schema per team (tabel) of per dag (lijst), met rood waar
-                       een team traint maar geen training heeft. Filter per
-                       teamsoort (O8, MO10, …). Detail: inhoudsopgave,
-                       oefenvormen, de uitgewerkte training en de PDF
+     • Trainingen    — de trainingen van een week (blader met de pijlen), per
+                       trainingsnummer gegroepeerd, met de teamsoorten bovenaan
+     • Weekrooster   — schema per team (tabel) of per dag (lijst); rood waar een
+                       team traint maar geen training heeft
+     Filter per teamsoort (O8, MO10, …). Detail: inhoudsopgave, oefenvormen,
+     de uitgewerkte training en de PDF.
      • Video's       — de video's die de club aan teams heeft gekoppeld
 
    Bewust een los scherm naast de coach-app (eigen container #tc-app): het
@@ -29,7 +30,7 @@ import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?
 
 const T = {
   club: null, teams: [], trainingen: [], videos: [], laden: { teams: true, trainingen: true }, fout: '',
-  pagina: 'week',         // 'week' | 'videos'
+  pagina: 'trainingen',   // 'trainingen' | 'rooster' | 'videos'
   groep: 'alle',          // 'alle' | teamsoort (O8, MO10, …)
   schema: null,           // 'team' | 'dag' | null = kies op schermbreedte
   alleenMist: false,      // alleen ontbrekende trainingen tonen
@@ -77,7 +78,7 @@ export function openVanuitApp(){
 export function bootTrainco(club, voorbeeld, vanuitApp = false){
   if (T.el) return;
   T.club = club; T.voorbeeld = !!voorbeeld; T.vanuitApp = !!vanuitApp;
-  T.laden = { teams: true, trainingen: true }; T.fout = ''; T.detail = null; T.pagina = 'week'; T.weekOffset = 0;
+  T.laden = { teams: true, trainingen: true }; T.fout = ''; T.detail = null; T.pagina = 'trainingen'; T.weekOffset = 0;
   T.stapel = [];
   try { T.groep = localStorage.getItem('cluppie_trainco_groep') || 'alle'; } catch(e){ T.groep = 'alle'; }
   /* Terugknop van de telefoon: één stap terug binnen dit scherm (training →
@@ -273,11 +274,19 @@ function weekData(alle){
   const trainingen = [...perTr.values()].sort((a, b) => trTitel(a.tr).localeCompare(trTitel(b.tr), 'nl', { numeric: true }));
   return { ma, teams, inWeek, ontbreekt, trainingen };
 }
+/* Training 1 / 2 / … uit het plan of uit de titel ("Week 45 - training 2"). */
+function trainingNr(tr){
+  if (Number.isFinite(tr.trainingNr) && tr.trainingNr > 0) return tr.trainingNr;
+  const m = trTitel(tr).match(/training\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+const hoofdteams = teams => [...new Set(teams.map(groepVan))].sort(vergelijkGroep);
 function htmlTrainingKaart(g){
   const vormen = oefenvormen(g.tr).slice(0, 4);
   const teams = sorteerTeams([...new Map(g.regels.map(r => [r.team.id, r.team])).values()]);
   return `<article class="kaart tc-trkaart">
-    <h2 class="cond tc-h2">${esc(trTitel(g.tr))}</h2>
+    <div class="tc-hoofdteams">${hoofdteams(teams).map(h => `<span class="cond">${esc(h)}</span>`).join('')}</div>
+    <div class="tc-meta">${esc(trTitel(g.tr))}</div>
     ${vormen.length ? `<button class="tc-mini" data-tc-open="${esc(g.tr.id)}" aria-label="Bekijk ${esc(trTitel(g.tr))}">${vormen.map(v => `<img src="${esc(v.url)}" alt="" loading="lazy">`).join('')}</button>` : ''}
     <div class="tc-labels">${vormen.length ? `<span class="tc-label">${oefenvormen(g.tr).length} oefenvorm${oefenvormen(g.tr).length === 1 ? '' : 'en'}</span>` : ''}${g.tr.url ? '<span class="tc-label">PDF</span>' : ''}<span class="tc-label">${teams.length} team${teams.length === 1 ? '' : 's'}</span>${vanafLabel(g.tr)}</div>
     <div class="tc-teamchips">${teams.map(t => `<span>${esc(t.naam)}</span>`).join('')}</div>
@@ -309,8 +318,7 @@ function htmlSchemaTeam(w){
       ${dagen.map(d => cel(t, d)).join('')}</tr>`;
   const body = [...groepen.entries()].map(([g, l]) => `${groepen.size > 1 ? `<tr class="tc-groeprij"><th colspan="${dagen.length + 1}">${esc(g)}</th></tr>` : ''}${l.map(rij).join('')}`).join('');
   if (!rijTeams.length) return '<div class="kaart tc-leeg">Geen teams om te tonen.</div>';
-  return `<div class="tc-legenda"><span class="l-ok">Training gekoppeld</span><span class="l-mist">Team traint, maar heeft geen training</span><span class="l-leeg">Geen training op die dag</span></div>
-    <div class="tc-tabelwrap"><table class="tc-tabel">
+  return `<div class="tc-tabelwrap"><table class="tc-tabel">
       <thead><tr><th scope="col" class="tc-teamcel">Team</th>${dagen.map(d => `<th scope="col">${DAGEN_KORT[d - 1]}<small>${esc(kortDatum(plusDagen(ma, d - 1)))}</small></th>`).join('')}</tr></thead>
       <tbody>${body}</tbody></table></div>`;
 }
@@ -338,13 +346,32 @@ function htmlSchemaDag(w){
       ${x.items.length ? x.items.map(it => it.h).join('') : `<div class="tc-leeg-klein">${T.alleenMist ? 'Niets ontbreekt' : 'Geen trainingen'}</div>`}
     </section>`).join('')}</div>`;
 }
-function htmlWeekScherm(alle){
+function htmlTrainingenScherm(alle){
+  const w = weekData(alle);
+  // blokken per trainingsnummer; binnen een blok gesorteerd op teamsoort
+  const blokken = new Map();
+  for (const g of w.trainingen){ const n = trainingNr(g.tr); const k = n == null ? 'x' : n; if (!blokken.has(k)) blokken.set(k, []); blokken.get(k).push(g); }
+  const sleutels = [...blokken.keys()].sort((a, b) => (a === 'x') - (b === 'x') || a - b);
+  const eersteGroep = g => hoofdteams(g.regels.map(r => r.team))[0] || '';
+  return `
+    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Trainingen')}
+    ${filterBalk(T.teams)}
+    ${weekNav()}
+    ${w.trainingen.length ? sleutels.map(k => {
+      const lijst = blokken.get(k).sort((a, b) => vergelijkGroep(eersteGroep(a), eersteGroep(b)));
+      return `<section class="tc-blokken">
+        <div class="tc-blokkop"><b class="cond">${k === 'x' ? 'Overige trainingen' : 'Training ' + k}</b><span>${lijst.length} versie${lijst.length === 1 ? '' : 's'} · ${lijst.reduce((n, g) => n + new Set(g.regels.map(r => r.team.id)).size, 0)} teams</span></div>
+        <div class="tc-raster">${lijst.map(htmlTrainingKaart).join('')}</div>
+      </section>`; }).join('')
+      : '<div class="kaart tc-leeg">Voor deze week staan nog geen trainingen klaar. Blader met de pijlen naar een andere week.</div>'}`;
+}
+function htmlRoosterScherm(alle){
   const w = weekData(alle);
   const schema = T.schema || (window.matchMedia?.('(min-width: 760px)').matches ? 'team' : 'dag');
   const nMist = w.ontbreekt.length;
   if (!nMist) T.alleenMist = false;
   return `
-    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Week')}
+    ${kop(esc(T.club.naam || '') + ' · trainingscoördinator', 'Weekrooster')}
     ${filterBalk(T.teams)}
     ${weekNav()}
     <div class="tc-samenvatting">
@@ -353,11 +380,8 @@ function htmlWeekScherm(alle){
       <button class="kaart tc-mistknop ${nMist ? 's-mist' : ''} ${T.alleenMist ? 'actief' : ''}" data-tc-mist ${nMist ? '' : 'disabled'} aria-pressed="${!!T.alleenMist}">
         <b class="cond">${nMist}</b><span>ontbreken${T.alleenMist ? ' · filter aan' : ''}</span></button>
     </div>
-    <div class="sectie-kop">Trainingen deze week</div>
-    ${w.trainingen.length ? `<div class="tc-raster">${w.trainingen.map(htmlTrainingKaart).join('')}</div>`
-      : '<div class="kaart tc-leeg">Voor deze week staan nog geen trainingen klaar.</div>'}
     <div class="tc-schemakop">
-      <div class="sectie-kop">Wie traint wanneer</div>
+      <div class="tc-legenda">${schema === 'team' ? '<span class="l-ok">Training gekoppeld</span><span class="l-mist">Team traint, maar heeft geen training</span><span class="l-leeg">Geen training op die dag</span>' : ''}</div>
       <div class="segment tc-schemaknop">
         <button class="${schema === 'team' ? 'actief' : ''}" data-tc-schema="team">Per team</button>
         <button class="${schema === 'dag' ? 'actief' : ''}" data-tc-schema="dag">Per dag</button>
@@ -437,7 +461,8 @@ function htmlDetail(alle){
 
 /* ---------- schil: zijbalk (desktop) en onderbalk (mobiel) ---------- */
 const MENU = [
-  ['week', 'Week', 'planning-calendar'],
+  ['trainingen', 'Trainingen', 'football-training'],
+  ['rooster', 'Weekrooster', 'planning-calendar'],
   ['videos', 'Video’s', 'training-video'],
 ];
 function teken(){
@@ -449,7 +474,7 @@ function teken(){
   if (T.fout) inhoud = `<div class="kaart tc-leeg">${esc(T.fout)}</div>`;
   else if (!klaar) inhoud = '<div class="kaart tc-leeg">Bezig met laden…</div>';
   else if (T.detail) inhoud = htmlDetail(alle);
-  else inhoud = T.pagina === 'videos' ? htmlVideos() : htmlWeekScherm(alle);
+  else inhoud = T.pagina === 'videos' ? htmlVideos() : T.pagina === 'rooster' ? htmlRoosterScherm(alle) : htmlTrainingenScherm(alle);
   const sy = T.el.querySelector('.tc-hoofd')?.scrollTop || 0;
   T.el.innerHTML = `
     ${T.voorbeeld ? '<div class="tc-voorbeeld">Voorbeeld: zo ziet de trainingscoördinator het. <button class="knop licht klein" data-tc-sluitvoorbeeld>Terug naar Cluppie</button></div>' : ''}
@@ -458,9 +483,9 @@ function teken(){
         <div class="tc-merk"><img src="icons/asv-schild.png" alt=""><span><b class="cond">${esc(T.club.naam || 'Cluppie')}</b><small>Trainingscoördinator</small></span></div>
         <nav class="tc-nav" aria-label="Menu">
           <div class="tc-navkop">Trainingen</div>
-          ${MENU.slice(0, 1).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
+          ${MENU.slice(0, 2).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
           <div class="tc-navkop">Media</div>
-          ${MENU.slice(1).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
+          ${MENU.slice(2).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
         </nav>
         ${T.vanuitApp ? `<button class="tc-link tc-terugapp" data-tc-naarapp>${ico('navigation-back', 20)}<span>Terug naar mijn team</span></button>` : ''}
         <div class="tc-ik"><span class="tc-avatar">${esc((naam || '?').charAt(0).toUpperCase())}</span><span><b>${esc(naam)}</b><small>Alleen lezen</small></span>

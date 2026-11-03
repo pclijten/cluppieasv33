@@ -5833,6 +5833,16 @@ html.desk .uq-label{bottom:24px;right:24px}
 .tc-schemaknop{min-width:220px}
 .tc-slot-mist{border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface));cursor:default}
 .tc-slot-mist .tc-slot-tekst span{color:var(--accent);font-weight:600}
+/* trainingen per trainingsnummer */
+.tc-blokken{margin-top:18px}
+.tc-blokken + .tc-blokken{margin-top:28px;padding-top:18px;border-top:2px solid var(--line-d)}
+.tc-blokkop{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
+.tc-blokkop b{font-size:calc(26px * var(--fs));font-weight:700;text-transform:uppercase;color:var(--ink);line-height:1;padding-left:10px;border-left:4px solid var(--accent)}
+.tc-blokkop span{font-size:13px;color:var(--ink-2)}
+.tc-hoofdteams{display:flex;flex-wrap:wrap;gap:6px}
+.tc-hoofdteams span{padding:2px 10px;border-radius:8px;background:var(--accent);color:#fff;font-size:calc(22px * var(--fs));font-weight:700;line-height:1.25}
+.tc-trkaart .tc-meta{margin-top:-2px}
+.tc-teamchips span{font-size:calc(13px * var(--fs));padding:2px 7px}
 /* video's */
 .tc-videos{display:grid;grid-template-columns:1fr;gap:12px}
 @media (min-width:760px){ .tc-videos{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))} }
