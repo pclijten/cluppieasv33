@@ -20,19 +20,25 @@ function coordinatoren(){
 }
 /* Aanvragen: leden van de club die nog geen beheerder of coördinator zijn en
    in geen enkel team zitten (anders zijn het gewone coaches). */
+/* Aanmeldingen: wie zich via de coördinator-link heeft aangemeld
+   (ledenInfo.<uid>.traincoAanvraag), ook als hij al trainer is. Daarnaast,
+   zoals voorheen, clubleden zonder team en zonder rol. */
 function wachtenden(teams){
-  const inTeam = new Set();
-  for (const t of teams || []) for (const u of Object.keys(t.leden || {})) if (t.leden[u] === true) inTeam.add(u);
+  const teamsVan = new Map();
+  for (const t of teams || []) for (const u of Object.keys(t.leden || {})) if (t.leden[u] === true){
+    if (!teamsVan.has(u)) teamsVan.set(u, []); teamsVan.get(u).push(t.naam);
+  }
   const bezet = new Set([...Object.keys(S.club?.admins || {}), ...coordinatoren().map(c => c.uid)]);
   return Object.entries(S.club?.ledenInfo || {})
-    .filter(([uid]) => S.club.leden?.[uid] === true && !inTeam.has(uid) && !bezet.has(uid))
-    .map(([uid, i]) => ({ uid, naam: naamKort(i?.naam), email: i?.email || '' }));
+    .filter(([uid, i]) => S.club.leden?.[uid] === true && !bezet.has(uid) && (i?.traincoAanvraag === true || !teamsVan.has(uid)))
+    .map(([uid, i]) => ({ uid, naam: naamKort(i?.naam), email: i?.email || '', aanvraag: i?.traincoAanvraag === true, teams: teamsVan.get(uid) || [] }))
+    .sort((a, b) => (b.aanvraag - a.aanvraag) || a.naam.localeCompare(b.naam, 'nl'));
 }
 
 export function htmlTraincoKaart(teams){
   if (!S.club?.admins?.[S.user?.uid]) return '';
   const co = coordinatoren(), wacht = wachtenden(teams);
-  const link = location.origin + location.pathname + '?club=' + (S.club.code || '');
+  const link = location.origin + location.pathname + '?club=' + (S.club.code || '') + '&rol=trainco';
   return `
     <div class="cb-kaart" id="traincoKaart">
       <div class="cb-kaart-kop">${ico('team-add', 18)}<b>Trainingscoördinator</b><span class="cb-telling">${co.length}</span></div>
@@ -40,11 +46,12 @@ export function htmlTraincoKaart(teams){
       ${co.map(c => `<div class="cb-persoon"><div class="cb-av">${esc(twee(c.naam))}</div><div class="cb-persoon-n">${esc(c.naam)} <span class="cb-rol coord">Coördinator</span></div>
         <button class="knop licht klein" data-tc-weg="${esc(c.uid)}">Toegang intrekken</button></div>`).join('')}
       ${wacht.length ? `<div class="sectie-kop" style="margin:12px 0 6px">Wacht op acceptatie</div>
-        ${wacht.map(w => `<div class="cb-persoon"><div class="cb-av">${esc(twee(w.naam))}</div><div class="cb-persoon-n">${esc(w.naam)}${w.email ? `<small class="cb-inline">${esc(w.email)}</small>` : ''}</div>
+        ${wacht.map(w => `<div class="cb-persoon"><div class="cb-av">${esc(twee(w.naam))}</div><div class="cb-persoon-n">${esc(w.naam)}${w.email ? `<small class="cb-inline">${esc(w.email)}</small>` : ''}
+          <div class="cb-uitleg" style="margin:2px 0 0">${w.aanvraag ? 'Heeft zich aangemeld als trainingscoördinator' : 'Clublid zonder team'}${w.teams.length ? ' · ook trainer van ' + esc(w.teams.join(', ')) : ''}</div></div>
           <button class="knop klein" data-tc-maak="${esc(w.uid)}">Maak coördinator</button>
           <button class="knop licht klein cb-verwijder" data-tc-afwijs="${esc(w.uid)}" style="margin-left:6px">Verwijderen</button></div>`).join('')}` : ''}
       <div class="sectie-kop" style="margin:12px 0 6px">Uitnodigen</div>
-      <p class="cb-uitleg" style="margin:0 0 8px">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie". Hij krijgt pas toegang als jij hem accepteert.</p>
+      <p class="cb-uitleg" style="margin:0 0 8px">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie", ook als hij al trainer is. Hij krijgt pas toegang als jij hem accepteert.</p>
       <div class="uitnodig-link" id="traincoLink">${esc(link)}</div>
       <div class="cb-acties" style="margin:10px 0 0">
         <button class="knop licht klein" id="traincoKopieer">Link kopiëren</button>
@@ -64,7 +71,7 @@ export function koppelTraincoKaart(v, api){
   kaart.querySelectorAll('[data-tc-maak]').forEach(b => b.onclick = async () => {
     const uid = b.dataset.tcMaak; b.disabled = true;
     const naam = naamKort(S.club.ledenInfo?.[uid]?.naam);
-    await schrijf({ ['trainingscoordinatoren.' + uid]: true, ['trainingscoordinatorenInfo.' + uid]: { naam } }, naam + ' is nu trainingscoördinator');
+    await schrijf({ ['trainingscoordinatoren.' + uid]: true, ['trainingscoordinatorenInfo.' + uid]: { naam }, ['ledenInfo.' + uid + '.traincoAanvraag']: deleteField() }, naam + ' is nu trainingscoördinator');
   });
   kaart.querySelectorAll('[data-tc-weg]').forEach(b => b.onclick = async () => {
     if (!confirm('Toegang van deze trainingscoördinator intrekken?')) return;
@@ -73,11 +80,19 @@ export function koppelTraincoKaart(v, api){
   });
   kaart.querySelectorAll('[data-tc-afwijs]').forEach(b => b.onclick = async () => {
     const uid = b.dataset.tcAfwijs, naam = naamKort(S.club.ledenInfo?.[uid]?.naam);
-    if (!confirm(`Aanmelding van ${naam} verwijderen?\n\nDe persoon krijgt geen toegang. Hij kan zich opnieuw aanmelden via de uitnodigingslink.`)) return;
+    if (!confirm(`Aanmelding van ${naam} verwijderen?\n\nDe persoon krijgt geen toegang als trainingscoördinator. Hij kan zich opnieuw aanmelden via de uitnodigingslink.`)) return;
     b.disabled = true;
+    /* Is hij ook trainer, dan alleen de aanmelding weghalen (clublidmaatschap
+       is nodig voor zijn team). Anders, zoals voorheen, uit de club halen. */
+    const isTrainer = (S._cbCoachTeams || []).some(t => t.leden?.[uid] === true);
     try {
-      await updateDoc(doc(db, 'clubs', S.club.id), { ['leden.' + uid]: deleteField(), ['ledenInfo.' + uid]: deleteField() });
-      if (S.club.leden) delete S.club.leden[uid]; if (S.club.ledenInfo) delete S.club.ledenInfo[uid];
+      if (isTrainer){
+        await updateDoc(doc(db, 'clubs', S.club.id), { ['ledenInfo.' + uid + '.traincoAanvraag']: deleteField() });
+        if (S.club.ledenInfo?.[uid]) delete S.club.ledenInfo[uid].traincoAanvraag;
+      } else {
+        await updateDoc(doc(db, 'clubs', S.club.id), { ['leden.' + uid]: deleteField(), ['ledenInfo.' + uid]: deleteField() });
+        if (S.club.leden) delete S.club.leden[uid]; if (S.club.ledenInfo) delete S.club.ledenInfo[uid];
+      }
       meld('Aanmelding verwijderd'); api.herteken();
     } catch(e){ b.disabled = false; meld('Verwijderen mislukt: ' + (e.code || e.message)); }
   });

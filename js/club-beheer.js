@@ -17,7 +17,7 @@ import { S, esc, meld } from './state.js?v=20261103e';
 import { BOUWEN } from './config.js?v=20261103e';
 import { ico } from './icons.js?v=20260922c';
 import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261103e';
-import { verwijderCoach } from './trainco-beheer.js?v=20261103e';
+import { verwijderCoach } from './trainco-beheer.js?v=20261103f';
 import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103e';
 
 /* [sleutel, naam, kort, icoon, uitleg] — 'lijstjes' was eerder niet door de beheerder te regelen */

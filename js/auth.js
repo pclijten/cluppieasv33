@@ -179,7 +179,9 @@ export async function zorgClubLidmaatschap(clubId){
   try {
     await updateDoc(doc(db,'clubs',clubId), {
       ['leden.'+S.user.uid]: true,
-      ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
+      // [20261103] per subveld, zodat andere velden (bv. traincoAanvraag) blijven staan
+      ['ledenInfo.'+S.user.uid+'.naam']: ledNaam,
+      ['ledenInfo.'+S.user.uid+'.email']: S.user.email || '',
     });
     console.info(`[Cluppie] Club-lidmaatschap gecontroleerd/hersteld voor clubId=${clubId}`);
   } catch(e){
@@ -208,15 +210,18 @@ export async function joinMetCode(code, naam = null){
   if (clubId){
     await updateDoc(doc(db,'clubs',clubId), {
       ['leden.'+S.user.uid]: true,
-      ['ledenInfo.'+S.user.uid]: {naam: ledNaam, email: S.user.email || ''},
+      ['ledenInfo.'+S.user.uid+'.naam']: ledNaam,
+      ['ledenInfo.'+S.user.uid+'.email']: S.user.email || '',
     });
   }
   return t;
 }
 
 /* uitnodigingslink herkennen en het uitnodigingsscherm voorbereiden */
+const LS_CLUB = 'cluppie_join_club';   // [20261103] ?club=CODE(&rol=trainco) bewaren tot na het inloggen
 export async function checkUitnodiging(){
   const p = new URLSearchParams(location.search);
+  if (p.get('club')){ try { localStorage.setItem(LS_CLUB, JSON.stringify({ code: p.get('club'), rol: p.get('rol') || '' })); } catch(e){} }
   const code = (p.get('team') || '').toUpperCase();
   if (!code) return false;
   pendingTeamInfo = {code, teamNaam: ''};
@@ -260,7 +265,11 @@ export async function verwerkDeeplink(openTeam, openClub){
   if (deeplinkVerwerkt) return;
   const p = new URLSearchParams(location.search);
   const teamParam = p.get('team');
-  const clubCode = p.get('club');
+  let clubCode = p.get('club'), rol = p.get('rol') || '';
+  if (!teamParam && !clubCode){
+    try { const b = JSON.parse(localStorage.getItem(LS_CLUB) || 'null'); if (b?.code){ clubCode = b.code; rol = b.rol || ''; } } catch(e){}
+  }
+  try { localStorage.removeItem(LS_CLUB); } catch(e){}
   if (teamParam){
     deeplinkVerwerkt = true;
     history.replaceState(null,'',location.pathname);
@@ -275,8 +284,15 @@ export async function verwerkDeeplink(openTeam, openClub){
     const snap = await getDocs(query(collection(db,'clubs'), where('code','==',clubCode.toUpperCase())));
     if (snap.empty) return meld('Clubcode niet gevonden');
     const c = snap.docs[0];
-    await updateDoc(c.ref, {['leden.'+S.user.uid]: true,
-      ['ledenInfo.'+S.user.uid]: {naam: S.user.displayName || S.user.email || 'Coach'}});
-    meld('Gekoppeld aan ' + c.data().naam);
+    const upd = {['leden.'+S.user.uid]: true,
+      ['ledenInfo.'+S.user.uid+'.naam']: S.user.displayName || (S.user.email ? S.user.email.split('@')[0] : '') || 'Coach',
+      ['ledenInfo.'+S.user.uid+'.email']: S.user.email || ''};
+    /* [20261103] Aanmelding als trainingscoördinator: de beheerder ziet dit
+       onder Coaches → Trainingscoördinator → Wacht op acceptatie. */
+    if (rol === 'trainco') upd['ledenInfo.'+S.user.uid+'.traincoAanvraag'] = true;
+    await updateDoc(c.ref, upd);
+    if (rol === 'trainco' && !c.data().trainingscoordinatoren?.[S.user.uid])
+      meld('Je aanmelding als trainingscoördinator is verstuurd. Zodra de beheerder je accepteert, kun je de trainingen bekijken.');
+    else meld('Gekoppeld aan ' + c.data().naam);
   }
 }
