@@ -13,9 +13,9 @@
    trainingToegang-sessie dan ook niet meer toe. */
 import { auth, db, signInAnonymously, doc, getDoc, setDoc,
          collection, getDocs, query, where } from './firebase.js?v=20260922c';
-import { esc } from './state.js?v=20261023a';
-import { afwezigRedenInfo } from './config.js?v=20261023a';
-import { oefHtml } from './training-weergave.js?v=20261023a';
+import { esc } from './state.js?v=20261103a';
+import { afwezigRedenInfo } from './config.js?v=20261103a';
+import { oefHtml, bronHtml } from './training-weergave.js?v=20261103a';
 
 function schermHtml(inhoud){
   return `<div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:20px 16px calc(40px + env(safe-area-inset-bottom));box-sizing:border-box">${inhoud}</div>`;
@@ -150,7 +150,7 @@ function renderDeelPagina(el, ctx){
     </button>
     <div class="pres-lijst" id="deelPresLijst" style="display:none;margin-top:10px;margin-bottom:28px">${spelers.map(speciaal).join('')}</div>
 
-    ${oefeningen.length ? `<div class="hl">${oefeningen.map((o,i) => oefHtml(i+1, o, training.diagramUrls||{})).join('')}</div>` : ''}
+    ${oefeningen.length ? `<div class="hl">${oefeningen.map((o,i) => oefHtml(i+1, o, training.diagramUrls||{})).join('')}</div>${bronHtml()}` : ''}
   `);
 
   const lijst = el.querySelector('#deelPresLijst');
