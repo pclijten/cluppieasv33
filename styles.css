@@ -5820,6 +5820,19 @@ html.desk .uq-label{bottom:24px;right:24px}
 .tc-teamrij > span{font-size:13px;color:var(--ink)}
 .tc-knop-vol{width:100%;background:var(--accent);color:#fff;text-decoration:none}
 
+/* weekscherm */
+.tc-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:0;border:0;background:transparent;border-radius:10px;overflow:hidden}
+.tc-mini img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#fff;border-radius:6px}
+.tc-teamchips{display:flex;flex-wrap:wrap;gap:5px;flex:1;align-content:flex-start}
+.tc-teamchips span{padding:3px 8px;border-radius:7px;background:var(--surface-2);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(15px * var(--fs));color:var(--ink)}
+.tc-samenvatting button.kaart{border:1px solid var(--line-d);text-align:left;color:var(--ink);cursor:pointer}
+.tc-samenvatting button.kaart:disabled{cursor:default}
+.tc-mistknop.s-mist{border-color:color-mix(in srgb,var(--accent) 50%,var(--line-d))}
+.tc-mistknop.actief{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border-color:var(--accent)}
+.tc-schemakop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:6px}
+.tc-schemaknop{min-width:220px}
+.tc-slot-mist{border-color:color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 10%,var(--surface));cursor:default}
+.tc-slot-mist .tc-slot-tekst span{color:var(--accent);font-weight:600}
 /* video's */
 .tc-videos{display:grid;grid-template-columns:1fr;gap:12px}
 @media (min-width:760px){ .tc-videos{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))} }
