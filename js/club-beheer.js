@@ -13,11 +13,12 @@
    per ongeluk wordt overschreven. Dit bestand importeert niets uit club.js
    (geen kringimport): club.js geeft een api-object mee. */
 import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20261023a';
-import { BOUWEN } from './config.js?v=20261023a';
+import { S, esc, meld } from './state.js?v=20261103a';
+import { BOUWEN } from './config.js?v=20261103a';
 import { ico } from './icons.js?v=20260922c';
-import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261102a';
-import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261023a';
+import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261103a';
+import { verwijderCoach } from './trainco-beheer.js?v=20261103a';
+import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103a';
 
 /* [sleutel, naam, kort, icoon, uitleg] — 'lijstjes' was eerder niet door de beheerder te regelen */
 export const MODULE_DEFS = [
@@ -274,6 +275,7 @@ export function htmlCoaches(teams){
   const zoek = String(S._cbZoek || '').trim().toLowerCase();
   const lijst = [...m.values()].filter(c => !zoek || c.naam.toLowerCase().includes(zoek) || c.teams.some(t => (t.naam || '').toLowerCase().includes(zoek)))
     .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  S._cbCoachTeams = teams;
   const zonder = sorteer(teams.filter(t => !coachesVanTeam(t).length));
   const kleurVan = t => { const b = bouwVanTeam(t); return b === ALLEEN_EIGEN ? (eigenBouwenVanTeam(t)[0]?.kleur || 'var(--ink-2)') : BOUW_KLEUR[b]; };
   return `
@@ -284,12 +286,18 @@ export function htmlCoaches(teams){
     <div class="cb-legenda">${lijst.length} coach${lijst.length === 1 ? '' : 'es'} · tik een team om het te beheren</div>
     <div id="cbCoachLijst">${lijst.map(c => `<div class="cb-coachrij"><div class="cb-av">${esc(twee(c.naam))}</div>
       <div class="cb-persoon-n">${esc(c.naam)}${c.uid === S.user?.uid ? ' <small class="cb-inline">jij</small>' : ''} ${c.rollen.map(([k, r]) => `<span class="cb-rol ${k}">${esc(r)}</span>`).join(' ')}
-        <div class="cb-tags">${c.teams.map(t => `<button class="cb-tag" data-cb-team="${esc(t.id)}"><i style="background:${esc(kleurVan(t))}"></i>${esc(t.naam)}</button>`).join('') || '<span class="cb-tag">Geen eigen team</span>'}</div></div></div>`).join('')
+        <div class="cb-tags">${c.teams.map(t => `<button class="cb-tag" data-cb-team="${esc(t.id)}"><i style="background:${esc(kleurVan(t))}"></i>${esc(t.naam)}</button>`).join('') || '<span class="cb-tag">Geen eigen team</span>'}</div></div>
+      ${c.uid === S.user?.uid || c.rollen.some(([k]) => k === 'admin') ? '' : `<button class="knop licht klein cb-verwijder" data-cb-verwijder="${esc(c.uid)}" data-cb-naam="${esc(c.naam)}">Verwijderen</button>`}</div>`).join('')
       || '<div class="kaart leeg">Geen coaches gevonden.</div>'}</div>`;
 }
 /* api: { herteken(), openBeheer(id) } */
 export function koppelCoaches(v, api){
   v.querySelectorAll('[data-cb-team]').forEach(b => b.onclick = () => api.openBeheer(b.dataset.cbTeam));
+  v.querySelectorAll('[data-cb-verwijder]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const ok = await verwijderCoach(b.dataset.cbVerwijder, b.dataset.cbNaam, S._cbCoachTeams || []);
+    if (ok) api.herteken(); else b.disabled = false;
+  });
   const z = v.querySelector('#cbZoek');
   if (z) z.oninput = () => {
     S._cbZoek = z.value;

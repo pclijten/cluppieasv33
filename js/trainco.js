@@ -15,11 +15,11 @@
    Rechten staan in firestore.rules (zie TRAININGSCOORDINATOR-RULES.md); dit
    bestand levert alleen de weergave. */
 import { auth, db, signOut, collection, query, where, onSnapshot, getDocs } from './firebase.js?v=20260922c';
-import { S, esc } from './state.js?v=20261023a';
-import { BOUWEN, isoWeek } from './config.js?v=20261023a';
-import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261023a';
-import { oefHtml } from './training-weergave.js?v=20261023a';
-import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261102a';
+import { S, esc } from './state.js?v=20261103a';
+import { BOUWEN, isoWeek } from './config.js?v=20261103a';
+import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103a';
+import { oefHtml, bronHtml } from './training-weergave.js?v=20261103a';
+import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261103a';
 
 const T = {
   club: null, teams: [], trainingen: [], laden: { teams: true, trainingen: true }, fout: '',
@@ -283,13 +283,13 @@ function htmlDetail(alle){
     </div>
     <div class="tc-detailraster">
       <div class="tc-detailhoofd">
-        <section id="tc-ai"><h2 class="tc-sectiekop">AI-aangepaste training</h2>
-          ${oef.length ? `<div class="tc-ai">${oef.map((o, i) => oefHtml(i + 1, o, tr.diagramUrls)).join('')}</div>`
-            : '<div class="tc-leeg">Voor deze training is geen AI-aangepaste versie gemaakt. Er is alleen de PDF.</div>'}
-        </section>
         <section id="tc-diagrammen"><h2 class="tc-sectiekop">Diagrammen</h2>
           ${diagrammen.length ? `<div class="tc-diagrammen">${diagrammen.map(([k, u], i) => `<a class="tc-diagram" href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Diagram ${i + 1}" loading="lazy"><span>Diagram ${i + 1}</span></a>`).join('')}</div>`
             : '<div class="tc-leeg">Bij deze training zijn geen diagrammen opgeslagen.</div>'}
+        </section>
+        <section id="tc-ai"><h2 class="tc-sectiekop">AI-aangepaste training</h2>
+          ${oef.length ? `<div class="tc-ai">${oef.map((o, i) => oefHtml(i + 1, o, tr.diagramUrls)).join('')}${bronHtml()}</div>`
+            : '<div class="tc-leeg">Voor deze training is geen AI-aangepaste versie gemaakt. Er is alleen de PDF.</div>'}
         </section>
       </div>
       <aside class="tc-detailzij">

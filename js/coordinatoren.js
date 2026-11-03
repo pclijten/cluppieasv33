@@ -15,9 +15,9 @@
    welke knoppen/schermen tonen we — de eigenlijke afdwinging staat in de
    rules. Een coördinator die ook zelf coach is, blijft dat gewoon; beide
    rollen tellen los van elkaar mee. */
-import { S, esc, meld, openModal, sluitModal, initialen } from './state.js?v=20261023a';
+import { S, esc, meld, openModal, sluitModal, initialen } from './state.js?v=20261103a';
 import { db, doc, updateDoc, deleteField } from './firebase.js?v=20260922c';
-import { BOUWEN, bouwNaam } from './config.js?v=20261023a';
+import { BOUWEN, bouwNaam } from './config.js?v=20261103a';
 
 /* ---------- Rechten-check (zelfde patroon als isBeheerder() in state.js) ---------- */
 export function isBouwCoordinator(bouw){

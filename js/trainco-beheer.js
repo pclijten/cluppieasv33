@@ -7,7 +7,7 @@
    trainingscoördinator. Rechtenbron: `trainingscoordinatoren.<uid> = true`.
    Importeert niets uit club.js (geen kringimport). */
 import { db, doc, updateDoc, deleteField } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20261023a';
+import { S, esc, meld } from './state.js?v=20261103a';
 import { ico } from './icons.js?v=20260922c';
 
 const naamKort = n => String(n || 'Naamloos').split('@')[0];
@@ -41,7 +41,8 @@ export function htmlTraincoKaart(teams){
         <button class="knop licht klein" data-tc-weg="${esc(c.uid)}">Toegang intrekken</button></div>`).join('')}
       ${wacht.length ? `<div class="sectie-kop" style="margin:12px 0 6px">Wacht op acceptatie</div>
         ${wacht.map(w => `<div class="cb-persoon"><div class="cb-av">${esc(twee(w.naam))}</div><div class="cb-persoon-n">${esc(w.naam)}${w.email ? `<small class="cb-inline">${esc(w.email)}</small>` : ''}</div>
-          <button class="knop klein" data-tc-maak="${esc(w.uid)}">Maak coördinator</button></div>`).join('')}` : ''}
+          <button class="knop klein" data-tc-maak="${esc(w.uid)}">Maak coördinator</button>
+          <button class="knop licht klein cb-verwijder" data-tc-afwijs="${esc(w.uid)}" style="margin-left:6px">Verwijderen</button></div>`).join('')}` : ''}
       <div class="sectie-kop" style="margin:12px 0 6px">Uitnodigen</div>
       <p class="cb-uitleg" style="margin:0 0 8px">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie". Hij krijgt pas toegang als jij hem accepteert.</p>
       <div class="uitnodig-link" id="traincoLink">${esc(link)}</div>
@@ -70,9 +71,49 @@ export function koppelTraincoKaart(v, api){
     const uid = b.dataset.tcWeg; b.disabled = true;
     await schrijf({ ['trainingscoordinatoren.' + uid]: deleteField(), ['trainingscoordinatorenInfo.' + uid]: deleteField() }, 'Toegang ingetrokken');
   });
+  kaart.querySelectorAll('[data-tc-afwijs]').forEach(b => b.onclick = async () => {
+    const uid = b.dataset.tcAfwijs, naam = naamKort(S.club.ledenInfo?.[uid]?.naam);
+    if (!confirm(`Aanmelding van ${naam} verwijderen?\n\nDe persoon krijgt geen toegang. Hij kan zich opnieuw aanmelden via de uitnodigingslink.`)) return;
+    b.disabled = true;
+    try {
+      await updateDoc(doc(db, 'clubs', S.club.id), { ['leden.' + uid]: deleteField(), ['ledenInfo.' + uid]: deleteField() });
+      if (S.club.leden) delete S.club.leden[uid]; if (S.club.ledenInfo) delete S.club.ledenInfo[uid];
+      meld('Aanmelding verwijderd'); api.herteken();
+    } catch(e){ b.disabled = false; meld('Verwijderen mislukt: ' + (e.code || e.message)); }
+  });
   const kopie = kaart.querySelector('#traincoKopieer');
   if (kopie) kopie.onclick = async () => {
     try { await navigator.clipboard.writeText(kaart.querySelector('#traincoLink').textContent); meld('Link gekopieerd'); }
     catch(e){ meld('Kopiëren mislukt — selecteer de link handmatig'); }
   };
+}
+
+/* Een coach uit de club halen: uit al zijn teams, uit de club zelf en uit zijn
+   rollen (trainingscoördinator, bouwcoördinator). Beheerders kunnen hier niet
+   worden verwijderd. Vraagt eerst bevestiging. Geeft true terug bij gelukt. */
+export async function verwijderCoach(uid, naam, teams){
+  if (!S.club?.admins?.[S.user?.uid]) return false;
+  if (uid === S.user.uid || S.club.admins?.[uid]) return false;
+  const zijnTeams = (teams || []).filter(t => t.leden?.[uid] === true);
+  const lijst = zijnTeams.length ? zijnTeams.map(t => t.naam).join(', ') : 'geen eigen team';
+  if (!confirm(`${naam} verwijderen?\n\nTeams: ${lijst}\n\nHij verliest de toegang tot deze teams en de club. Dit kun je niet ongedaan maken, maar hij kan zich opnieuw aanmelden via een uitnodigingslink.`)) return false;
+  try {
+    for (const t of zijnTeams){
+      await updateDoc(doc(db, 'teams', t.id), { ['leden.' + uid]: deleteField(), ['ledenInfo.' + uid]: deleteField() });
+      if (t.leden) delete t.leden[uid]; if (t.ledenInfo) delete t.ledenInfo[uid];
+    }
+    const club = { ['leden.' + uid]: deleteField(), ['ledenInfo.' + uid]: deleteField() };
+    if (S.club.trainingscoordinatoren?.[uid] !== undefined){ club['trainingscoordinatoren.' + uid] = deleteField(); club['trainingscoordinatorenInfo.' + uid] = deleteField(); }
+    for (const [bouw, m] of Object.entries(S.club.bouwCoordinatoren || {})){
+      if (m && m[uid] !== undefined){ club[`bouwCoordinatoren.${bouw}.${uid}`] = deleteField(); club[`bouwCoordinatorenInfo.${uid}`] = deleteField(); }
+    }
+    await updateDoc(doc(db, 'clubs', S.club.id), club);
+    for (const k of ['leden', 'ledenInfo', 'trainingscoordinatoren', 'trainingscoordinatorenInfo']) if (S.club[k]) delete S.club[k][uid];
+    for (const m of Object.values(S.club.bouwCoordinatoren || {})) if (m) delete m[uid];
+    meld(naam + ' is verwijderd');
+    return true;
+  } catch(e){
+    meld('Verwijderen mislukt: ' + (e.code || e.message));
+    return false;
+  }
 }
