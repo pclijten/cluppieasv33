@@ -5839,9 +5839,10 @@ html.desk .uq-label{bottom:24px;right:24px}
 .tc-blokkop{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
 .tc-blokkop b{font-size:calc(26px * var(--fs));font-weight:700;text-transform:uppercase;color:var(--ink);line-height:1;padding-left:10px;border-left:4px solid var(--accent)}
 .tc-blokkop span{font-size:13px;color:var(--ink-2)}
-.tc-hoofdteams{display:flex;flex-wrap:wrap;gap:6px}
-.tc-hoofdteams span{padding:2px 10px;border-radius:8px;background:var(--accent);color:#fff;font-size:calc(22px * var(--fs));font-weight:700;line-height:1.25}
-.tc-trkaart .tc-meta{margin-top:-2px}
+.tc-trtitel{margin:0;font-size:calc(24px * var(--fs));letter-spacing:.3px}
+.tc-hoofdteams{display:flex;flex-wrap:wrap;align-items:center;gap:4px 0;margin-top:-4px;font-size:calc(13px * var(--fs));font-weight:600;color:var(--ink-2)}
+.tc-hoofdteams span + span::before{content:'·';margin:0 6px;color:var(--accent);font-weight:700}
+.tc-teamlijst{flex:1;font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45}
 .tc-teamchips span{font-size:calc(13px * var(--fs));padding:2px 7px}
 /* video's */
 .tc-videos{display:grid;grid-template-columns:1fr;gap:12px}

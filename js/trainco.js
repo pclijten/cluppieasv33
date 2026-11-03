@@ -285,11 +285,11 @@ function htmlTrainingKaart(g){
   const vormen = oefenvormen(g.tr).slice(0, 4);
   const teams = sorteerTeams([...new Map(g.regels.map(r => [r.team.id, r.team])).values()]);
   return `<article class="kaart tc-trkaart">
-    <div class="tc-hoofdteams">${hoofdteams(teams).map(h => `<span class="cond">${esc(h)}</span>`).join('')}</div>
-    <div class="tc-meta">${esc(trTitel(g.tr))}</div>
+    <h2 class="cond tc-h2 tc-trtitel">${esc(trTitel(g.tr))}</h2>
+    <div class="tc-hoofdteams">${hoofdteams(teams).map(h => `<span>${esc(h)}</span>`).join('')}</div>
     ${vormen.length ? `<button class="tc-mini" data-tc-open="${esc(g.tr.id)}" aria-label="Bekijk ${esc(trTitel(g.tr))}">${vormen.map(v => `<img src="${esc(v.url)}" alt="" loading="lazy">`).join('')}</button>` : ''}
     <div class="tc-labels">${vormen.length ? `<span class="tc-label">${oefenvormen(g.tr).length} oefenvorm${oefenvormen(g.tr).length === 1 ? '' : 'en'}</span>` : ''}${g.tr.url ? '<span class="tc-label">PDF</span>' : ''}<span class="tc-label">${teams.length} team${teams.length === 1 ? '' : 's'}</span>${vanafLabel(g.tr)}</div>
-    <div class="tc-teamchips">${teams.map(t => `<span>${esc(t.naam)}</span>`).join('')}</div>
+    <div class="tc-teamlijst" title="${esc(teams.map(t => t.naam).join(', '))}">${esc(teams.map(t => t.naam).join(' · '))}</div>
     <button class="knop tc-knop-vol" data-tc-open="${esc(g.tr.id)}">Bekijk training</button>
   </article>`;
 }
