@@ -65,11 +65,21 @@ export async function bootVoorbeeld(user){
 }
 
 /* ---------- boot ---------- */
-export function bootTrainco(club, voorbeeld){
+/* Trainer die óók trainingscoördinator is: opent het scherm vanuit de
+   coach-app (menu-item), met een knop terug naar zijn team. */
+export function openVanuitApp(){
+  const club = (S.traincoClubs || [])[0];
+  if (club) bootTrainco(club, false, true);
+}
+export function bootTrainco(club, voorbeeld, vanuitApp = false){
   if (T.el) return;
-  T.club = club; T.voorbeeld = !!voorbeeld;
-  S.club = club; S.clubId = club.id;                // bouwVanTeam() leest de club-indeling hieruit
-  for (const id of ['app', 'login', 'uitnodiging', 'opstart']){
+  T.club = club; T.voorbeeld = !!voorbeeld; T.vanuitApp = !!vanuitApp;
+  T.laden = { teams: true, trainingen: true }; T.fout = ''; T.detail = null; T.pagina = 'week'; T.weekOffset = 0;
+  // bouwVanTeam() leest de club-indeling uit S.club; de coach-app krijgt zijn
+  // eigen waarden terug bij sluitTrainco().
+  T.oud = { club: S.club, clubId: S.clubId };
+  S.club = club; S.clubId = club.id;
+  for (const id of (vanuitApp ? ['app'] : ['app', 'login', 'uitnodiging', 'opstart'])){
     const e = document.getElementById(id); if (e){ e.style.display = 'none'; if (id === 'opstart') e.remove(); }
   }
   const el = document.createElement('div');
@@ -434,11 +444,12 @@ function teken(){
           <div class="tc-navkop">Media</div>
           ${MENU.slice(3).map(([id, n, ic]) => `<button class="tc-link ${!T.detail && T.pagina === id ? 'actief' : ''}" data-tc-pagina="${id}">${ico(ic, 20)}<span>${n}</span></button>`).join('')}
         </nav>
+        ${T.vanuitApp ? `<button class="tc-link tc-terugapp" data-tc-naarapp>${ico('navigation-back', 20)}<span>Terug naar mijn team</span></button>` : ''}
         <div class="tc-ik"><span class="tc-avatar">${esc((naam || '?').charAt(0).toUpperCase())}</span><span><b>${esc(naam)}</b><small>Alleen lezen</small></span>
           <button class="tc-uit" data-tc-uitloggen title="Uitloggen" aria-label="Uitloggen">${ico('team-leave', 20)}</button></div>
       </aside>
       <main class="tc-hoofd">
-        <header class="tc-balk"><img src="icons/asv-schild.png" alt=""><span><b class="cond">${esc(T.club.naam || 'Cluppie')}</b><small>Trainingscoördinator</small></span>
+        <header class="tc-balk">${T.vanuitApp ? `<button class="tc-uit" data-tc-naarapp title="Terug naar mijn team" aria-label="Terug naar mijn team">${ico('navigation-back', 22)}</button>` : ''}<img src="icons/asv-schild.png" alt=""><span><b class="cond">${esc(T.club.naam || 'Cluppie')}</b><small>Trainingscoördinator</small></span>
           <button class="tc-uit" data-tc-uitloggen title="Uitloggen" aria-label="Uitloggen">${ico('team-leave', 20)}</button></header>
         <div class="tc-inhoud-wrap">${inhoud}</div>
       </main>
@@ -460,9 +471,19 @@ function klik(e){
   else if (d.tcNaar){ e.preventDefault(); T.el.querySelector('#' + d.tcNaar)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (d.tcZoom){ openLightbox(d.tcZoom, d.tcZoomtitel); }
   else if (b.hasAttribute('data-tc-terug')){ T.detail = null; teken(); naarBoven(); }
+  else if (b.hasAttribute('data-tc-naarapp')){ sluitTrainco(); }
   else if (b.hasAttribute('data-tc-uitloggen')){
     T.unsub.forEach(u => { try { u(); } catch(err){} }); T.unsub = [];
     signOut(auth).catch(() => {}).finally(() => location.reload());
   }
   else if (b.hasAttribute('data-tc-sluitvoorbeeld')){ location.href = location.pathname; }
+}
+
+/* Terug naar de coach-app: listeners stoppen, scherm weg, S herstellen. */
+export function sluitTrainco(){
+  if (!T.el) return;
+  T.unsub.forEach(u => { try { u(); } catch(err){} }); T.unsub = [];
+  T.el.remove(); T.el = null;
+  if (T.oud){ S.club = T.oud.club; S.clubId = T.oud.clubId; T.oud = null; }
+  const app = document.getElementById('app'); if (app) app.style.display = '';
 }
