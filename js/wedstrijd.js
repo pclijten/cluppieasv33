@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261103i').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261104a').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261103i').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261104a').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -939,9 +939,9 @@ function modalKlokInstellen(){
     <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px;line-height:1.5">${esc(periodeOmschrijving(w))} · handig als je de klok te laat startte. De speeltijd loopt vanaf deze tijd verder.</p>
     <div class="veldgroep"><label>Klok zetten op</label>
       <div style="display:flex;align-items:center;gap:10px">
-        <input class="invoer" id="mKiMin" inputmode="numeric" style="max-width:88px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(22px * var(--fs))" value="${Math.floor(nu/60)}">
+        <input class="invoer" id="mKiMin" inputmode="numeric" style="max-width:88px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:calc(22px * var(--fs))" value="${Math.floor(nu/60)}">
         <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">min</span>
-        <input class="invoer" id="mKiSec" inputmode="numeric" style="max-width:88px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(22px * var(--fs))" value="${String(nu%60).padStart(2,'0')}">
+        <input class="invoer" id="mKiSec" inputmode="numeric" style="max-width:88px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:calc(22px * var(--fs))" value="${String(nu%60).padStart(2,'0')}">
         <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">sec</span>
       </div>
       <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Nu op <b>${mmss(nu)}</b> · periode duurt ${String(w.kwartduur).replace('.',',')} min (blessuretijd mag hoger).</p></div>
@@ -1156,9 +1156,9 @@ function gebeurtenisTijd(sec, w){
 /* Twee gekoppelde min/sec-invoervelden als HTML-fragment. */
 function minSecInvoerHtml(minId, secId, sec){
   return `<div style="display:flex;align-items:center;gap:10px">
-    <input class="invoer" id="${minId}" inputmode="numeric" style="max-width:80px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs))" value="${Math.floor((sec||0)/60)}">
+    <input class="invoer" id="${minId}" inputmode="numeric" style="max-width:80px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:calc(20px * var(--fs))" value="${Math.floor((sec||0)/60)}">
     <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">min</span>
-    <input class="invoer" id="${secId}" inputmode="numeric" style="max-width:80px;text-align:center;font-family:'Barlow Condensed';font-weight:700;font-size:calc(20px * var(--fs))" value="${String((sec||0)%60).padStart(2,'0')}">
+    <input class="invoer" id="${secId}" inputmode="numeric" style="max-width:80px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:calc(20px * var(--fs))" value="${String((sec||0)%60).padStart(2,'0')}">
     <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">sec</span>
   </div>`;
 }
@@ -1345,7 +1345,7 @@ export function toonBijwerkScherm(){
       <table class="bijwerk-st"><thead><tr><th>Speler</th><th>${esc(periodeLabel(w, nr))}</th><th>Totaal</th></tr></thead>
         <tbody>${(w.selectie||[]).filter(pid => speler(pid))
           .sort((a,b) => (aWed.tijd[b]||0)-(aWed.tijd[a]||0)).map(speeltijdRij).join('')}</tbody></table>
-      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.5">Tik op een tijd om die periode handmatig te corrigeren — een <b style="color:var(--accent)">gekleurde</b> waarde is al aangepast.</p>
+      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.5">Tik op een tijd om die periode handmatig te corrigeren — een <b style="color:var(--accent-ink)">gekleurde</b> waarde is al aangepast.</p>
     </div>`);
 
   /* periode-tabs */
@@ -2434,14 +2434,14 @@ export function htmlStats(){
     return `
     <div class="kaart">
       ${eerlijk ? `
-      <div class="sectie-kop" style="margin-top:0">⚖️ Eerlijke speeltijd<span style="margin-left:auto;font-family:'Inter';font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">seizoen tot nu</span></div>
+      <div class="sectie-kop" style="margin-top:0">⚖️ Eerlijke speeltijd<span style="margin-left:auto;font-family:var(--font-sans);font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">seizoen tot nu</span></div>
       <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
-        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(38px * var(--fs));line-height:1;color:${eerlijkKleur(eerlijk.score)}">${eerlijk.score}</span>
+        <span style="font-family:var(--font-display);font-weight:700;font-size:calc(38px * var(--fs));line-height:1;color:${eerlijkKleur(eerlijk.score)}">${eerlijk.score}</span>
         <span style="font-size:calc(13px * var(--fs));color:var(--ink-2)">/ 100</span>
       </div>
       <div style="font-size:calc(13px * var(--fs));font-weight:600;margin-bottom:11px;color:${eerlijkKleur(eerlijk.score)}">${eerlijkLabel(eerlijk.score)}</div>
-      <div style="height:12px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-bottom:6px">
-        <div style="height:100%;border-radius:6px;width:${eerlijk.score}%;background:${eerlijkKleur(eerlijk.score)}"></div>
+      <div style="height:12px;border-radius:var(--r-s);background:var(--surface-2);overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;border-radius:var(--r-s);width:${eerlijk.score}%;background:${eerlijkKleur(eerlijk.score)}"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:calc(10.5px * var(--fs));color:var(--ink-2)"><span>scheef</span><span>gelijk verdeeld</span></div>
       <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5;margin-top:9px">
@@ -2517,7 +2517,7 @@ export function htmlStats(){
       const n = k.val(p);
       if (!n) return `<td class="leeg-cel">0</td>`;
       const stijl = k.nadruk ? ' style="font-weight:700"'
-        : k.accent ? ' style="color:var(--accent);font-weight:700"' : '';
+        : k.accent ? ' style="color:var(--accent-ink);font-weight:700"' : '';
       return `<td${stijl}>${k.fmt ? k.fmt(n) : n}</td>`;
     };
     return overzichtKaart() + `
@@ -2588,7 +2588,7 @@ export function htmlStats(){
     }
     return kop + `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">⚠️ Spelers die aandacht vragen<span style="margin-left:auto;font-family:'Inter';font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">${aandachtSignalen.length} van ${S.spelers.length}</span></div>
+      <div class="sectie-kop" style="margin-top:0">⚠️ Spelers die aandacht vragen<span style="margin-left:auto;font-family:var(--font-sans);font-weight:500;font-size:calc(11px * var(--fs));text-transform:none;letter-spacing:0;color:var(--ink-2)">${aandachtSignalen.length} van ${S.spelers.length}</span></div>
       ${aandachtSignalen.map(({p, redenen, tags, gewicht}) => `
         <button type="button" class="aandacht-kaart" data-statsprofiel="${p.id}">
           <span class="stip" style="background:${gewicht>=2?'var(--n1)':'var(--warn)'}"></span>
@@ -2618,7 +2618,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261103i').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261104a').then(m => m.renderTeam?.());
   });
 }
 
@@ -2901,10 +2901,10 @@ export function renderWedstrijd(){
         <span>Wijzig opzet</span>
       </button></div>
     <div class="kaart doelbanner" id="doelBanner" style="${w.doel
-      ? 'background:rgba(226,52,47,.12);border-left:3px solid var(--accent)'
-      : 'background:rgba(226,52,47,.10);border-left:3px dashed var(--accent)'};font-size:calc(13.5px * var(--fs));color:var(--ink);padding:10px 12px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">${w.doel
+      ? 'background:color-mix(in srgb,var(--accent) 12%,transparent);border-left:3px solid var(--accent)'
+      : 'background:color-mix(in srgb,var(--accent) 10%,transparent);border-left:3px dashed var(--accent)'};font-size:calc(13.5px * var(--fs));color:var(--ink);padding:10px 12px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">${w.doel
         ? `<span style="font-size:calc(16px * var(--fs))">🎯</span><span><b>Doel:</b> ${esc(w.doel)}</span>`
-        : `<span style="font-size:calc(16px * var(--fs))">🎯</span><span><b>Wedstrijddoel kiezen</b> — tik hier om een doel voor vandaag te zetten <span style="color:var(--accent);font-weight:700">›</span></span>`}</div>
+        : `<span style="font-size:calc(16px * var(--fs))">🎯</span><span><b>Wedstrijddoel kiezen</b> — tik hier om een doel voor vandaag te zetten <span style="color:var(--accent-ink);font-weight:700">›</span></span>`}</div>
 ${confroHtml}
     <div class="scorebord v2">
       <div class="sb-rij">
@@ -3152,7 +3152,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261103i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261104a').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

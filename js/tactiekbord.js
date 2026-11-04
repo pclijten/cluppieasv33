@@ -215,7 +215,7 @@ export function openTactiekLijst(w){
   if (toonLeerplein){
     host.querySelector('#tbLeerplein').onclick = () => {
       sluit();
-      import('./leerplein.js?v=20261103e').then(m => m.openLeerplein(w));
+      import('./leerplein.js?v=20261104a').then(m => m.openLeerplein(w));
     };
   }
 

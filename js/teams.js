@@ -21,7 +21,7 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202611
 import { tekenPwaBanner } from './pwa.js?v=20260922c';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20261103i';
+} from './wedstrijd.js?v=20261104a';
 import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261103i';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
@@ -34,7 +34,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20261103i')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20261104a')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlProfiel,
@@ -42,14 +42,14 @@ import {
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn, modalLeenOverlay, definitiefOverzetten, herberekenDossier,
   modalGast, verwijderGast, modalKoppelGast, modalNotitie, startRondeFlow,
-} from './teams-spelers.js?v=20261103i';
+} from './teams-spelers.js?v=20261104a';
 import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20261103e';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261103i';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261104a';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalLaterAfgemeld, modalVasteAfmelding, stopVasteAfmelding, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20261103e';
+} from './teams-training.js?v=20261104a';
 import { htmlTeamDocumenten } from './teams-documenten.js?v=20261103e';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
@@ -62,10 +62,10 @@ import {
 } from './teams-lijsten.js?v=20261103e';
 import { koppelOnboardingHerstart } from './onboarding.js?v=20261103i';
 import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20261103e';
-import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260922c';
+import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20261104a';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20261103i' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20261104a' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -177,7 +177,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20261103i').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20261104a').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -644,14 +644,14 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261103i').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261104a').then(m => m.openClub(b.dataset.openClub)));
   v.querySelectorAll('[data-open-bouw]').forEach(b => b.onclick = () => {
     const [clubId, bouw] = b.dataset.openBouw.split('|');
-    import('./bouw-hub.js?v=20261103i').then(m => m.openBouwHub(clubId, bouw));
+    import('./bouw-hub.js?v=20261104a').then(m => m.openBouwHub(clubId, bouw));
   });
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261103i').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261104a').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -755,7 +755,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20261103i').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20261104a').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -810,7 +810,7 @@ function modalJoinTeam(){
     <h2>Aansluiten bij team</h2>
     <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Vraag de teamcode aan een coach van het team (te vinden onder het tabblad Team).</p>
     <div class="veldgroep"><input class="invoer" id="mCode" placeholder="ASVJO11-1" maxlength="20"
-      style="text-transform:uppercase;text-align:center;font-family:'Barlow Condensed';font-size:calc(22px * var(--fs));letter-spacing:2px"></div>
+      style="text-transform:uppercase;text-align:center;font-family:var(--font-display);font-size:calc(22px * var(--fs));letter-spacing:2px"></div>
     <button class="knop vol" id="mCodeOk">Aansluiten</button>`);
   $('#mCodeOk').onclick = async () => {
     const code = $('#mCode').value.trim().toUpperCase();
@@ -1740,7 +1740,7 @@ function wedstrijdRegel(w){
     <button class="lijst-item" data-open-w="${w.id}">
       <div class="li-tekst"><div class="titel">${titel}</div>
       <div class="meta">${elftalPillWedstrijd(w)}${meta}</div></div>
-      ${uitslag ? `<span class="badge" style="font-family:'Barlow Condensed';font-size:calc(15px * var(--fs));font-weight:700">${uitslag}</span>` : ''}
+      ${uitslag ? `<span class="badge" style="font-family:var(--font-display);font-size:calc(15px * var(--fs));font-weight:700">${uitslag}</span>` : ''}
       <span class="pijl">›</span></button>`;
 }
 
@@ -2437,7 +2437,7 @@ function koppelTeamTab(v, tab){
         openModal(`
           <h2 style="margin-bottom:12px">${esc(titel)}</h2>
           <video src="${esc(url)}" controls autoplay playsinline preload="metadata"
-                 style="width:100%;max-height:70vh;border-radius:12px;background:#000;display:block"></video>
+                 style="width:100%;max-height:70vh;border-radius:var(--r-m);background:#000;display:block"></video>
           <button class="knop fluo vol" id="videoDeelKnop" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:7px">${ico('action-whatsapp',18)}<span>Delen via WhatsApp</span></button>`);
         const dk = v.ownerDocument.getElementById('videoDeelKnop');
         if (dk) dk.onclick = () => deelVideo(url, titel, 'upload', dk);
@@ -2527,7 +2527,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261103i').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261104a').then(m => m.modalUitnodig(S.team));
     const wcKnop = v.querySelector('#wijzigCode'); if (wcKnop) wcKnop.onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     const naamOk = v.querySelector('#iNaamOk');

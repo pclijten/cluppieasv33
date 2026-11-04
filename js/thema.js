@@ -48,7 +48,7 @@ export function coachMagKiezen(){
 function pasToe(thema){
   HTML.setAttribute('data-thema', thema);
   const mc = document.querySelector('meta[name="theme-color"]');
-  if (mc) mc.setAttribute('content', thema === 'licht' ? '#f4f6f8' : '#0e1116');
+  if (mc) mc.setAttribute('content', thema === 'licht' ? '#f2f2f2' : '#0d0d0e');
 }
 
 /* herbereken en toon; cache de stand voor de pre-paint gate van de volgende sessie */

@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20260922c';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261103e';
 import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261103i';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261104a';
 import { telGebruik } from './tracker.js?v=20261103e';
 import { analyseWedstrijd } from './analyse.js?v=20261103e';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
@@ -589,8 +589,8 @@ function radarSVG(values, opts={}){
 }
 function radarLegende(a, b){
   return `<div style="display:flex;justify-content:center;gap:16px;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:-2px">
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);margin-right:5px"></span>${esc(a)}</span>
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;border:1.6px dashed var(--ink-2);margin-right:5px"></span>${esc(b)}</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:var(--r-xs);background:var(--accent);margin-right:5px"></span>${esc(a)}</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:var(--r-xs);border:1.6px dashed var(--ink-2);margin-right:5px"></span>${esc(b)}</span>
   </div>`;
 }
 /* Overlay-radar: alle teams in één chart, elk in een eigen kleur, i.p.v. losse
@@ -659,8 +659,8 @@ function renderDashboard(){
       <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
         <span>${label}</span><span style="font-weight:700;color:${kleur}">${pct==null?'–':pct+'%'}</span>
       </div>
-      <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${pct||0}%;background:${kleur};border-radius:3px"></div>
+      <div style="height:6px;background:var(--surface-2);border-radius:var(--r-xs);overflow:hidden">
+        <div style="height:100%;width:${pct||0}%;background:${kleur};border-radius:var(--r-xs)"></div>
       </div>
     </div>`;
 
@@ -689,7 +689,7 @@ function renderDashboard(){
       const laatsteHtml = u.laatste
         ? (() => { const uitk = u.laatste.voor>u.laatste.tegen?'w':u.laatste.voor<u.laatste.tegen?'v':'g';
             return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)">
-              <span style="background:${VORMKLEUR[uitk]};color:#12140f;font-weight:800;font-size:10px;border-radius:5px;padding:1px 5px">${VORMLETTER[uitk]}</span>
+              <span style="background:${VORMKLEUR[uitk]};color:#12140f;font-weight:800;font-size:10px;border-radius:var(--r-s);padding:1px 5px">${VORMLETTER[uitk]}</span>
               vs ${esc(u.laatste.tegenstander)} ${u.laatste.voor}-${u.laatste.tegen}</span>`; })()
         : `<span style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">${u.knvbVerborgen ? 'KNVB publiceert geen uitslagen (O10 en jonger)' : 'Nog geen uitslag bekend'}</span>`;
 
@@ -713,7 +713,7 @@ function renderDashboard(){
             <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">${teStats.count}× ›</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:var(--r-s);background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
             <span style="font-size:calc(12px * var(--fs));color:var(--ink-2)">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?` · gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
           </div>
         </button>` : `
@@ -730,7 +730,7 @@ function renderDashboard(){
       return `<div class="kaart" style="margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <b style="font-size:calc(15px * var(--fs))">${esc(t.naam)}</b>
-          <span style="font-family:'Barlow Condensed';font-weight:800;font-size:calc(19px * var(--fs));color:var(--accent);line-height:1">${positie}</span>
+          <span style="font-family:var(--font-display);font-weight:800;font-size:calc(19px * var(--fs));color:var(--accent-ink);line-height:1">${positie}</span>
         </div>
         ${w.sportlink ? (u.gespeeld > 0
           ? `<button type="button" data-bh-uitslagen="${t.id}" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:6px;flex-wrap:wrap;gap:6px;background:none;border:none;padding:0;cursor:pointer;text-align:left">
@@ -746,8 +746,8 @@ function renderDashboard(){
           <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
             <span>${esc(em.naam)}${losseCount>0?` · +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
           </div>
-          <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:${evalPct}%;background:${evalKleur};border-radius:3px"></div>
+          <div style="height:6px;background:var(--surface-2);border-radius:var(--r-xs);overflow:hidden">
+            <div style="height:100%;width:${evalPct}%;background:${evalKleur};border-radius:var(--r-xs)"></div>
           </div>
         </div>` : ''}
         ${radarHtml}
@@ -846,7 +846,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261103i');
+      const m = await import('./teams.js?v=20261104a');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1222,9 +1222,9 @@ function renderEvaluatieTeamDetail(teamId){
         const extra = p.metingen.length > 1 ? ` · ${p.metingen.length}×` : '';
         return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
           <div class="li-tekst" style="flex:1">
-            <div class="titel">${esc(p.naam)}${esc(extra)}${m.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
+            <div class="titel">${esc(p.naam)}${esc(extra)}${m.officieel?' <span style="color:var(--accent-ink);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
             <div class="meta" style="display:flex;gap:5px;margin-top:4px">
-              ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${KLEUR_CIJFER[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
+              ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${KLEUR_CIJFER[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:var(--r-s);padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
             </div>
           </div>
           <span class="pijl">›</span>
@@ -1268,7 +1268,7 @@ function renderTeamEvaluatieDetail(teamId, ev){
           <div style="font-weight:700;font-size:calc(15px * var(--fs))">${esc(ev.tegenstander||'Onbekend')}</div>
           <div style="color:var(--ink-2);font-size:calc(12px * var(--fs))">${esc(ev.datum||'')}</div>
         </div>
-        <div style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f;font-weight:800">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:var(--r-m);background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f;font-weight:800">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
       </div>
     </div>
     <div class="sectie-kop">Per categorie</div>
@@ -1277,7 +1277,7 @@ function renderTeamEvaluatieDetail(teamId, ev){
         const s = ev.scores?.[c.id];
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--surface-2)">
           <span style="font-size:calc(13px * var(--fs))">${esc(c.naam)}</span>
-          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:7px;background:${s?niveauKleur(s):'var(--surface-2)'};color:#12140f;font-weight:700;font-size:calc(12px * var(--fs))">${s||'–'}</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:var(--r-s);background:${s?niveauKleur(s):'var(--surface-2)'};color:#12140f;font-weight:700;font-size:calc(12px * var(--fs))">${s||'–'}</span>
         </div>`;
       }).join('')}
     </div>
@@ -1334,7 +1334,7 @@ function renderSpelerprofielScherm(teamId, p, actieveMeting, opties = {}){
         const klikbaar = isVolledig;
         return `<div class="lijst-item" ${klikbaar?`data-bh-meting="${p.metingen.indexOf(x)}"`:''} style="${klikbaar?'cursor:pointer':'cursor:default'}${x===m?';border-left:3px solid var(--accent)':''}">
           <div class="li-tekst">
-            <div class="titel">${metingLabel(x)}${x.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
+            <div class="titel">${metingLabel(x)}${x.officieel?' <span style="color:var(--accent-ink);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
             ${!isVolledig ? `<div class="meta">Cijfer ${x.niveau ?? '–'}${x.notities?.algemeen ? ' · “'+esc(x.notities.algemeen)+'”' : ''}</div>` : ''}
           </div>
           <div class="meta">${esc(x.datum||'')}</div>

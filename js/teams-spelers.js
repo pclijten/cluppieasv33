@@ -32,7 +32,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261103i');
+  const m = await import('./teams.js?v=20261104a');
   m.renderTeam();
 }
 
@@ -715,7 +715,7 @@ function htmlLeerlijn(p){
             <div class="lp-domein">${d ? esc(d.naam) : 'Algemeen'}</div>
             <div class="t">${esc(l.tekst)}</div>
             <div class="d">${l.klaar ? 'Afgerond op '+datumNL(l.klaarOp||l.sinds)+' 🎉' : 'Sinds '+datumNL(l.sinds)}</div>
-            ${thema ? `<div style="font-size:calc(11px * var(--fs));color:var(--accent);font-weight:700;margin-top:3px;cursor:pointer" data-thema-info="${esc(thema.thema)}">ℹ️ Achtergrond &amp; tips bekijken</div>` : ''}
+            ${thema ? `<div style="font-size:calc(11px * var(--fs));color:var(--accent-ink);font-weight:700;margin-top:3px;cursor:pointer" data-thema-info="${esc(thema.thema)}">ℹ️ Achtergrond &amp; tips bekijken</div>` : ''}
           </div>
           <button class="lp-weg" data-lp-weg="${l.id}" title="Verwijderen">🗑</button>
         </div>`;

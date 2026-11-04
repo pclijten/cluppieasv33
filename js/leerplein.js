@@ -122,7 +122,7 @@ function toonThema(){
         <div class="lp-legenda">
           <div class="lp-rij"><span class="lp-sample" style="border-color:var(--loop,#F2C94C);border-top-style:dashed"></span> loopactie</div>
           <div class="lp-rij"><span class="lp-sample" style="border-color:#fff"></span> pass</div>
-          <div class="lp-rij"><span class="lp-dot" style="background:#E20613"></span> eigen speler</div>
+          <div class="lp-rij"><span class="lp-dot" style="background:var(--accent)"></span> eigen speler</div>
           <div class="lp-rij"><span class="lp-dot" style="background:#2B6FD6"></span> tegenstander</div>
         </div>
       </div>

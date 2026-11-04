@@ -17,7 +17,7 @@ import {
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
 } from './config.js?v=20261103e';
 import { htmlKompas } from './teams-leerlijn.js?v=20261103e';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922c';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261104a';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
 } from './vaste-afmeldingen.js?v=20261012a';
@@ -496,7 +496,7 @@ export function htmlTeamVideos(){
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
       ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
+      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:var(--r-xs);line-height:1">MP4</span>' : ''}`;
     return `
     <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
       <div class="thumb">${thumbInner}</div>
@@ -613,7 +613,7 @@ export function modalWijzigCode(){
     <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:12px">Let op: bestaande uitnodigingslinks met de oude code werken daarna niet meer.</p>
     <div class="veldgroep"><label>Nieuwe code</label>
       <input class="invoer" id="mWcCode" value="${esc(S.team.code)}" maxlength="20"
-        style="text-transform:uppercase;font-family:'Barlow Condensed';font-size:calc(20px * var(--fs));letter-spacing:1px"></div>
+        style="text-transform:uppercase;font-family:var(--font-display);font-size:calc(20px * var(--fs));letter-spacing:1px"></div>
     <button class="knop vol" id="mWcOk">Code opslaan</button>`);
   $('#mWcOk').onclick = async () => {
     const nieuw = $('#mWcCode').value.trim().toUpperCase().replace(/[^A-Z0-9-]+/g,'');

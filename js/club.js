@@ -13,7 +13,7 @@ import { analyseWedstrijd } from './analyse.js?v=20261103e';
 import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261103e';
 import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261103e';
 import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261103e';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261103e';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261104a';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261103e';
 import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261103e';
 import { telGebruik, telNav } from './tracker.js?v=20261103e';
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261103i'); }
+async function teamsModule(){ return await import('./teams.js?v=20261104a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261103i').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261104a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -665,7 +665,7 @@ function htmlClubNavigatie(gebruik){
       for (const naar of drukste) if (naar!==van) maxVooruit = Math.max(maxVooruit, rij.get(naar)||0);
       maxTerug = Math.max(maxTerug, rij.get('_terug')||0);
     }
-    const kop = `<tr><th class="nav-hoek">van ↓ / naar →</th>${drukste.map(s=>`<th>${esc(navLabel(s))}</th>`).join('')}<th style="color:var(--keeper)">↩ terug</th><th>⨯ sluit</th></tr>`;
+    const kop = `<tr><th class="nav-hoek">van ↓ / naar →</th>${drukste.map(s=>`<th>${esc(navLabel(s))}</th>`).join('')}<th style="color:var(--keeper-ink)">↩ terug</th><th>⨯ sluit</th></tr>`;
     const body = rijen.map(van => {
       const rij = A.matrix.get(van) || new Map();
       const totVan = [...rij.values()].reduce((a,b)=>a+b,0) || 1;
@@ -681,7 +681,7 @@ function htmlClubNavigatie(gebruik){
       return `<tr><th>${esc(navLabel(van))}</th>${cellen}<td><div class="nav-cel" style="${bgT}">${vT?pctT+'%':'·'}</div></td><td><div class="nav-cel" style="font-style:italic;color:var(--ink-2)">${vS?pctS+'%':'·'}</div></td></tr>`;
     }).join('');
     inhoud = `<div class="nav-matrix-scroll"><table class="nav-matrix">${kop}${body}</table></div>
-      <p class="nav-duiding">Lees per rij: vanaf dat scherm, waar ging men daarna heen. De gele <b style="color:var(--keeper)">↩ terug</b>-kolom toont het aandeel dat via de terugknop ging — daar kún je nergens rechtstreeks heen. Rood = veel vooruit-verkeer.</p>`;
+      <p class="nav-duiding">Lees per rij: vanaf dat scherm, waar ging men daarna heen. De gele <b style="color:var(--keeper-ink)">↩ terug</b>-kolom toont het aandeel dat via de terugknop ging — daar kún je nergens rechtstreeks heen. Rood = veel vooruit-verkeer.</p>`;
   }
 
   else { // exit
@@ -795,8 +795,8 @@ function htmlClubGebruik(gebruik){
       ${data.map(d => `
         <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:calc(12.5px * var(--fs))">
           <span style="width:56px;flex-shrink:0;color:var(--ink-2)">${esc(d.label)}</span>
-          <span style="flex:1;height:14px;background:var(--surface-2);border-radius:7px;overflow:hidden">
-            <span style="display:block;height:100%;width:${Math.round((d.n/max)*100)}%;background:var(--accent);border-radius:7px"></span>
+          <span style="flex:1;height:14px;background:var(--surface-2);border-radius:var(--r-s);overflow:hidden">
+            <span style="display:block;height:100%;width:${Math.round((d.n/max)*100)}%;background:var(--accent);border-radius:var(--r-s)"></span>
           </span>
           <span style="width:22px;text-align:right;font-weight:700">${d.n}</span>
         </div>`).join('')}
@@ -811,7 +811,7 @@ function htmlClubGebruik(gebruik){
           <div class="lid-naam">${esc(g.naam || g.email || 'Onbekend')}
             <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);font-weight:500;margin-top:1px">${g.email?esc(g.email)+' · ':''}laatst: ${dashTijdKort(g.laatsteLogin)}</div>
           </div>
-          <div style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(18px * var(--fs));color:var(--accent);flex-shrink:0">${g.aantalLogins||0}</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:calc(18px * var(--fs));color:var(--accent-ink);flex-shrink:0">${g.aantalLogins||0}</div>
         </div>`).join('')}
       ${gebruik.gebruikers.length > 10 ? `<button class="knop licht vol" id="btnAlleGebruikers" style="margin-top:10px;font-size:calc(13px * var(--fs))">${S.clubAlleGebruikersOpen ? 'Toon minder' : `Alle ${gebruik.gebruikers.length} gebruikers tonen`}</button>` : ''}`
       : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen logins geregistreerd.</p>`}
@@ -1786,7 +1786,7 @@ function htmlClubVideos(teams, videos){
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
       ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
+      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:var(--r-xs);line-height:1">MP4</span>' : ''}`;
     return `
       <div class="video-rij">
         <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener">${thumbInner}</a>

@@ -323,7 +323,7 @@ function stapTerug(){
     return true;
   }
   if (leerpleinOpen()){
-    import('./leerplein.js?v=20261103e').then(m => m.sluitLeerplein());
+    import('./leerplein.js?v=20261104a').then(m => m.sluitLeerplein());
     return true;
   }
   if (lightboxOpen()){

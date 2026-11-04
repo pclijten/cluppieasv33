@@ -3,8 +3,8 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20261103f';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261103i';
-import { sluitWedstrijd } from './wedstrijd.js?v=20261103i';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261104a';
+import { sluitWedstrijd } from './wedstrijd.js?v=20261104a';
 import { initChatbot } from './chatbot.js?v=20261103i';
 
 /* [20260921] Training gedeeld met een ouder (?deel=<id>): volledig losse,
@@ -22,7 +22,7 @@ if (_deelId){
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20261103i').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20261104a').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -52,8 +52,8 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20261103i').then(m => m.verlaatClubView());
-S._navClubTerug      = () => import('./club.js?v=20261103i').then(m => m.clubTerugEen());
+S._navVerlaatClub    = () => import('./club.js?v=20261104a').then(m => m.verlaatClubView());
+S._navClubTerug      = () => import('./club.js?v=20261104a').then(m => m.clubTerugEen());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
