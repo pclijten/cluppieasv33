@@ -68,6 +68,46 @@ function wedstrijden(){
 }
 const PRESENTIE = { };
 
+/* Blokplanning (zelfde velden als training-plan.js: plan.blok, blokWeek,
+   trainingNr, weekStart, thema per week uit de bestandsnaam, doelen uit de
+   AI-structurering). Seizoen = 4 blokken van 8 weken; nu blok 2, week 2. */
+const PLAN = {
+  blok: 2, blokken: 4, weken: 8, soort: 'Tactiek',
+  blokNamen: { 1: 'Techniek', 2: 'Tactiek', 3: 'Tactiek', 4: 'Techniek' },
+  weekStart1: dagVan(-7),                     // maandag van blokweek 1
+  weekThema: {
+    1: 'Opbouwen vanuit achteren', 2: 'Vrijlopen en aanspeelbaar zijn', 3: 'Omschakelen bij balverlies',
+    4: 'Druk zetten op de bal', 5: 'Positiespel op het middenveld', 6: 'Aanvallen over de flank',
+    7: 'Samen verdedigen', 8: 'Herhaling en toetsmoment' },
+  doelen: {
+    '2-1': 'Weg-en-terug lopen om vrij te komen en over de schouder kijken vóór je de bal krijgt.',
+    '2-2': 'Aanspeelbaar blijven in een driehoek en de bal binnen twee keer raken doorspelen.',
+    '3-1': 'Na balverlies binnen vijf seconden druk zetten en de dichtstbijzijnde lijn sluiten.',
+    '3-2': 'Na balwinst direct vooruit kijken en de eerste pass de diepte in spelen.',
+  },
+};
+function blokWeekVan(datum){
+  const d = new Date(datum + 'T12:00:00');
+  return Math.floor((d - PLAN.weekStart1) / (7 * 86400000)) + 1;
+}
+function trainingInfo(e){
+  const wk = blokWeekVan(e.datum);
+  const nr = new Date(e.datum + 'T12:00:00').getDay() === 2 ? 1 : 2;   // di = training 1, do = training 2
+  return { wk, nr, thema: PLAN.weekThema[wk] || 'Vrije training', doel: PLAN.doelen[`${wk}-${nr}`] || '' };
+}
+
+/* Spelers en presentie per trainingsdatum (testdata, verzonnen namen). */
+const SPELERS = ['Bram','Daan','Finn','Jesse','Lars','Luuk','Milan','Noah','Ruben','Sem','Siem','Thijs'];
+const AFWEZIG = {};                                   // datum -> Set van namen
+function afwezigOp(datum){
+  if (!AFWEZIG[datum]) AFWEZIG[datum] = new Set(blokWeekVan(datum) % 2 ? ['Noah'] : ['Daan', 'Sem']);
+  return AFWEZIG[datum];
+}
+function presentieVan(datum){
+  const af = [...afwezigOp(datum)].sort();
+  return { ja: SPELERS.length - af.length, totaal: SPELERS.length, af };
+}
+
 /* ---------- Tijd en locatie ---------- */
 const nuTijd = () => state.sim ? new Date(state.sim) : new Date();
 
@@ -83,11 +123,36 @@ function knop(tekst, icoon, doel, primair){
   return `<button class="knop vol ${primair ? 'fluo' : 'licht'} nu-knop" data-doel="${doel}">${icoon ? ico(icoon, 20) : ''}${esc(tekst)}</button>`;
 }
 
+/* Waar staan we in het schema: blok + week, met voortgangsbalk. */
+function blokHtml(e){
+  const t = trainingInfo(e);
+  const wk = Math.min(Math.max(t.wk, 1), PLAN.weken);
+  const segs = Array.from({ length: PLAN.weken }, (_, i) =>
+    `<span class="${i + 1 < wk ? 'af' : i + 1 === wk ? 'nu' : ''}"></span>`).join('');
+  const seiz = Array.from({ length: PLAN.blokken }, (_, i) =>
+    `<span class="${i + 1 < PLAN.blok ? 'af' : i + 1 === PLAN.blok ? 'nu' : ''}" title="Blok ${i + 1}: ${PLAN.blokNamen[i + 1]}">${i + 1}</span>`).join('');
+  return `<div class="nu-blok">
+    <div class="nu-blok-kop"><span class="nu-blok-naam">Blok ${PLAN.blok} · ${esc(PLAN.blokNamen[PLAN.blok])}</span>
+      <span class="nu-blok-wk">week ${wk} van ${PLAN.weken} · training ${t.nr}</span></div>
+    <div class="nu-blok-balk" aria-label="Week ${wk} van ${PLAN.weken}">${segs}</div>
+    <div class="nu-blok-seiz"><span>Seizoen</span><div class="nu-blok-stip">${seiz}</div></div>
+  </div>`;
+}
+function trainingInhoud(e){
+  const t = trainingInfo(e), p = presentieVan(e.datum);
+  return `${rij('Thema', `<b>${esc(t.thema)}</b>`)}
+    ${t.doel ? `<div class="nu-doel">${ico('football-training', 16)}<span>${esc(t.doel)}</span></div>` : ''}
+    <button class="nu-pres" data-pres="${e.datum}" type="button">
+      <span class="nu-pres-getal"><b>${p.ja}</b> van ${p.totaal} aanwezig</span>
+      <span class="nu-pres-af">${p.af.length ? 'Afwezig: ' + p.af.map(esc).join(', ') : 'Iedereen is er'}</span>
+      <span class="nu-pres-pijl">${ico('attendance-fill', 18)}</span>
+    </button>`;
+}
+
 function kaartHtml(c, nu){
   const e = c.event, w = e?.w;
   const tot = e ? Math.round((e.start - nu) / 60000) : 0;
   const pl = c.opLocatie ? `<div class="nu-plek">${ico('match-location', 14)} Je bent bij de club</div>` : '';
-  const pres = e && e.type === 'training' ? (PRESENTIE[e.datum] || { ja: 10, totaal: 12 }) : null;
 
   if (c.soort === 'live'){
     const sec = Math.max(0, Math.round((nu - e.start) / 1000));
@@ -140,8 +205,8 @@ function kaartHtml(c, nu){
     const t = `${hhmm(e.start)}–${hhmm(e.eind)}`;
     if (c.fase === 'na') return `${tag('Training afgelopen', 'ok')}
       <div class="nu-titel">Presentie afronden</div><div class="nu-sub">Training van ${t}</div>
-      ${rij('Aanwezig', `${pres.ja} van ${pres.totaal}`)}${rij('Presentie', '<span class="nu-let">Nog niet afgerond</span>')}
-      ${knop('Presentie afronden', 'attendance-fill', 'presentietraining', true)}${knop('Notitie voor volgende keer', 'communication-message', 'trainingen')}`;
+      ${blokHtml(e)}${trainingInhoud(e)}
+      ${knop('Presentie afronden', 'attendance-fill', 'pres:' + e.datum, true)}${knop('Notitie voor volgende keer', 'communication-message', 'trainingen')}`;
     const sub = c.fase === 'bezig' ? 'Bezig nu' : esc(over(tot));
     const hoofdKnop = (c.fase === 'opclub' || c.fase === 'bezig')
       ? knop(c.fase === 'bezig' ? 'Open trainingsplan' : 'Start training', 'training-start', 'trainingen', true)
@@ -149,13 +214,19 @@ function kaartHtml(c, nu){
     return `${pl}${tag(c.fase === 'bezig' ? 'Training bezig' : 'Trainingsdag', c.fase === 'opclub' || c.fase === 'bezig' ? 'accent' : 'warn')}
       <div class="nu-titel">Training ${esc(hhmm(e.start))}</div>
       <div class="nu-sub">${t} · ${sub}</div>
-      ${rij('Thema', 'Positiespel 4 tegen 2')}${rij('Aanwezig', `${pres.ja} van ${pres.totaal}`)}${rij('Afwezig', 'Daan, Sem')}
-      ${hoofdKnop}${knop('Aanwezigheid afvinken', 'attendance-fill', 'presentietraining')}`;
+      ${blokHtml(e)}${trainingInhoud(e)}
+      ${hoofdKnop}${knop('Aanwezigheid afvinken', 'attendance-fill', 'pres:' + e.datum)}`;
   }
 
   /* rust */
   if (!e) return `${tag('Rustig', 'ok')}<div class="nu-titel">Niets gepland</div><div class="nu-sub">Stel trainingsdagen in bij Instellingen.</div>${knop('Planning openen', 'planning-calendar', 'planning')}`;
   const soortNaam = e.type === 'training' ? 'Training' : 'Wedstrijd';
+  if (!w) return `${tag('Geen activiteit vandaag', 'ok')}
+    <div class="nu-titel">Volgende: training</div>
+    <div class="nu-sub">${esc(dagLabel(e.datum, nu))} ${esc(hhmm(e.start))}–${esc(hhmm(e.eind))}</div>
+    ${blokHtml(e)}${trainingInhoud(e)}
+    ${knop('Trainingsplan voorbereiden', 'training-plan', 'trainingen', true)}
+    ${knop('Aanwezigheid afvinken', 'attendance-fill', 'pres:' + e.datum)}`;
   return `${tag('Geen activiteit nu', 'ok')}
     <div class="nu-titel">Volgende: ${esc(soortNaam.toLowerCase())}</div>
     <div class="nu-sub">${esc(dagLabel(e.datum, nu))} ${esc(hhmm(e.start))}${w ? ' · ' + esc(w.tegenstander) : ''}</div>
@@ -166,9 +237,11 @@ function kaartHtml(c, nu){
 
 function daarnaHtml(c, nu){
   if (!c.daarna.length) return '';
-  return `<div class="nu-daarna-kop">Daarna</div><div class="nu-daarna">` + c.daarna.map(e => `
+  return `<div class="nu-daarna-kop">Daarna</div><div class="nu-daarna">` + c.daarna.map(e => e.type === 'training' ? `
+    <button class="nu-rij nu-rij-d nu-rij-knop" data-pres="${e.datum}" type="button"><span>${esc(dagLabel(e.datum, nu))}</span>
+    <span>Training · ${esc(hhmm(e.start))} <em>${presentieVan(e.datum).ja}/${SPELERS.length}</em></span></button>` : `
     <div class="nu-rij nu-rij-d"><span>${esc(dagLabel(e.datum, nu))}</span>
-    <span>${e.type === 'training' ? 'Training' : 'Wedstrijd' + (e.w ? ' ' + esc(e.w.tegenstander) : '')} · ${esc(hhmm(e.start))}</span></div>`).join('') + `</div>`;
+    <span>Wedstrijd ${e.w ? esc(e.w.tegenstander) : ''} · ${esc(hhmm(e.start))}</span></div>`).join('') + `</div>`;
 }
 
 /* ---------- Hub (uit de echte opzet, statisch) ---------- */
@@ -220,6 +293,31 @@ const PRESETS = [
   ['Za 11:05 · na afloop',   () => dagVan(5, 11, 5), 'elders'],
 ];
 
+/* ---------- Aanwezigheid afvinken (bottom sheet) ---------- */
+let presDatum = null;
+function volgendeTraining(){
+  const nu = nuTijd(), vandaag = isoDatum(nu);
+  for (let i = 0; i < 14; i++){
+    const d = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() + i, 12);
+    const wd = ((d.getDay() + 6) % 7) + 1;
+    if (TEAM.trainingsmomenten.some(m => m.dag === wd)) return isoDatum(d);
+  }
+  return vandaag;
+}
+function openPresentie(datum){ presDatum = datum; tekenPresentie(); $('#nuSheet').hidden = false; }
+function tekenPresentie(){
+  const p = presentieVan(presDatum), af = afwezigOp(presDatum);
+  const d = new Date(presDatum + 'T12:00:00'), t = trainingInfo({ datum: presDatum });
+  $('#nuSheetTitel').textContent = `Training ${DAG_LANG[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
+  $('#nuSheetSub').textContent = `Blok ${PLAN.blok} · week ${t.wk} · ${t.thema}`;
+  $('#nuSheetTel').innerHTML = `<b>${p.ja}</b> aanwezig · <b>${p.af.length}</b> afwezig`;
+  $('#nuSheetLijst').innerHTML = SPELERS.map(n => {
+    const weg = af.has(n);
+    return `<button class="nu-sp ${weg ? 'weg' : 'er'}" data-speler="${esc(n)}" type="button" aria-pressed="${!weg}">
+      <span class="nu-sp-naam">${esc(n)}</span><span class="nu-sp-st">${ico(weg ? 'attendance-absent' : 'attendance-present', 18)}${weg ? 'Afwezig' : 'Aanwezig'}</span></button>`;
+  }).join('');
+}
+
 function toast(t){
   const el = $('#nuToast'); el.textContent = t; el.classList.add('zichtbaar');
   clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('zichtbaar'), 2600);
@@ -254,6 +352,13 @@ function init(){
   $('#nuThuisUit').addEventListener('click', () => { state.zaThuis = !state.zaThuis; render(); });
   $('#nuThema').addEventListener('click', () => { state.thema = state.thema === 'donker' ? 'licht' : 'donker'; render(); });
   document.addEventListener('click', ev => {
+    const pr = ev.target.closest('[data-pres]') || ev.target.closest('[data-doel^="pres:"]');
+    if (pr){ openPresentie(pr.dataset.pres || pr.dataset.doel.slice(5)); return; }
+    const sp = ev.target.closest('[data-speler]');
+    if (sp){ const s = afwezigOp(presDatum); const n = sp.dataset.speler; s.has(n) ? s.delete(n) : s.add(n); tekenPresentie(); render(); return; }
+    if (ev.target.closest('[data-pres-dicht]')){ $('#nuSheet').hidden = true; return; }
+    const ht = ev.target.closest('.hub-tegel[data-hub-open="presentietraining"]');
+    if (ht){ openPresentie(volgendeTraining()); return; }
     const k = ev.target.closest('[data-doel]');
     if (k){ const doel = k.dataset.doel; toast('Opent: ' + doel + ' (testapp)'); const t = document.querySelector(`.hub-tegel[data-hub-open="${doel}"]`); if (t){ t.classList.add('nu-flits'); setTimeout(() => t.classList.remove('nu-flits'), 1400); t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
     const h = ev.target.closest('.hub-tegel'); if (h) toast('Opent: ' + h.dataset.hubOpen + ' (testapp)');
