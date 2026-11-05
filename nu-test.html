@@ -42,6 +42,44 @@
 .nu-daarna .nu-rij-d:first-child{border-top:none}
 .nu-rij-d{padding:11px 0}
 .nu-hubkop{font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:22px 4px 0}
+.nu-blok{background:var(--op-vlak);border:1px solid var(--hair);border-radius:12px;padding:10px 12px;margin:2px 0 12px}
+.nu-blok-kop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.nu-blok-naam{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(17px * var(--fs));text-transform:uppercase;letter-spacing:.4px;color:var(--accent)}
+.nu-blok-wk{font-size:calc(12.5px * var(--fs));color:var(--ink-2);font-variant-numeric:tabular-nums}
+.nu-blok-balk{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:8px 0 8px}
+.nu-blok-balk span{height:7px;border-radius:4px;background:var(--op-vlak-2)}
+.nu-blok-balk span.af{background:color-mix(in srgb,var(--accent) 55%,transparent)}
+.nu-blok-balk span.nu{background:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+.nu-blok-seiz{display:flex;align-items:center;justify-content:space-between;font-size:calc(11.5px * var(--fs));color:var(--ink-2)}
+.nu-blok-stip{display:flex;gap:5px}
+.nu-blok-stip span{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:1px solid var(--hair);color:var(--ink-2)}
+.nu-blok-stip span.af{background:var(--op-vlak-2);color:var(--ink)}
+.nu-blok-stip span.nu{background:var(--accent);border-color:var(--accent);color:#fff}
+.nu-doel{display:flex;gap:8px;align-items:flex-start;font-size:calc(13.5px * var(--fs));line-height:1.45;color:var(--ink);padding:0 0 10px;margin-top:-2px}
+.nu-doel svg{flex-shrink:0;color:var(--accent);margin-top:2px}
+.nu-pres{display:grid;grid-template-columns:1fr auto;grid-template-areas:"g p" "a p";gap:2px 10px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-radius:12px;background:var(--op-vlak);border:1px solid var(--hair)}
+.nu-pres-getal{grid-area:g;font-size:calc(14px * var(--fs))}
+.nu-pres-af{grid-area:a;font-size:calc(12.5px * var(--fs));color:var(--warn);font-weight:500}
+.nu-pres-pijl{grid-area:p;color:var(--ink-2)}
+.nu-rij-knop{width:100%;text-align:left}
+.nu-rij-knop em{font-style:normal;color:var(--ink-2);font-size:calc(12px * var(--fs));margin-left:6px;font-variant-numeric:tabular-nums}
+.nu-sheet{position:fixed;inset:0;z-index:70}
+.nu-sheet[hidden]{display:none}
+.nu-sheet-achter{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.nu-sheet-paneel{position:absolute;left:0;right:0;bottom:0;max-width:540px;margin:0 auto;background:var(--surface-2);border-radius:18px 18px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow:auto;box-shadow:0 -10px 30px rgba(0,0,0,.4)}
+.nu-sheet-greep{width:40px;height:4px;border-radius:2px;background:var(--hair);margin:4px auto 12px}
+.nu-sheet-kop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.nu-sheet-titel{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22px * var(--fs));text-transform:uppercase}
+.nu-sheet-sub{font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-top:2px}
+.nu-sheet-tel{margin:12px 0 2px;font-size:calc(15px * var(--fs))}
+.nu-sheet-hint{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:10px}
+.nu-sheet-lijst{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nu-sp{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--hair);background:var(--card);text-align:left}
+.nu-sp-naam{font-weight:600;font-size:calc(15px * var(--fs))}
+.nu-sp-st{display:flex;align-items:center;gap:5px;font-size:calc(12px * var(--fs));font-weight:600}
+.nu-sp.er .nu-sp-st{color:var(--ok)}
+.nu-sp.weg{border-color:color-mix(in srgb,var(--warn) 60%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--card))}
+.nu-sp.weg .nu-sp-st{color:var(--warn)}
 .hub-tegel.nu-flits{animation:nuFlits .7s ease-in-out 2}
 @keyframes nuFlits{50%{box-shadow:0 0 0 3px var(--accent)}}
 
@@ -115,6 +153,19 @@
     <div class="nu-debug" id="nuDebug"></div>
   </div>
 </details>
+<div class="nu-sheet" id="nuSheet" hidden>
+  <div class="nu-sheet-achter" data-pres-dicht="1"></div>
+  <div class="nu-sheet-paneel" role="dialog" aria-labelledby="nuSheetTitel">
+    <div class="nu-sheet-greep"></div>
+    <div class="nu-sheet-kop">
+      <div><div class="nu-sheet-titel" id="nuSheetTitel"></div><div class="nu-sheet-sub" id="nuSheetSub"></div></div>
+      <button class="knop klein fluo" data-pres-dicht="1" type="button">Klaar</button>
+    </div>
+    <div class="nu-sheet-tel" id="nuSheetTel"></div>
+    <div class="nu-sheet-hint">Tik op een speler om aanwezig of afwezig te wisselen.</div>
+    <div class="nu-sheet-lijst" id="nuSheetLijst"></div>
+  </div>
+</div>
 <div class="nu-toast" id="nuToast" role="status"></div>
 <script type="module" src="js/nu-test.js?v=20261105a"></script>
 </body>
