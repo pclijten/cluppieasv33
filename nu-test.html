@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="nl" data-thema="donker" style="--fs:1">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1116">
+<meta name="robots" content="noindex">
+<title>Cluppie — Nu-scherm (testapp)</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20261105a">
+<style>
+/* Alleen voor het Nu-scherm; alles andere komt uit de echte styles.css */
+.nu-wrap{padding-bottom:150px}
+.nu-kaart{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:0 0 4px;border:1.5px solid transparent;transition:border-color .2s}
+.nu-kaart.nu-opclub{border-color:var(--accent)}
+.nu-s-live{border-color:var(--accent)}
+.nu-tag{display:inline-block;font-size:calc(12px * var(--fs));font-weight:600;padding:3px 10px;border-radius:999px;margin-bottom:10px;background:var(--op-vlak-2);color:var(--ink)}
+.nu-tag-live{background:var(--accent);color:#fff}
+.nu-tag-ok{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
+.nu-tag-warn{background:color-mix(in srgb,var(--warn) 24%,transparent);color:var(--warn)}
+.nu-tag-accent{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+.nu-plek{display:flex;align-items:center;gap:6px;font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px}
+.nu-titel{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(28px * var(--fs));line-height:1.1;text-transform:uppercase;letter-spacing:.3px}
+.nu-sub{font-size:calc(14px * var(--fs));color:var(--ink-2);margin:3px 0 12px}
+.nu-rij{display:flex;justify-content:space-between;gap:12px;font-size:calc(14px * var(--fs));padding:9px 0;border-top:1px solid var(--hair)}
+.nu-rij span:first-child{color:var(--ink-2);flex-shrink:0}
+.nu-rij span:last-child{text-align:right}
+.nu-let{color:var(--warn);font-weight:600}
+.nu-kaart .knop{margin-top:10px}
+.nu-kaart .knop:first-of-type{margin-top:14px}
+.nu-klok{text-align:center;margin:2px 0 12px}
+.nu-klok-sub{font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
+.nu-klok-tijd{font-size:calc(54px * var(--fs));font-weight:700;line-height:1.05;letter-spacing:1px}
+.nu-stand{font-size:calc(17px * var(--fs));font-weight:600}
+.nu-waarom{display:flex;gap:6px;align-items:flex-start;font-size:calc(12px * var(--fs));color:var(--ink-2);margin:10px 2px 0;line-height:1.4}
+.nu-waarom svg{flex-shrink:0;margin-top:1px}
+.nu-daarna-kop{font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:16px 4px 6px}
+.nu-daarna{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:2px 14px}
+.nu-daarna .nu-rij-d:first-child{border-top:none}
+.nu-rij-d{padding:11px 0}
+.nu-hubkop{font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:22px 4px 0}
+.hub-tegel.nu-flits{animation:nuFlits .7s ease-in-out 2}
+@keyframes nuFlits{50%{box-shadow:0 0 0 3px var(--accent)}}
+
+/* Testbediening (alleen in de testapp) */
+.nu-paneel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface-2);border-top:1px solid var(--hair);box-shadow:0 -6px 20px rgba(0,0,0,.35);max-width:540px;margin:0 auto;border-radius:16px 16px 0 0}
+.nu-paneel summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:calc(13.5px * var(--fs));font-weight:600}
+.nu-paneel summary::-webkit-details-marker{display:none}
+.nu-paneel summary small{font-weight:500;color:var(--ink-2)}
+.nu-paneel-in{padding:0 16px 16px;max-height:56vh;overflow:auto}
+.nu-l{font-size:calc(11.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 6px}
+.nu-chips{display:flex;flex-wrap:wrap;gap:6px}
+.nu-chip{font-size:calc(12.5px * var(--fs));font-weight:500;padding:7px 10px;border-radius:9px;background:var(--op-vlak);border:1px solid var(--hair);color:var(--ink)}
+.nu-chip.actief{background:var(--accent);border-color:var(--accent);color:#fff}
+.nu-paneel input[type=datetime-local]{padding:8px 10px;border:1px solid var(--hair);border-radius:9px;background:var(--op-vlak);color:var(--ink);font-size:calc(14px * var(--fs))}
+.nu-debug{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink-2);margin-top:12px}
+.nu-toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-80px);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:80;transition:transform .25s;box-shadow:var(--shadow);max-width:90vw}
+.nu-toast.zichtbaar{transform:translate(-50%,0)}
+.nu-testband{background:var(--accent);color:#fff;text-align:center;font-size:12px;font-weight:600;padding:6px 10px;letter-spacing:.3px}
+</style>
+</head>
+<body>
+<div class="nu-testband">TESTAPP · nepdata · geen koppeling met Firebase</div>
+<div class="app">
+  <div class="view actief nu-wrap">
+    <div class="welkom-kop hub-kop">
+      <div class="asv-streep" aria-hidden="true"></div>
+      <img src="icons/asv-schild.png" alt="ASV'33" class="welkom-schild">
+      <div class="welkom-tekst">
+        <div class="welkom-datum" id="nuDatum"></div>
+        <h1 class="welkom-groet">Hoi <span class="groet-naam">Paul</span></h1>
+      </div>
+    </div>
+    <div class="hub-teamrij">
+      <button class="hub-teamnaam" type="button">JO12-1
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4 4 4-4"/></svg></button>
+      <span class="hub-teamsub">O12 · 8 tegen 8</span>
+    </div>
+
+    <div id="nuKaart" class="nu-kaart"></div>
+    <div id="nuWaarom" class="nu-waarom"></div>
+    <div id="nuDaarna"></div>
+
+    <div class="nu-hubkop">Alles in de hub</div>
+    <div id="nuHub"></div>
+  </div>
+</div>
+
+<details class="nu-paneel" open>
+  <summary><span>Testbediening</span><small id="nuKlokTekst"></small></summary>
+  <div class="nu-paneel-in">
+    <div class="nu-l">Spring naar een moment</div>
+    <div class="nu-chips" id="nuPresets"></div>
+
+    <div class="nu-l">Eigen tijdstip</div>
+    <div class="nu-chips"><input type="datetime-local" id="nuTijdInvoer"><button class="nu-chip" id="nuEcht" type="button">Echte tijd</button></div>
+
+    <div class="nu-l">Waar ben je</div>
+    <div class="nu-chips">
+      <button class="nu-chip" data-plek="club" type="button">Op de club</button>
+      <button class="nu-chip" data-plek="elders" type="button">Elders</button>
+      <button class="nu-chip" data-plek="onbekend" type="button">Onbekend</button>
+      <button class="nu-chip" id="nuGps" type="button">Echte GPS: <span id="nuGpsTekst">uit</span></button>
+    </div>
+
+    <div class="nu-l">Wedstrijd en weergave</div>
+    <div class="nu-chips">
+      <button class="nu-chip" id="nuThuisUit" type="button">Zaterdag: uit</button>
+      <button class="nu-chip" id="nuOpstelling" type="button">Opstelling gedeeld</button>
+      <button class="nu-chip" id="nuThema" type="button">Wissel thema</button>
+    </div>
+    <div class="nu-debug" id="nuDebug"></div>
+  </div>
+</details>
+<div class="nu-toast" id="nuToast" role="status"></div>
+<script type="module" src="js/nu-test.js?v=20261105a"></script>
+</body>
+</html>
