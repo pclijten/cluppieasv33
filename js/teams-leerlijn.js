@@ -8,10 +8,10 @@
    config.js maar uit content.js (Firestore-collectie 'content') — zie
    CONTENTBEHEER in het clubdashboard. Structurele data (thema/vanaf/domein)
    blijft in config.js staan; dat verandert niet via het contentbeheer-tabblad. */
-import { S, $, esc, openModal, modAan } from './state.js?v=20261103e';
+import { S, $, esc, openModal, modAan } from './state.js?v=20261106h';
 import { skillDomein, leercurveThema, isoWeek, kompasIndexVoorWeek,
-         LEERCURVE, leercurveRelevant } from './config.js?v=20261103e';
-import { contentVoorThema, kompasTips } from './content.js?v=20261103e';
+         LEERCURVE, leercurveRelevant } from './config.js?v=20261106h';
+import { contentVoorThema, kompasTips } from './content.js?v=20261106h';
 
 /* ---------- Leerlijn-blok: ASV-kompas + leerlijn (Training-tab) ----------
    Eén rustig blok waarin de coach met de pijltjes door twee series bladert:
@@ -73,15 +73,15 @@ export function htmlKompas(){
 
   let label, bron, tekst;
   if (it.soort === 'kompas'){
-    label = `🧭 ASV-kompas · week ${isoWeek()}`;
+    label = `ASV-kompas, week ${isoWeek()}`;
     bron  = esc(it.tag || '');
-    tekst = `${esc(it.titel)} <span class="ll-info-ico">ℹ️</span>`;
+    tekst = `${esc(it.titel)} <span class="ll-info-ico"></span>`;
   } else {
     const d = skillDomein(it.domein);
-    label = `📈 Leerlijn · ${esc(S.team?.categorie || '')}`;
+    label = `Leerlijn, ${esc(S.team?.categorie || '')}`;
     bron  = `<span class="ll-dombadge" style="background:${d?.kleur||'var(--accent)'}">${esc(it.domein)}</span>${esc(d?.naam || '')}`;
     const zin = eersteZin(it.tekst);
-    tekst = `<span class="ll-titel">${esc(it.thema)}.</span> ${esc(zin)} <span class="ll-info-ico">ℹ️</span>`;
+    tekst = `<span class="ll-titel">${esc(it.thema)}.</span> ${esc(zin)} <span class="ll-info-ico"></span>`;
   }
 
   const dots = items.map((_,i) => {
@@ -95,7 +95,7 @@ export function htmlKompas(){
         <span class="kompas-label">${label}</span>
         <span class="kompas-bron">${bron}</span>
       </div>
-      <div class="kompas-tekst" data-kompas-info style="cursor:pointer">${tekst}</div>
+      <div class="kompas-tekst u-klikbaar" data-kompas-info >${tekst}</div>
       <div class="kompas-dots">${dots}</div>
       <div class="kompas-nav">
         <button data-kompas="vorige" title="Vorige">‹</button>
@@ -113,34 +113,34 @@ export function htmlKompas(){
 function htmlThemaInfoBlad(t, metTerug){
   const d = skillDomein(t.domein);
   return `
-    ${metTerug ? `<button class="knop licht vol" id="mThemaTerug" style="margin-bottom:14px">← Terug naar leerpunt</button>` : ''}
+    ${metTerug ? `<button class="knop licht vol u-mb-md" id="mThemaTerug" >← Terug naar leerpunt</button>` : ''}
     <h2>${esc(t.thema)}</h2>
-    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-bottom:14px">Leercurve-thema · vanaf <b>O${t.vanaf}</b> · domein <b>${esc(d?.naam || t.domein)}</b></p>
-    <div class="sectie-kop" style="margin-top:0">Achtergrond</div>
-    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst — voeg toe via het contentbeheer-tabblad.</i>'}</p>
+    <p class="u-t-xs u-zacht u-mb-md">Leercurve-thema<span class="sep" aria-hidden="true"></span>vanaf <b>O${t.vanaf}</b><span class="sep" aria-hidden="true"></span>domein <b>${esc(d?.naam || t.domein)}</b></p>
+    <div class="sectie-kop u-mt-0">Achtergrond</div>
+    <p class="u-t-md u-lh-ruim">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst, voeg toe via het contentbeheer-tabblad.</i>'}</p>
     <div class="sectie-kop">Tips om dit te verbeteren</div>
     ${(t.tips||[]).map((tip,i) => `
       <div style="display:flex;gap:10px;padding:9px 0;${i===0?'border-top:none':'border-top:1px solid var(--line-d)'}">
-        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:calc(11px * var(--fs));font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
-        <div style="font-size:calc(13px * var(--fs));line-height:1.5">${esc(tip)}</div>
+        <div class="u-zacht u-t-2xs u-fw-7" style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
+        <div class="u-t-sm u-lh-ruim">${esc(tip)}</div>
       </div>`).join('')}
-    <div class="badge" style="margin-top:14px">Jeugdbeleidsplan §3.1 · §3.2 · §3.3</div>`;
+    <div class="badge u-mt-md">Jeugdbeleidsplan §3.1<span class="sep" aria-hidden="true"></span>§3.2<span class="sep" aria-hidden="true"></span>§3.3</div>`;
 }
 function htmlKompasInfoBlad(t){
   const bron = (t.tags||[])[0] || '';
   return `
     <h2>Achtergrond</h2>
-    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-bottom:6px">ASV-kompas · ${esc(bron)}</p>
-    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6;font-style:italic;margin-bottom:14px">"${esc(t.titel)}"</p>
-    <div class="sectie-kop" style="margin-top:0">Waarom dit werkt</div>
-    <p style="font-size:calc(13.5px * var(--fs));line-height:1.6">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst.</i>'}</p>
+    <p class="u-t-xs u-zacht u-mb-xs">ASV-kompas<span class="sep" aria-hidden="true"></span>${esc(bron)}</p>
+    <p class="u-t-md u-lh-ruim u-mb-md" style="font-style:italic">"${esc(t.titel)}"</p>
+    <div class="sectie-kop u-mt-0">Waarom dit werkt</div>
+    <p class="u-t-md u-lh-ruim">${esc(t.achtergrond) || '<i>Nog geen achtergrondtekst.</i>'}</p>
     <div class="sectie-kop">Concreet</div>
     ${(t.tips||[]).map((tip,i) => `
       <div style="display:flex;gap:10px;padding:9px 0;${i===0?'border-top:none':'border-top:1px solid var(--line-d)'}">
-        <div style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);color:var(--ink-2);font-size:calc(11px * var(--fs));font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
-        <div style="font-size:calc(13px * var(--fs));line-height:1.5">${esc(tip)}</div>
+        <div class="u-zacht u-t-2xs u-fw-7" style="width:20px;height:20px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</div>
+        <div class="u-t-sm u-lh-ruim">${esc(tip)}</div>
       </div>`).join('')}
-    <div class="badge" style="margin-top:14px">Jeugdbeleidsplan ${esc(bron)}</div>`;
+    <div class="badge u-mt-md">Jeugdbeleidsplan ${esc(bron)}</div>`;
 }
 /* terugFn optioneel: als de info-knop vanuit een modal met invoer komt (bijv.
    leerpunt toevoegen), geven we een weg terug zonder de invoer te verliezen. */

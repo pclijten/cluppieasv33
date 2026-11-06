@@ -14,7 +14,7 @@
 
    Eén training na de andere (zwaar werk voor de browser), met voortgang. */
 
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
@@ -50,14 +50,14 @@ export function htmlDiagramHerstel(trainingen, isBeheerder){
   const getroffen = getroffenTrainingen(trainingen);
   if (!getroffen.length) return '';
   const items = getroffen.map(t =>
-    `<li>${esc(naamVan(t))}${t.week ? ` <span style="opacity:.65">· ${esc(t.week)}</span>` : ''}</li>`).join('');
+    `<li>${esc(naamVan(t))}${t.week ? ` <span style="opacity:.65"><span class="sep" aria-hidden="true"></span>${esc(t.week)}</span>` : ''}</li>`).join('');
   return `
     <div class="kaart" id="dhKaart">
       <b>Plaatjes herstellen</b>
-      <p style="margin:6px 0 8px">${getroffen.length} trainingen delen hun plaatjes met een andere training (een uploadfout van vóór 23 oktober). Daardoor staan er soms plaatjes van een andere training bij. Met deze knop worden de plaatjes opnieuw uit de originele PDF van elke training gemaakt. PDF, tekst en video's blijven zoals ze zijn.</p>
-      <ul style="margin:0 0 10px;padding-left:20px">${items}</ul>
+      <p style="margin:var(--space-xs) 0 var(--space-xs)">${getroffen.length} trainingen delen hun plaatjes met een andere training (een uploadfout van vóór 23 oktober). Daardoor staan er soms plaatjes van een andere training bij. Met deze knop worden de plaatjes opnieuw uit de originele PDF van elke training gemaakt. PDF, tekst en video's blijven zoals ze zijn.</p>
+      <ul style="margin:0 0 var(--space-sm);padding-left:20px">${items}</ul>
       <button class="knop vol" id="dhStart">Herstel ${getroffen.length} trainingen</button>
-      <div id="dhVoortgang" style="margin-top:10px" aria-live="polite"></div>
+      <div id="dhVoortgang" class="u-mt-sm" aria-live="polite"></div>
     </div>`;
 }
 
@@ -103,7 +103,7 @@ export function koppelDiagramHerstel(v, trainingen, api){
     const toon = tekst => { if (uit) uit.textContent = tekst; };
 
     let ai;
-    try { ai = await import('./training-ai.js?v=20261103e'); }
+    try { ai = await import('./training-ai.js?v=20261106h'); }
     catch(e){
       console.error('[herstel] training-ai laden mislukt', e);
       toon('Laden mislukt. Ververs de pagina en probeer het opnieuw.');
@@ -138,8 +138,8 @@ export function koppelDiagramHerstel(v, trainingen, api){
     if (uit){
       uit.innerHTML =
         `<b>${ok} van ${lijst.length} hersteld.</b>` +
-        (controleren.length ? `<p style="margin:6px 0 0">Controleer even (aantal plaatjes wijkt af van het aantal oefeningen):</p><ul style="margin:4px 0 0;padding-left:20px">${controleren.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '') +
-        (fouten.length ? `<p style="margin:6px 0 0">Niet gelukt:</p><ul style="margin:4px 0 0;padding-left:20px">${fouten.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
+        (controleren.length ? `<p style="margin:var(--space-xs) 0 0">Controleer even (aantal plaatjes wijkt af van het aantal oefeningen):</p><ul style="margin:var(--space-2xs) 0 0;padding-left:20px">${controleren.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '') +
+        (fouten.length ? `<p style="margin:var(--space-xs) 0 0">Niet gelukt:</p><ul style="margin:var(--space-2xs) 0 0;padding-left:20px">${fouten.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
     }
     knop.disabled = !fouten.length;   // opnieuw proberen kan alleen als er iets mislukte
     if (fouten.length) knop.textContent = 'Opnieuw proberen';

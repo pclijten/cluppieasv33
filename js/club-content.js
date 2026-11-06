@@ -6,15 +6,15 @@
    Firestore-rules staan schrijven alleen aan de hoofdbeheerder toe — dit
    tabblad is dus decoratief-veilig: zelfs een geknoei aan de UI kan niet
    ongeautoriseerd schrijven. */
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106h';
 import {
   startContentAdminListener, opslaanContent, verwijderContent, seedContentNaarFirestore
-} from './content.js?v=20261103e';
+} from './content.js?v=20261106h';
 
 const CATEGORIE_LABEL = {
-  leercurve: '📘 Leerlijn-thema',
-  kompas: '🧭 ASV-kompas-tip',
-  'gouden-regel': '⭐ Gouden regel',
+  leercurve: 'Leerlijn-thema',
+  kompas: 'ASV-kompas-tip',
+  'gouden-regel': 'Gouden regel',
 };
 
 let _huidigeLijst = [];
@@ -26,29 +26,29 @@ export function startClubContentListener(onData){
 export function htmlClubContent(lijst){
   const groepen = ['leercurve', 'kompas', 'gouden-regel'];
   return `
-    <div class="kaart" style="margin-bottom:14px">
-      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:10px">
-        Teksten uit het jeugdbeleidsplan — leerlijn-uitleg, ASV-kompas-tips en gouden
+    <div class="kaart u-mb-md">
+      <p class="u-t-sm u-zacht u-lh-ruim u-mb-sm">
+        Teksten uit het jeugdbeleidsplan: leerlijn-uitleg, ASV-kompas-tips en gouden
         regels. Wijzigingen zijn direct zichtbaar voor alle coaches, zonder dat er
         iets geüpload hoeft te worden. Status <b>concept</b> houdt een tekst verborgen
         voor coaches totdat je hem op <b>gepubliceerd</b> zet.
       </p>
       <button class="knop licht vol" id="btnContentNieuw">+ Nieuwe tekst</button>
-      ${lijst.length === 0 ? `<button class="knop licht vol" id="btnContentSeed" style="margin-top:8px">📥 Seed content vanuit jeugdbeleidsplan</button>` : ''}
+      ${lijst.length === 0 ? `<button class="knop licht vol u-mt-xs" id="btnContentSeed" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Seed content vanuit jeugdbeleidsplan</button>` : ''}
     </div>
     ${groepen.map(cat => {
       const items = lijst.filter(c => c.categorie === cat).sort((a,b) => (a.volgorde||0)-(b.volgorde||0));
       if (!items.length) return '';
       return `
-        <div class="kaart" style="margin-bottom:14px">
-          <h3 style="margin-bottom:8px">${CATEGORIE_LABEL[cat] || cat}</h3>
+        <div class="kaart u-mb-md">
+          <h3 class="u-mb-xs">${CATEGORIE_LABEL[cat] || cat}</h3>
           ${items.map(c => `
             <div class="lijst-item" data-content-open="${c.id}" style="cursor:pointer">
-              <div style="flex:1;min-width:0">
-                <div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(c.titel || '(geen titel)')}</div>
-                <div style="font-size:calc(11.5px * var(--fs));color:var(--ink-2)">
-                  #${c.volgorde ?? '·'} · ${c.status === 'gepubliceerd' ? '✅ gepubliceerd' : '📝 concept'}
-                  ${(c.tags||[]).length ? ' · ' + c.tags.map(esc).join(', ') : ''}
+              <div class="u-flex-1" style="min-width:0">
+                <div class="u-fw-6 u-t-md">${esc(c.titel || '(geen titel)')}</div>
+                <div class="u-t-xs u-zacht">
+                  #${c.volgorde ?? '·'}<span class="sep" aria-hidden="true"></span>${c.status === 'gepubliceerd' ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.6 12.4 9.6 17.4 19.6 6.6"/></svg> gepubliceerd' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> concept'}
+                  ${(c.tags||[]).length ? '<span class="sep" aria-hidden="true"></span>' + c.tags.map(esc).join(', ') : ''}
                 </div>
               </div>
             </div>`).join('')}
@@ -61,7 +61,7 @@ function modalContentBewerk(item){
   const isNieuw = !item;
   const c = item || { categorie:'leercurve', tags:[], volgorde:1, status:'concept', titel:'', achtergrond:'', tips:[] };
   openModal(`
-    <h2>${isNieuw ? '+ Nieuwe tekst' : '✏️ ' + esc(c.titel || '')}</h2>
+    <h2>${isNieuw ? '+ Nieuwe tekst' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> ' + esc(c.titel || '')}</h2>
     <div class="veldgroep"><label>Categorie</label>
       <select class="invoer" id="cCategorie">
         <option value="leercurve" ${c.categorie==='leercurve'?'selected':''}>Leerlijn-thema</option>
@@ -84,7 +84,7 @@ function modalContentBewerk(item){
         <option value="gepubliceerd" ${c.status==='gepubliceerd'?'selected':''}>Gepubliceerd</option>
       </select></div>
     <button class="knop vol" id="cOpslaan">Opslaan</button>
-    ${!isNieuw ? `<button class="knop licht vol" id="cVerwijderen" style="margin-top:8px">🗑 Verwijderen</button>` : ''}
+    ${!isNieuw ? `<button class="knop licht vol u-mt-xs" id="cVerwijderen" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg> Verwijderen</button>` : ''}
   `);
   document.getElementById('cOpslaan').onclick = async () => {
     const titel = document.getElementById('cTitel').value.trim();

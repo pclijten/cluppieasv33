@@ -12,10 +12,10 @@
    blijven daarnaast werken zoals ze werkten.
    Getekend in Club → Bouwen (sinds 20260929a, daarvoor Club → Instellingen), boven de eigen bouwen.
 ======================================================== */
-import { S, esc, meld } from './state.js?v=20261103e';
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { BOUWEN, bouwVanCategorie } from './config.js?v=20261103e';
-import { koppelCoordinatorenBeheer } from './coordinatoren.js?v=20261103e';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
+import { BOUWEN, bouwVanCategorie } from './config.js?v=20261106h';
+import { koppelCoordinatorenBeheer } from './coordinatoren.js?v=20261106h';
 
 const KLEUR = { onder:'#35c47a', midden:'#3b82f6', boven:'#a855f7' };
 const KORT  = Object.fromEntries(BOUWEN.map(b => [b.id, b.kort]));
@@ -73,13 +73,13 @@ function binnen(teams){
     if (open === b.id) return editor(b, teams);
     return `
       <div class="cb-bouw" style="--kl:${KLEUR[b.id]}">
-        <div class="cb-bouw-kop"><div class="eb-naam">${esc(b.naam)}<small>${inBouw.length} team${inBouw.length === 1 ? '' : 's'}${hand ? ` · ${hand} handmatig` : ''} · ${co.length} coördinator${co.length === 1 ? '' : 'en'}</small></div>
+        <div class="cb-bouw-kop"><div class="eb-naam">${esc(b.naam)}<small>${inBouw.length} team${inBouw.length === 1 ? '' : 's'}${hand ? `, ${hand} handmatig` : ''}<span class="sep" aria-hidden="true"></span>${co.length} coördinator${co.length === 1 ? '' : 'en'}</small></div>
           <span class="cb-soort">Standaard</span></div>
         <div class="cb-bouw-sub">
           <div class="cb-bouw-lbl">Teams <button class="cb-link" data-bi-open="${b.id}" ${open ? 'disabled' : ''}>Indelen</button></div>
-          <div class="eb-tags bi-tags" style="margin-top:0">${inBouw.map(t => {
+          <div class="eb-tags bi-tags u-mt-0">${inBouw.map(t => {
             const h = bouwVanTeam(t) !== autoBouw(t);
-            return `<span class="${h ? 'hand' : ''}" ${h ? `title="Handmatig ingedeeld — op categorie: ${esc(KORT[autoBouw(t)] || '')}bouw"` : ''}>${esc(t.naam || '?')}${h ? ' ✎' : ''}</span>`;
+            return `<span class="${h ? 'hand' : ''}" ${h ? `title="Handmatig ingedeeld: op categorie: ${esc(KORT[autoBouw(t)] || '')}bouw"` : ''}>${esc(t.naam || '?')}${h ? ' ✎' : ''}</span>`;
           }).join('') || '<em>Nog geen teams</em>'}</div>
         </div>
         <div class="cb-bouw-sub">
@@ -92,7 +92,7 @@ function binnen(teams){
 
   return `
     <p class="cb-legenda">Per bouw: welke teams erin zitten en wie meekijkt. Coördinatoren en gekoppelde coaches zien en beheren alle teams van hun bouw, net als een coach. Standaard deelt Cluppie in op categorie (JO7–11 onder, JO12–15 midden, JO16+ boven); met <b>Indelen</b> wijk je daarvan af.</p>
-    <div class="sectie-kop" style="margin-top:6px">Standaardbouwen</div>
+    <div class="sectie-kop u-mt-xs">Standaardbouwen</div>
     ${kaarten}${alleenEigen(teams)}`;
 }
 
@@ -101,8 +101,8 @@ function alleenEigen(teams){
   if (!lijst.length) return '';
   return `
     <div class="cb-bouw" style="--kl:var(--ink-2)">
-      <div class="cb-bouw-kop"><div class="eb-naam">Alleen in eigen bouw<small>${lijst.length} team${lijst.length === 1 ? '' : 's'} \u00b7 in geen standaardbouw</small></div></div>
-      <div class="cb-bouw-sub"><div class="eb-tags bi-tags" style="margin-top:0">${lijst.map(t => `<span>${esc(t.naam || '?')} <em>\u00b7 ${esc(eigenBouwenVanTeam(t).map(b => b.naam).join(', '))}</em></span>`).join('')}</div>
+      <div class="cb-bouw-kop"><div class="eb-naam">Alleen in eigen bouw<small>${lijst.length} team${lijst.length === 1 ? '' : 's'}<span class="sep" aria-hidden="true"></span>in geen standaardbouw</small></div></div>
+      <div class="cb-bouw-sub"><div class="eb-tags bi-tags u-mt-0">${lijst.map(t => `<span>${esc(t.naam || '?')} <em><span class="sep" aria-hidden="true"></span>${esc(eigenBouwenVanTeam(t).map(b => b.naam).join(', '))}</em></span>`).join('')}</div>
       <p class="cb-uitleg">Zet een team terug via Indelen bij een standaardbouw.</p></div>
     </div>`;
 }
@@ -112,12 +112,12 @@ function editor(b, teams){
     <div class="kaart bi-kaart open">
       <div class="eb-kop"><span class="eb-kleur" style="background:${KLEUR[b.id]}"></span>
         <div class="eb-naam">${esc(b.naam)}<small>${Object.values(concept).filter(x => x === b.id).length} teams geselecteerd</small></div></div>
-      <div class="veldlabel">Teams in ${esc(b.naam)} <span style="font-weight:500;text-transform:none;letter-spacing:0">· klik om toe te voegen of weg te halen</span></div>
+      <div class="veldlabel">Teams in ${esc(b.naam)} <span style="font-weight:500;text-transform:none;letter-spacing:0"><span class="sep" aria-hidden="true"></span>klik om toe te voegen of weg te halen</span></div>
       <div class="eb-chips">${sorteer(teams).map(t => {
         const nu = concept[t.id], aan = nu === b.id, auto = autoBouw(t);
-        const sub = !aan ? (nu === ALLEEN_EIGEN ? 'alleen eigen bouw' : `nu ${KORT[nu] || '?'}`) : (auto !== b.id ? `handmatig · cat. ${KORT[auto]}` : 'op categorie');
+        const sub = !aan ? (nu === ALLEEN_EIGEN ? 'alleen eigen bouw' : `nu ${KORT[nu] || '?'}`) : (auto !== b.id ? `handmatig, cat. ${KORT[auto]}` : 'op categorie');
         return `<button type="button" class="eb-chip bi-chip ${aan ? 'aan' : ''}${kiesVoor === t.id ? ' kies' : ''}" data-bi-team="${esc(t.id)}">${esc(t.naam || '?')}<small>${esc(sub)}</small></button>`;
-      }).join('') || '<span style="color:var(--ink-2)">Nog geen teams in de club.</span>'}</div>
+      }).join('') || '<span class="u-zacht">Nog geen teams in de club.</span>'}</div>
       ${kiesVoor ? kiezer(b, teams.find(t => t.id === kiesVoor)) : ''}
       <p class="bi-uitleg">Voeg je een team toe dat nu in een andere bouw zit, dan <b>verhuist</b> het, inclusief de toegang van de coördinator. Haal je een team weg, dan kies je naar welke andere bouw het gaat. Zit het team in een eigen bouw (zoals de Meidenbouw), dan kan het ook alleen daar staan.</p>
       <div class="eb-knoppen"><button class="knop fluo" id="biOpslaan">Opslaan</button><button class="knop licht" id="biAnnuleer">Annuleren</button>
@@ -132,7 +132,7 @@ function kiezer(b, t){
   const eigen = eigenBouwenVanTeam(t);
   return `
     <div class="bi-kiezer">
-      <div class="bi-kiezer-t"><b>${esc(t.naam || '?')}</b> uit ${esc(b.naam)} halen — naar welke bouw?</div>
+      <div class="bi-kiezer-t"><b>${esc(t.naam || '?')}</b> uit ${esc(b.naam)} halen: naar welke bouw?</div>
       <div class="bi-kiezer-k">${BOUWEN.filter(x => x.id !== b.id).map(x =>
         `<button type="button" class="knop licht klein" data-bi-naar="${x.id}">${esc(x.naam)}${x.id === auto ? ' <small>(categorie)</small>' : ''}</button>`).join('')}
         ${eigen.length ? `<button type="button" class="knop licht klein" data-bi-naar="${ALLEEN_EIGEN}">Alleen ${esc(eigen.map(e => e.naam).join(' + '))}</button>` : ''}

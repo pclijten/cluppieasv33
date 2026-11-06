@@ -17,10 +17,10 @@
    Afgestemd op JO12/JO13-niveau.
    ========================================================================== */
 
-import { esc, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261103e';
-import { LEERCURVE, bouwSlots } from './config.js?v=20261103e';
-import { LEERINHOUD } from './leerinhoud.js?v=20260922c';
-import { telNav } from './tracker.js?v=20261103e';
+import { esc, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106h';
+import { LEERCURVE, bouwSlots } from './config.js?v=20261106h';
+import { LEERINHOUD } from './leerinhoud.js?v=20261106h';
+import { telNav } from './tracker.js?v=20261106h';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -121,7 +121,7 @@ function toonThema(){
         <button class="lp-veld-actie" id="lpOpstelling">+ Opstelling invoegen</button>
         <div class="lp-legenda">
           <div class="lp-rij"><span class="lp-sample" style="border-color:var(--loop,#F2C94C);border-top-style:dashed"></span> loopactie</div>
-          <div class="lp-rij"><span class="lp-sample" style="border-color:#fff"></span> pass</div>
+          <div class="lp-rij"><span class="lp-sample" style="border-color:var(--wit)"></span> pass</div>
           <div class="lp-rij"><span class="lp-dot" style="background:#E20613"></span> eigen speler</div>
           <div class="lp-rij"><span class="lp-dot" style="background:#2B6FD6"></span> tegenstander</div>
         </div>
@@ -296,5 +296,5 @@ function overnemenOpKladbord(){
   telNav('leerplein:overnemen', 'tegel');
   const w = _w;
   sluitLeerplein();
-  import('./tactiekbord.js?v=20261103e').then(m => m.openBordMet(w, objecten, tekeningen, naam));
+  import('./tactiekbord.js?v=20261106h').then(m => m.openBordMet(w, objecten, tekeningen, naam));
 }

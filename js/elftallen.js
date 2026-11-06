@@ -13,9 +13,9 @@
 
    De filterkeuze (1e / 2e / totaal) leeft runtime op S._elftalFilter, zodat
    state.js niet geraakt wordt. */
-import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
+import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261106h';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
 
 /* ---------- basis ---------- */
 export function heeftElftallen(team = S.team){ return !!(team && team.tweedeElftal); }
@@ -115,7 +115,7 @@ export function htmlSelectieDashboard(){
     return (rb.g || 0) - (ra.g || 0) || (rb.a || 0) - (ra.a || 0) || (rb.sec || 0) - (ra.sec || 0) || nr(a) - nr(b);
   });
   const sl2 = S.team.tweedeElftal?.sportlinkNaam;
-  const sub = [S.team.sportlinkNaam || null, sl2 || null].filter(Boolean).map(esc).join(' · ');
+  const sub = [S.team.sportlinkNaam || null, sl2 || null].filter(Boolean).map(esc).join(', ');
   return `
     <section class="hub-sectie sel-dash">
       <div class="hub-sectie-kop">Selectie${sub ? `<span class="sel-dash-sub">${sub}</span>` : ''}</div>
@@ -134,7 +134,7 @@ export function htmlSelectieDashboard(){
           || '<div class="sel-leeg">Nog geen spelers voor dit elftal. Wijs ze toe via de knop hieronder.</div>'}
         ${zichtbaar.length > MAX_RIJEN ? `<button class="sel-meer" id="selDashMeer">${S._selDashAlles ? 'Toon minder' : `Toon alle ${zichtbaar.length} spelers`}</button>` : ''}
       </div>
-      <p class="sel-uitleg">W = wedstrijden · G = goals · A = assists · Min. = speelminuten, dit seizoen. Tik op een speler voor zijn profiel.</p>
+      <p class="sel-uitleg">W = wedstrijden<span class="sep" aria-hidden="true"></span>G = goals<span class="sep" aria-hidden="true"></span>A = assists<span class="sep" aria-hidden="true"></span>Min. = speelminuten, dit seizoen. Tik op een speler voor zijn profiel.</p>
       <div class="sel-knoppen">
         <button class="knop licht" id="selToewijzen">Spelers toewijzen</button>
         <button class="knop licht" data-hub-open="stats">Alle statistieken ›</button>
@@ -151,17 +151,17 @@ export function modalElftalToewijzen(naSluiten){
   const keuze = Object.fromEntries(lijst.map(p => [p.id, elftalSpeler(p)]));
   const telHtml = () => {
     const tel = e => lijst.filter(p => keuze[p.id] === 'b' || keuze[p.id] === e).length;
-    return `<span class="elf-pill e1">1e</span> ${tel('1')} spelers <span class="elf-pill e2" style="margin-left:10px">2e</span> ${tel('2')} spelers`;
+    return `<span class="elf-pill e1">1e</span> ${tel('1')} spelers <span class="elf-pill e2" style="margin-left:var(--space-sm)">2e</span> ${tel('2')} spelers`;
   };
   openModal(`
     <h2>Spelers toewijzen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:12px">Bij welk elftal hoort iemand? Wie bij het gekozen elftal hoort, staat bij een nieuwe wedstrijd bovenaan en is vooraf aangevinkt. Je kunt altijd iedereen uit de selectie opstellen.</p>
+    <p class="u-t-sm u-zacht u-lh-ruim u-mb-sm">Bij welk elftal hoort iemand? Wie bij het gekozen elftal hoort, staat bij een nieuwe wedstrijd bovenaan en is vooraf aangevinkt. Je kunt altijd iedereen uit de selectie opstellen.</p>
     <div class="elf-tel" id="elfTel">${telHtml()}</div>
     <div class="elf-toew">${lijst.map(p => `<div class="elf-toew-rij"><span class="n">${esc(p.naam || '')}</span>
         <div class="segment elf-keuze">${[['1', '1e'], ['2', '2e'], ['b', 'Beide']].map(([v, l]) =>
           `<button data-elftoew="${esc(p.id)}" data-e="${v}" class="${keuze[p.id] === v ? 'actief e' + v : ''}">${l}</button>`).join('')}</div></div>`).join('')
-      || '<p style="color:var(--ink-2)">Nog geen spelers in dit team.</p>'}</div>
-    <button class="knop vol" id="elfToewKlaar" style="margin-top:12px">Klaar</button>`);
+      || '<p class="u-zacht">Nog geen spelers in dit team.</p>'}</div>
+    <button class="knop vol u-mt-sm" id="elfToewKlaar" >Klaar</button>`);
   const zet = (pid, e) => {
     keuze[pid] = e;
     $$(`#modalInhoud [data-elftoew="${CSS.escape(pid)}"]`).forEach(x => x.className = x.dataset.e === e ? 'actief e' + e : '');

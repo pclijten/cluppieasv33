@@ -24,10 +24,10 @@
    ========================================================================== */
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
-         onSnapshot, serverTimestamp } from './firebase.js?v=20260922c';
-import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261103e';
-import { bouwSlots } from './config.js?v=20261103e';
-import { telNav } from './tracker.js?v=20261103e';
+         onSnapshot, serverTimestamp } from './firebase.js?v=20261106h';
+import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106h';
+import { bouwSlots } from './config.js?v=20261106h';
+import { telNav } from './tracker.js?v=20261106h';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -146,8 +146,8 @@ async function bewaarBoard(){
       meld('Tactiekbord bewaard');
     } catch (e){
       console.error('[tactiek] oefening-bord bewaren mislukt:', e && e.code, e && e.message);
-      if (_boardHint) _boardHint('Bewaren mislukt — probeer opnieuw');
-      meld('Bewaren mislukt — probeer opnieuw');
+      if (_boardHint) _boardHint('Bewaren mislukt: probeer opnieuw');
+      meld('Bewaren mislukt: probeer opnieuw');
     }
     return;
   }
@@ -168,7 +168,7 @@ async function bewaarBoard(){
     meld('Tactiek bewaard');
   } catch (e){
     console.error('[tactiek] bord bewaren mislukt:', e && e.code, e && e.message);
-    meld('Bewaren mislukt — probeer opnieuw');
+    meld('Bewaren mislukt: probeer opnieuw');
   }
 }
 
@@ -193,7 +193,7 @@ export function openTactiekLijst(w){
       </div>
       ${toonLeerplein ? `
       <button class="tb-nieuw tb-leerplein" id="tbLeerplein">
-        <span class="tb-nieuw-ico" style="background:#a855f7">🎓</span>
+        <span class="tb-nieuw-ico" style="background:#a855f7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/></svg></span>
         <span><strong>Leerplein</strong><br>
           <span class="tb-sub">Leg een speelprincipe uit met voorbeeld-loopacties</span></span>
       </button>` : ''}
@@ -215,7 +215,7 @@ export function openTactiekLijst(w){
   if (toonLeerplein){
     host.querySelector('#tbLeerplein').onclick = () => {
       sluit();
-      import('./leerplein.js?v=20261103e').then(m => m.openLeerplein(w));
+      import('./leerplein.js?v=20261106h').then(m => m.openLeerplein(w));
     };
   }
 
@@ -238,9 +238,9 @@ export function openTactiekLijst(w){
         <div class="tb-rij-mini">${miniVeldSvg(it)}</div>
         <div class="tb-rij-tekst">
           <div class="tb-rij-naam">${esc(it.naam || 'Tactiek')}</div>
-          <div class="tb-rij-meta">${esc(periodeLabelKort(w, it.periode))} · ${(it.tekeningen||[]).length} tekening${(it.tekeningen||[]).length===1?'':'en'}</div>
+          <div class="tb-rij-meta">${esc(periodeLabelKort(w, it.periode))}<span class="sep" aria-hidden="true"></span>${(it.tekeningen||[]).length} tekening${(it.tekeningen||[]).length===1?'':'en'}</div>
         </div>
-        <button class="tb-rij-verwijder" data-verwijder="${esc(it.id)}" aria-label="Verwijderen">🗑</button>
+        <button class="tb-rij-verwijder" data-verwijder="${esc(it.id)}" aria-label="Verwijderen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
       </div>`).join('');
     lijstEl.querySelectorAll('.tb-rij').forEach(rij => {
       rij.querySelector('.tb-rij-tekst').onclick = () => {
@@ -356,7 +356,7 @@ function tekenBoard(w){
   // formatie, bij een los/oefening-bord een neutrale omschrijving.
   const sub = (B.bron && B.bron.subtitel)
     ? B.bron.subtitel
-    : `${esc(periodeLabelKort(w, B.periode))} · ${esc(B.formatie || '')}`;
+    : `${esc(periodeLabelKort(w, B.periode))}, ${esc(B.formatie || '')}`;
   const host = document.createElement('div');
   host.className = 'tb-board';
   host.innerHTML = `
@@ -398,11 +398,11 @@ function tekenBoard(w){
       <button class="tb-tool" data-tool="potlood">✎<span>Potlood</span></button>
       <button class="tb-tool" data-tool="gum">⌫<span>Gum</span></button>
       <span class="tb-verdeler"></span>
-      <button class="tb-tool" data-add="eigen">🔴<span>Eigen</span></button>
-      <button class="tb-tool" data-add="tegen">🔵<span>Tegen</span></button>
-      <button class="tb-tool" data-add="pion">🔺<span>Pion</span></button>
+      <button class="tb-tool" data-add="eigen"><span>Eigen</span></button>
+      <button class="tb-tool" data-add="tegen"><span>Tegen</span></button>
+      <button class="tb-tool" data-add="pion"><span>Pion</span></button>
       <button class="tb-tool" data-add="goaltje">⊓<span>Goaltje</span></button>
-      <button class="tb-tool" data-add="bal">⚪<span>Bal</span></button>
+      <button class="tb-tool" data-add="bal"><span>Bal</span></button>
       <span class="tb-verdeler"></span>
       <span class="tb-kleuren" id="tbKleuren">
         ${KLEUREN.map((c,i)=>`<button class="tb-kleur ${i===0?'actief':''}" style="background:${c}" data-kleur="${c}"></button>`).join('')}
@@ -587,7 +587,7 @@ function tekenBoard(w){
           tool = 'select';
           host.querySelectorAll('.tb-tool[data-tool]').forEach(x => x.classList.toggle('actief', x.dataset.tool === 'select'));
           zetTeken(false);
-          hint('Volg-loopweg aan — sleep een speler, de loopweg tekent mee');
+          hint('Volg-loopweg aan: sleep een speler, de loopweg tekent mee');
         } else hint('Volg-loopweg uit');
         return;
       }
@@ -618,23 +618,23 @@ function tekenBoard(w){
       };
       if (soort === 'bal'){
         B.objecten.push({ soort:'bal', x:50, y:50 });
-        hint('Bal geplaatst — sleep hem waar je wilt');
+        hint('Bal geplaatst: sleep hem waar je wilt');
       } else if (soort === 'eigen'){
         const p = spreid('eigen');
         B.objecten.push({ soort:'eigen', nr: volgNr('eigen'), x: p.x, y: 66 + p.dy });
-        hint('Eigen speler geplaatst — sleep hem waar je wilt');
+        hint('Eigen speler geplaatst: sleep hem waar je wilt');
       } else if (soort === 'tegen'){
         const p = spreid('tegen');
         B.objecten.push({ soort:'tegen', nr: volgNr('tegen'), x: p.x, y: 30 + p.dy });
-        hint('Tegenstander geplaatst — sleep hem waar je wilt');
+        hint('Tegenstander geplaatst: sleep hem waar je wilt');
       } else if (soort === 'pion'){
         const p = spreid('pion');
         B.objecten.push({ soort:'pion', x: 20 + p.x * 0.5, y: 50 + p.dy });
-        hint('Pion geplaatst — sleep hem waar je wilt');
+        hint('Pion geplaatst: sleep hem waar je wilt');
       } else if (soort === 'goaltje'){
         const bestaat = B.objecten.some(o => o.soort === 'goaltje');
         B.objecten.push({ soort:'goaltje', x: 50, y: bestaat ? 90 : 10 });
-        hint('Goaltje geplaatst — sleep het waar je wilt');
+        hint('Goaltje geplaatst: sleep het waar je wilt');
       }
       renderObjecten(); pushUndo();
     };
@@ -747,9 +747,9 @@ export function openTactiekBibliotheek(){
         <div class="tb-rij-mini">${miniVeldSvg(it)}</div>
         <div class="tb-rij-tekst">
           <div class="tb-rij-naam">${esc(it.naam || 'Tactiek')}</div>
-          <div class="tb-rij-meta">${(it.objecten||[]).length} objecten · ${(it.tekeningen||[]).length} tekening${(it.tekeningen||[]).length===1?'':'en'}</div>
+          <div class="tb-rij-meta">${(it.objecten||[]).length} objecten<span class="sep" aria-hidden="true"></span>${(it.tekeningen||[]).length} tekening${(it.tekeningen||[]).length===1?'':'en'}</div>
         </div>
-        <button class="tb-rij-verwijder" data-verwijder="${esc(it.id)}" aria-label="Verwijderen">🗑</button>
+        <button class="tb-rij-verwijder" data-verwijder="${esc(it.id)}" aria-label="Verwijderen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
       </div>`).join('');
     lijstEl.querySelectorAll('.tb-rij').forEach(rij => {
       const openRij = () => {

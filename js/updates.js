@@ -14,7 +14,7 @@
 // dan tonen we een neutraal 'ster'-icoon.
 // ================================================================
 
-import { ico } from './icons.js?v=20260922a';
+import { ico } from './icons.js?v=20261106h';
 
 /* Elke release: { maand, tag?, items:[ [icoon, titel, categorie, nieuw, tekst], ... ] }
    - icoon:     naam uit icons.js (bv. 'wedstrijd', 'training', 'grafiek')
@@ -24,24 +24,24 @@ import { ico } from './icons.js?v=20260922a';
 const RELEASES = [
   { maand: 'September 2026', tag: 'Nieuwste', items: [
     ['team-coach', 'Bouwcoördinatoren', 'ALGEMEEN', true,
-      'Nieuwe rol voor wie meerdere teams binnen een bouw (onder/midden/boven) overziet: een clubadmin wijst coördinatoren aan onder Instellingen. Een coördinator krijgt op het startscherm een eigen dashboard voor zijn bouw — met een teamkaart per team (poulestand, vorm, presentie, evaluatie-voortgang), spelers over de hele bouw met positie/opkomst/cijfer, uitleningen (incl. zelf een speler uitlenen), en alle evaluaties per team.'],
+      'Nieuwe rol voor wie meerdere teams binnen een bouw (onder/midden/boven) overziet: een clubadmin wijst coördinatoren aan onder Instellingen. Een coördinator krijgt op het startscherm een eigen dashboard voor zijn bouw, met een teamkaart per team (poulestand, vorm, presentie, evaluatie-voortgang), spelers over de hele bouw met positie/opkomst/cijfer, uitleningen (incl. zelf een speler uitlenen), en alle evaluaties per team.'],
     ['action-share', 'Training delen met een ouder', 'TRAINING', true,
-      'Helpt er vandaag een ouder mee bij de training? Deel de training via het knopje rechtsboven in de oefenstof-weergave: kies hoelang de link geldig is, en de ouder kan — zonder eigen account — de training bekijken én de presentie invullen. Verder krijgt hij nergens toegang toe.'],
+      'Helpt er vandaag een ouder mee bij de training? Deel de training via het knopje rechtsboven in de oefenstof-weergave: kies hoelang de link geldig is, en de ouder kan, zonder eigen account, de training bekijken én de presentie invullen. Verder krijgt hij nergens toegang toe.'],
     ['attendance-overview', 'Eerstvolgende training altijd bovenaan', 'TRAINING', false,
       'Op het presentie-tabblad stond een vooraf ingevulde afmelding voor een latere datum soms boven een net ingevulde afmelding voor vanavond. De eerstvolgende training staat nu altijd apart bovenaan, los van de geschiedenis.'],
     ['attendance-injured', 'Toelichting bij elke afmeld-reden', 'TRAINING', false,
-      'Bij het afmelden van een speler kun je nu bij elke reden een korte toelichting typen — niet meer alleen bij "Anders". Handig voor de trainer die later terugleest waarom iemand er niet was.'],
+      'Bij het afmelden van een speler kun je nu bij elke reden een korte toelichting typen, niet meer alleen bij "Anders". Handig voor de trainer die later terugleest waarom iemand er niet was.'],
   ]},
 
   { maand: 'Augustus 2026', items: [
     ['instel', 'Lettergrootte zelf instellen', 'DESIGN', true,
-      'Vind je de tekst te klein (of juist te groot)? Onder Meer \u2192 Instellingen \u2192 Weergave kies je nu zelf Klein, Normaal of Groot. De keuze geldt op je eigen toestel en wordt onthouden \u2014 handig als je langs de lijn snel iets wilt kunnen lezen.'],
+      'Vind je de tekst te klein (of juist te groot)? Onder Meer \u2192 Instellingen \u2192 Weergave kies je nu zelf Klein, Normaal of Groot. De keuze geldt op je eigen toestel en wordt onthouden: handig als je langs de lijn snel iets wilt kunnen lezen.'],
     ['admin-edit', 'Overzichtelijker & sneller clubdashboard', 'DESIGN', true,
       'Het clubdashboard is opgeruimd: "Aandacht nodig" is nu inklapbaar met een teller, en de gebruiksstatistieken (app-gebruik, actiefste coaches, functiegebruik) zitten gebundeld onder rrn uitklapbare sectie onderaan. Zo blijft het overzicht bovenaan rustig. Daarnaast opent het dashboard merkbaar sneller, doordat het alleen nog de gegevens ophaalt die het betreffende tabblad echt nodig heeft.'],
      ['admin-edit', 'Nieuwe look & eigen iconen', 'DESIGN', true,
       'De hele app heeft een frissere, rustigere uitstraling gekregen: strakkere kaarten, een eigen icoonset in plaats van emoji, en duidelijkere koppen. De domeinkiezer (Techniek, Tactiek, Fysiek, Mentaal, Gedrag) heeft nu icoon + label in plaats van losse letters.'],
     ['football-match', 'AI-wedstrijdverslag', 'WEDSTRIJD', true,
-      'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen worden nooit naar het AI-model gestuurd — dat gebeurt volledig privacyproof (AVG); de namen worden pas bij jou in beeld weer ingevuld.'],
+      'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen worden nooit naar het AI-model gestuurd, dat gebeurt volledig privacyproof (AVG); de namen worden pas bij jou in beeld weer ingevuld.'],
     ['football-substitution', 'Wisselreden vastleggen', 'WEDSTRIJD', true,
       'Bij een wissel kun je nu een reden aangeven (Blessure, Tactisch, Gedrag, Trainingsopkomst). Die zie je terug in het logboek en kun je later nog aanpassen.'],
     ['match-score', 'Slimmer scorebord & rotatie', 'WEDSTRIJD', false,
@@ -66,7 +66,7 @@ const RELEASES = [
     ['communication-chat', 'Hulpchat: je vraagbaak in de app', 'ALGEMEEN', false,
       'Een ingebouwde assistent die je vragen over de app beantwoordt. Weet je even niet waar iets staat of hoe iets werkt? Tik op Hulpchat en je krijgt meteen uitleg, met een verwijzing naar de rondleiding als dat handiger is.'],
     ['football-tactics', 'Rondleiding voor nieuwe coaches', 'ALGEMEEN', false,
-      'Een interactieve rondleiding die je stap voor stap door alle schermen leidt — van je team openen tot een wedstrijd draaien, spelers beoordelen en de planning bekijken. Later opnieuw te starten via Help.'],
+      'Een interactieve rondleiding die je stap voor stap door alle schermen leidt, van je team openen tot een wedstrijd draaien, spelers beoordelen en de planning bekijken. Later opnieuw te starten via Help.'],
     ['stats-bars', 'Teamevaluatie & dashboard', 'STATS', false,
       'Na een wedstrijd je team beoordelen op meerdere categorie\u00ebn, met een dashboard dat de groeicurve, aandachtspunten en een trainingsadvies laat zien. Op het startscherm verschijnt een herinnering voor wedstrijden die nog ge\u00ebvalueerd moeten worden.'],
     ['football-lineup', 'Wedstrijd-opzet in vier stappen', 'WEDSTRIJD', false,
@@ -80,7 +80,7 @@ const RELEASES = [
     ['football-substitution', 'Wissels plannen verfijnd', 'WEDSTRIJD', false,
       'Bij het vooraf plannen van meerdere wissels kan dezelfde speler niet meer dubbel gekozen worden. Ook is slepen op het veld vervangen door tikken, zodat je makkelijk kunt scrollen tijdens de wedstrijd.'],
     ['training-favorite', 'Altijd de nieuwste versie', 'ALGEMEEN', false,
-      'Onder de motorkap zorgt een versiesysteem ervoor dat je na een update altijd de nieuwste versie in beeld krijgt — geen vastzittende oude schermen meer.'],
+      'Onder de motorkap zorgt een versiesysteem ervoor dat je na een update altijd de nieuwste versie in beeld krijgt, geen vastzittende oude schermen meer.'],
   ]},
 
   { maand: 'Juni 2026', tag: 'Start', items: [
@@ -91,7 +91,7 @@ const RELEASES = [
     ['match-score', 'Doelpunten & kaarten', 'WEDSTRIJD', false,
       'Registreer doelpunten met de maker, en kaarten of tijdstraffen volgens de KNVB-regels per leeftijdscategorie. Verkeerd getikt? Corrigeer het rechtstreeks in het gebeurtenissen-log.'],
     ['stats-bars', 'Speeltijd eerlijk verdeeld', 'STATS', false,
-      'De app houdt per speler bij hoeveel die speelt en zet de bank op volgorde van minste speeltijd — zo zie je in \u00e9\u00e9n oogopslag wie aan de beurt is. Aan het eind maakt de app automatisch een wedstrijdverslag.'],
+      'De app houdt per speler bij hoeveel die speelt en zet de bank op volgorde van minste speeltijd, zo zie je in \u00e9\u00e9n oogopslag wie aan de beurt is. Aan het eind maakt de app automatisch een wedstrijdverslag.'],
     ['team-members', 'Spelers & presentie', 'SPELERS', false,
       'Voeg spelers toe met naam en rugnummer, en houd de trainingsopkomst bij. Alles werkt realtime, dus collega-coaches zien direct dezelfde informatie.'],
     ['football-training', 'Oefenstof & video\u2019s', 'TRAINING', false,
@@ -133,7 +133,7 @@ export function htmlUpdates(){
 
   return `
     <div class="updates-wrap">
-      <p class="upd-intro">De hele geschiedenis van Cluppie op \u00e9\u00e9n plek — van de allereerste versie tot de nieuwste functies. Nieuwste bovenaan. Je hoeft zelf niets te installeren; updates verschijnen vanzelf.</p>
+      <p class="upd-intro">De hele geschiedenis van Cluppie op \u00e9\u00e9n plek, van de allereerste versie tot de nieuwste functies. Nieuwste bovenaan. Je hoeft zelf niets te installeren; updates verschijnen vanzelf.</p>
       ${blokken}
     </div>`;
 }

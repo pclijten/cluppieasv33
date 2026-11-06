@@ -25,12 +25,12 @@
    Cijfers, beoordelingen en opkomst tellen over alle teams in de bouw, zodat
    een verhuisde speler zijn historie houdt. Geen extra reads, behalve één
    getDoc per verhuizing (vers spelerdocument). */
-import { S, esc, meld } from './state.js?v=20261103e';
-import { db, doc, collection, getDoc, writeBatch, serverTimestamp } from './firebase.js?v=20260922c';
-import { bouwLeenSnapshot } from './teams-spelers.js?v=20261103i';
-import { SKILLS, POSITIE_GROEPEN, TEAM_CATEGORIEEN } from './config.js?v=20261103e';
-import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20261103e';
-import { opkomstVoor } from './opkomst.js?v=20260922c';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { db, doc, collection, getDoc, writeBatch, serverTimestamp } from './firebase.js?v=20261106h';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20261106h';
+import { SKILLS, POSITIE_GROEPEN, TEAM_CATEGORIEEN } from './config.js?v=20261106h';
+import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20261106h';
+import { opkomstVoor } from './opkomst.js?v=20261106h';
 
 /* ---------- basis ---------- */
 export function isSelectieBouw(ctx){
@@ -191,9 +191,9 @@ function keuzeHtml(r){
     `<button type="button" data-sel="el" data-k="${esc(r.sleutel)}" data-e="${v}" class="${r.el === v ? 'aan e' + v : ''}" aria-pressed="${r.el === v}">${l}</button>`).join('')}</div>`;
 }
 function teamRegel(r){
-  if (r.leen) return `<small class="sbw-team leen">ingeleend van ${esc(r.uit)} · ${esc(r.teamNaam)}</small>`;
+  if (r.leen) return `<small class="sbw-team leen">ingeleend van ${esc(r.uit)}<span class="sep" aria-hidden="true"></span>${esc(r.teamNaam)}</small>`;
   const ook = r.el === 'b' ? ' + ' + esc(anderTeam[r.teamId] || 'ander team') : '';
-  return `<small class="sbw-team ${r.open ? 'open' : ''}">${esc(r.teamNaam)}${ook}${r.open ? ` · gekozen: ${r.wens === 'b' ? 'beide' : r.wens + 'e'}` : ''}</small>`;
+  return `<small class="sbw-team ${r.open ? 'open' : ''}">${esc(r.teamNaam)}${ook}${r.open ? `, gekozen: ${r.wens === 'b' ? 'beide' : r.wens + 'e'}` : ''}</small>`;
 }
 let anderTeam = {};   // teamId → naam van het ándere team (voor "ASV33-1 + ASV33-2"), gezet in selectieRijen
 function openHtml(rijen){
@@ -203,7 +203,7 @@ function openHtml(rijen){
 }
 function sbHtml(r){
   return `<div class="sbw-sb"><i>${r.pct != null ? `<b class="g" style="width:${r.pct}%"></b><b class="y" style="width:${r.res}%"></b>` : ''}</i>
-    <em>${r.pct != null ? `<b>${r.pct}%</b> · ${r.res}%` : 'nog niet'}</em></div>`;
+    <em>${r.pct != null ? `<b>${r.pct}%</b><span class="sep" aria-hidden="true"></span>${r.res}%` : 'nog niet'}</em></div>`;
 }
 function telHtml(rijen){
   const t = tellen(rijen);
@@ -280,10 +280,10 @@ function spelersRadar(ctx, team){
       <span class="g">${g ? cijfer(g) : '–'}</span><span class="l">${l ? cijfer(l) : '–'}</span>${trendHtml(dd)}</div>`;
   }).join('');
   return {
-    kop: `${r.aantal} van ${r.spelers} geëvalueerd${r.datum ? ' · ' + esc(maandKort(r.datum)) : ''}`,
+    kop: `${r.aantal} van ${r.spelers} geëvalueerd${r.datum ? ', ' + esc(maandKort(r.datum)) : ''}`,
     html: `<div class="sbw-radar">${radarSvg(r.laatste, r.gem, SKILLS.map(d => ({ label:d.id, kleur:d.kleur })))}<div class="sbw-radarinfo">
       <div class="sbw-leg"><span><i class="l"></i>laatste evaluatie</span><span><i class="g"></i>gemiddelde seizoen</span></div>
-      ${rijen}<div class="sbw-meta">Cijfers: <span style="color:var(--elf2)">gemiddeld</span> · <b>laatst</b> · verschil</div></div></div>`,
+      ${rijen}<div class="sbw-meta">Cijfers: <span style="color:var(--elf2)">gemiddeld</span><span class="sep" aria-hidden="true"></span><b>laatst</b><span class="sep" aria-hidden="true"></span>verschil</div></div></div>`,
   };
 }
 function wedstrijdRadar(ctx, team){
@@ -299,8 +299,8 @@ function wedstrijdRadar(ctx, team){
   return {
     kop: `${r.aantal} wedstrijd${r.aantal === 1 ? '' : 'en'} geëvalueerd`,
     html: `<div class="sbw-radar breed">${radarSvg(r.laatste, r.gem, TEAM_CATEGORIEEN.map(c => ({ label:TEAM_KORT[c.id] || c.naam, kleur:'var(--ink-2)', stip:'var(--accent)' })), true)}<div class="sbw-radarinfo">
-      <div class="sbw-leg"><span><i class="l"></i>laatste: ${esc(r.tegen || 'wedstrijd')}${r.datum ? ' · ' + esc(Number(r.datum.slice(8, 10)) + ' ' + maandKort(r.datum)) : ''}</span><span><i class="g"></i>gemiddelde seizoen</span></div>
-      ${rijen}<div class="sbw-meta">Teamscore in %: <span style="color:var(--elf2)">gemiddeld</span> · <b>laatst</b> · verschil</div></div></div>`,
+      <div class="sbw-leg"><span><i class="l"></i>laatste: ${esc(r.tegen || 'wedstrijd')}${r.datum ? '<span class="sep" aria-hidden="true"></span>' + esc(Number(r.datum.slice(8, 10)) + ' ' + maandKort(r.datum)) : ''}</span><span><i class="g"></i>gemiddelde seizoen</span></div>
+      ${rijen}<div class="sbw-meta">Teamscore in %: <span style="color:var(--elf2)">gemiddeld</span><span class="sep" aria-hidden="true"></span><b>laatst</b><span class="sep" aria-hidden="true"></span>verschil</div></div></div>`,
   };
 }
 /* Welke radar per team (runtime): 'w' = wedstrijden, 's' = spelers.
@@ -325,7 +325,7 @@ function stijgersDalers(rijen){
            af: met.filter(r => r.sc.delta < 0).sort((a, b) => a.sc.delta - b.sc.delta).slice(0, 4) };
 }
 function miniRij(r){
-  return `<div class="sbw-mini">${elPill(r.el)}<span class="nm">${esc(r.naam)}${r.positie ? ` <small>· ${esc(r.positie)}</small>` : ''}</span>${scoreHtml(r.sc)}</div>`;
+  return `<div class="sbw-mini">${elPill(r.el)}<span class="nm">${esc(r.naam)}${r.positie ? ` <small><span class="sep" aria-hidden="true"></span>${esc(r.positie)}</small>` : ''}</span>${scoreHtml(r.sc)}</div>`;
 }
 export function htmlSelectieTegel(ctx){
   const rijen = selectieRijen(ctx);
@@ -386,7 +386,7 @@ export function htmlSelectieTegelMobiel(ctx){
   return `<button type="button" class="mb-kaart sbw-tegel-mb" data-mb="selmaken">
     <div class="mb-lbl">Selectie maken<span>${rijen.length} spelers ›</span></div>
     <div class="sbw-verdeling"><div><b class="e1">${t.e1}</b><small>1E</small></div><div><b class="e2">${t.e2}</b><small>2E</small></div><div><b>${t.b}</b><small>BEIDE</small></div></div>
-    ${op.length || af.length ? `<div class="sbw-sk" style="margin-top:10px">Grootste verschillen</div>${[...op.slice(0, 2), ...af.slice(0, 2)].map(miniRij).join('')}` : ''}
+    ${op.length || af.length ? `<div class="sbw-sk u-mt-sm">Grootste verschillen</div>${[...op.slice(0, 2), ...af.slice(0, 2)].map(miniRij).join('')}` : ''}
   </button>`;
 }
 function mbRijen(rijen){

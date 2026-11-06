@@ -158,7 +158,9 @@ const PATHS = {
 export function ico(naam, grootte = 24, extra = '') {
   const p = PATHS[naam];
   if (!p) { if (typeof console !== 'undefined') console.warn('[ico] onbekend icoon:', naam); return ''; }
-  const sp = extra ? ' ' + extra : '';
+  // decoratief, tenzij de aanroeper zelf een label meegeeft
+  const verborgen = /aria-(label|hidden)|role=/.test(extra) ? '' : ' aria-hidden="true" focusable="false"';
+  const sp = (extra ? ' ' + extra : '') + verborgen;
   return `<svg width="${grootte}" height="${grootte}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"${sp}>${p}</svg>`;
 }
 

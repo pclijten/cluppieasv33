@@ -16,10 +16,10 @@
 
    Dit bestand importeert niets uit club.js of teams*.js (geen kringimport):
    club.js geeft een klein api-object mee voor hertekenen en berichten. */
-import { db, collection, doc, getDocs, query, where, updateDoc, addDoc, serverTimestamp } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20261103e';
-import { SEIZOEN_FALLBACK } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+import { db, collection, doc, getDocs, query, where, updateDoc, addDoc, serverTimestamp } from './firebase.js?v=20261106h';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { SEIZOEN_FALLBACK } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
 /* ---------- pure hulpjes (ook gebruikt door team-hub, bouw-hub, desktop) ---------- */
 export function rondesVan(club){ return Array.isArray(club?.evaluatieRondes) ? club.evaluatieRondes.filter(r => r && r.id) : []; }
@@ -74,10 +74,10 @@ export function htmlRondeBalk(rondes, teamId, spelers, beoordelingen){
     return `
       <div class="cb-rondebalk">
         <div class="cb-rondebalk-kop">${ico('attendance-evaluatie', 20)}
-          <div class="cb-team-naam">${esc(r.naam)}<small>Vul voor elke speler een ${soortTekst(r.soort)} in${termijn ? ' · ' + esc(termijn) : ''}</small></div></div>
+          <div class="cb-team-naam">${esc(r.naam)}<small>Vul voor elke speler een ${soortTekst(r.soort)} in${termijn ? '<span class="sep" aria-hidden="true"></span>' + esc(termijn) : ''}</small></div></div>
         <div class="cb-ronde-cijfers"><b style="color:${kleur}">${klaar}/${totaal}</b><span>spelers gedaan</span></div>
         ${balk(pct, kleur)}
-        <button class="knop fluo vol" data-ronde-start="${esc(r.id)}" style="margin-top:10px">${klaar ? 'Verder met de volgende speler' : 'Beginnen'} →</button>
+        <button class="knop fluo vol" data-ronde-start="${esc(r.id)}" style="margin-top:var(--space-sm)">${klaar ? 'Verder met de volgende speler' : 'Beginnen'} →</button>
       </div>`;
   }).join('');
 }
@@ -131,9 +131,9 @@ export function htmlEvalRondes(rondes, voortgang){
     const achter = r.status === 'gesloten' ? 0 : Object.values(voortgang[r.id] || {}).filter(v => v.klaar < v.totaal).length;
     const termijn = r.status === 'gesloten' ? '<span class="cb-st">Afgesloten</span>'
       : nogNiet ? `<span class="cb-st">${ico('planning-calendar', 12)} start ${esc(datumKort(r.van))}</span>`
-      : r.tot ? `<span class="cb-st ${verlopen || d <= 14 ? 'let' : ''}">${ico('planning-calendar', 12)} ${verlopen ? 'verlopen ' + esc(datumKort(r.tot)) : 't/m ' + esc(datumKort(r.tot)) + ' · nog ' + d + ' dag' + (d === 1 ? '' : 'en')}</span>` : '';
+      : r.tot ? `<span class="cb-st ${verlopen || d <= 14 ? 'let' : ''}">${ico('planning-calendar', 12)} ${verlopen ? 'verlopen ' + esc(datumKort(r.tot)) : 't/m ' + esc(datumKort(r.tot)) + '<span class="sep" aria-hidden="true"></span>nog ' + d + ' dag' + (d === 1 ? '' : 'en')}</span>` : '';
     return `<button class="cb-ronde" data-ronde-open="${esc(r.id)}">
-      <div class="cb-ronde-kop"><div class="cb-team-naam">${esc(r.naam)}<small>${r.soort === 'snel' ? 'Snelle beoordeling' : 'Volledige beoordeling · 5 domeinen'} · ${(r.teams || []).length} teams</small></div>
+      <div class="cb-ronde-kop"><div class="cb-team-naam">${esc(r.naam)}<small>${r.soort === 'snel' ? 'Snelle beoordeling' : 'Volledige beoordeling<span class="sep" aria-hidden="true"></span>5 domeinen'}<span class="sep" aria-hidden="true"></span>${(r.teams || []).length} teams</small></div>
         <span class="cb-pijl">${ico('navigation-forward', 18)}</span></div>
       <div class="cb-ronde-cijfers"><b style="color:${kleur}">${s.pct}%</b><span>${s.klaar} van ${s.totaal} spelers</span>${termijn}</div>
       ${balk(s.pct, kleur)}
@@ -142,11 +142,11 @@ export function htmlEvalRondes(rondes, voortgang){
   };
   return `
     <p class="cb-legenda">Zet een verplichte evaluatieronde klaar voor de teams die jij kiest. Coaches zien de ronde bovenaan hun team en vullen per speler de beoordeling in. Jij en de bouwcoördinatoren volgen de voortgang.</p>
-    <button class="knop fluo vol" id="rondeNieuw" style="margin-bottom:6px">${ico('action-add', 16)} Nieuwe evaluatieronde</button>
+    <button class="knop fluo vol u-mb-xs" id="rondeNieuw" >${ico('action-add', 16)} Nieuwe evaluatieronde</button>
     <div class="sectie-kop">Loopt nu</div>
     ${lopend.map(kaart).join('') || '<div class="kaart leeg">Er loopt geen evaluatieronde.</div>'}
     ${dicht.length ? `<div class="sectie-kop">Afgesloten</div>${dicht.map(kaart).join('')}` : ''}
-    <p class="cb-uitleg" style="text-align:center;margin-top:10px">Cijfers en radars per team vind je onder Inzicht → Evaluaties.</p>`;
+    <p class="cb-uitleg u-tc u-mt-sm">Cijfers en radars per team vind je onder Inzicht → Evaluaties.</p>`;
 }
 
 /* Eén ronde: voortgang per team, gegroepeerd per bouw. `groepen` = bouwGroepen(teams). */
@@ -163,7 +163,7 @@ export function htmlRondeDetail(r, voortgangRonde, groepen){
     if (!lijst.length) return '';
     const ratio = t => { const v = per[t.id]; return v && v.totaal ? v.klaar / v.totaal : 1; };
     return `<div class="cb-groep"><i style="background:${esc(g.kleur || 'var(--ink-2)')}"></i><b>${esc(g.naam)}</b></div>
-      <div class="cb-kaart" style="padding:4px 14px">${lijst.sort((a, b) => ratio(a) - ratio(b)).map(t => {
+      <div class="cb-kaart" style="padding:var(--space-2xs) var(--space-md)">${lijst.sort((a, b) => ratio(a) - ratio(b)).map(t => {
         const v = per[t.id] || { klaar:0, totaal:0 };
         const pct = v.totaal ? Math.round(v.klaar / v.totaal * 100) : 0;
         const coaches = Object.keys(t.leden || {}).filter(u => t.leden[u] === true).map(u => String(t.ledenInfo?.[u]?.naam || 'Coach').split('@')[0]);
@@ -174,8 +174,8 @@ export function htmlRondeDetail(r, voortgangRonde, groepen){
   const achter = Object.values(per).filter(v => v.klaar < v.totaal).length;
   return `
     <div class="cb-kaart">
-      <div class="cb-team-naam" style="font-size:calc(19px * var(--fs))">${esc(r.naam)}<small>${r.van ? esc(datumKort(r.van)) + ' ' : ''}t/m ${esc(datumKort(r.tot) || '—')} · ${soortTekst(r.soort)}${r.soort === 'snel' ? '' : ' (5 domeinen)'}${r.status === 'gesloten' ? ' · afgesloten' : ''}</small></div>
-      <div class="cb-ronde-cijfers" style="margin-top:10px"><b style="color:${pctKleur(s.pct, verlopen)}">${s.pct}%</b><span>${s.klaar} van ${s.totaal} spelers beoordeeld</span></div>
+      <div class="cb-team-naam u-t-2xl">${esc(r.naam)}<small>${r.van ? esc(datumKort(r.van)) + ' ' : ''}t/m ${esc(datumKort(r.tot) || '—')}<span class="sep" aria-hidden="true"></span>${soortTekst(r.soort)}${r.soort === 'snel' ? '' : ' (5 domeinen)'}${r.status === 'gesloten' ? '<span class="sep" aria-hidden="true"></span>afgesloten' : ''}</small></div>
+      <div class="cb-ronde-cijfers u-mt-sm"><b style="color:${pctKleur(s.pct, verlopen)}">${s.pct}%</b><span>${s.klaar} van ${s.totaal} spelers beoordeeld</span></div>
       ${balk(s.pct, pctKleur(s.pct, verlopen))}
     </div>
     <div class="cb-acties">
@@ -207,32 +207,32 @@ export function htmlRondeFormulier(groepen, alleTeams){
     const lijst = g.teams.filter(t => !gezien.has(t.id)); lijst.forEach(t => gezien.add(t.id));
     if (!lijst.length) return '';
     const alle = lijst.every(t => c.teams.has(t.id));
-    return `<div class="cb-bouw-lbl" style="margin-top:12px">${esc(g.naam)} <button type="button" class="cb-link" data-rf-groep="${esc(lijst.map(t => t.id).join(','))}">${alle ? 'Geen' : 'Alle'}</button></div>
+    return `<div class="cb-bouw-lbl u-mt-sm">${esc(g.naam)} <button type="button" class="cb-link" data-rf-groep="${esc(lijst.map(t => t.id).join(','))}">${alle ? 'Geen' : 'Alle'}</button></div>
       <div class="eb-chips">${lijst.map(t => `<button type="button" class="eb-chip ${c.teams.has(t.id) ? 'aan' : ''}" data-rf-team="${esc(t.id)}">${esc(t.naam)}</button>`).join('')}</div>`;
   }).join('');
   return `
     <div class="cb-kaart">
-      <div class="veldlabel" style="margin-top:0">Naam</div>
+      <div class="veldlabel u-mt-0">Naam</div>
       <input class="invoer" id="rfNaam" value="${esc(c.naam)}" placeholder="Bijv. Najaarsevaluatie ${new Date().getFullYear()}" maxlength="60" autocomplete="off">
-      <div class="cb-tags" style="margin-top:8px">${suggesties().map(s => `<button type="button" class="cb-tag" data-rf-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>
+      <div class="cb-tags u-mt-xs">${suggesties().map(s => `<button type="button" class="cb-tag" data-rf-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>
       <div class="veldlabel">Wat vult de coach in?</div>
       <div class="segment klein-seg" id="rfSoort">
-        <button type="button" class="${c.soort === 'volledig' ? 'actief' : ''}" data-rf-soort="volledig">Volledig · 5 domeinen</button>
-        <button type="button" class="${c.soort === 'snel' ? 'actief' : ''}" data-rf-soort="snel">Snel · niveau</button></div>
+        <button type="button" class="${c.soort === 'volledig' ? 'actief' : ''}" data-rf-soort="volledig">Volledig<span class="sep" aria-hidden="true"></span>5 domeinen</button>
+        <button type="button" class="${c.soort === 'snel' ? 'actief' : ''}" data-rf-soort="snel">Snel<span class="sep" aria-hidden="true"></span>niveau</button></div>
       <div class="veldlabel">Periode</div>
-      <div class="cb-datums"><input class="invoer" type="date" id="rfVan" value="${esc(c.van)}"><span style="color:var(--ink-2)">t/m</span><input class="invoer" type="date" id="rfTot" value="${esc(c.tot)}"></div>
+      <div class="cb-datums"><input class="invoer" type="date" id="rfVan" value="${esc(c.van)}"><span class="u-zacht">t/m</span><input class="invoer" type="date" id="rfTot" value="${esc(c.tot)}"></div>
       <p class="cb-uitleg">Coaches zien de ronde vanaf de startdatum. Na de einddatum blijft invullen mogelijk, maar het team kleurt rood in het overzicht.</p>
     </div>
     <div class="cb-kaart">
       <div class="cb-kaart-kop">${ico('team-members', 18)}<b>Voor welke teams?</b><span class="cb-telling" id="rfTelling">${c.teams.size} gekozen</span></div>
-      <div class="cb-acties" style="margin:0"><button type="button" class="knop licht klein" data-rf-snel="alle">Alle teams</button><button type="button" class="knop licht klein" data-rf-snel="jeugd">Alleen jeugd</button><button type="button" class="knop licht klein" data-rf-snel="geen">Niets</button></div>
+      <div class="cb-acties u-m-0"><button type="button" class="knop licht klein" data-rf-snel="alle">Alle teams</button><button type="button" class="knop licht klein" data-rf-snel="jeugd">Alleen jeugd</button><button type="button" class="knop licht klein" data-rf-snel="geen">Niets</button></div>
       ${chips || '<p class="cb-uitleg">Nog geen teams in de club.</p>'}
     </div>
     ${c.id ? '' : `<div class="cb-kaart">
       <button type="button" class="cb-schakelrij" data-rf-bericht>${ico('communication-announcement', 20)}<div class="cb-persoon-n">Bericht naar de coaches<small>Plaatst een bericht bij de gekozen teams met de naam en de einddatum.</small></div><span class="lj-schakel ${c.bericht ? 'aan' : ''}"></span></button>
     </div>`}
     <button class="knop fluo vol" id="rfOpslaan">${c.id ? 'Wijzigingen opslaan' : 'Ronde klaarzetten'}</button>
-    ${c.id ? '<button class="knop gevaar vol" id="rfVerwijder" style="margin-top:10px">Ronde verwijderen</button>' : ''}`;
+    ${c.id ? '<button class="knop gevaar vol u-mt-sm" id="rfVerwijder" >Ronde verwijderen</button>' : ''}`;
 }
 
 /* api: { teams, groepen, herteken(), naarRonde(id), naarOverzicht() } */
@@ -335,7 +335,7 @@ export function koppelRondeDetail(v, r, voortgangRonde, api){
     try {
       const d = dagenTot(r.tot);
       await plaatsBericht(achter, `Herinnering: ${r.naam}`,
-        `Nog niet alle spelers van je team zijn beoordeeld voor ${r.naam}. ${d != null && d < 0 ? 'De einddatum is verstreken — rond het zo snel mogelijk af.' : 'De einddatum is ' + datumKort(r.tot) + '.'} Je vindt de ronde bovenaan je teampagina.`,
+        `Nog niet alle spelers van je team zijn beoordeeld voor ${r.naam}. ${d != null && d < 0 ? 'De einddatum is verstreken: rond het zo snel mogelijk af.' : 'De einddatum is ' + datumKort(r.tot) + '.'} Je vindt de ronde bovenaan je teampagina.`,
         d != null && d >= 0 ? r.tot : null);
       meld(`Herinnering geplaatst bij ${achter.length} team${achter.length === 1 ? '' : 's'}`);
     } catch(e){ meld('Plaatsen mislukt: ' + (e.code || e.message)); }

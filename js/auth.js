@@ -2,9 +2,9 @@ import {
   auth, db, GoogleAuthProvider, signInWithPopup, signOut,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
   collection, doc, addDoc, setDoc, getDocs, updateDoc, query, where, serverTimestamp, increment
-} from './firebase.js?v=20260922c';
-import { S, $, meld } from './state.js?v=20261103e';
-import { startTracker } from './tracker.js?v=20261103e';
+} from './firebase.js?v=20261106h';
+import { S, $, meld } from './state.js?v=20261106h';
+import { startTracker } from './tracker.js?v=20261106h';
 
 /* ====================================================================
    AANMELD-FLOW — Google of e-mail+wachtwoord.
@@ -235,7 +235,7 @@ export async function checkUitnodiging(){
       pendingTeamInfo = null;
     } else {
       const team = snap.docs[0].data();
-      $('#uitnodigTitel').textContent = '🏟 ' + team.naam;
+      $('#uitnodigTitel').textContent = team.naam;
       $('#uitnodigSubtitel').textContent = team.clubNaam
         ? 'Je bent uitgenodigd als coach bij ' + team.clubNaam + '. Log in om aan te sluiten.'
         : 'Je bent uitgenodigd als coach. Log in om aan te sluiten.';

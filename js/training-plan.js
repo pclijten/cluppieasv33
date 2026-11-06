@@ -26,11 +26,11 @@
 
    club.js levert via `ctx` wat hier nodig is maar daar woont (groepen,
    bouwen, het preview-scherm, renderClub), zodat er geen kringimport ontstaat. */
-import { db, doc, writeBatch } from './firebase.js?v=20260922c';
-import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
+import { db, doc, writeBatch } from './firebase.js?v=20261106h';
+import { S, $, esc, meld, openModal, sluitModal } from './state.js?v=20261106h';
 import {
   voegToeAanWachtrij, voegConceptToe, bewaarConcept, conceptNaarRij, verwijderJob, bestandenVanJob, htmlModelKeuze
-} from './upload-wachtrij.js?v=20261103e';
+} from './upload-wachtrij.js?v=20261106h';
 
 /* ---------- Datums (lokaal; 12:00 als anker tegen zomertijd-randgevallen) ---------- */
 const pad2 = n => String(n).padStart(2, '0');
@@ -183,7 +183,7 @@ function analyseer(invoer){
 
 function planNaam(a){
   const delen = [a.blokken[0] ? `Blok ${a.blokken[0]}` : '', a.voor, a.thema].filter(Boolean);
-  return delen.length ? delen.join(' · ') : 'Trainingsreeks';
+  return delen.length ? delen.join(', ') : 'Trainingsreeks';
 }
 /* thema per blokweek uit de bestandsnamen ("Week 2 - Bal = Vriend - …") */
 function weekThema(a, week){
@@ -265,7 +265,7 @@ function teken(st, ctx){
 
 function teamsTekst(st, ctx){
   const g = st.groepId ? (ctx.groepen || []).find(x => x.id === st.groepId) : null;
-  if (g) return `${g.naam || ('Groep ' + g.id)} · ${st.teams.size} team${st.teams.size === 1 ? '' : 's'}`;
+  if (g) return `${g.naam || ('Groep ' + g.id)}, ${st.teams.size} team${st.teams.size === 1 ? '' : 's'}`;
   if (st.teams.size <= 3) return [...st.teams].map(id => ctx.teams.find(t => t.id === id)?.naam || '?').join(', ');
   return `${st.teams.size} teams`;
 }
@@ -292,7 +292,7 @@ function htmlTeams(st, ctx){
   return `
     <div class="bp-blok">
       <div class="bp-bloknr">${a.blokken.some(Boolean) ? `Blok ${a.blokken.filter(Boolean).map(Number).join(' + ')}` : esc(a.voor || 'Trainingsreeks')}</div>
-      ${a.thema || (a.voor && a.blokken.some(Boolean)) ? `<div class="bp-thema">${esc([a.blokken.some(Boolean) ? a.voor : '', a.thema].filter(Boolean).join(' · '))}</div>` : ''}
+      ${a.thema || (a.voor && a.blokken.some(Boolean)) ? `<div class="bp-thema">${esc([a.blokken.some(Boolean) ? a.voor : '', a.thema].filter(Boolean).join(', '))}</div>` : ''}
       <div class="bp-tellers">
         <div><b>${st.weken}</b><span>weken</span></div>
         <div><b>${perWeek}</b><span>per week</span></div>
@@ -308,14 +308,14 @@ function htmlTeams(st, ctx){
     <div class="veldgroep"><label>Voor welke teams?</label>
       ${groepen.length ? `<div class="tr-groep-uitleg">Tik op een groep om alle teams in één keer te kiezen, of vink hieronder losse teams aan.</div>${groepChips}` : ''}
       <details class="bp-los" ${st.losOpen || !groepen.length ? 'open' : ''}>
-        <summary>Losse teams aanvinken${st.teams.size ? ` · ${st.teams.size} gekozen` : ''}</summary>
+        <summary>Losse teams aanvinken${st.teams.size ? `, ${st.teams.size} gekozen` : ''}</summary>
         ${losseTeams || '<p class="bp-hint">Maak eerst teams aan in deze club.</p>'}
       </details>
       <p class="bp-hint">Elk team krijgt zijn eigen trainingsdagen: training 1 op de eerste dag, training 2 op de tweede. Zo werkt Cluppie nu ook al.</p>
     </div>
     <button class="knop vol" id="bpVerder" ${!st.teams.size || meerBlok ? 'disabled' : ''}>Verder naar planning</button>
-    <button class="link" id="bpOud" style="display:block;margin:12px auto 0">Toch zoals nu verdelen (zonder planning)</button>
-    <p class="bp-hint" style="text-align:center">Wegklikken mag: je vindt deze upload terug bovenaan Trainingen.</p>`;
+    <button class="link" id="bpOud" style="display:block;margin:var(--space-sm) auto 0">Toch zoals nu verdelen (zonder planning)</button>
+    <p class="bp-hint u-tc">Wegklikken mag: je vindt deze upload terug bovenaan Trainingen.</p>`;
 }
 
 /* ---------- Stap 2: planning ---------- */
@@ -339,21 +339,21 @@ function htmlPlanning(st, ctx){
   const rijen = map.map((m, i) => {
     const zv = zichtbaarDatum(m, st.zichtbaar);
     const th = weekThema(st.a, i + 1);
-    return `<tr><td class="bp-bw">Week ${i + 1}${th ? `<small>${esc(th)}</small>` : ''}</td><td>wk ${isoWeekNr(m)} · ${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
+    return `<tr><td class="bp-bw">Week ${i + 1}${th ? `<small>${esc(th)}</small>` : ''}</td><td>wk ${isoWeekNr(m)}<span class="sep" aria-hidden="true"></span>${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
   }).join('');
   const dubbel = dubbeleItems(st, ctx);
   const aantal = st.a.items.length - dubbel.length;
   const eerste = st.a.items[0];
   return `
-    <div class="bp-sub">${esc(planNaam(st.a))} · ${esc(teamsTekst(st, ctx))}</div>
+    <div class="bp-sub">${esc(planNaam(st.a))}<span class="sep" aria-hidden="true"></span>${esc(teamsTekst(st, ctx))}</div>
     <div class="bp-start">
       <button type="button" class="bp-pijl" data-bp-start="-7" aria-label="Een week eerder">${pijl('l')}</button>
-      <div class="bp-start-m"><small>Blokweek 1 wordt</small><b>Week ${isoWeekNr(st.start)} · vanaf ${esc(kortDatum(st.start))}</b></div>
+      <div class="bp-start-m"><small>Blokweek 1 wordt</small><b>Week ${isoWeekNr(st.start)}<span class="sep" aria-hidden="true"></span>vanaf ${esc(kortDatum(st.start))}</b></div>
       <button type="button" class="bp-pijl" data-bp-start="7" aria-label="Een week later">${pijl('r')}</button>
     </div>
     <p class="bp-hint">Tik een week aan om hem over te slaan, bijvoorbeeld bij vakantie. De rest schuift mee.</p>
     <div class="bp-weken">${chips}</div>
-    <div class="veldgroep" style="margin-top:14px"><label for="bpZicht">Zichtbaar voor coaches</label>
+    <div class="veldgroep u-mt-md"><label for="bpZicht">Zichtbaar voor coaches</label>
       <select class="invoer" id="bpZicht">${ZICHTBAAR_OPTIES.map(o => `<option value="${o.id}" ${o.id === st.zichtbaar ? 'selected' : ''}>${o.label}</option>`).join('')}</select>
       <p class="bp-hint">Eén keuze voor het hele blok: alle trainingen van een week worden tegelijk zichtbaar.</p>
     </div>
@@ -362,8 +362,8 @@ function htmlPlanning(st, ctx){
     <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - 1], eerste.nr))}</b><span>${esc(eerste.naam)}</span></div>
     ${dubbel.length ? `<div class="mm-samenv warn">${dubbel.length} training${dubbel.length === 1 ? ' staat' : 'en staan'} al bij deze teams en ${dubbel.length === 1 ? 'wordt' : 'worden'} overgeslagen.</div>` : ''}
     <button class="knop vol" id="bpStart" ${aantal ? '' : 'disabled'}>Verwerk ${aantal} training${aantal === 1 ? '' : 'en'}</button>
-    <p class="bp-hint" style="text-align:center">Het verwerken loopt op de achtergrond; je kunt meteen verder.</p>
-    <button class="link" id="bpTerug" style="display:block;margin:10px auto 0">Terug</button>`;
+    <p class="bp-hint u-tc">Het verwerken loopt op de achtergrond; je kunt meteen verder.</p>
+    <button class="link" id="bpTerug" style="display:block;margin:var(--space-sm) auto 0">Terug</button>`;
 }
 
 const pijl = r => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${r === 'l' ? 'M15 18l-6-6 6-6' : 'M9 6l6 6-6 6'}"/></svg>`;
@@ -442,7 +442,7 @@ async function naarWachtrij(st, ctx){
   else await voegToeAanWachtrij({ soort:'blok', naam, teamsTxt, items });
   sluitModal();
   const n = items.filter(i => i.status !== 'skip').length;
-  meld(`${n} training${n === 1 ? '' : 'en'} in de wachtrij · voortgang bovenaan Trainingen`);
+  meld(`${n} training${n === 1 ? '' : 'en'} in de wachtrij, voortgang bovenaan Trainingen`);
   ctx.renderClub?.();
 }
 
@@ -482,13 +482,13 @@ export function htmlPlannen(trainingen, teams, groepen = []){
       }).join('');
       const ids = items[0].teams || [];
       const g = plan.groep ? groepen.find(x => x.id === plan.groep) : null;
-      const teamsTxt = g ? `${g.naam || ('Groep ' + g.id)} · ${ids.length} team${ids.length === 1 ? '' : 's'}`
+      const teamsTxt = g ? `${g.naam || ('Groep ' + g.id)}, ${ids.length} team${ids.length === 1 ? '' : 's'}`
         : ids.length <= 3 ? ids.map(id => teams.find(t => t.id === id)?.naam || '?').join(', ') : `${ids.length} teams`;
       const zo = zichtbaarOptie(plan.zichtbaar);
       return `
         <div class="kaart bp-plan">
           <div class="bp-plan-kop"><b>${esc(plan.naam || ('Blok ' + (plan.blok || '')))}</b>
-            <span>${esc(teamsTxt)} · ${items.length} training${items.length === 1 ? '' : 'en'} · wk ${isoWeekNr(map[0])} t/m ${isoWeekNr(laatste)} · zichtbaar: ${esc(zo.label.toLowerCase())}</span></div>
+            <span>${esc(teamsTxt)}<span class="sep" aria-hidden="true"></span>${items.length} training${items.length === 1 ? '' : 'en'}<span class="sep" aria-hidden="true"></span>wk ${isoWeekNr(map[0])} t/m ${isoWeekNr(laatste)}<span class="sep" aria-hidden="true"></span>zichtbaar: ${esc(zo.label.toLowerCase())}</span></div>
           <p class="bp-hint">Valt er een week uit? Tik die week aan: alle trainingen daarna schuiven een week op, met titel en zichtbaarheid. Nog een keer tikken zet het terug.</p>
           <div class="bp-weken">${chips}</div>
         </div>`;
@@ -530,7 +530,7 @@ function wijzigVrijeWeek(planId, maandag, trainingen, ctx){
     ${rijen ? `<table class="bp-tabel"><thead><tr><th>Blok</th><th>Wordt</th></tr></thead><tbody>${rijen}</tbody></table>` : ''}
     <p class="bp-hint">Heb je een titel van een van deze trainingen met de hand aangepast, dan wordt die weer "Week … - training …".</p>
     <button class="knop vol" id="bpSchuif">${wijzig.length ? (wordtVrij ? `Schuif ${wijzig.length} op` : `Zet ${wijzig.length} terug`) : 'Opslaan'}</button>
-    <button class="knop licht vol" id="bpAnnuleer" style="margin-top:8px">Annuleren</button>`);
+    <button class="knop licht vol u-mt-xs" id="bpAnnuleer" >Annuleren</button>`);
   $('#bpAnnuleer').onclick = () => sluitModal();
   $('#bpSchuif').onclick = async () => {
     const knop = $('#bpSchuif'); knop.disabled = true; knop.textContent = 'Bezig…';
@@ -550,7 +550,7 @@ function wijzigVrijeWeek(planId, maandag, trainingen, ctx){
       }
       await batch.commit();
       sluitModal();
-      meld(wordtVrij ? `Week ${isoWeekNr(maandag)} vrij · ${wijzig.length} verschoven` : `Week ${isoWeekNr(maandag)} teruggezet`);
+      meld(wordtVrij ? `Week ${isoWeekNr(maandag)} vrij, ${wijzig.length} verschoven` : `Week ${isoWeekNr(maandag)} teruggezet`);
       ctx.renderClub?.();
     } catch(e){
       console.error('[blokplan] verschuiven mislukt', e);

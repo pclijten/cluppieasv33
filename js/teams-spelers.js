@@ -7,32 +7,32 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc,
   getDoc, getDocs, query, where, serverTimestamp, documentId, deleteField
-} from './firebase.js?v=20260922c';
+} from './firebase.js?v=20261106h';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan, isBeheerder
-} from './state.js?v=20261103e';
+} from './state.js?v=20261106h';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20261103e';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261103e';
-import { isBouwCoordinator } from './coordinatoren.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261103e';
+} from './config.js?v=20261106h';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261106h';
+import { isBouwCoordinator } from './coordinatoren.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261106h';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20261103e';
-import { telGebruik } from './tracker.js?v=20261103e';
-import { opkomstVoor, teltMee } from './opkomst.js?v=20260922c';
-import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261103e';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
+import { opkomstVoor, teltMee } from './opkomst.js?v=20261106h';
+import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261106h';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261103i');
+  const m = await import('./teams.js?v=20261106h');
   m.renderTeam();
 }
 
@@ -50,17 +50,17 @@ export function htmlSpelers(){
   const evalAan = modAan('evaluaties');
 
   return `
-    ${evalAan ? `<div class="segment" id="spelersModus" style="margin-bottom:14px">
+    ${evalAan ? `<div class="segment u-mb-md" id="spelersModus" >
       <button data-modus="selectie" class="actief">Selectie</button>
       <button data-modus="snel">${ico('training-favorite', 15)} Snel beoordelen</button>
     </div>` : ''}
 
     <div class="avg-balk">
-      <span class="slot">🔒</span>
+      <span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
       <span>Beoordelingen en leerpunten zijn alleen zichtbaar voor coaches van dit team. Spelers en ouders zien deze gegevens niet.</span>
     </div>
 
-    <button class="knop vol licht" id="nieuweSpeler" style="margin-bottom:14px">+ Speler toevoegen</button>
+    <button class="knop vol licht u-mb-md" id="nieuweSpeler" >+ Speler toevoegen</button>
     ${(() => {
       const eigen = S.spelers.filter(p => !p._ingeleend);
       const spelerRij = (p, ingeleend) => {
@@ -76,18 +76,18 @@ export function htmlSpelers(){
         // opstelbaar bij ons — het label maakt alleen zichtbaar dat hij ook
         // elders speelt, zodat je dat zelf tegen de klok kan houden.
         const subDelen = [];
-        if (ingeleend) subDelen.push(p._gast ? `gast · gekoppeld aan uitleen van ${esc(p._bronTeamNaam||'ander team')}` : `ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
+        if (ingeleend) subDelen.push(p._gast ? `gast, gekoppeld aan uitleen van ${esc(p._bronTeamNaam||'ander team')}` : `ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
         if (p._uitgeleendAan) subDelen.push(`⇄ ook bij ${esc(p._uitgeleendAan)}`);
         if (pos) subDelen.push(esc(pos));
         const sub = subDelen.length
-          ? `<div class="speler-sub">${subDelen.join(' · ')}</div>` : '';
+          ? `<div class="speler-sub">${subDelen.join(', ')}</div>` : '';
         return `
         <button class="speler-rij" data-open-profiel="${p.id}">
           <div class="mini-shirt"${ingeleend?' style="background:var(--ink-2)"':''}>${esc(p.nummer ?? '·')}</div>
           <div class="n">${esc(p.naam)}${sub}</div>
           ${lp ? `<span class="chip-info">${lp} leerpunt${lp===1?'':'en'}</span>` : ''}
           ${heeftNotitie ? `<span class="notitie-vlag" title="Heeft een coach-notitie">!</span>` : ''}
-          ${ingeleend ? `<span class="chip-info" style="background:rgba(53,196,122,.15);color:var(--ok)">ingeleend</span>` : ''}
+          ${ingeleend ? `<span class="chip-info u-c-ok" style="background:rgba(53,196,122,.15)">ingeleend</span>` : ''}
           ${p._uitgeleendAan ? `<span class="chip-info" style="cursor:pointer" data-uitleen-terug="${p._leenIdUit}" title="Terughalen">⇄ terug</span>` : ''}
           ${stip}
           <span class="pijl">›</span>
@@ -96,7 +96,7 @@ export function htmlSpelers(){
 
       let h = eigen.length
         ? eigen.map(p => spelerRij(p, false)).join('')
-        : `<div class="kaart leeg">Nog geen spelers.<br>Voeg je selectie toe — naam en rugnummer is genoeg.</div>`;
+        : `<div class="kaart leeg">Nog geen spelers.<br>Voeg je selectie toe, naam en rugnummer is genoeg.</div>`;
 
       // Ingeleende spelers (zonder gast-koppeling): draaien volwaardig mee.
       const in_ = S.spelers.filter(p => p._ingeleend && !p._gast);
@@ -108,13 +108,13 @@ export function htmlSpelers(){
       // Gastspelers: nog-te-koppelen placeholders + gekoppelde (echte) gasten.
       const gasten = S.spelers.filter(p => p._gast);
       if (gasten.length){
-        h += `<div class="sectie-kop">👤 Gastspelers</div>`;
+        h += `<div class="sectie-kop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg> Gastspelers</div>`;
         h += gasten.map(g => {
           if (g._gekoppeld) return spelerRij(g, true);   // zelfde rij als 'Ingeleend' → toont ook positie + leerpunten
           return `<button class="speler-rij" data-open-profiel="${g.id}" style="border-style:dashed">
             <div class="mini-shirt" style="background:transparent;border:1px dashed var(--ink-2)">${esc(g.nummer ?? '?')}</div>
-            <div class="n">${esc(g.naam)}<div style="font-size:calc(11px * var(--fs));color:var(--ink-2);font-weight:400">gast · nog te koppelen</div></div>
-            <span class="chip-info" style="background:rgba(139,149,161,.15);color:var(--ink-2)">gast</span>
+            <div class="n">${esc(g.naam)}<div class="u-t-2xs u-zacht" style="font-weight:400">gast<span class="sep" aria-hidden="true"></span>nog te koppelen</div></div>
+            <span class="chip-info u-zacht" style="background:rgba(139,149,161,.15)">gast</span>
             <span class="pijl">›</span>
           </button>`;
         }).join('');
@@ -122,12 +122,12 @@ export function htmlSpelers(){
 
       // Gast aanmaken — alleen zinvol binnen een club (uitleen bestaat dan).
       if (S.team?.club){
-        h += `<button class="knop klein licht" id="nieuweGast" style="width:100%;margin-top:10px">+ Gastspeler aanmaken</button>`;
+        h += `<button class="knop klein licht u-w-100 u-mt-sm" id="nieuweGast" >+ Gastspeler aanmaken</button>`;
       }
       return h;
     })()}
 
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">
+    <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">
       <span class="notitie-vlag inline">!</span> toont een coach-notitie. Het gekleurde stipje toont de laatste snelle beoordeling. Tik op een speler voor het volledige profiel met statistieken, leerlijn en historie.</p>`;
 }
 
@@ -330,7 +330,7 @@ function ovPerTeam(p){
       h += rij(s.teamNaam || 'Vorig team', z.seizoen && z.seizoen !== 'onbekend' ? z.seizoen : 'seizoen onbekend', z);
     }
   }
-  return `<div class="kaart"><div class="veldlabel" style="margin-top:0">Per team</div>${h}</div>`;
+  return `<div class="kaart"><div class="veldlabel u-mt-0">Per team</div>${h}</div>`;
 }
 
 function ovWedRij(r){
@@ -339,23 +339,23 @@ function ovWedRij(r){
   if (r.straf > 0){ label = 'Straf'; klasse = 'straf'; }
   else if (pct != null){ label = pct + '%'; klasse = pct >= 90 ? 'vol' : 'deel'; }
   const extra = [];
-  if (r.goals) extra.push(`⚽ ${r.goals}`);
-  if (r.assists) extra.push(`🅰 ${r.assists}`);
-  if (r.geel) extra.push(`🟨 ${r.geel}`);
-  if (r.rood) extra.push(`🟥 ${r.rood}`);
-  if (r.keeper) extra.push(`🧤 ${uurMin(r.keeper)}`);
-  if (r.laat) extra.push('⏱ kwam later');
-  if (r.startBank?.reden){ const w = wisselReden(r.startBank.reden); extra.push(`${w ? w.emoji+' '+w.label : 'bank'}`); }
-  const uitslag = (r.voor || r.tegen || r.inSelectie) ? ` · ${r.voor}-${r.tegen}` : '';
+  if (r.goals) extra.push(`${r.goals} goal${r.goals === 1 ? '' : 's'}`);
+  if (r.assists) extra.push(`${r.assists} assist${r.assists === 1 ? '' : 's'}`);
+  if (r.geel) extra.push(`${r.geel} geel`);
+  if (r.rood) extra.push(`${r.rood} rood`);
+  if (r.keeper) extra.push(`keeper ${uurMin(r.keeper)}`);
+  if (r.laat) extra.push('kwam later');
+  if (r.startBank?.reden){ const w = wisselReden(r.startBank.reden); extra.push(`${w ? w.label : 'bank'}`); }
+  const uitslag = (r.voor || r.tegen || r.inSelectie) ? `, ${r.voor}-${r.tegen}` : '';
   return `<div class="wed-hist-rij">
     <span class="whr-datum">${r.datum ? datumNL(r.datum) : '—'}</span>
     <div class="whr-mid"><div class="whr-teg">${esc(r.tegenstander)}${uitslag}</div>
-      ${extra.length ? `<div class="whr-reden">${extra.join(' · ')}</div>` : ''}</div>
+      ${extra.length ? `<div class="whr-reden">${extra.join(', ')}</div>` : ''}</div>
     <span class="whr-status ${klasse}">${label}</span></div>`;
 }
 
 function ovPaneel(s, sub){
-  const leeg = t => `<p class="ov-hint" style="padding:6px 0">${t}</p>`;
+  const leeg = t => `<p class="ov-hint" style="padding:var(--space-xs) 0">${t}</p>`;
   if (sub === 'wed')
     return (s.wedstrijden || []).length ? s.wedstrijden.map(ovWedRij).join('') : leeg(s.mee?.wed === false ? 'Niet meegenomen bij het overzetten.' : 'Geen wedstrijden.');
   if (sub === 'beo')
@@ -365,13 +365,13 @@ function ovPaneel(s, sub){
   if (sub === 'tr')
     return (s.presentie || []).length ? s.presentie.map(r => {
       let info = null; try { info = r.reden ? afwezigRedenInfo(r.reden) : null; } catch {}
-      const txt = r.aanwezig ? 'Aanwezig' : info ? `${info.emoji} ${esc(info.label)}` : '❔ Zonder reden';
+      const txt = r.aanwezig ? 'Aanwezig' : info ? `${info.ico?ico(info.ico,14):''}${esc(info.label)}` : 'Zonder reden';
       return `<div class="presentie-hist-rij"><span>${r.datum ? datumNL(r.datum) : '—'}</span><span class="phr-status ${r.aanwezig?'aanw':'afw'}">${txt}</span></div>`;
     }).join('') : leeg(s.mee?.tr === false ? 'Niet meegenomen bij het overzetten.' : 'Geen trainingen.');
   return (s.leerpunten || []).length ? s.leerpunten.map(l => {
     const d = SKILLS.find(x => x.id === l.domein);
     return `<div class="ov-lp"><span class="ov-lp-dom">${esc(l.domein || '')}</span><div><div>${esc(l.tekst || '')}</div>
-      <div class="ov-hint">${d ? esc(d.naam)+' · ' : ''}${l.klaar ? 'afgerond' + (l.klaarOp ? ' ' + datumNL(isoDatum(l.klaarOp) || l.klaarOp) : '') : 'open'}</div></div></div>`;
+      <div class="ov-hint">${d ? esc(d.naam)+'<span class="sep" aria-hidden="true"></span>' : ''}${l.klaar ? 'afgerond' + (l.klaarOp ? ' ' + datumNL(isoDatum(l.klaarOp) || l.klaarOp) : '') : 'open'}</div></div></div>`;
   }).join('') : leeg(s.mee?.lp === false ? 'Niet meegenomen bij het overzetten.' : 'Geen leerpunten.');
 }
 
@@ -384,12 +384,12 @@ function ovStintKaart(p, s){
   const tel = { wed:(s.wedstrijden||[]).length, beo:(s.beoordelingen||[]).length, tr:(s.presentie||[]).length, lp:(s.leerpunten||[]).length };
   const periode = s.van ? `${datumNL(s.van)} – ${s.tot ? datumNL(s.tot) : ''}` : (s.tot ? `t/m ${datumNL(s.tot)}` : '');
   return `<div class="kaart ov-stint">
-    <div class="veldlabel" style="margin-top:0">Vorig team · ${esc(s.teamNaam || 'onbekend')}</div>
-    ${periode ? `<div class="ov-hint" style="margin:-4px 0 8px">${periode}</div>` : ''}
+    <div class="veldlabel u-mt-0">Vorig team<span class="sep" aria-hidden="true"></span>${esc(s.teamNaam || 'onbekend')}</div>
+    ${periode ? `<div class="ov-hint" style="margin:-4px 0 var(--space-xs)">${periode}</div>` : ''}
     <div class="ov-samen"><span><b>${tot.w}</b> wedstr.</span><span><b>${tot.t ? uurMin(tot.t) : '—'}</b></span>
       <span><b>${tot.g}</b> goals</span><span><b>${tot.a}</b> assists</span>
       <span><b>${tot.tr ? Math.round(tot.aw / tot.tr * 100) + '%' : '—'}</b> training</span></div>
-    <button class="knop licht klein" style="width:100%;margin-top:10px" data-ov-open="${esc(s.id)}">${open ? 'Inklappen' : `Alles uit ${esc(s.teamNaam || 'vorig team')} tonen`}</button>
+    <button class="knop licht klein" style="width:100%;margin-top:var(--space-sm)" data-ov-open="${esc(s.id)}">${open ? 'Inklappen' : `Alles uit ${esc(s.teamNaam || 'vorig team')} tonen`}</button>
     ${open ? `
       <div class="segment ov-sub" id="ovSub">
         ${OV_SUBS.map(([k, n]) => `<button data-ov-sub="${k}" class="${sub===k?'actief':''}">${n} (${tel[k]})</button>`).join('')}
@@ -428,18 +428,18 @@ function wisselInfoVoorSpeler(w, pid){
   const disciplinair = sb?.disciplinair || wisselEvents.some(e => e.disciplinair);
   if (sb?.reden){
     const r = wisselReden(sb.reden);
-    redenTekst = `${r?r.emoji+' '+r.label:''}${sb.disciplinair?' · disciplinaire reservebeurt':' · startte op de bank'}`;
+    redenTekst = `${r?r.label:''}${sb.disciplinair?', disciplinaire reservebeurt':', startte op de bank'}`;
   } else if (wisselEvents.length){
     const e = wisselEvents[wisselEvents.length-1];
     const r = e.reden ? wisselReden(e.reden) : null;
-    redenTekst = `${r?r.emoji+' '+r.label+' gewisseld':'Gewisseld'}${e.disciplinair?' · disciplinaire reservebeurt':''}`;
+    redenTekst = `${r?r.label+' gewisseld':'Gewisseld'}${e.disciplinair?', disciplinaire reservebeurt':''}`;
   }
 
   if (laatSec > 0){
     const m = (w.telaatVanaf||{})[pid];
     redenTekst = redenTekst
-      ? `${redenTekst} · ⏱ kwam later, erbij vanaf minuut ${m}`
-      : `⏱ Kwam later, erbij vanaf minuut ${m}`;
+      ? `${redenTekst}, kwam later, erbij vanaf minuut ${m}`
+      : `Kwam later, erbij vanaf minuut ${m}`;
   }
 
   let label, klasse;
@@ -463,10 +463,10 @@ export function htmlProfiel(){
       <button class="profiel-terug" id="profielTerug">‹ Terug naar spelers</button>
       <div class="profiel-top">
         <div class="pt-shirt" style="background:transparent;border:1px dashed var(--ink-2)">${esc(p.nummer ?? '?')}</div>
-        <div><h2>${esc(p.naam)}</h2><div class="meta">${lijn?lijn+' · ':''}gastspeler · nog te koppelen</div></div>
+        <div><h2>${esc(p.naam)}</h2><div class="meta">${lijn?lijn+'<span class="sep" aria-hidden="true"></span>':''}gastspeler<span class="sep" aria-hidden="true"></span>nog te koppelen</div></div>
       </div>
       <div class="leen-strook">
-        <span class="ic">👤</span>
+        <span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>
         <span class="tx">Placeholder voor een nog onbekende uitleen. Doet volwaardig mee in opstelling en presentie. Koppel hem zodra bekend is wie het wordt.</span>
       </div>
       <div class="stat-grid">
@@ -475,12 +475,12 @@ export function htmlProfiel(){
         <div class="stat-box"><div class="v">${st.goals}</div><div class="l">Goals</div></div>
         <div class="stat-box"><div class="v">${st.opkomst != null ? st.opkomst+'%' : '—'}</div><div class="l">Training</div></div>
       </div>
-      <button class="knop vol" data-gast-koppel="${p.id}" style="margin-top:4px">🔗 Koppel aan ingeleende speler</button>
-      <div class="rij" style="margin-top:8px">
+      <button class="knop vol" data-gast-koppel="${p.id}" style="margin-top:var(--space-2xs)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="17.8" cy="6" r="2.6"/><circle cx="6.2" cy="12" r="2.6"/><circle cx="17.8" cy="18" r="2.6"/><path d="M15.4 7.2 8.6 10.8"/><path d="M8.6 13.2 15.4 16.8"/></svg> Koppel aan ingeleende speler</button>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" data-gast-bewerk="${p.id}">${ico('admin-edit', 16)} Gast bewerken</button>
-        <button class="knop gevaar klein" data-gast-weg="${p.id}">🗑 Verwijderen</button>
+        <button class="knop gevaar klein" data-gast-weg="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg> Verwijderen</button>
       </div>
-      ${koppelbaar.length ? '' : `<p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px;line-height:1.5">Er staat nog geen uitleen voor jou klaar om aan te koppelen. Zodra een ander team de speler naar jou uitleent, verschijnt die in de koppel-lijst.</p>`}
+      ${koppelbaar.length ? '' : `<p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">Er staat nog geen uitleen voor jou klaar om aan te koppelen. Zodra een ander team de speler naar jou uitleent, verschijnt die in de koppel-lijst.</p>`}
     `;
   }
 
@@ -500,17 +500,17 @@ export function htmlProfiel(){
     <button class="profiel-terug" id="profielTerug">‹ Terug naar spelers</button>
     <div class="profiel-top">
       <div class="pt-shirt"${p._ingeleend?' style="background:var(--ink-2)"':''}>${esc(p.nummer ?? '·')}</div>
-      <div><h2>${esc(p.naam)}</h2><div class="meta">${lijn?lijn+' · ':''}${p._ingeleend?`ingeleend van ${esc(p._bronTeamNaam||'ander team')}`:esc(S.team.naam)}</div></div>
+      <div><h2>${esc(p.naam)}</h2><div class="meta">${lijn?lijn+'<span class="sep" aria-hidden="true"></span>':''}${p._ingeleend?`ingeleend van ${esc(p._bronTeamNaam||'ander team')}`:esc(S.team.naam)}</div></div>
     </div>
     ${(() => {
       if (p._ingeleend){
-        const gastNoot = p._gast ? ' Gekoppeld aan je gastspeler — je opstellingen bleven behouden.' : ' Doet volwaardig mee bij jou.';
+        const gastNoot = p._gast ? ' Gekoppeld aan je gastspeler: je opstellingen bleven behouden.' : ' Doet volwaardig mee bij jou.';
         return `<div class="leen-strook in">
           <span class="ic">⇄</span>
           <span class="tx">Ingeleend van <b>${esc(p._bronTeamNaam||'ander team')}</b>.${gastNoot}</span>
           <button data-uitleen-terug="${p._leenId}">Terugzetten</button>
         </div>
-        ${(isBeheerder() || isBouwCoordinator(S.team.bouw)) ? `<button class="knop vol" style="margin-bottom:12px" data-uitleen-definitief="${p._leenId}">Definitief toevoegen aan ${esc(S.team.naam)}</button>` : ''}`;
+        ${(isBeheerder() || isBouwCoordinator(S.team.bouw)) ? `<button class="knop vol" style="margin-bottom:var(--space-sm)" data-uitleen-definitief="${p._leenId}">Definitief toevoegen aan ${esc(S.team.naam)}</button>` : ''}`;
       }
       const u = actieveUitleningVoor(p.id);
       if (!u) return '';
@@ -521,10 +521,10 @@ export function htmlProfiel(){
       </div>`;
     })()}
 
-    <div class="avg-balk"><span class="slot">🔒</span>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
       <span>Coach-only. Deel niets uit dit profiel buiten het technisch kader.</span></div>
 
-    <div class="segment" id="profielTabs" style="margin-bottom:14px">
+    <div class="segment u-mb-md" id="profielTabs" >
       <button data-ptab="overzicht" class="${tab==='overzicht'?'actief':''}">Overzicht</button>
       ${leerlijnAan ? `<button data-ptab="leerlijn" class="${tab==='leerlijn'?'actief':''}">Leerlijn</button>` : ''}
       <button data-ptab="historie" class="${tab==='historie'?'actief':''}">Historie</button>
@@ -541,25 +541,25 @@ export function htmlProfiel(){
       ${(heeftElftallen() && ovScopeNu(p) === 'team') ? (() => {
         const e1 = spelerStats(p.id, '1'), e2 = spelerStats(p.id, '2');
         const r = (e, x) => `<div class="elf-split-rij"><span class="elf-pill e${e}">${e}e</span><span>${x.wedstrijden} wedstr.</span><span>${Math.round(x.tijd / 60)} min</span><span>${x.goals} G</span><span>${x.assists} A</span></div>`;
-        return `<div class="kaart elf-split"><div class="veldlabel" style="margin-top:0">Per elftal${elftalPillen(p)}</div>${r('1', e1)}${r('2', e2)}</div>`;
+        return `<div class="kaart elf-split"><div class="veldlabel u-mt-0">Per elftal${elftalPillen(p)}</div>${r('1', e1)}${r('2', e2)}</div>`;
       })() : ''}
       ${stS.pctSpeeltijd != null ? `
       <div class="kaart" style="margin-top:-2px">
-        <div class="veldlabel" style="margin-top:0">Verhouding speeltijd / bank</div>
+        <div class="veldlabel u-mt-0">Verhouding speeltijd / bank</div>
         <div class="speeltijd-split">
           <div class="veld" style="width:${stS.pctSpeeltijd}%"></div>
           <div class="bank" style="width:${stS.pctReserve}%"></div>
         </div>
         <div class="split-legend">
-          <span><span class="dotje" style="background:var(--ok)"></span> Op het veld · ${uurMin(stS.tijd)}</span>
-          <span><span class="dotje" style="background:var(--warn)"></span> Reserve · ${uurMin(stS.reserve)}</span>
+          <span><span class="dotje" style="background:var(--ok)"></span> Op het veld<span class="sep" aria-hidden="true"></span>${uurMin(stS.tijd)}</span>
+          <span><span class="dotje" style="background:var(--warn)"></span> Reserve<span class="sep" aria-hidden="true"></span>${uurMin(stS.reserve)}</span>
         </div>
       </div>` : ''}
       ${ovPerTeam(p)}
       ${Object.keys(st.afwPerReden||{}).length ? `
-      <div class="presentie-uitsplitsing" style="margin:-6px 0 14px">
+      <div class="presentie-uitsplitsing" style="margin:-8px 0 var(--space-md)">
         ${Object.entries(st.afwPerReden).sort((a,b)=>b[1]-a[1]).map(([id,n]) => {
-          if (id === 'geen') return `<span>❔ ${n}× zonder reden</span>`;
+          if (id === 'geen') return `<span>${n}× zonder reden</span>`;
           const r = AFWEZIG_REDENEN.find(x => x.id === id) || {emoji:'❓',label:'Anders'};
           return `<span>${r.ico?ico(r.ico,15):r.emoji} ${n}× ${esc(r.label.toLowerCase())}</span>`;
         }).join('')}
@@ -570,7 +570,7 @@ export function htmlProfiel(){
         const notitie = (p.notitie || '').trim();
         return `<div class="notitie-kaart${notitie ? '' : ' leeg'}">
           <div class="notitie-kop">
-            <div class="veldlabel" style="margin:0">Notitie</div>
+            <div class="veldlabel u-m-0">Notitie</div>
             <button class="notitie-bewerk" data-notitie="${p.id}" aria-label="${notitie ? 'Notitie bewerken' : 'Notitie toevoegen'}">
               ${notitie ? ico('admin-edit', 18) : ico('action-add', 18)}
             </button>
@@ -582,7 +582,7 @@ export function htmlProfiel(){
       })()}
 
       ${evalAan ? `<div class="kaart">
-        <div class="veldlabel" style="margin-top:0">Ontwikkelprofiel${vol ? ` · ${datumNL(vol.datum)}` : ''}</div>
+        <div class="veldlabel u-mt-0">Ontwikkelprofiel${vol ? `, ${datumNL(vol.datum)}` : ''}</div>
         ${vol ? SKILLS.map(d => `
           <div class="tips-rij">
             <div class="tips-letter">${d.id}</div>
@@ -590,7 +590,7 @@ export function htmlProfiel(){
             ${tipsBalk(vol.scores?.[d.id] || 0)}
             <div class="tips-score">${vol.scores?.[d.id] || '—'}</div>
           </div>`).join('')
-        : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen volledige beoordeling. Maak er één om het ontwikkelprofiel te zien.</p>`}
+        : `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0">Nog geen volledige beoordeling. Maak er één om het ontwikkelprofiel te zien.</p>`}
       </div>
 
       <div class="fab-rij">
@@ -598,30 +598,30 @@ export function htmlProfiel(){
         <button class="knop klein" style="flex:1" data-volledig-speler="${p.id}">${ico('training-completed', 17)} Volledige beoordeling</button>
       </div>` : ''}
 
-      <div class="rij" style="margin-top:4px">
+      <div class="rij u-mt-2xs">
         ${p._ingeleend
           ? `<button class="knop licht klein" data-leen-overlay="${p.id}">${ico('admin-edit', 16)} Nummer/positie bij jou</button>`
           : `<button class="knop licht klein" data-bewerk-speler="${p.id}">${ico('admin-edit', 16)} Speler bewerken</button>
-             <button class="knop gevaar klein" data-weg-speler="${p.id}">🗑 Verwijderen</button>`}
+             <button class="knop gevaar klein" data-weg-speler="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg> Verwijderen</button>`}
       </div>
-      ${(!p._ingeleend && S.team?.club) ? `<button class="knop klein" style="margin-top:4px;width:100%" data-uitleen-speler="${p.id}">⇄ Uitlenen aan ander team</button>` : ''}
+      ${(!p._ingeleend && S.team?.club) ? `<button class="knop klein" style="margin-top:var(--space-2xs);width:100%" data-uitleen-speler="${p.id}">⇄ Uitlenen aan ander team</button>` : ''}
     ` : ''}
 
     ${tab === 'leerlijn' ? htmlLeerlijn(p) : ''}
 
     ${tab === 'historie' ? `
       ${evalAan ? `<div class="kaart">
-        <div class="veldlabel" style="margin-top:0">Tijdlijn</div>
+        <div class="veldlabel u-mt-0">Tijdlijn</div>
         ${eigen.length ? eigen.map(b => htmlTijdlijnItem(b)).join('')
-          : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen beoordelingen vastgelegd.</p>`}
+          : `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0">Nog geen beoordelingen vastgelegd.</p>`}
       </div>` : ''}
       <div class="kaart">
-        <div class="veldlabel" style="margin-top:0">Wedstrijden</div>
+        <div class="veldlabel u-mt-0">Wedstrijden</div>
         ${(() => {
           const weds = (S.wedstrijden||[])
             .filter(w => (w.selectie||[]).includes(p.id))
             .sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
-          if (!weds.length) return `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen wedstrijden.</p>`;
+          if (!weds.length) return `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0">Nog geen wedstrijden.</p>`;
           return weds.map(w => {
             const info = wisselInfoVoorSpeler(w, p.id);
             const teg = w.tegenstander || (isToernooi(w) ? 'Toernooi' : 'Wedstrijd');
@@ -637,23 +637,23 @@ export function htmlProfiel(){
         })()}
       </div>
       <div class="kaart">
-        <div class="veldlabel" style="margin-top:0">Presentie training</div>
+        <div class="veldlabel u-mt-0">Presentie training</div>
         ${(() => {
           // Alleen de trainingen die voor deze speler meetellen; trainingen van
           // vóór zijn instroom staan niet in zijn lijst maar worden er wel
           // onder benoemd, zodat het aantal klopt met zijn percentage.
           const eigen = S.presentie.filter(ses => teltMee(ses, p));
           const buiten = S.presentie.length - eigen.length;
-          if (!eigen.length) return `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Nog geen presentie geregistreerd${buiten ? ' sinds hij bij het team kwam' : ''}.</p>`;
+          if (!eigen.length) return `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0">Nog geen presentie geregistreerd${buiten ? ' sinds hij bij het team kwam' : ''}.</p>`;
           return eigen.map(ses => {
             const afw = (ses.afwezig||[]).includes(p.id);
             const reden = (ses.afwezigRedenen||{})[p.id];
             const info = afw && reden ? afwezigRedenInfo(reden) : null;
             const statusTxt = !afw ? 'Aanwezig'
-              : info ? `${info.emoji} ${info.label}${info.notitie ? ' · '+esc(info.notitie) : ''}`
-              : '❔ Zonder reden';
+              : info ? `${info.ico?ico(info.ico,14):''}${info.label}${info.notitie ? ', '+esc(info.notitie) : ''}`
+              : 'Zonder reden';
             return `<div class="presentie-hist-rij"><span>${datumNL(ses.datum)}</span><span class="phr-status ${afw?'afw':'aanw'}">${statusTxt}</span></div>`;
-          }).join('') + (buiten ? `<p style="font-size:calc(12px * var(--fs));color:var(--ink-2);padding:8px 0 0;line-height:1.5">${buiten} training${buiten>1?'en':''} van vóór zijn komst tellen niet mee.</p>` : '');
+          }).join('') + (buiten ? `<p class="u-t-xs u-zacht u-lh-ruim" style="padding:var(--space-xs) 0 0">${buiten} training${buiten>1?'en':''} van vóór zijn komst tellen niet mee.</p>` : '');
         })()}
       </div>` : ''}`;
 }
@@ -682,12 +682,12 @@ function htmlLeerlijn(p){
   if (p._ingeleend && !p._gast){
     const lp = p.leerpunten || [];
     return `
-      <div class="avg-balk"><span class="slot">🔒</span>
+      <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
         <span>Leerpunten van ${esc(p._bronTeamNaam||'het bronteam')} — alleen-lezen, blijft vanzelf bij zolang de uitlening loopt.</span></div>
       <div class="kaart">
-        <div class="veldlabel" style="margin-top:0">Leerpunten</div>
+        <div class="veldlabel u-mt-0">Leerpunten</div>
         ${lp.length ? lp.map(leerpuntItemReadOnly).join('')
-          : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0">Geen open leerpunten bij ${esc(p._bronTeamNaam||'het bronteam')}.</p>`}
+          : `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0">Geen open leerpunten bij ${esc(p._bronTeamNaam||'het bronteam')}.</p>`}
       </div>`;
   }
 
@@ -696,15 +696,15 @@ function htmlLeerlijn(p){
   // een losse alleen-lezen sectie met de leerpunten van het bronteam.
   const bronLp = p._bronLeerpunten || [];
   const bronSectie = (p._gast && p._gekoppeld && bronLp.length) ? `
-    <div class="avg-balk"><span class="slot">🔒</span>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
       <span>Hieronder ook de leerpunten van ${esc(p._bronTeamNaam||'het bronteam')} — alleen-lezen.</span></div>
     <div class="kaart">
-      <div class="veldlabel" style="margin-top:0">Leerpunten bij ${esc(p._bronTeamNaam||'bronteam')}</div>
+      <div class="veldlabel u-mt-0">Leerpunten bij ${esc(p._bronTeamNaam||'bronteam')}</div>
       ${bronLp.map(leerpuntItemReadOnly).join('')}
     </div>` : '';
   return `
     <div class="kaart">
-      <div class="veldlabel" style="margin-top:0">Leerpunten${p._gast && p._gekoppeld ? ` bij ons` : ''}</div>
+      <div class="veldlabel u-mt-0">Leerpunten${p._gast && p._gekoppeld ? ` bij ons` : ''}</div>
       ${lp.length ? lp.map(l => {
         const d = skillDomein(l.domein);
         const thema = leercurveThema(l.tekst);
@@ -714,40 +714,40 @@ function htmlLeerlijn(p){
           <div class="lp-tekst">
             <div class="lp-domein">${d ? esc(d.naam) : 'Algemeen'}</div>
             <div class="t">${esc(l.tekst)}</div>
-            <div class="d">${l.klaar ? 'Afgerond op '+datumNL(l.klaarOp||l.sinds)+' 🎉' : 'Sinds '+datumNL(l.sinds)}</div>
-            ${thema ? `<div style="font-size:calc(11px * var(--fs));color:var(--accent);font-weight:700;margin-top:3px;cursor:pointer" data-thema-info="${esc(thema.thema)}">ℹ️ Achtergrond &amp; tips bekijken</div>` : ''}
+            <div class="d">${l.klaar ? 'Afgerond op '+datumNL(l.klaarOp||l.sinds) : 'Sinds '+datumNL(l.sinds)}</div>
+            ${thema ? `<div style="font-size:var(--t-2xs);color:var(--accent);font-weight:700;margin-top:var(--space-2xs);cursor:pointer" data-thema-info="${esc(thema.thema)}">Achtergrond &amp; tips bekijken</div>` : ''}
           </div>
-          <button class="lp-weg" data-lp-weg="${l.id}" title="Verwijderen">🗑</button>
+          <button class="lp-weg" data-lp-weg="${l.id}" title="Verwijderen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>`;
       }).join('')
-      : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);padding:6px 0 10px">Nog geen leerpunten. Voeg een concreet, observeerbaar ontwikkeldoel toe.</p>`}
-      <button class="knop licht klein" style="width:100%;margin-top:6px" data-lp-nieuw="${p.id}">+ Leerpunt toevoegen</button>
+      : `<p class="u-t-sm u-zacht" style="padding:var(--space-xs) 0 var(--space-sm)">Nog geen leerpunten. Voeg een concreet, observeerbaar ontwikkeldoel toe.</p>`}
+      <button class="knop licht klein" style="width:100%;margin-top:var(--space-xs)" data-lp-nieuw="${p.id}">+ Leerpunt toevoegen</button>
     </div>
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.5">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>
+    <p class="u-t-xs u-zacht u-lh-ruim">Leerpunten lopen door over meerdere wedstrijden en beoordelingen. Vink ze af zodra ze beheerst zijn.</p>
     ${bronSectie}`;
 }
 
 function htmlTijdlijnItem(b){
   if (b.soort === 'snel'){
     const nv = niveau(b.niveau);
-    const tags = (b.tags||[]).map(t => { const s = snelTag(t); return s ? s.emoji+' '+s.label : ''; }).filter(Boolean).join(' · ');
+    const tags = (b.tags||[]).map(t => { const s = snelTag(t); return s ? s.label : ''; }).filter(Boolean).join(', ');
     const not = b.notities?.algemeen ? ` — "${esc(b.notities.algemeen)}"` : '';
     return `
       <div class="tijdlijn-item" data-open-beoordeling="${b.id}">
         <div class="tl-stip" style="background:${niveauKleur(b.niveau)}"></div>
         <div class="tl-lijn">
-          <div class="dat">${datumNL(b.datum)} · Snelle beoordeling</div>
-          <div class="wat">${esc(b.bron?.label || 'Los')}${nv ? ' · '+nv.label : ''}</div>
+          <div class="dat">${datumNL(b.datum)}<span class="sep" aria-hidden="true"></span>Snelle beoordeling</div>
+          <div class="wat">${esc(b.bron?.label || 'Los')}${nv ? '<span class="sep" aria-hidden="true"></span>'+nv.label : ''}</div>
           ${tags || not ? `<div class="det">${tags}${not}</div>` : ''}
         </div>
       </div>`;
   }
-  const scores = SKILLS.map(d => d.id+(b.scores?.[d.id]||'–')).join(' · ');
+  const scores = SKILLS.map(d => d.id+(b.scores?.[d.id]||'–')).join(', ');
   return `
     <div class="tijdlijn-item" data-open-beoordeling="${b.id}">
       <div class="tl-stip" style="background:var(--n5)"></div>
       <div class="tl-lijn">
-        <div class="dat">${datumNL(b.datum)} · Volledige beoordeling</div>
+        <div class="dat">${datumNL(b.datum)}<span class="sep" aria-hidden="true"></span>Volledige beoordeling</div>
         <div class="wat">${esc(b.bron?.label || 'Periodieke meting')}</div>
         <div class="det">${scores}</div>
       </div>
@@ -758,7 +758,7 @@ function htmlTijdlijnItem(b){
 function bronOpties(){
   const opts = [];
   for (const w of S.wedstrijden.slice(0, 8)){
-    const tit = w.type === 'toernooi' ? '🏆 '+(w.tegenstander||'Toernooi')
+    const tit = w.type === 'toernooi' ? (w.tegenstander||'Toernooi')
       : (w.thuis ? S.team.naam+' – '+w.tegenstander : w.tegenstander+' – '+S.team.naam);
     opts.push({type:'wedstrijd', id:w.id, datum:w.datum, label:tit});
   }
@@ -787,8 +787,8 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     const lijst = opts.filter(o => o.type === bronType);
     return lijst.length
       ? `<select class="invoer" id="mSnBron">${lijst.map(o =>
-          `<option value="${o.id}" ${o.id===bronId?'selected':''}>${esc(o.label)} · ${datumNL(o.datum)}</option>`).join('')}</select>`
-      : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);padding:4px 0">Geen ${bronType==='wedstrijd'?'wedstrijden':'trainingen'} gevonden — kies "Los".</p>`;
+          `<option value="${o.id}" ${o.id===bronId?'selected':''}>${esc(o.label)}<span class="sep" aria-hidden="true"></span>${datumNL(o.datum)}</option>`).join('')}</select>`
+      : `<p class="u-t-sm u-zacht" style="padding:var(--space-2xs) 0">Geen ${bronType==='wedstrijd'?'wedstrijden':'trainingen'} gevonden, kies "Los".</p>`;
   };
 
   const kleurbalk = () => `<div class="kleurbalk" id="mSnNiveau">${NIVEAUS.slice(1).map(n =>
@@ -806,7 +806,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       return `<span class="rv-seg ${kl}"></span>`;
     }).join('');
     return `<div class="ronde-voortgang">
-      ${r.ronde ? `<div class="veldlabel" style="margin:0 0 4px">${esc(r.ronde.naam)}</div>` : ''}
+      ${r.ronde ? `<div class="veldlabel" style="margin:0 0 var(--space-2xs)">${esc(r.ronde.naam)}</div>` : ''}
       <div class="rv-top">
         <div class="rv-teller"><b>${positie}</b> / ${totaal} spelers</div>
         <div class="rv-klaar">${teGaan > 0 ? 'nog '+teGaan+' te gaan' : 'laatste speler'}</div>
@@ -829,7 +829,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       <button data-bt="training" class="${bronType==='training'?'actief':''}">Training</button>
       <button data-bt="los" class="${bronType==='los'?'actief':''}">Los</button>
     </div>
-    <div id="mSnBronWrap" style="margin-bottom:4px">${bronType==='los'?'':bronSelect()}</div>
+    <div id="mSnBronWrap" class="u-mb-2xs">${bronType==='los'?'':bronSelect()}</div>
 
     <div class="veldlabel">Hoe ging het?</div>
     ${kleurbalk()}
@@ -840,9 +840,9 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     <div class="veldlabel">Korte notitie (optioneel)</div>
     <textarea class="invoer" id="mSnNotitie" rows="2" placeholder="Bijv. durfde aan de bal te komen...">${esc(bestaande?.notities?.algemeen||'')}</textarea>
 
-    <button class="knop vol fluo" id="mSnOk" style="margin-top:12px">${bestaande?'Bijwerken':'Opslaan'}</button>
-    ${S._snelRonde ? `<button class="knop licht vol" id="mSnSkip" style="margin-top:8px">Speler overslaan (niet aanwezig) →</button>` : ''}
-    ${bestaande?`<button class="knop vol gevaar" id="mSnWeg" style="margin-top:8px">Verwijderen</button>`:''}`);
+    <button class="knop vol fluo u-mt-sm" id="mSnOk" >${bestaande?'Bijwerken':'Opslaan'}</button>
+    ${S._snelRonde ? `<button class="knop licht vol u-mt-xs" id="mSnSkip" >Speler overslaan (niet aanwezig) →</button>` : ''}
+    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mSnWeg" >Verwijderen</button>`:''}`);
 
   const updatePos = () => {
     const o = opts.find(x => x.id === bronId && x.type === bronType);
@@ -944,15 +944,15 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
 
   const domeinKaart = (d) => `
     <div class="kaart">
-      <div class="veldlabel" style="margin-top:0">${d.id} · ${d.naam}</div>
-      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin:-2px 0 4px">${esc(d.omschrijving)}</p>
+      <div class="veldlabel u-mt-0">${d.id}<span class="sep" aria-hidden="true"></span>${d.naam}</div>
+      <p class="u-t-xs u-zacht" style="margin:-2px 0 var(--space-2xs)">${esc(d.omschrijving)}</p>
       <div class="kleurbalk dom" data-dom="${d.id}">${NIVEAUS.slice(1).map(n =>
         `<button data-niv="${n.n}" class="kn${n.n} ${scores[d.id]===n.n?'gekozen':''}"><span class="lbl">${n.kort}</span></button>`).join('')}</div>
       <textarea class="invoer" data-not="${d.id}" rows="2" placeholder="Toelichting ${d.naam.toLowerCase()}...">${esc(notities[d.id]||'')}</textarea>
     </div>`;
 
   const rondeVoortgang = flow ? `<div class="ronde-voortgang">
-      <div class="veldlabel" style="margin:0 0 4px">${esc(flow.ronde.naam)}</div>
+      <div class="veldlabel" style="margin:0 0 var(--space-2xs)">${esc(flow.ronde.naam)}</div>
       <div class="rv-top"><div class="rv-teller"><b>${flow.index + 1}</b> / ${flow.ids.length} nog te doen</div>
         <div class="rv-klaar">${flow.ids.length - flow.index - 1 > 0 ? 'daarna nog ' + (flow.ids.length - flow.index - 1) : 'laatste speler'}</div></div>
       <div class="rv-track">${flow.ids.map((id, i) => `<span class="rv-seg ${i < flow.index ? 'gedaan' : i === flow.index ? 'nu' : ''}"></span>`).join('')}</div>
@@ -960,21 +960,21 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
 
   openModal(`
     <h2>Volledige beoordeling</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</p>
+    <p class="u-t-sm u-zacht u-mb-sm">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?'<span class="sep" aria-hidden="true"></span>#'+esc(p.nummer):''}</p>
     ${rondeVoortgang}
     <div class="veldgroep"><label>Hoort bij</label>
       <select class="invoer" id="mVbRonde">
-        ${rondeOpties.map(r => `<option value="${esc(r.id)}" ${rondeStart === r.id ? 'selected' : ''}>${esc(r.naam)}${r.tot ? ' (t/m ' + esc(datumKort(r.tot)) + ')' : ''}${alInRonde(r) ? ' · al beoordeeld' : ''}</option>`).join('')}
+        ${rondeOpties.map(r => `<option value="${esc(r.id)}" ${rondeStart === r.id ? 'selected' : ''}>${esc(r.naam)}${r.tot ? ' (t/m ' + esc(datumKort(r.tot)) + ')' : ''}${alInRonde(r) ? '<span class="sep" aria-hidden="true"></span>al beoordeeld' : ''}</option>`).join('')}
         ${rondeStart === '_oud' ? `<option value="_oud" selected>Officiële halfjaarevaluatie (eerder ingevuld)</option>` : ''}
-        <option value="" ${rondeStart === '' ? 'selected' : ''}>Geen ronde · losse meting</option>
+        <option value="" ${rondeStart === '' ? 'selected' : ''}>Geen ronde<span class="sep" aria-hidden="true"></span>losse meting</option>
       </select></div>
     <div class="veldgroep"><label>Moment</label>
       <input class="invoer" id="mVbMoment" value="${esc(moment)}" placeholder="Bijv. Kwartaalmeting Q3"></div>
     ${SKILLS.map(domeinKaart).join('')}
-    <button class="knop vol fluo" id="mVbOk" style="margin-top:6px">${bestaande?'Bijwerken':flow?'Opslaan en volgende →':'Beoordeling opslaan'}</button>
-    ${flow ? `<button class="knop licht vol" id="mVbSkip" style="margin-top:8px">Speler overslaan →</button>` : ''}
-    ${bestaande?`<button class="knop vol gevaar" id="mVbWeg" style="margin-top:8px">Verwijderen</button>`:''}
-    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler — die lopen door over meerdere beoordelingen.</p>`);
+    <button class="knop vol fluo u-mt-xs" id="mVbOk" >${bestaande?'Bijwerken':flow?'Opslaan en volgende →':'Beoordeling opslaan'}</button>
+    ${flow ? `<button class="knop licht vol u-mt-xs" id="mVbSkip" >Speler overslaan →</button>` : ''}
+    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mVbWeg" >Verwijderen</button>`:''}
+    <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler: die lopen door over meerdere beoordelingen.</p>`);
 
   $$('.kleurbalk.dom').forEach(balk => {
     const dom = balk.dataset.dom;
@@ -1057,22 +1057,22 @@ export function modalLeerpunt(spelerId, voorlopigeTekst = ''){
 
   openModal(`
     <h2>Leerpunt toevoegen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">Formuleer een concreet, observeerbaar doel voor ${esc(p.naam)}. Kies een thema uit de leerlijn of schrijf je eigen leerpunt.</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Formuleer een concreet, observeerbaar doel voor ${esc(p.naam)}. Kies een thema uit de leerlijn of schrijf je eigen leerpunt.</p>
 
-    <div class="veldlabel">Uit de leerlijn${cat?` · ${esc(cat)}`:''}</div>
+    <div class="veldlabel">Uit de leerlijn${cat?`, ${esc(cat)}`:''}</div>
     <div class="leercurve-keuze" id="mLpCurve">
       ${themas.map(t => {
         const d = skillDomein(t.domein);
-        return `<button class="lc-thema ${t.rel?'rel':''}" data-thema="${esc(t.thema)}" data-dom="${t.domein}" title="${esc(d?.naam||'')}${t.rel?'':' · vanaf O'+t.vanaf}">
-          <span class="lc-dot" style="background:${t.rel?'var(--n5)':'var(--line-d)'}"></span>${esc(t.thema)}<span data-thema-info="${esc(t.thema)}" title="Achtergrond en tips" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.15);font-size:calc(10px * var(--fs));font-weight:700;margin-left:1px">ℹ</span></button>`;
+        return `<button class="lc-thema ${t.rel?'rel':''}" data-thema="${esc(t.thema)}" data-dom="${t.domein}" title="${esc(d?.naam||'')}${t.rel?'':', vanaf O'+t.vanaf}">
+          <span class="lc-dot" style="background:${t.rel?'var(--n5)':'var(--line-d)'}"></span>${esc(t.thema)}<span data-thema-info="${esc(t.thema)}" title="Achtergrond en tips" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:color-mix(in srgb, var(--wit) 15%, transparent);font-size:var(--t-2xs);font-weight:700;margin-left:1px"></span></button>`;
       }).join('')}
     </div>
-    <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin:2px 0 12px">🟢 = hoort bij deze leeftijd volgens het jeugdbeleidsplan. Tik ℹ voor achtergrond en oefentips.</p>
+    <p class="u-t-2xs u-zacht" style="margin:var(--space-3xs) 0 var(--space-sm)">= hoort bij deze leeftijd volgens het jeugdbeleidsplan. Tik voor achtergrond en oefentips.</p>
 
     <div class="veldlabel">Domein</div>
     <div class="dom-kiezer" id="mLpDom">${SKILLS.map(d =>
       `<button data-d="${d.id}" class="${d.id==='TA'?'actief':''}" title="${esc(d.naam)}"><span class="dk-emoji">${d.ico?ico(d.ico,18):(d.emoji||'')}</span>${esc(d.kort||d.naam)}</button>`).join('')}</div>
-    <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);line-height:1.5;margin:6px 0 12px">Techniek · Tactiek · Fysiek · Mentaal · Gedrag &amp; beleving — de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
+    <p class="u-t-2xs u-zacht u-lh-ruim" style="margin:var(--space-xs) 0 var(--space-sm)">Techniek<span class="sep" aria-hidden="true"></span>Tactiek<span class="sep" aria-hidden="true"></span>Fysiek<span class="sep" aria-hidden="true"></span>Mentaal<span class="sep" aria-hidden="true"></span>Gedrag &amp; beleving, de vijf ontwikkeldomeinen uit het jeugdbeleidsplan.</p>
 
     <div class="veldgroep"><label>Leerpunt</label>
       <textarea class="invoer" id="mLpTekst" rows="3" placeholder="Bijv. eerder het hoofd omhoog vóór de aanname">${esc(voorlopigeTekst)}</textarea></div>
@@ -1127,7 +1127,7 @@ function meestGespeeldHtml(top){
   const beste = top[0];
   return `
     <div class="meest-gespeeld" id="mSpMg">
-      <div class="mg-titel">⚽ Meest gespeeld dit seizoen</div>
+      <div class="mg-titel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg> Meest gespeeld dit seizoen</div>
       <div class="mg-lijst">
         ${top.slice(0,4).map((t,i) => `<span class="mg-item${i===0?' mg-top':''}">${esc(t.naam)} <b>${t.n}×</b></span>`).join('')}
       </div>
@@ -1144,12 +1144,12 @@ export function modalSpeler(p){
     <div class="rij">
       <div class="veldgroep" style="flex:3"><label>Voornaam</label>
         <input class="invoer" id="mSpNaam" value="${esc(p?.naam||'')}" placeholder="Voornaam" autocomplete="off"></div>
-      <div class="veldgroep" style="flex:1"><label>Nr.</label>
+      <div class="veldgroep u-flex-1"><label>Nr.</label>
         <input class="invoer" id="mSpNr" value="${esc(p?.nummer ?? '')}" inputmode="numeric" placeholder="7"></div>
     </div>
     <div class="veldgroep"><label>Achternaam</label>
       <input class="invoer" id="mSpAchter" value="${esc(p?.achternaam||'')}" placeholder="Achternaam" autocomplete="off"></div>
-    <div class="avg-balk"><span class="slot">🔒</span>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
       <span>De achternaam blijft binnen je eigen team en wordt nergens in de app getoond. Leen je deze speler uit, dan ziet de andere coach alleen de voorletter.</span></div>
     ${bewerken ? `
       <div class="veldgroep">
@@ -1208,12 +1208,12 @@ export function modalNotitie(spelerId){
   const p = speler(spelerId);
   if (!p) return;
   openModal(`
-    <h2>Notitie · ${esc(p.naam)}</h2>
+    <h2>Notitie<span class="sep" aria-hidden="true"></span>${esc(p.naam)}</h2>
     <div class="veldgroep">
       <textarea class="invoer" id="mNotTekst" rows="5"
-        placeholder="Bijv. is altijd op de eerste van de maand afwezig voor werk · vindt het fijn om extra complimenten te krijgen">${esc(p.notitie || '')}</textarea>
+        placeholder="Bijv. is altijd op de eerste van de maand afwezig voor werk, vindt het fijn om extra complimenten te krijgen">${esc(p.notitie || '')}</textarea>
     </div>
-    <div class="avg-balk"><span class="slot">🔒</span>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
       <span>Coach-only. Niet zichtbaar voor spelers of ouders. Zet hier geen gevoelige (medische/AVG) gegevens in.</span></div>
     <button class="knop vol" id="mNotOk">Opslaan</button>`);
 
@@ -1310,8 +1310,8 @@ export async function modalUitlenen(spelerId){
     <h2>${esc(p.naam)} uitlenen</h2>
     <div class="veldgroep"><label>Aan welk team?</label>
       <select class="invoer" id="mUlTeam"><option value="">Teams laden…</option></select></div>
-    <div class="avg-balk"><span class="slot">🔒</span>
-      <span>De speler doet vanaf nu volwaardig mee bij het gekozen team: opstelling, presentie en evaluatie. Bij jou blijft hij ook gewoon bruikbaar — handig als hij dezelfde dag voor beide teams speelt. Er zit geen einddatum op — jij of de andere coach zet hem terug.</span></div>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+      <span>De speler doet vanaf nu volwaardig mee bij het gekozen team: opstelling, presentie en evaluatie. Bij jou blijft hij ook gewoon bruikbaar, handig als hij dezelfde dag voor beide teams speelt. Er zit geen einddatum op, jij of de andere coach zet hem terug.</span></div>
     <button class="knop vol" id="mUlOk" disabled>Uitlenen bevestigen</button>`);
 
   // Doelteams ophalen: alle teams van de club behalve het eigen team.
@@ -1423,7 +1423,7 @@ export function modalLeenOverlay(spelerId){
   openModal(`
     <h2>Bij jou aanpassen</h2>
     <div class="avg-balk"><span class="slot">⇄</span>
-      <span>${esc(p.naam)} is ingeleend van <b>${esc(p._bronTeamNaam||'een ander team')}</b>. Wat je hier wijzigt geldt <b>alleen in jouw team</b> — het origineel bij het andere team blijft ongemoeid.</span></div>
+      <span>${esc(p.naam)} is ingeleend van <b>${esc(p._bronTeamNaam||'een ander team')}</b>. Wat je hier wijzigt geldt <b>alleen in jouw team</b>, het origineel bij het andere team blijft ongemoeid.</span></div>
     <div class="veldgroep"><label>Rugnummer bij jou</label>
       <input class="invoer" id="mLoNr" value="${esc(p.nummer ?? '')}" inputmode="numeric" placeholder="7"></div>
     <div class="veldgroep">
@@ -1668,18 +1668,18 @@ function htmlOverzetDialoog(u, naam, raw, bron, datum){
     <h2>${esc(naam)} overzetten</h2>
     <p class="ov-tekst">Van ${van} naar ${naar}. ${esc(naam)} blijft bij ${van} bewaard als gearchiveerde speler, met al zijn gegevens. Kies wat er naar ${naar} wordt gekopieerd.</p>
     <div class="ov-mee">
-      ${rij('wed', 'Wedstrijden', `${n(raw.wedstrijden.length, 'wedstrijd', 'wedstrijden')} · ${uurMin(tijd)} · ${goals} goals · ${assists} assists`)}
+      ${rij('wed', 'Wedstrijden', `${n(raw.wedstrijden.length, 'wedstrijd', 'wedstrijden')}, ${uurMin(tijd)}, ${goals} goals, ${assists} assists`)}
       ${rij('beo', 'Beoordelingen', n(raw.beoordelingen.length, 'beoordeling', 'beoordelingen'))}
       ${rij('tr', 'Trainingsaanwezigheid per datum', `${n(raw.presentie.length, 'training', 'trainingen')}, ${aanw}× aanwezig`)}
       ${rij('lp', 'Leerpunten', `${n(raw.leerpunten.length, 'leerpunt', 'leerpunten')}, ${lpKlaar} afgerond`)}
       ${bron.notitie ? rij('not', 'Spelernotitie', 'Gaat mee, zoals nu') : ''}
     </div>
-    <div class="avg-balk" style="margin-bottom:12px"><span class="slot">🔒</span><span>Alleen de eigen gegevens van ${esc(naam)} gaan mee. Geen andere spelers uit ${van}.</span></div>
+    <div class="avg-balk u-mb-sm"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span><span>Alleen de eigen gegevens van ${esc(naam)} gaan mee. Geen andere spelers uit ${van}.</span></div>
     <div class="veldgroep"><label for="ovDatum">Bij ${naar} sinds</label>
       <input class="invoer" id="ovDatum" type="date" value="${datum}">
       <div class="ov-hint">Opkomst op trainingen telt vanaf deze datum.</div></div>
     <button class="knop fluo vol" id="ovZet">Definitief overzetten</button>
-    <button class="knop licht vol" id="ovAnnuleer" style="margin-top:8px">Annuleren</button>`;
+    <button class="knop licht vol u-mt-xs" id="ovAnnuleer" >Annuleren</button>`;
 }
 
 /* Voert de overzet uit. Volgorde is bewust: eerst alles bijschrijven bij het
@@ -1785,12 +1785,12 @@ export function modalGast(gastId){
   const g = gastId ? speler(gastId) : null;
   openModal(`
     <h2>${g ? 'Gast bewerken' : 'Gastspeler aanmaken'}</h2>
-    <div class="avg-balk"><span class="slot">👤</span>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>
       <span>Een gast is een tijdelijke placeholder om alvast op te stellen, zolang nog niet bekend is wie je precies inleent. Zodra dat duidelijk is, koppel je hem aan de echte uitleen.</span></div>
     <div class="rij">
       <div class="veldgroep" style="flex:3"><label>Label / omschrijving</label>
-        <input class="invoer" id="mGNaam" value="${esc(g?.naam||'')}" placeholder="Bijv. Gast — links achter" autocomplete="off"></div>
-      <div class="veldgroep" style="flex:1"><label>Nr.</label>
+        <input class="invoer" id="mGNaam" value="${esc(g?.naam||'')}" placeholder="Bijv. Gast: links achter" autocomplete="off"></div>
+      <div class="veldgroep u-flex-1"><label>Nr.</label>
         <input class="invoer" id="mGNr" value="${esc(g?.nummer ?? '')}" inputmode="numeric" placeholder="15"></div>
     </div>
     <button class="knop vol" id="mGOk">${g ? 'Opslaan' : 'Aanmaken'}</button>`);
@@ -1819,7 +1819,7 @@ export async function verwijderGast(gastId){
   if (!g) return;
   // Hangt er een uitlening aan (geadopteerd)? Dan is het geen losse gast meer.
   const gekoppeld = (S.uitleningenIn||[]).some(u => u.adopteertGast === gastId);
-  if (gekoppeld) return meld('Deze gast is gekoppeld aan een uitleen — zet die eerst terug');
+  if (gekoppeld) return meld('Deze gast is gekoppeld aan een uitleen, zet die eerst terug');
   if (!confirm(`${g.naam} verwijderen? De opstellingen en presenties waarin deze gast stond, verliezen hem.`)) return;
   try {
     await deleteDoc(doc(db,'teams',S.teamId,'spelers',gastId));
@@ -1844,8 +1844,8 @@ export function modalKoppelGast(gastId){
   const koppelbaar = (S.uitleningenIn||[]).filter(u => !u.adopteertGast);
   openModal(`
     <h2>Koppel aan ingeleende speler</h2>
-    <div class="avg-balk"><span class="slot">🔗</span>
-      <span>Kies welke uitleen deze gast wordt. De gast houdt zijn plek in al je opstellingen en presenties — alleen de naam en herkomst komen erbij.</span></div>
+    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="17.8" cy="6" r="2.6"/><circle cx="6.2" cy="12" r="2.6"/><circle cx="17.8" cy="18" r="2.6"/><path d="M15.4 7.2 8.6 10.8"/><path d="M8.6 13.2 15.4 16.8"/></svg></span>
+      <span>Kies welke uitleen deze gast wordt. De gast houdt zijn plek in al je opstellingen en presenties, alleen de naam en herkomst komen erbij.</span></div>
     <div class="veldgroep"><label>Beschikbare uitleningen naar jouw team</label>
       <select class="invoer" id="mKgSel">
         ${koppelbaar.length

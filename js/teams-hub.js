@@ -10,16 +10,16 @@
    Event-koppeling gebeurt in teams.js (koppelTeamTab) — dit bestand levert
    alleen HTML + de opslaghulpjes voor de wedstrijd-presentie. Het importeert
    bewust NIET terug uit teams.js (geen circulaire import). */
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { S, esc, meld, datumNL, modAan } from './state.js?v=20261103e';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
-import { telGebruik } from './tracker.js?v=20261103e';
-import { ongelezenBerichten } from './berichten.js?v=20261103e';
-import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261103e';
-import { htmlRondeBalk } from './evaluatierondes.js?v=20261103e';
-import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261103e';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
+import { S, esc, meld, datumNL, modAan } from './state.js?v=20261106h';
+import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
+import { ongelezenBerichten } from './berichten.js?v=20261106h';
+import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106h';
+import { htmlRondeBalk } from './evaluatierondes.js?v=20261106h';
+import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
@@ -27,8 +27,9 @@ const WISSEL_BEURT = '__beurt__';
 
 /* ---------- Hulpjes ---------- */
 function voornaamCoach(){
-  let naam = '';
-  for (const t of S.teams){ const n = t.ledenInfo?.[S.user.uid]?.naam; if (n){ naam = n; break; } }
+  // eerst het team dat open staat: in andere teams kan een oude of afgekorte naam staan
+  let naam = S.team?.ledenInfo?.[S.user.uid]?.naam || '';
+  if (!naam) for (const t of S.teams){ const n = t.ledenInfo?.[S.user.uid]?.naam; if (n){ naam = n; break; } }
   if (!naam) for (const c of S.clubs){ const n = c.ledenInfo?.[S.user.uid]?.naam; if (n){ naam = n; break; } }
   naam = (naam || S.user.displayName || S.user.email || '').trim();
   const v = naam ? naam.split(/[ @.]/)[0] : '';
@@ -79,7 +80,7 @@ export function htmlHub(updInfo){
     <div class="hub-teamrij">
       <button class="hub-teamnaam" id="hubTeamKnop">${esc(S.team.naam)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4 4 4-4"/></svg></button>
-      <span class="hub-teamsub">${S.team.categorie ? esc(S.team.categorie)+' · ' : ''}${esc(S.team.format)} tegen ${esc(S.team.format)}</span>
+      <span class="hub-teamsub">${S.team.categorie ? esc(S.team.categorie)+'<span class="sep" aria-hidden="true"></span>' : ''}${esc(S.team.format)} tegen ${esc(S.team.format)}</span>
       <div class="hub-teamkeuze" id="hubTeamKeuze">
         ${S.teams.map(t => `
           <button data-hub-team="${t.id}" class="${t.id === S.teamId ? 'actief' : ''}">${esc(t.naam)}
@@ -214,7 +215,7 @@ export function htmlPresWedstrijd(){
     <button class="pw-kiezer" id="pwKiezer">
       <span class="pw-ico">${ico('football-whistle', 20)}</span>
       <span class="pw-txt"><span class="pw-t">${wedstrijdTitel(w)}</span>
-        <span class="pw-m">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</span></span>
+        <span class="pw-m">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? '<span class="sep" aria-hidden="true"></span>'+esc(w.aftrap) : ''}<span class="sep" aria-hidden="true"></span>${w.thuis ? 'thuis' : 'uit'}</span></span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="pw-pijl"><path d="M8 9l4 4 4-4"/></svg>
     </button>`;
 
@@ -237,10 +238,10 @@ export function htmlPresWedstrijd(){
       </button>
       ${!aanwezig && !nietMee ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-pw-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-pw-laat="${p.id}">⏱ Komt later</button></div>
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-pw-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-pw-laat="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Komt later</button></div>
       ${info?.id==='anders' || (info && redenen[p.id]?.notitie) ? `<input class="invoer pres-reden-notitie" data-pw-notitie="${p.id}" placeholder="Toelichting (optioneel)" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ` : isLaat ? `
-      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-pw-laat="${p.id}">⏱ Komt later — tik om te wissen</button>
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-pw-laat="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Komt later: tik om te wissen</button>
         <label class="telaat-minuut">erbij vanaf min.<input type="number" inputmode="numeric" min="1" max="${maxMin}" class="invoer" data-pw-vanaf="${p.id}" value="${esc(vanaf[p.id] ?? '')}" placeholder="—"></label></div>
       ` : ''}
     </div>`;
@@ -251,10 +252,10 @@ export function htmlPresWedstrijd(){
 
   return `
     ${kiezer}
-    <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee${laat.size ? ` (${[...laat].filter(id => sel.has(id)).length} later)` : ''} · wijzigingen worden direct bewaard</div>
-    <div class="pw-tel" style="margin-top:-4px">Komt iemand later? Tik hem op afwezig, kies <b>⏱ Komt later</b> en vul eventueel de wedstrijdminuut in. De tijd daarvóór telt niet mee in zijn speeltijd-%.</div>
+    <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee${laat.size ? ` (${[...laat].filter(id => sel.has(id)).length} later)` : ''}<span class="sep" aria-hidden="true"></span>wijzigingen worden direct bewaard</div>
+    <div class="pw-tel" style="margin-top:-4px">Komt iemand later? Tik hem op afwezig, kies <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Komt later</b> en vul eventueel de wedstrijdminuut in. De tijd daarvóór telt niet mee in zijn speeltijd-%.</div>
     ${S.spelers.length ? rijen : `<div class="kaart leeg">Nog geen spelers in dit team.</div>`}
-    <button class="knop vol" id="pwKlaar" style="margin-top:16px">Klaar</button>`;
+    <button class="knop vol u-mt-md" id="pwKlaar" >Klaar</button>`;
 }
 
 /* Kiezerlijst voor de dropdown (komend eerst, dan afgelopen — beide op datum). */
@@ -275,12 +276,12 @@ export function presWedstrijdKeuzeHtml(){
   const rij = (w) => `
     <button class="lijst-item ${huidig && w.id === huidig.id ? 'eerstvolgend' : ''}" data-pw-kies="${w.id}">
       <div class="li-tekst"><div class="titel">${wedstrijdTitel(w)}</div>
-      <div class="meta">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''} · ${w.thuis ? 'thuis' : 'uit'}</div></div>
+      <div class="meta">${elftalPillWedstrijd(w)}${datumNL(w.datum)}${w.aftrap ? '<span class="sep" aria-hidden="true"></span>'+esc(w.aftrap) : ''}<span class="sep" aria-hidden="true"></span>${w.thuis ? 'thuis' : 'uit'}</div></div>
       <span class="pijl">›</span></button>`;
   return `
     <h2>Kies een wedstrijd</h2>
-    ${komend.length ? `<div class="veldlabel" style="margin-bottom:8px">Komend</div>${komend.map(rij).join('')}` : ''}
-    ${eerder.length ? `<div class="veldlabel" style="margin:14px 0 8px">Gespeeld</div>${eerder.slice(0, 10).map(rij).join('')}` : ''}
+    ${komend.length ? `<div class="veldlabel u-mb-xs">Komend</div>${komend.map(rij).join('')}` : ''}
+    ${eerder.length ? `<div class="veldlabel" style="margin:var(--space-md) 0 var(--space-xs)">Gespeeld</div>${eerder.slice(0, 10).map(rij).join('')}` : ''}
     ${!komend.length && !eerder.length ? `<div class="kaart leeg">Geen wedstrijden.</div>` : ''}`;
 }
 
@@ -326,7 +327,7 @@ export async function presWedstrijdBewaar(wijzig){
     telGebruik('selectie_kiezen');
   } catch(e){
     console.error('[Cluppie] presentie wedstrijd opslaan mislukt:', e);
-    meld('Opslaan mislukt — controleer je verbinding');
+    meld('Opslaan mislukt: controleer je verbinding');
   }
 }
 
@@ -334,15 +335,15 @@ export async function presWedstrijdBewaar(wijzig){
 export function htmlEvaluatieLijst(){
   const open = evaluatieOpen();
   if (!open.length){
-    return `<div class="kaart leeg">Alles is geëvalueerd. 🎉<br>Na de eerstvolgende gespeelde wedstrijd verschijnt hij hier.</div>`;
+    return `<div class="kaart leeg">Alles is geëvalueerd.<br>Na de eerstvolgende gespeelde wedstrijd verschijnt hij hier.</div>`;
   }
   return `
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">Deze wedstrijden zijn gespeeld maar nog niet geëvalueerd. Tik op een wedstrijd om de teamevaluatie in te vullen.</p>
+    <p class="u-t-sm u-zacht u-mb-sm u-lh-ruim">Deze wedstrijden zijn gespeeld maar nog niet geëvalueerd. Tik op een wedstrijd om de teamevaluatie in te vullen.</p>
     ${open.map(w => `
       <button class="lijst-item" data-eval-w="${w.id}">
         <div class="li-tekst"><div class="titel">${wedstrijdTitel(w)}</div>
-        <div class="meta">${datumNL(w.datum)}${w.aftrap ? ' · '+esc(w.aftrap) : ''}</div></div>
-        <span class="badge" style="background:var(--accent);color:#fff">Evalueren</span>
+        <div class="meta">${datumNL(w.datum)}${w.aftrap ? '<span class="sep" aria-hidden="true"></span>'+esc(w.aftrap) : ''}</div></div>
+        <span class="badge" style="background:var(--accent);color:var(--wit)">Evalueren</span>
         <span class="pijl">›</span></button>`).join('')}`;
 }
 
@@ -370,7 +371,7 @@ export function htmlLeerlijnOverzicht(){
   };
   const totOpen = metPunten.reduce((n,x) => n + x.lps.filter(l=>!l.klaar).length, 0);
   return `
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">${totOpen} open leerpunt${totOpen===1?'':'en'} in het team. Tik op een speler om leerpunten te bewerken of af te vinken.</p>
+    <p class="u-t-sm u-zacht u-mb-sm u-lh-ruim">${totOpen} open leerpunt${totOpen===1?'':'en'} in het team. Tik op een speler om leerpunten te bewerken of af te vinken.</p>
     ${metPunten.map(blok).join('')}`;
 }
 
@@ -380,10 +381,10 @@ export function htmlHistorieLijst(){
     return `<div class="kaart leeg">Nog geen spelers in dit team.</div>`;
   }
   return `
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">Kies een speler om de historie te bekijken: beoordelingen en ontwikkeling over de tijd.</p>
+    <p class="u-t-sm u-zacht u-mb-sm u-lh-ruim">Kies een speler om de historie te bekijken: beoordelingen en ontwikkeling over de tijd.</p>
     ${S.spelers.map(p => `
       <button class="lijst-item" data-hist-profiel="${p.id}">
-        <span class="pres-shirt" style="margin-right:2px">${esc(p.nummer ?? '·')}</span>
+        <span class="pres-shirt" style="margin-right:var(--space-3xs)">${esc(p.nummer ?? '·')}</span>
         <div class="li-tekst"><div class="titel">${esc(p.naam)}</div></div>
         <span class="pijl">›</span></button>`).join('')}`;
 }

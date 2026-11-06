@@ -20,16 +20,16 @@
    De module gebruikt dezelfde fullscreen-overlay-aanpak als training-weergave.js
    (met bewaakTerug/vangnet), los van de gedeelde modal-structuur. */
 
-import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js?v=20260922c';
+import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js?v=20261106h';
 import {
   S, esc, meld, speler, spelerNaam, spelerNr,
   bewaakTerug, vangnetStilTerugAlsNodig
-} from './state.js?v=20261103e';
+} from './state.js?v=20261106h';
 import {
   FORMATIES, bouwSlots, LIJN_NAAM, parseFormatie,
   formatieBestaat, formatieNamen
-} from './config.js?v=20261103e';
-import { telGebruik, telNav } from './tracker.js?v=20261103e';
+} from './config.js?v=20261106h';
+import { telGebruik, telNav } from './tracker.js?v=20261106h';
 
 /* ---------- helpers ---------- */
 
@@ -162,12 +162,12 @@ function tekenBeheer(){
           <div class="sj-kaart-ico">${esc((sj.formatie || fs[0] || '').slice(0, 5) || '—')}</div>
           <div class="sj-kaart-info">
             <div class="sj-kaart-naam">${esc(sj.naam || 'Sjabloon')}</div>
-            <div class="sj-kaart-meta">${esc(sj.format)}×${esc(sj.format)} · ${aantal} speler${aantal===1?'':'s'}</div>
+            <div class="sj-kaart-meta">${esc(sj.format)}×${esc(sj.format)}<span class="sep" aria-hidden="true"></span>${aantal} speler${aantal===1?'':'s'}</div>
           </div>
           <div class="sj-kaart-acties">
             <button data-sj-bewerk="${sj.id}" title="Bewerken">✎</button>
             <button data-sj-hernoem="${sj.id}" title="Hernoemen">Aa</button>
-            <button data-sj-weg="${sj.id}" title="Verwijderen" class="weg">🗑</button>
+            <button data-sj-weg="${sj.id}" title="Verwijderen" class="weg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
           </div>
         </div>
         <div class="sj-kaart-kwarten">
@@ -290,7 +290,7 @@ function tekenEditor(){
     </div>
 
     <div class="sj-kwartbalk">
-      <span class="kb">Kwart ${ed.actiefKwart} · ${opgesteld}/${slots.length} opgesteld</span>
+      <span class="kb">Kwart ${ed.actiefKwart}<span class="sep" aria-hidden="true"></span>${opgesteld}/${slots.length} opgesteld</span>
       ${Number(ed.actiefKwart) < 4 ? `<button id="sjKopieer">⧉ Naar K${Number(ed.actiefKwart)+1}</button>` : ''}
     </div>
 
@@ -438,7 +438,7 @@ function kiesSpelerSheet(slotId){
 
   const el = bouwSheet();
   el.querySelector('.sj-sheet-titel').textContent = slot.lijn === 'K' ? 'Keeper kiezen' : 'Speler voor deze plek';
-  el.querySelector('.sj-sheet-sub').textContent = `${LIJN_NAAM[slot.lijn] || ''} · Kwart ${ed.actiefKwart}`;
+  el.querySelector('.sj-sheet-sub').textContent = `${LIJN_NAAM[slot.lijn] || ''}, Kwart ${ed.actiefKwart}`;
   el.querySelector('.sj-sheet-lijst').innerHTML = lijst || '<div class="sj-leeg">Geen spelers in de selectie.</div>';
   const leegBtn = el.querySelector('.sj-sheet-leeg');
   leegBtn.style.display = lu[slotId] ? '' : 'none';
@@ -585,8 +585,8 @@ function wedKeuzeHtml(w){
   const naam = w.tegenstander || 'Wedstrijd';
   const datum = w.datum || '';
   return `<div class="sj-kies-rij" data-wid="${w.id}">
-    <div class="sj-kies-nr">⚽</div>
-    <div class="sj-kies-nm">${esc(naam)}<div class="sj-kies-sub">${esc(datum)}${leeg ? ' · nog leeg' : ' · heeft opstelling'}</div></div>
+    <div class="sj-kies-nr"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></div>
+    <div class="sj-kies-nm">${esc(naam)}<div class="sj-kies-sub">${esc(datum)}${leeg ? '<span class="sep" aria-hidden="true"></span>nog leeg' : '<span class="sep" aria-hidden="true"></span>heeft opstelling'}</div></div>
     ${leeg ? '' : '<span class="sj-kies-bz">wordt overschreven</span>'}</div>`;
 }
 
@@ -605,7 +605,7 @@ function bevestigToepassen(sj, wid){
     // sluit het sjabloonscherm zodat de coach de bijgewerkte wedstrijd ziet
     sluitOverlay();
     // open de wedstrijd zodat het resultaat direct zichtbaar is
-    import('./wedstrijd.js?v=20261103i').then(m => m.openWedstrijd(wid)).catch(() => {});
+    import('./wedstrijd.js?v=20261106h').then(m => m.openWedstrijd(wid)).catch(() => {});
   }).catch(e => meld('Opslaan mislukt: ' + (e.code || e.message)));
 }
 
@@ -665,14 +665,14 @@ export function openInvoegSheet(w){
     html += sjablonen.map(s => {
       const aantal = sjabloonSpelers(s).size;
       return `<div class="sj-kies-rij" data-sj="${s.id}">
-        <div class="sj-kies-nr">📋</div>
+        <div class="sj-kies-nr"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg></div>
         <div class="sj-kies-nm">${esc(s.naam || 'Sjabloon')}<div class="sj-kies-sub">${aantal} speler${aantal===1?'':'s'}</div></div></div>`;
     }).join('');
   }
   if (vorige.length){
     html += '<div class="sj-sheet-groep">Vorige wedstrijden</div>';
     html += vorige.map(x => `<div class="sj-kies-rij" data-wid="${x.id}">
-      <div class="sj-kies-nr">⚽</div>
+      <div class="sj-kies-nr"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></div>
       <div class="sj-kies-nm">${esc(x.tegenstander || 'Wedstrijd')}<div class="sj-kies-sub">${esc(x.datum || '')}</div></div></div>`).join('');
   }
   if (!html) html = `<div class="sj-leeg">Nog geen sjablonen of eerdere ${w.format}×${w.format}-wedstrijden om over te nemen.</div>`;

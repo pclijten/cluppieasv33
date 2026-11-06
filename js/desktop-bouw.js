@@ -8,15 +8,15 @@
    eigen teams opent desktop.js in de gewone teamschermen.
    Tekent in een eigen view (#view-dkbouw) binnen #app.
 =============================================================== */
-import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20261103e';
-import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261103i';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261103i';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261103i';
-import { rondeStatusTeam } from './evaluatierondes.js?v=20261103e';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261103i';
+import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20261106h';
+import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261106h';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106h';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261106h';
+import { rondeStatusTeam } from './evaluatierondes.js?v=20261106h';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261106h';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -67,9 +67,9 @@ export async function openBouw(clubId, bouw, scherm = 'dash', teamId = null, keu
   const v = view();
   toon('dkbouw');
   if (!cache.has(clubId + '|' + bouw)){
-    v.innerHTML = `<div class="dk-scherm">${kop('Laden\u2026')}<p class="dk-leeg" style="padding:40px 28px">Gegevens van alle teams in de ${esc(bouwNaamVan(bouw).toLowerCase())} ophalen\u2026</p></div>`;
+    v.innerHTML = `<div class="dk-scherm">${kop('Laden\u2026')}<p class="dk-leeg" style="padding:var(--space-xl) 28px">Gegevens van alle teams in de ${esc(bouwNaamVan(bouw).toLowerCase())} ophalen\u2026</p></div>`;
     try { await laadBouw(clubId, bouw); }
-    catch(e){ v.innerHTML = `<div class="dk-scherm">${kop('Fout')}<p class="dk-leeg" style="padding:40px 28px">Gegevens ophalen mislukt: ${esc(e.code || e.message)}</p></div>`; return; }
+    catch(e){ v.innerHTML = `<div class="dk-scherm">${kop('Fout')}<p class="dk-leeg" style="padding:var(--space-xl) 28px">Gegevens ophalen mislukt: ${esc(e.code || e.message)}</p></div>`; return; }
     if (huidig?.clubId !== clubId || huidig?.bouw !== bouw) return;   // intussen elders heen geklikt
   } else zetBouwContext(cache.get(clubId + '|' + bouw));
   teken();
@@ -92,16 +92,16 @@ function teken(){
     else if (huidig.scherm === 'selmaken') html = isSelectieBouw(ctx) ? htmlSelectieScherm(ctx, kop('Selectie maken', knop('Dashboard', 'naardash'))) : htmlDashboard(ctx);
     else {
       const team = ctx.teams.find(t => t.id === huidig.teamId);
-      if (!team){ html = `<div class="dk-scherm">${kop('Team')}<p class="dk-leeg" style="padding:40px 28px">Team niet gevonden.</p></div>`; }
+      if (!team){ html = `<div class="dk-scherm">${kop('Team')}<p class="dk-leeg" style="padding:var(--space-xl) 28px">Team niet gevonden.</p></div>`; }
       else {
         const titel = { sel:'Selectie', evs:'Evaluatie spelers', evw:'Evaluatie wedstrijden', stat:'Stats' }[huidig.scherm];
         const binnen = htmlMeekijk(huidig.scherm, team, ctx.data.get(team.id) || {}, huidig.keuze || {});
-        html = `<div class="dk-meekijk"><div class="dk-lees">Meekijken als coördinator bij <b>${esc(team.naam)}</b> \u00b7 alleen lezen. Aanpassen doet de coach van het team.</div>${binnen.replace(/<div class="dk-kruim">[^]*?<\/div>/, `<div class="dk-kruim">${esc(bouwNaamVan(huidig.bouw))} / ${esc(team.naam)} / <b>${esc(titel)}</b></div>`)}</div>`;
+        html = `<div class="dk-meekijk"><div class="dk-lees">Meekijken als coördinator bij <b>${esc(team.naam)}</b><span class="sep" aria-hidden="true"></span>alleen lezen. Aanpassen doet de coach van het team.</div>${binnen.replace(/<div class="dk-kruim">[^]*?<\/div>/, `<div class="dk-kruim">${esc(bouwNaamVan(huidig.bouw))} / ${esc(team.naam)} / <b>${esc(titel)}</b></div>`)}</div>`;
       }
     }
   } catch(e){
     console.warn('[Cluppie] bouw-omgeving tekenen mislukt', e);
-    html = `<div class="dk-scherm">${kop('Fout')}<p class="dk-leeg" style="padding:40px 28px">Dit scherm kon niet getekend worden.</p></div>`;
+    html = `<div class="dk-scherm">${kop('Fout')}<p class="dk-leeg" style="padding:var(--space-xl) 28px">Dit scherm kon niet getekend worden.</p></div>`;
   }
   v.innerHTML = html;
   herteken();
@@ -153,16 +153,16 @@ function htmlDashboard(ctx){
     ${kop('Dashboard', knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'football-substitution'))}
     <div class="dkb-body${sel ? ' sbw-dash' : ''}">
       <div class="dkb-hallo"><h1 class="dk-groot">${esc(bouwNaamVan(ctx.bouw))} <span class="dk-omlijnd" style="display:inline">${esc(clubNaamVan(ctx.clubId))}</span></h1>
-        <div class="dk-pills"><span class="dk-pill">${teams.length} teams \u00b7 ${spelers} spelers</span>${trPct != null ? `<span class="dk-pill groen">Opkomst training ${trPct}%</span>` : ''}<button class="dk-pill" data-bk="ververs">Verversen</button></div></div>
+        <div class="dk-pills"><span class="dk-pill">${teams.length} teams<span class="sep" aria-hidden="true"></span>${spelers} spelers</span>${trPct != null ? `<span class="dk-pill groen">Opkomst training ${trPct}%</span>` : ''}<button class="dk-pill" data-bk="ververs">Verversen</button></div></div>
       <div class="dk-blok dkb-half"><h3>${ico('football-match', 18)}Vorige uitslagen<span>laatst bekend</span></h3>
         ${rij.map(r => { const l = r.u?.laatste; const kl = l ? (l.voor > l.tegen ? 'groen' : l.voor < l.tegen ? 'rood' : '') : '';
-          return `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') + (l.bron === 'app' ? ' \u00b7 app' : '') : (r.u?.knvbVerborgen ? 'geen KNVB-uitslagen (O10 en jonger)' : 'nog geen uitslag')}</span>${l ? `<span class="dk-pill ${kl}">${l.voor}\u2013${l.tegen}</span>` : ''}</div>`; }).join('') || '<p class="dk-leeg">Geen teams.</p>'}</div>
+          return `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${l ? 'tegen ' + esc(l.tegenstander || '') + (l.bron === 'app' ? ', app' : '') : (r.u?.knvbVerborgen ? 'geen KNVB-uitslagen (O10 en jonger)' : 'nog geen uitslag')}</span>${l ? `<span class="dk-pill ${kl}">${l.voor}\u2013${l.tegen}</span>` : ''}</div>`; }).join('') || '<p class="dk-leeg">Geen teams.</p>'}</div>
       <div class="dk-blok dkb-half"><h3>${ico('planning-calendar', 18)}Komende wedstrijden</h3>
-        ${rij.map(r => `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${r.kom ? esc(datumKort(r.kom.datum)) + (r.kom.aftrap ? ' \u00b7 ' + esc(r.kom.aftrap) : '') + ' \u00b7 ' + (r.kom.thuis ? 'thuis' : 'uit') + ' ' + esc(r.kom.tegenstander || '') : 'niets gepland'}</span></div>`).join('')}</div>
+        ${rij.map(r => `<div class="dkb-rij"><b>${esc(r.t.naam)}</b><span>${r.kom ? esc(datumKort(r.kom.datum)) + (r.kom.aftrap ? ', ' + esc(r.kom.aftrap) : '') + ', ' + (r.kom.thuis ? 'thuis' : 'uit') + ' ' + esc(r.kom.tegenstander || '') : 'niets gepland'}</span></div>`).join('')}</div>
       ${sel ? `<div class="dkb-kols">${rij.map(r => `<div class="dkb-kol">${tegelHtml(r)}${htmlRadarBlok(ctx, r.t)}</div>`).join('')}</div>`
         : `<div class="dkb-tegels">${rij.map(tegelHtml).join('')}</div>`}
       <div class="dk-blok dkb-opk"><h3>${ico('attendance-overview', 18)}Opkomst per team<span>dit seizoen</span></h3>
-        ${rij.map(r => `<div class="dkb-opkrij"><b>${esc(r.t.naam)}</b><i><em class="g" style="width:${r.tr ?? 0}%"></em></i><i><em class="bl" style="width:${r.wd ?? 0}%"></em></i><span>${r.tr != null ? r.tr + '%' : '\u2013'} \u00b7 ${r.wd != null ? r.wd + '%' : '\u2013'}</span></div>`).join('')}
+        ${rij.map(r => `<div class="dkb-opkrij"><b>${esc(r.t.naam)}</b><i><em class="g" style="width:${r.tr ?? 0}%"></em></i><i><em class="bl" style="width:${r.wd ?? 0}%"></em></i><span>${r.tr != null ? r.tr + '%' : '\u2013'}<span class="sep" aria-hidden="true"></span>${r.wd != null ? r.wd + '%' : '\u2013'}</span></div>`).join('')}
         <div class="dk-heat-leg"><span><i class="j"></i>training</span><span><i class="bl"></i>wedstrijd</span></div></div>
       <div class="dk-blok dkb-leen"><h3>${ico('football-substitution', 18)}Uitleningen<span>${ctx.uitleningen.length}</span></h3>
         ${ctx.uitleningen.slice(0, 6).map(u => `<div class="dkb-rij"><b>${esc(u.snapshot?.naam || 'Speler')}</b><span>${esc(u.vanTeamNaam || '?')} \u2192 ${esc(u.naarTeamNaam || '?')}</span>${richting(u, ctx)}</div>`).join('') || '<p class="dk-leeg">Geen actieve uitleningen.</p>'}

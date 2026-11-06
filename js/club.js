@@ -3,26 +3,26 @@ import {
   query, where, onSnapshot, serverTimestamp, documentId, writeBatch,
   sRef, uploadBytes, getDownloadURL, deleteObject,
   functions, httpsCallable
-} from './firebase.js?v=20260922c';
+} from './firebase.js?v=20261106h';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20261103e';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20261103e';
-import { teltMee } from './opkomst.js?v=20260922c';
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
-import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261103e';
-import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261103e';
-import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261103e';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261103e';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261103e';
-import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261103e';
-import { telGebruik, telNav } from './tracker.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261103f';
-import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261103f';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261103e';
-import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261103e';
-import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261103e';
+} from './state.js?v=20261106h';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20261106h';
+import { teltMee } from './opkomst.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
+import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261106h';
+import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261106h';
+import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261106h';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261106h';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261106h';
+import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261106h';
+import { telGebruik, telNav } from './tracker.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261106h';
+import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261106h';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261106h';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261106h';
+import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261106h';
 
 /* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
    De wachtrij leeft in upload-wachtrij.js; de schermen die hij nodig heeft
@@ -54,13 +54,13 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261103i'); }
+async function teamsModule(){ return await import('./teams.js?v=20261106h'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
   openModal(`
-    <h2>🏛 Nieuwe club</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Als club-admin maak jij teams aan en deel je trainingen voor alle teams. Coaches nodig je uit met een persoonlijke teamlink.</p>
+    <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><circle cx="12" cy="10.4" r="2.1"/><path d="M8.8 16.2a3.6 3.6 0 0 1 6.4 0"/></svg> Nieuwe club</h2>
+    <p class="u-t-sm u-zacht u-mb-sm">Als club-admin maak jij teams aan en deel je trainingen voor alle teams. Coaches nodig je uit met een persoonlijke teamlink.</p>
     <div class="veldgroep"><label>Clubnaam</label>
       <input class="invoer" id="mClubNaam" placeholder="Bijv. RKVV Mifano" autocomplete="off"></div>
     <button class="knop vol" id="mClubOk">Club aanmaken</button>`);
@@ -91,7 +91,7 @@ export function openClub(clubId){
     renderClub();
   }, (err) => {
     console.error(`[Cluppie] Listener "club" kon niet lezen (clubId=${clubId}):`, err.code, err.message);
-    if (err.code === 'permission-denied') meld('Geen toegang tot deze club — controleer de Firestore-rules');
+    if (err.code === 'permission-denied') meld('Geen toegang tot deze club, controleer de Firestore-rules');
   });
   toon('club');
   telNav('club:hub', 'open');
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261103i').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261106h').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -267,10 +267,10 @@ function clubSignalen(dash){
         reden: dagen === null ? 'Nog geen presentie of wedstrijd geregistreerd' : `Geen presentie of wedstrijd sinds ${dagen} dagen` });
     }
     if (!d.heeftCategorie){
-      signalen.push({ team:d.team.naam, ernstig:false, reden:'Geen categorie ingesteld — speeltijden kloppen mogelijk niet' });
+      signalen.push({ team:d.team.naam, ernstig:false, reden:'Geen categorie ingesteld: speeltijden kloppen mogelijk niet' });
     }
     if (d.opkomstPct != null && d.opkomstPct < DASH_OPKOMST_LAAG){
-      signalen.push({ team:d.team.naam, ernstig:false, reden:`Trainingsopkomst ${d.opkomstPct}% — laag` });
+      signalen.push({ team:d.team.naam, ernstig:false, reden:`Trainingsopkomst ${d.opkomstPct}%: laag` });
     }
   }
   signalen.sort((a,b) => (b.ernstig?1:0) - (a.ernstig?1:0));
@@ -301,9 +301,9 @@ function htmlDashOverzicht(teams, dash){
     </div>
 
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">
+      <div class="sectie-kop u-mt-0">
         Teams
-        <button class="actie" id="dashSort" style="margin-left:auto;font-size:calc(11px * var(--fs));font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.3px">Activiteit ${sortDesc?'↓':'↑'}</button>
+        <button class="actie u-ml-auto u-t-2xs u-fw-7 u-zacht" id="dashSort" style="text-transform:uppercase;letter-spacing:.3px">Activiteit ${sortDesc?'↓':'↑'}</button>
       </div>
       <table class="stat-tabel">
         <thead><tr><th>Team</th><th>Activiteit</th><th>Opkomst</th><th>Spelers</th></tr></thead>
@@ -318,13 +318,13 @@ function htmlDashOverzicht(teams, dash){
     </div>
 
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Recente activiteit</div>
+      <div class="sectie-kop u-mt-0">Recente activiteit</div>
       ${feed.length ? feed.map(a => `
         <div class="training-rij">
-          <div class="ico">${a.soort==='wedstrijd'?'⚽':'📋'}</div>
+          <div class="ico">${a.soort==='wedstrijd'?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>':'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>'}</div>
           <div class="t"><div class="t-titel">${esc(a.team)}</div>
-            <div class="t-meta">${esc(a.tekst)} · ${esc(afgKort(a.datum))}</div></div>
-        </div>`).join('') : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen wedstrijden of presentie geregistreerd.</p>`}
+            <div class="t-meta">${esc(a.tekst)}<span class="sep" aria-hidden="true"></span>${esc(afgKort(a.datum))}</div></div>
+        </div>`).join('') : `<p class="u-t-sm u-zacht">Nog geen wedstrijden of presentie geregistreerd.</p>`}
     </div>`;
 }
 
@@ -340,7 +340,7 @@ function htmlDashAandacht(dash){
               <span class="caf-rij-datum" style="${s.ernstig?'color:var(--uit)':''}">${esc(s.team)}</span>
               <span class="caf-rij-reden">${esc(s.reden)}</span>
             </div>`).join('')}
-        </div>` : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">✅ Alle teams zijn actief en up-to-date.</p>`}
+        </div>` : `<p class="u-t-sm u-zacht"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.6 12.4 9.6 17.4 19.6 6.6"/></svg> Alle teams zijn actief en up-to-date.</p>`}
     </div>`;
 }
 
@@ -498,13 +498,13 @@ function htmlClubFunctiegebruik(gebruik){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Functiegebruik</div>
-      <div class="segment" id="gebruikFunctiePeriode" style="margin-bottom:14px">
+      <div class="sectie-kop u-mt-0">Functiegebruik</div>
+      <div class="segment u-mb-md" id="gebruikFunctiePeriode" >
         ${[['dag','Dag'],['week','Week'],['maand','Maand']].map(([id,naam]) =>
           `<button data-functieperiode="${id}" class="${periode===id?'actief':''}">${naam}</button>`).join('')}
       </div>
-      ${totaalAlles ? blokken : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen functiegebruik geregistreerd in deze periode.</p>`}
-      <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Alle functies worden geteld; per categorie staan de drukste bovenaan. Tik een categorie open, of "wie" voor de uitsplitsing per coach. Alleen tellingen — geen speler- of persoonsgegevens.</p>
+      ${totaalAlles ? blokken : `<p class="u-t-sm u-zacht">Nog geen functiegebruik geregistreerd in deze periode.</p>`}
+      <p class="u-t-2xs u-zacht u-mt-xs u-lh-ruim">Alle functies worden geteld; per categorie staan de drukste bovenaan. Tik een categorie open, of "wie" voor de uitsplitsing per coach. Alleen tellingen: geen speler- of persoonsgegevens.</p>
     </div>`;
 }
 
@@ -517,16 +517,16 @@ function htmlClubFunctiegebruik(gebruik){
 
 /* Leesbare labels voor de fijnmazige schermnamen. */
 const NAV_LABELS = {
-  'teams':'Teams', 'team:hub':'Team · hub', 'team:spelers':'Spelers',
+  'teams':'Teams', 'team:hub':'Team, hub', 'team:spelers':'Spelers',
   'team:trainingen':'Trainingen', 'team:presentietraining':'Presentie',
   'team:planning':'Planning', 'team:poule':'Poule', 'team:stats':'Stats',
   'team:instellingen':'Instellingen', 'spelerprofiel':'Spelerprofiel',
-  'wedstrijd:opstelling':'Wedstrijd · opstelling',
-  'club:teams':'Club · teams', 'club:content':'Club · content',
+  'wedstrijd:opstelling':'Wedstrijd, opstelling',
+  'club:teams':'Club, teams', 'club:content':'Club, content',
 };
 function navLabel(s){
   if (NAV_LABELS[s]) return NAV_LABELS[s];
-  if (/^wedstrijd:kwart/.test(s)) return 'Wedstrijd · ' + s.replace('wedstrijd:','');
+  if (/^wedstrijd:kwart/.test(s)) return 'Wedstrijd, ' + s.replace('wedstrijd:','');
   return s;
 }
 /* Grove groep voor kleurcodering (teams/team/wedstrijd/club/overig). */
@@ -603,8 +603,8 @@ function htmlClubNavigatie(gebruik){
   if (!A.sessies){
     return `
       <div class="kaart">
-        <div class="sectie-kop" style="margin-top:0">Navigatie-inzicht</div>
-        <p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen navigatiedata verzameld. Zodra coaches door de app bewegen, verschijnen hier de meest gelopen routes, de overgangen tussen schermen en de uitstappunten.</p>
+        <div class="sectie-kop u-mt-0">Navigatie-inzicht</div>
+        <p class="u-t-sm u-zacht">Nog geen navigatiedata verzameld. Zodra coaches door de app bewegen, verschijnen hier de meest gelopen routes, de overgangen tussen schermen en de uitstappunten.</p>
       </div>`;
   }
 
@@ -620,7 +620,7 @@ function htmlClubNavigatie(gebruik){
     </div>`;
 
   const segment = `
-    <div class="segment" id="clubNavModus" style="margin-bottom:14px">
+    <div class="segment u-mb-md" id="clubNavModus" >
       ${[['routes','Top-routes'],['matrix','Overgangen'],['exit','Uitstappunten']].map(([id,naam]) =>
         `<button data-navmodus="${id}" class="${modus===id?'actief':''}">${naam}</button>`).join('')}
     </div>`;
@@ -639,7 +639,7 @@ function htmlClubNavigatie(gebruik){
         <div class="nav-route">
           <div class="nav-route-kop">
             <span class="nav-route-rang ${idx===0?'top':''}">${idx+1}</span>
-            <span class="nav-route-stat">${pct}% · ${r.aantal}×</span>
+            <span class="nav-route-stat">${pct}%<span class="sep" aria-hidden="true"></span>${r.aantal}×</span>
           </div>
           <div class="nav-flow">${nodes}</div>
           <div class="nav-balk"><i style="width:${Math.round((r.aantal/maxAantal)*100)}%"></i></div>
@@ -670,7 +670,7 @@ function htmlClubNavigatie(gebruik){
       const rij = A.matrix.get(van) || new Map();
       const totVan = [...rij.values()].reduce((a,b)=>a+b,0) || 1;
       const cellen = drukste.map(naar => {
-        if (naar === van) return `<td><div class="nav-cel" style="background:var(--surface-2);color:var(--ink-2)">—</div></td>`;
+        if (naar === van) return `<td><div class="nav-cel u-zacht" style="background:var(--surface-2)">—</div></td>`;
         const v = rij.get(naar)||0; const pct = Math.round((v/totVan)*100);
         return `<td><div class="nav-cel" style="${kleurCel(v,maxVooruit)}">${v?pct+'%':'·'}</div></td>`;
       }).join('');
@@ -678,10 +678,10 @@ function htmlClubNavigatie(gebruik){
       const tT = vT? (vT/maxTerug):0;
       const bgT = !vT?'background:var(--surface-2);color:var(--ink-2)':`background:${tT<.34?'#4a3a1a':tT<.67?'#8a6420':'var(--keeper)'};color:${tT>=.34?'#1a1200':'#e0c07d'}`;
       const vS = rij.get('_sluit')||0, pctS = Math.round((vS/totVan)*100);
-      return `<tr><th>${esc(navLabel(van))}</th>${cellen}<td><div class="nav-cel" style="${bgT}">${vT?pctT+'%':'·'}</div></td><td><div class="nav-cel" style="font-style:italic;color:var(--ink-2)">${vS?pctS+'%':'·'}</div></td></tr>`;
+      return `<tr><th>${esc(navLabel(van))}</th>${cellen}<td><div class="nav-cel" style="${bgT}">${vT?pctT+'%':'·'}</div></td><td><div class="nav-cel u-zacht" style="font-style:italic">${vS?pctS+'%':'·'}</div></td></tr>`;
     }).join('');
     inhoud = `<div class="nav-matrix-scroll"><table class="nav-matrix">${kop}${body}</table></div>
-      <p class="nav-duiding">Lees per rij: vanaf dat scherm, waar ging men daarna heen. De gele <b style="color:var(--keeper)">↩ terug</b>-kolom toont het aandeel dat via de terugknop ging — daar kún je nergens rechtstreeks heen. Rood = veel vooruit-verkeer.</p>`;
+      <p class="nav-duiding">Lees per rij: vanaf dat scherm, waar ging men daarna heen. De gele <b style="color:var(--keeper)">↩ terug</b>-kolom toont het aandeel dat via de terugknop ging, daar kún je nergens rechtstreeks heen. Rood = veel vooruit-verkeer.</p>`;
   }
 
   else { // exit
@@ -714,11 +714,11 @@ function htmlClubNavigatie(gebruik){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Navigatie-inzicht</div>
+      <div class="sectie-kop u-mt-0">Navigatie-inzicht</div>
       ${kpis}
       ${segment}
       ${inhoud}
-      <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:8px;line-height:1.5">Toont hoe coaches door de app bewegen — alleen schermnaam, tijd en aanleiding (tab/tegel/terug). Geen speler- of persoonsgegevens.</p>
+      <p class="u-t-2xs u-zacht u-mt-xs u-lh-ruim">Toont hoe coaches door de app bewegen, alleen schermnaam, tijd en aanleiding (tab/tegel/terug). Geen speler- of persoonsgegevens.</p>
     </div>`;
 }
 
@@ -787,34 +787,34 @@ function htmlClubGebruik(gebruik){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Gebruik van de app</div>
-      <div class="segment" id="gebruikPeriodeTabs" style="margin-bottom:14px">
+      <div class="sectie-kop u-mt-0">Gebruik van de app</div>
+      <div class="segment u-mb-md" id="gebruikPeriodeTabs" >
         ${[['dag','Dag'],['week','Week'],['maand','Maand']].map(([id,naam]) =>
           `<button data-periode="${id}" class="${periode===id?'actief':''}">${naam}</button>`).join('')}
       </div>
       ${data.map(d => `
-        <div style="display:flex;align-items:center;gap:10px;padding:5px 0;font-size:calc(12.5px * var(--fs))">
-          <span style="width:56px;flex-shrink:0;color:var(--ink-2)">${esc(d.label)}</span>
-          <span style="flex:1;height:14px;background:var(--surface-2);border-radius:7px;overflow:hidden">
+        <div class="u-t-sm" style="display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-2xs) 0">
+          <span class="u-zacht" style="width:56px;flex-shrink:0">${esc(d.label)}</span>
+          <span class="u-flex-1" style="height:14px;background:var(--surface-2);border-radius:7px;overflow:hidden">
             <span style="display:block;height:100%;width:${Math.round((d.n/max)*100)}%;background:var(--accent);border-radius:7px"></span>
           </span>
-          <span style="width:22px;text-align:right;font-weight:700">${d.n}</span>
+          <span class="u-fw-7" style="width:22px;text-align:right">${d.n}</span>
         </div>`).join('')}
-      <p style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:8px">Aantal unieke coaches dat inlogde per ${periode==='dag'?'dag':periode==='week'?'week':'maand'}.</p>
+      <p class="u-t-2xs u-zacht u-mt-xs">Aantal unieke coaches dat inlogde per ${periode==='dag'?'dag':periode==='week'?'week':'maand'}.</p>
     </div>
 
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Meest actieve gebruikers</div>
+      <div class="sectie-kop u-mt-0">Meest actieve gebruikers</div>
       ${gebruik.gebruikers.length ? `${(S.clubAlleGebruikersOpen ? gebruik.gebruikers : gebruik.gebruikers.slice(0,10)).map(g => `
         <div class="lid-rij">
           <div class="lid-avatar">${esc(initialen(g.naam || g.email || '?'))}</div>
           <div class="lid-naam">${esc(g.naam || g.email || 'Onbekend')}
-            <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);font-weight:500;margin-top:1px">${g.email?esc(g.email)+' · ':''}laatst: ${dashTijdKort(g.laatsteLogin)}</div>
+            <div class="u-t-xs u-zacht" style="font-weight:500;margin-top:1px">${g.email?esc(g.email)+'<span class="sep" aria-hidden="true"></span>':''}laatst: ${dashTijdKort(g.laatsteLogin)}</div>
           </div>
-          <div style="font-family:'Barlow Condensed';font-weight:700;font-size:calc(18px * var(--fs));color:var(--accent);flex-shrink:0">${g.aantalLogins||0}</div>
+          <div class="u-fw-7 u-t-xl u-c-accent" style="font-family:'Barlow Condensed';flex-shrink:0">${g.aantalLogins||0}</div>
         </div>`).join('')}
-      ${gebruik.gebruikers.length > 10 ? `<button class="knop licht vol" id="btnAlleGebruikers" style="margin-top:10px;font-size:calc(13px * var(--fs))">${S.clubAlleGebruikersOpen ? 'Toon minder' : `Alle ${gebruik.gebruikers.length} gebruikers tonen`}</button>` : ''}`
-      : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Nog geen logins geregistreerd.</p>`}
+      ${gebruik.gebruikers.length > 10 ? `<button class="knop licht vol u-mt-sm u-t-sm" id="btnAlleGebruikers" >${S.clubAlleGebruikersOpen ? 'Toon minder' : `Alle ${gebruik.gebruikers.length} gebruikers tonen`}</button>` : ''}`
+      : `<p class="u-t-sm u-zacht">Nog geen logins geregistreerd.</p>`}
     </div>`;
 }
 
@@ -867,7 +867,7 @@ function htmlClubHub(teams){
   ]]);
 
   const banner = actief ? `
-    <div class="cb-banner"><span class="cb-banner-ico">⛔</span>
+    <div class="cb-banner"><span class="cb-banner-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span>
       <div class="cb-banner-t"><b>Training afgelast — ${esc(afgKort(actief.datum))}</b>${actief.reden ? `<small>${esc(actief.reden)}</small>` : ''}</div>
       <button class="knop licht klein" data-club-open="afgelasten">Bekijk</button></div>` : '';
 
@@ -889,11 +889,11 @@ function htmlClubAfgelasten(teams, afgelastingen = []){
     <div class="club-afgelast-blok">
       ${actief
         ? `<div class="caf-actief">
-             <div class="caf-actief-kop"><span>⛔</span><b>Training afgelast — ${esc(afgKort(actief.datum))}</b></div>
+             <div class="caf-actief-kop"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span><b>Training afgelast — ${esc(afgKort(actief.datum))}</b></div>
              ${actief.reden ? `<div class="caf-actief-reden">${esc(actief.reden)}</div>` : ''}
              <button class="knop licht vol caf-op" id="clubAfgelastOpheffen">Afgelasting opheffen</button>
            </div>`
-        : `<button class="knop vol caf-aflast" id="clubAflast"${teams.length ? '' : ' disabled'}>⛔ Training afgelasten (clubbreed)</button>`}
+        : `<button class="knop vol caf-aflast" id="clubAflast"${teams.length ? '' : ' disabled'}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> Training afgelasten (clubbreed)</button>`}
       <div class="caf-stats">
         <div class="caf-stat"><span class="caf-getal">${recent.length}</span><span class="caf-label">laatste 12 mnd</span></div>
         <div class="caf-stat"><span class="caf-getal">${afgelastingen.length}</span><span class="caf-label">totaal</span></div>
@@ -925,10 +925,10 @@ function htmlClubInzicht(signalenAantal, stats, inzTab){
     ? new Date(stats.gegenereerd).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
     : null;
   const syncBalk = isBeheerder() ? `
-    <div class="kaart" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+    <div class="kaart u-mb-sm" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-sm)">
       <div>
-        <div style="font-weight:600;font-size:calc(13.5px * var(--fs))">Statistieken bijwerken</div>
-        <div style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:2px">
+        <div class="u-fw-6 u-t-md">Statistieken bijwerken</div>
+        <div class="u-t-2xs u-zacht u-mt-3xs">
           ${laatst ? `Laatst bijgewerkt: ${esc(laatst)}` : 'Nog niet gesynchroniseerd'}
         </div>
       </div>
@@ -939,7 +939,7 @@ function htmlClubInzicht(signalenAantal, stats, inzTab){
     ${syncBalk}
     ${htmlInzichtTabs(tab)}
     <div id="inzichtInhoud">${htmlInzichtTab(tab, stats)}</div>
-    <section class="hub-sectie" style="margin-top:14px">
+    <section class="hub-sectie u-mt-md">
       <div class="hub-grid">
         ${clubTegel('dash-overzicht',   'Overzicht',  'navigation-dashboard')}
         ${clubTegelWarn('dash-aandacht','Aandacht',   'action-warning', signalenAantal || null)}
@@ -1079,7 +1079,7 @@ async function renderClub(opts = {}){
     kop = `
       <div class="welkom-kop hub-kop">
         <button class="terug" id="clubTerug">‹</button>
-        <h1>🏛 ${esc(S.club.naam)}<span class="sub">${Object.keys(S.club.teams||{}).length} teams · clubcode ${esc(S.club.code)}</span></h1>
+        <h1><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><circle cx="12" cy="10.4" r="2.1"/><path d="M8.8 16.2a3.6 3.6 0 0 1 6.4 0"/></svg> ${esc(S.club.naam)}<span class="sub">${Object.keys(S.club.teams||{}).length} teams<span class="sep" aria-hidden="true"></span>clubcode ${esc(S.club.code)}</span></h1>
       </div>`;
   } else {
     kop = `
@@ -1232,7 +1232,7 @@ async function slTeamlijstOphalen(){
 
 async function modalSportlinkTeam(team, teams){
   if (!team) return;
-  openModal(`<h2>Sportlink · ${esc(team.naam)}</h2><p style="color:var(--ink-2)">Teamlijst laden…</p>`);
+  openModal(`<h2>Sportlink<span class="sep" aria-hidden="true"></span>${esc(team.naam)}</h2><p class="u-zacht">Teamlijst laden…</p>`);
   let lijst = await slTeamlijstOphalen();
   const gekoppeld = !!S.club.sportlinkClientId;
   /* [20260929a] Het vinkje "1e én 2e elftal" is weg: de selectie werkt nu met een
@@ -1242,7 +1242,7 @@ async function modalSportlinkTeam(team, teams){
     const huidig = String(team.sportlinkNaam || '').trim();
     const autoMatch = slMatch(team.naam, lijst);
     const optie = (s) => {
-      const extra = [s.klassepoule, s.speeldag].filter(Boolean).join(' · ');
+      const extra = [s.klassepoule, s.speeldag].filter(Boolean).join(', ');
       return `<option value="${esc(s.teamnaam)}" data-code="${esc(s.teamcode)}" ${s.teamnaam === huidig ? 'selected' : ''}>${esc(s.teamnaam)}${extra ? ' — ' + esc(extra) : ''}</option>`;
     };
     // Staat er een koppeling die (nog) niet in de lijst voorkomt? Toon hem toch.
@@ -1250,20 +1250,20 @@ async function modalSportlinkTeam(team, teams){
       ? `<option value="${esc(huidig)}" selected>${esc(huidig)} (niet in teamlijst)</option>` : '';
 
     openModal(`
-      <h2>Sportlink · ${esc(team.naam)}</h2>
+      <h2>Sportlink<span class="sep" aria-hidden="true"></span>${esc(team.naam)}</h2>
       <div class="veldgroep"><label>Naam in Cluppie</label>
         <input class="invoer" id="mSlNaam" value="${esc(team.naam)}" maxlength="40" autocomplete="off"></div>
-      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin:-4px 0 12px">De teamcode (${esc(team.code || '—')}) blijft gelijk, dus uitnodigingslinks blijven werken.</p>
+      <p class="u-t-xs u-zacht" style="margin:-4px 0 var(--space-sm)">De teamcode (${esc(team.code || '—')}) blijft gelijk, dus uitnodigingslinks blijven werken.</p>
       <div class="veldgroep"><label>Team in Sportlink</label>
         <select class="invoer" id="mSlTeam" ${lijst.length || huidig ? '' : 'disabled'}>
           <option value="" ${huidig ? '' : 'selected'}>Automatisch (op naam)</option>
           ${onbekend}${lijst.map(optie).join('')}
         </select></div>
-      <div id="mSlInfo" style="font-size:calc(12.5px * var(--fs));line-height:1.45;margin:-4px 0 12px"></div>
+      <div id="mSlInfo" class="u-t-sm u-lh-ruim" style="margin:-4px 0 var(--space-sm)"></div>
       ${!lijst.length ? `
-        <div class="kaart" style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">
+        <div class="kaart u-t-sm u-zacht u-mb-sm">
           ${gekoppeld
-            ? `De Sportlink-teamlijst is nog niet opgehaald.<br><button class="knop licht vol" id="mSlOphalen" style="margin-top:8px">🔄 Teamlijst ophalen</button>`
+            ? `De Sportlink-teamlijst is nog niet opgehaald.<br><button class="knop licht vol u-mt-xs" id="mSlOphalen" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Teamlijst ophalen</button>`
             : `Vul eerst de Sportlink Client ID in onder Club → Instellingen → Sportlink.`}
         </div>` : ''}
       <button class="knop vol" id="mSlOk">Opslaan</button>`);
@@ -1278,14 +1278,14 @@ async function modalSportlinkTeam(team, teams){
       let html = '';
       if (!keuze){
         html = match
-          ? `Automatisch gekoppeld aan <b>${esc(match.teamnaam)}</b>${match.klassepoule ? ' · ' + esc(match.klassepoule) : ''}.`
-          : (lijst.length ? `<span style="color:var(--uit)">“${esc(naamNu)}” komt met geen enkel Sportlink-team overeen — kies er hierboven een.</span>` : '');
+          ? `Automatisch gekoppeld aan <b>${esc(match.teamnaam)}</b>${match.klassepoule ? '<span class="sep" aria-hidden="true"></span>' + esc(match.klassepoule) : ''}.`
+          : (lijst.length ? `<span class="u-c-warn">“${esc(naamNu)}” komt met geen enkel Sportlink-team overeen, kies er hierboven een.</span>` : '');
       }
       // Botsing: synct een ánder team van de club al op hetzelfde Sportlink-team?
       const k = slTeamSleutel(zoek);
       const dubbel = k ? teams.filter(t => t.id !== team.id && slTeamSleutel(slZoeknaam(t)) === k) : [];
       if (dubbel.length){
-        html += `${html ? '<br>' : ''}<span style="color:var(--uit)">⚠️ Let op: ${dubbel.map(t => '<b>' + esc(t.naam) + '</b>').join(', ')} ${dubbel.length === 1 ? 'is' : 'zijn'} ook aan dit Sportlink-team gekoppeld — beide teams krijgen dan dezelfde wedstrijden.</span>`;
+        html += `${html ? '<br>' : ''}<span class="u-c-warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> Let op: ${dubbel.map(t => '<b>' + esc(t.naam) + '</b>').join(', ')} ${dubbel.length === 1 ? 'is' : 'zijn'} ook aan dit Sportlink-team gekoppeld, beide teams krijgen dan dezelfde wedstrijden.</span>`;
       }
       info.innerHTML = html;
     };
@@ -1302,7 +1302,7 @@ async function modalSportlinkTeam(team, teams){
         if (!lijst.length) meld('Sportlink gaf geen teams terug');
         teken();
       } catch(e){
-        ophalen.disabled = false; ophalen.textContent = '🔄 Teamlijst ophalen';
+        ophalen.disabled = false; ophalen.textContent = 'Teamlijst ophalen';
         meld('Ophalen mislukt: ' + (e.message || e.code || 'onbekende fout'));
       }
     };
@@ -1326,7 +1326,7 @@ async function modalSportlinkTeam(team, teams){
         else { delete team.sportlinkNaam; delete team.sportlinkTeamcode; }
         sluitModal();
         hertekenClub();
-        meld(gekoppeld ? 'Opgeslagen — Instellingen → Sportlink → “Sync nu” haalt direct op' : 'Opgeslagen');
+        meld(gekoppeld ? 'Opgeslagen: Instellingen → Sportlink → “Sync nu” haalt direct op' : 'Opgeslagen');
       } catch(e){
         console.error(e); ok.disabled = false; ok.textContent = 'Opslaan';
         meld('Opslaan mislukt: ' + (e.code || e.message));
@@ -1397,7 +1397,7 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
     if (!items.length) return `<td><div class="tm-cel mist"><span class="tm-gat">— niets</span></div></td>`;
     const inhoud = items.map(t =>
       `<div class="tm-item"><span class="tm-titel">${esc(t.titel || t.bestandsnaam || 'Training')}</span>` +
-      (t.bestandsnaam ? `<span class="tm-dot">·</span><span class="tm-best">${esc(t.bestandsnaam)}</span>` : '') +
+      (t.bestandsnaam ? `<span class="sep" aria-hidden="true"></span><span class="tm-best">${esc(t.bestandsnaam)}</span>` : '') +
       `</div>`).join('');
     return `<td><div class="tm-cel ok">${inhoud}</div></td>`;
   };
@@ -1405,7 +1405,7 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
   // matrix voor een set team-id's
   const matrixHtml = (teamIds) => {
     if (!weken.length){
-      return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
+      return `<div class="kaart leeg u-m-0">Nog geen weken, upload een eerste PDF en koppel hem aan een team.</div>`;
     }
     const kop = `<thead><tr><th class="tm-teamkop">Team</th>${
       weken.map(w => `<th class="tm-wk">${esc(w.label)}</th>`).join('')}</tr></thead>`;
@@ -1433,7 +1433,7 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
   const groepen = trainingsGroepen();
 
   if (!groepen.length){
-    return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b>⚙️ Groepen beheren</b> hierboven — dan zie je hier per groep of alle teams gedekt zijn.</div>`;
+    return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Groepen beheren</b> hierboven: dan zie je hier per groep of alle teams gedekt zijn.</div>`;
   }
 
   // per groep een uitklapbaar blok; complete groepen starten dichtgeklapt zodat
@@ -1443,14 +1443,14 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
     const st = groepStatus(ids);
     const dicht = st.ok ? ' dicht' : '';
     const body = ids.length ? matrixHtml(ids)
-      : `<div class="kaart leeg" style="margin:0">Nog geen teams in deze groep.</div>`;
+      : `<div class="kaart leeg u-m-0">Nog geen teams in deze groep.</div>`;
     return `
       <div class="tm-groep${dicht}">
         <div class="tm-groep-kop" data-tm-klap>
           <div class="tm-letter">${esc(g.id)}</div>
           <div class="tm-groep-mid">
             <div class="tm-groep-naam">${esc(g.naam || ('Groep ' + g.id))}</div>
-            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${weken.length?` · ${weken.length} ${weken.length===1?'week':'weken'} in beeld`:''}</div>
+            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${weken.length?`, ${weken.length} ${weken.length===1?'week':'weken'} in beeld`:''}</div>
           </div>
           <span class="tm-pil ${st.ok?'ok':'mist'}">${esc(st.tekst)}</span>
           <span class="tm-chevron">▾</span>
@@ -1468,14 +1468,14 @@ function htmlClubTrainingenOverzicht(teams, trainingen){
   const losBlok = losTeams.length ? `
     <div class="tm-los">
       <div class="tm-los-kop">
-        <span class="tm-los-ic">⚠️</span>
+        <span class="tm-los-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span>
         <span class="tm-los-t">Teams zonder groep</span>
         <span class="tm-los-s">${losTeams.length} team${losTeams.length>1?'s':''}</span>
       </div>
-      <div class="tm-los-uitleg">Deze teams zitten in geen enkele trainingsgroep en krijgen bij het uploaden-per-groep automatisch niets. Voeg ze toe via ⚙️ Groepen beheren.</div>
+      <div class="tm-los-uitleg">Deze teams zitten in geen enkele trainingsgroep en krijgen bij het uploaden-per-groep automatisch niets. Voeg ze toe via <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Groepen beheren.</div>
       <div class="tm-los-chips">${losTeams.map(t => {
         const heeft = heeftIets(t.id);
-        return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':' · niets'}</span>`;
+        return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':'<span class="sep" aria-hidden="true"></span>niets'}</span>`;
       }).join('')}</div>
     </div>` : '';
 
@@ -1513,7 +1513,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
       <button class="trd-drop" id="trainingUpload" type="button">
         <span class="trd-drop-ic">${ico('admin-upload', 20)}</span>
         <span class="trd-drop-t"><b>PDF-training(en) toevoegen</b>
-          <small>Sleep PDF's of een zip hierheen of klik om te kiezen — meerdere tegelijk verdeel je per groep, een heel blok plan je in één keer in</small></span>
+          <small>Sleep PDF's of een zip hierheen of klik om te kiezen, meerdere tegelijk verdeel je per groep, een heel blok plan je in één keer in</small></span>
         <input type="file" id="trainingFile" accept="application/pdf,.zip,application/zip" multiple style="display:none">
       </button>
       <div class="segment trd-seg" id="trainWeergave">
@@ -1530,7 +1530,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
   /* ---------- Overzicht per groep ---------- */
   function trdOverzicht(){
     if (!groepen.length)
-      return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b>Groepen beheren</b> hierboven — dan zie je hier per groep of alle teams gedekt zijn.</div>`;
+      return `<div class="kaart leeg">Nog geen trainingsgroepen ingesteld.<br>Maak eerst groepen (A, B, C …) via <b>Groepen beheren</b> hierboven: dan zie je hier per groep of alle teams gedekt zijn.</div>`;
 
     // weekvenster: standaard de laatste TRD_WEKEN weken; S._trdVenster schuift terug
     const maxTerug = Math.max(0, alleWeken.length - TRD_WEKEN);
@@ -1556,7 +1556,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
     // blijft staan); de status/tegels kijken nog naar het venster `weken`.
     const kolommen = alleWeken;
     const matrix = ids => {
-      if (!kolommen.length) return `<div class="kaart leeg" style="margin:0">Nog geen weken — upload een eerste PDF en koppel hem aan een team.</div>`;
+      if (!kolommen.length) return `<div class="kaart leeg u-m-0">Nog geen weken, upload een eerste PDF en koppel hem aan een team.</div>`;
       const kop = `<thead><tr><th class="trd-teamkop">Team</th>${kolommen.map(w => {
         const nu = w.nr === nuWeek;
         return `<th class="${nu?'nu':''}">${esc(w.label)}${nu?'<small>deze week</small>':''}</th>`;
@@ -1598,7 +1598,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
       </button>` : ''}</div>`;
 
     const venster = alleWeken.length > TRD_WEKEN ? `
-      <div class="trd-venster"><span class="trd-scrollhint">‹ Scroll opzij voor andere weken · status over ${esc(bereik)} ›</span></div>` : '';
+      <div class="trd-venster"><span class="trd-scrollhint">‹ Scroll opzij voor andere weken<span class="sep" aria-hidden="true"></span>status over ${esc(bereik)} ›</span></div>` : '';
 
     const blokken = gdata.map(({ g, ids, st }) => `
       <div class="tm-groep trd-groep${st.ok ? ' dicht' : ''}" id="trd-g-${esc(g.id)}">
@@ -1606,22 +1606,22 @@ function htmlClubTrainingenDesk(teams, trainingen){
           <div class="tm-letter">${esc(g.id)}</div>
           <div class="tm-groep-mid">
             <div class="tm-groep-naam">${esc(g.naam || ('Groep ' + g.id))}</div>
-            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${bereik ? ` · ${esc(bereik)}` : ''}</div>
+            <div class="tm-groep-sub">${ids.length} team${ids.length===1?'':'s'}${bereik ? `, ${esc(bereik)}` : ''}</div>
           </div>
           <span class="tm-pil ${st.ok?'ok':'mist'}">${esc(st.tekst)}</span>
           <span class="tm-chevron">▾</span>
         </div>
-        <div class="tm-groep-body">${ids.length ? matrix(ids) : `<div class="kaart leeg" style="margin:0">Nog geen teams in deze groep.</div>`}</div>
+        <div class="tm-groep-body">${ids.length ? matrix(ids) : `<div class="kaart leeg u-m-0">Nog geen teams in deze groep.</div>`}</div>
       </div>`).join('');
 
     const los = losTeams.length ? `
       <div class="tm-los" id="trd-los">
-        <div class="tm-los-kop"><span class="tm-los-ic">⚠️</span><span class="tm-los-t">Teams zonder groep</span>
+        <div class="tm-los-kop"><span class="tm-los-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span><span class="tm-los-t">Teams zonder groep</span>
           <span class="tm-los-s">${losTeams.length} team${losTeams.length>1?'s':''}</span></div>
         <div class="tm-los-uitleg">Deze teams zitten in geen enkele trainingsgroep en krijgen bij het uploaden-per-groep automatisch niets. Voeg ze toe via Groepen beheren.</div>
         <div class="tm-los-chips">${losTeams.map(t => {
           const heeft = trainingen.some(x => (x.teams || []).includes(t.id));
-          return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':' · niets'}</span>`;
+          return `<span class="tm-los-chip ${heeft?'heeft':''}">${esc(t.naam || '?')}${heeft?'':'<span class="sep" aria-hidden="true"></span>niets'}</span>`;
         }).join('')}</div>
       </div>` : '';
 
@@ -1645,7 +1645,7 @@ function htmlClubTrainingenDesk(teams, trainingen){
       const ids = (t.teams || []);
       if (!ids.length) return '<span class="trd-leeg">geen team</span>';
       const g = groepVan(ids);
-      if (g) return `<span class="trd-tg groep">${esc(g.naam || ('Groep ' + g.id))} · ${ids.length} team${ids.length===1?'':'s'}</span>`;
+      if (g) return `<span class="trd-tg groep">${esc(g.naam || ('Groep ' + g.id))}<span class="sep" aria-hidden="true"></span>${ids.length} team${ids.length===1?'':'s'}</span>`;
       const namen = ids.map(id => teamById.get(id)?.naam || '?');
       const zicht = namen.slice(0, 5).map(n => `<span class="trd-tg">${esc(n)}</span>`).join('');
       return zicht + (namen.length > 5 ? `<span class="trd-tg" title="${esc(namen.slice(5).join(', '))}">+${namen.length - 5}</span>` : '');
@@ -1698,16 +1698,16 @@ function htmlClubTrainingen(teams, trainingen){
   // snelknop naar het groepenbeheer. Eén helper zodat lijst- en overzichts-
   // weergave identiek zijn.
   const uploadBlok = `
-    <button class="upload-knop" id="trainingUpload">📄 PDF-training(en) toevoegen
+    <button class="upload-knop" id="trainingUpload"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.6 3.4h7L18.6 8.4v12.2h-12z"/><path d="M13.6 3.4V8.4h5"/></svg> PDF-training(en) toevoegen
       <input type="file" id="trainingFile" accept="application/pdf,.zip,application/zip" multiple style="display:none"></button>
     <div class="tr-boven-acties">
       <span class="tr-boven-hint">Meerdere PDF's, of een zip met een heel blok, kan ook.</span>
-      <button class="link" id="trGroepenBeheer">${groepen.length ? '⚙️ Groepen beheren' : '＋ Trainingsgroepen instellen'}</button>
+      <button class="link" id="trGroepenBeheer">${groepen.length ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Groepen beheren' : '＋ Trainingsgroepen instellen'}</button>
     </div>`;
 
   // weergave-schakelaar: Lijst (bestaand) of Overzicht per groep (met gaten)
   const weergaveKies = `
-    <div class="segment tr-weergave" id="trainWeergave" style="margin-bottom:14px">
+    <div class="segment tr-weergave u-mb-md" id="trainWeergave" >
       <button data-weergave="lijst" class="${weergave==='lijst'?'actief':''}">Lijst</button>
       <button data-weergave="overzicht" class="${weergave==='overzicht'?'actief':''}">Overzicht per groep</button>
       <button data-weergave="plannen" class="${weergave==='plannen'?'actief':''}">Plannen</button>
@@ -1734,27 +1734,27 @@ function htmlClubTrainingen(teams, trainingen){
     const teamNamen = (t.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
     const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
     const tekstKnop = heeftAi
-      ? `<button data-ttekst="${t.id}" title="Tekst controleren en bewerken">📝</button>`
+      ? `<button data-ttekst="${t.id}" title="Tekst controleren en bewerken"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>`
       : '';
     const notitieKnop = heeftAi
-      ? `<button data-tnotities="${t.id}" title="Notities van coaches bekijken">💬</button>`
+      ? `<button data-tnotities="${t.id}" title="Notities van coaches bekijken"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3.2V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 9.5h8M8 12.5h5"/></svg></button>`
       : '';
     // bestandsnaam apart tonen als hij afwijkt van de titel (anders dubbelop)
     const toonBest = t.bestandsnaam && t.bestandsnaam !== (t.titel || '');
     return `
       <div class="training-rij">
-        <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
+        <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>`:'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           ${toonBest ? `<div class="t-best">${esc(t.bestandsnaam)}</div>` : ''}
-          <div class="t-meta">${esc(t.week || '')}${t.week?' · ':''}${esc(teamNamen)}</div>
+          <div class="t-meta">${esc(t.week || '')}${t.week?'<span class="sep" aria-hidden="true"></span>':''}${esc(teamNamen)}</div>
           ${zichtbaarLabel(t) ? `<div class="bp-zv-badge">${esc(zichtbaarLabel(t))}</div>` : ''}</div>
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
           ${tekstKnop}
           ${notitieKnop}
-          <button data-tbewerk="${t.id}" title="Teams en titel wijzigen">✏️</button>
-          <button data-tshare="${t.id}" title="Delen naar WhatsApp">📤</button>
-          <button data-tweg="${t.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+          <button data-tbewerk="${t.id}" title="Teams en titel wijzigen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>
+          <button data-tshare="${t.id}" title="Delen naar WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 21h14"/></svg></button>
+          <button data-tweg="${t.id}" title="Verwijderen" style="color:var(--uit)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>
       </div>`;
   }).join('')
@@ -1775,7 +1775,7 @@ function htmlClubVideos(teams, videos){
   const zichtbaar = videos.filter(vid => bouwenVanTraining(vid, teams).has(actief));
 
   const segment = `
-    <div class="segment" id="videoBouwTabs" style="margin-bottom:14px">
+    <div class="segment u-mb-md" id="videoBouwTabs" >
       ${BOUWEN.map(b => `<button data-vbouw="${b.id}" class="${actief===b.id?'actief':''}">${b.kort}${telPerBouw[b.id]?` <span style="opacity:.6">(${telPerBouw[b.id]})</span>`:''}</button>`).join('')}
     </div>`;
 
@@ -1786,24 +1786,24 @@ function htmlClubVideos(teams, videos){
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
       ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
+      : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
     return `
       <div class="video-rij">
         <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener">${thumbInner}</a>
         <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
-          <div class="v-meta">${esc(teamNamen || '—')}${upload ? ' · geüpload' : ''}</div></div>
+          <div class="v-meta">${esc(teamNamen || '—')}</div></div>
         <div class="acties">
-          <button data-vbewerk="${vid.id}" title="Teams en titel wijzigen">✏️</button>
-          <button data-vshare="${vid.id}" title="Delen naar WhatsApp">📤</button>
-          <button data-vweg="${vid.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+          <button data-vbewerk="${vid.id}" title="Teams en titel wijzigen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>
+          <button data-vshare="${vid.id}" title="Delen naar WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 21h14"/></svg></button>
+          <button data-vweg="${vid.id}" title="Verwijderen" style="color:var(--uit)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>
       </div>`;
   }).join('')
   : `<div class="kaart leeg">Nog geen video's voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Plak een YouTube-link of upload een eigen clip en koppel hem aan een team.</div>`;
 
   return `
-    <button class="upload-knop" id="videoToevoegen">🎬 YouTube-video toevoegen voor één of meer teams</button>
-    <button class="upload-knop" id="videoUpload" style="margin-top:8px">⬆️ Eigen video uploaden (mp4) voor één of meer teams
+    <button class="upload-knop" id="videoToevoegen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg> YouTube-video toevoegen voor één of meer teams</button>
+    <button class="upload-knop u-mt-xs" id="videoUpload" >Eigen video uploaden (mp4) voor één of meer teams
       <input type="file" id="videoFile" accept="video/mp4,video/*" style="display:none"></button>
     ${segment}
     ${lijst}`;
@@ -1815,7 +1815,7 @@ function htmlClubDocumenten(teams, documenten){
   for (const d of documenten) telPerCat[d.categorie] = (telPerCat[d.categorie]||0) + 1;
 
   const segment = `
-    <div class="segment" id="docCatTabs" style="margin-bottom:14px">
+    <div class="segment u-mb-md" id="docCatTabs" >
       <button data-doccat="alle" class="${actief==='alle'?'actief':''}">Alle</button>
       ${DOC_CATEGORIEN.map(c => `<button data-doccat="${c.id}" class="${actief===c.id?'actief':''}">${c.naam}${telPerCat[c.id]?` <span style="opacity:.6">(${telPerCat[c.id]})</span>`:''}</button>`).join('')}
     </div>`;
@@ -1830,19 +1830,19 @@ function htmlClubDocumenten(teams, documenten){
       <div class="training-rij">
         <div class="ico ${d.categorie==='knvb'?'knvb':d.categorie==='overig'?'overig':''}">${icoonPerCat[d.categorie] || 'DOC'}</div>
         <div class="t"><div class="t-titel">${esc(d.titel || d.bestandsnaam)}</div>
-          <div class="t-meta">${esc(catNaam)} · ${esc(teamNamen)}</div></div>
+          <div class="t-meta">${esc(catNaam)}<span class="sep" aria-hidden="true"></span>${esc(teamNamen)}</div></div>
         <div class="acties">
           <button data-ddownload="${esc(d.url)}" title="Openen">↗</button>
-          <button data-dbewerk="${d.id}" title="Titel, categorie en teams wijzigen">✏️</button>
-          <button data-dshare="${d.id}" title="Delen naar WhatsApp">📤</button>
-          <button data-dweg="${d.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+          <button data-dbewerk="${d.id}" title="Titel, categorie en teams wijzigen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>
+          <button data-dshare="${d.id}" title="Delen naar WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 21h14"/></svg></button>
+          <button data-dweg="${d.id}" title="Verwijderen" style="color:var(--uit)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>
       </div>`;
   }).join('')
   : `<div class="kaart leeg">Nog geen documenten${actief!=='alle' ? ' in deze categorie' : ''}.<br>Upload een PDF en koppel 'm aan één of meer teams.</div>`;
 
   return `
-    <button class="upload-knop" id="documentUpload">📄 Document toevoegen voor één of meer teams
+    <button class="upload-knop" id="documentUpload"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.6 3.4h7L18.6 8.4v12.2h-12z"/><path d="M13.6 3.4V8.4h5"/></svg> Document toevoegen voor één of meer teams
       <input type="file" id="documentFile" accept="application/pdf" style="display:none"></button>
     ${segment}
     ${lijst}`;
@@ -1864,19 +1864,19 @@ function htmlClubBerichten(teams, berichten){
     const verlopen = b.zichtbaarTot != null && b.zichtbaarTot < nu;
     return `
       <div class="training-rij ${verlopen ? 'verlopen' : ''}">
-        <div class="ico">📣</div>
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 9.8 16.4 5.6v12.8L5.4 14.2z"/><path d="M5.4 9.8H3.8v4.4h1.6"/><path d="M9.2 14.8v4.4"/></svg></div>
         <div class="t"><div class="t-titel">${esc(b.titel)}</div>
-          <div class="t-meta">${esc(teamNamen)} · ${verlopen ? 'verlopen' : (b.zichtbaarTot == null ? 'blijft staan' : 'actief')}</div></div>
+          <div class="t-meta">${esc(teamNamen)}<span class="sep" aria-hidden="true"></span>${verlopen ? 'verlopen' : (b.zichtbaarTot == null ? 'blijft staan' : 'actief')}</div></div>
         <div class="acties">
-          <button data-bewerk-bericht="${b.id}" title="Aanpassen">✏️</button>
-          <button data-verwijder-bericht="${b.id}" title="Verwijderen" style="color:var(--uit)">🗑</button>
+          <button data-bewerk-bericht="${b.id}" title="Aanpassen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>
+          <button data-verwijder-bericht="${b.id}" title="Verwijderen" style="color:var(--uit)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>
       </div>`;
   }).join('')
-  : `<div class="kaart leeg">Nog geen berichten.<br>Plaats een bericht voor één of meer teams — coaches zien het als een balk bij het openen van hun team.</div>`;
+  : `<div class="kaart leeg">Nog geen berichten.<br>Plaats een bericht voor één of meer teams, coaches zien het als een balk bij het openen van hun team.</div>`;
 
   return `
-    <button class="upload-knop" id="nieuwBericht">📣 Nieuw bericht voor één of meer teams</button>
+    <button class="upload-knop" id="nieuwBericht"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 9.8 16.4 5.6v12.8L5.4 14.2z"/><path d="M5.4 9.8H3.8v4.4h1.6"/><path d="M9.2 14.8v4.4"/></svg> Nieuw bericht voor één of meer teams</button>
     ${lijst}`;
 }
 
@@ -1894,8 +1894,8 @@ function modalNieuwBericht(teams, bestaand = null){
     <div class="veldgroep"><label>Bericht</label>
       <textarea class="invoer" id="mBerBody" rows="3" placeholder="Wat moeten de coaches weten?">${esc(bestaand?.body || '')}</textarea></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mBerTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Geen teams in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mBerTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p class="u-t-sm u-zacht">Geen teams in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mBerAlle">Alle teams</button>
         <button class="knop licht klein" id="mBerGeen">Geen</button>
       </div>
@@ -1965,24 +1965,24 @@ function htmlClubInstel(teams = [], syncStatus = {}){
     inhoud = `
       <div class="cb-kaart">
         <div class="cb-kaart-kop">${ico('planning-calendar',18)}<b>Seizoen</b></div>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="flex:1">
-            <div style="font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:2px">Huidig seizoen</div>
-            <div class="cond" style="font-weight:700;font-size:calc(24px * var(--fs))">${esc(huidigSeizoen)}</div>
+        <div style="display:flex;align-items:center;gap:var(--space-sm)">
+          <div class="u-flex-1">
+            <div class="u-t-2xs u-zacht u-mb-3xs">Huidig seizoen</div>
+            <div class="cond u-fw-7 u-t-3xl">${esc(huidigSeizoen)}</div>
           </div>
           <button class="knop fluo klein" id="btnNieuwSeizoen">Nieuw seizoen →</button>
         </div>
         <p class="cb-uitleg">Nieuwe wedstrijden, trainingen, beoordelingen en teamevaluaties van alle teams tellen vanaf de start mee voor het nieuwe seizoen. Oude data blijft bewaard en is terug te zien via het seizoenfilter in de statistieken.</p>
-        <button class="cb-inklap" id="migreerSeizoen">🗂️ Oude data zonder seizoen labelen <span>›</span></button>
+        <button class="cb-inklap" id="migreerSeizoen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.4" y="4.6" width="17.2" height="4.4" rx="1.8"/><path d="M5.2 9v10.4h13.6V9"/><path d="M10 13h4"/></svg> Oude data zonder seizoen labelen <span>›</span></button>
       </div>
       <div class="cb-kaart">
         <div class="cb-kaart-kop">${ico('navigation-settings',18)}<b>Weergave &amp; thema</b></div>
-        <p class="cb-uitleg" style="margin:0 0 10px">Het thema voor de hele club. Een vaste stand gaat vóór de persoonlijke keuze van een coach.</p>
+        <p class="cb-uitleg" style="margin:0 0 var(--space-sm)">Het thema voor de hele club. Een vaste stand gaat vóór de persoonlijke keuze van een coach.</p>
         <div class="thema-modus" id="clubThemaModus">
-          ${opt('donker','🌙 Alleen donker','Iedereen zit vast op donker. Coaches zien geen keuze.')}
-          ${opt('licht','☀️ Alleen licht','Iedereen zit vast op licht. Coaches zien geen keuze.')}
-          ${opt('lichtDefault','☀️ Standaard licht','Nieuwe coaches beginnen in het licht, maar kunnen zelf naar donker wisselen. Wie al bewust donker koos, houdt dat.')}
-          ${opt('coachKiest','⚙️ Coach mag kiezen','Elke coach kiest zelf, opgeslagen op zijn eigen toestel. Zonder keuze volgt de app het toestel.')}
+          ${opt('donker','Alleen donker','Iedereen zit vast op donker. Coaches zien geen keuze.')}
+          ${opt('licht','Alleen licht','Iedereen zit vast op licht. Coaches zien geen keuze.')}
+          ${opt('lichtDefault','Standaard licht','Nieuwe coaches beginnen in het licht, maar kunnen zelf naar donker wisselen. Wie al bewust donker koos, houdt dat.')}
+          ${opt('coachKiest','Coach mag kiezen','Elke coach kiest zelf, opgeslagen op zijn eigen toestel. Zonder keuze volgt de app het toestel.')}
         </div>
       </div>`;
   }
@@ -2002,11 +2002,11 @@ function htmlClubInstel(teams = [], syncStatus = {}){
       const st = syncStatus[t.id] || {};
       let badge, onder = '';
       if (!gekoppeld) badge = `<span class="tok-status leeg">Wacht op koppeling</span>`;
-      else if (st.laatsteFout){ badge = `<span class="tok-status leeg">Fout</span>`; onder = `<div class="tok-laatste" style="color:var(--uit)">Laatste sync mislukt: ${esc(st.laatsteFout)}</div>`; }
+      else if (st.laatsteFout){ badge = `<span class="tok-status leeg">Fout</span>`; onder = `<div class="tok-laatste u-c-warn">Laatste sync mislukt: ${esc(st.laatsteFout)}</div>`; }
       else if (st.gematcht){
         badge = `<span class="tok-status gekoppeld">Gematcht</span>`;
         const aantal = st.laatsteAantal != null ? `${st.laatsteAantal} wedstrijd${st.laatsteAantal===1?'':'en'}` : '';
-        onder = `<div class="tok-laatste">Laatste sync: <b>${esc(syncTijd(st.laatsteSync))}</b>${aantal?' · '+aantal:''}</div>`;
+        onder = `<div class="tok-laatste">Laatste sync: <b>${esc(syncTijd(st.laatsteSync))}</b>${aantal?'<span class="sep" aria-hidden="true"></span>'+aantal:''}</div>`;
       }
       else if (st.laatsteSync){ badge = `<span class="tok-status leeg">Niet gevonden</span>`; onder = `<div class="tok-laatste">${t.sportlinkNaam ? `Sportlink-team “${esc(t.sportlinkNaam)}”` : `Teamnaam “${esc(t.naam)}”`} niet in Sportlink gevonden. <button class="cb-link" data-sl-koppel="${esc(t.id)}">Koppelen ›</button></div>`; }
       else badge = `<span class="tok-status leeg">Nog niet gesynct</span>`;
@@ -2023,7 +2023,7 @@ function htmlClubInstel(teams = [], syncStatus = {}){
           <input type="text" id="clientIdInput" placeholder="Bijv. oEGJY6X0n9" value="${esc(clientId)}" autocomplete="off" spellcheck="false">
           <button id="clientIdOpslaan">Opslaan</button>
         </div>
-        ${gekoppeld ? `<p style="font-size:calc(11.5px * var(--fs));color:var(--in);margin:8px 0 0">✓ Gekoppeld met Client ID <code style="font-size:calc(11px * var(--fs))">${esc(clientId)}</code></p>` : ''}
+        ${gekoppeld ? `<p class="u-t-xs" style="color:var(--in);margin:var(--space-xs) 0 0">✓ Gekoppeld met Client ID <code class="u-t-2xs">${esc(clientId)}</code></p>` : ''}
         <p class="cb-uitleg">De Client ID van jullie Sportlink Club.Dataservice. Daarmee haalt Cluppie het programma, de uitslagen en de standen op voor alle teams. Teams koppelen automatisch op naam; heet een team anders, koppel het dan in Teambeheer.</p>
       </div>`;
     inhoud = gekoppeld ? `
@@ -2032,9 +2032,9 @@ function htmlClubInstel(teams = [], syncStatus = {}){
         <div class="${aandacht.length ? 'let' : ''}"><b>${aandacht.length}</b><span>aandacht nodig</span></div>
         <div><b>${laatste ? new Date(laatste).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}) : '—'}</b><span>laatste sync</span></div>
       </div>
-      ${aandacht.length ? `<div class="sectie-kop" style="margin-top:4px">Aandacht nodig</div><div class="kaart">${aandacht.map(rij).join('')}</div>` : ''}
-      <button class="knop vol" id="syncNu">🔄 Sync nu alle teams</button>
-      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);text-align:center;margin:8px 0 14px">De sync draait sowieso elke nacht automatisch.</p>
+      ${aandacht.length ? `<div class="sectie-kop u-mt-2xs">Aandacht nodig</div><div class="kaart">${aandacht.map(rij).join('')}</div>` : ''}
+      <button class="knop vol" id="syncNu"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Sync nu alle teams</button>
+      <p class="u-t-xs u-zacht u-tc" style="margin:var(--space-xs) 0 var(--space-md)">De sync draait sowieso elke nacht automatisch.</p>
       ${goed.length ? `<button class="cb-inklap" id="slAlles">Alle ${goed.length} gematchte teams <span>${S._clubSlAlles ? '▴' : '▾'}</span></button>
         ${S._clubSlAlles ? `<div class="kaart">${goed.map(rij).join('')}</div>` : ''}` : ''}
       ${koppelKaart}` : `${koppelKaart}
@@ -2049,17 +2049,17 @@ function htmlClubInstel(teams = [], syncStatus = {}){
         <div class="cb-kaart-kop">${ico('admin-admin',18)}<b>Clubbeheerders</b><span class="cb-telling">${admins.length}</span></div>
         ${admins.length ? admins.map(([uid, a]) => { const n = String(a?.naam || 'Beheerder').split('@')[0];
           return `<div class="cb-persoon"><div class="cb-av">${esc(n.split(/\s+/).map(w => w[0]).slice(0,2).join('').toUpperCase())}</div><div class="cb-persoon-n">${esc(n)}</div>${uid === S.user?.uid ? '<span class="cb-rol admin">Jij</span>' : ''}</div>`; }).join('')
-          : '<p class="cb-uitleg" style="margin:0">—</p>'}
+          : '<p class="cb-uitleg u-m-0">—</p>'}
       </div>
       <div class="cb-kaart">
         <div class="cb-kaart-kop">${ico('team-add',18)}<b>Mede-beheerder uitnodigen</b></div>
-        <p class="cb-uitleg" style="margin:0 0 8px">Wie deze link opent, wordt beheerder van de hele club. Deel hem alleen met mede-bestuurders.</p>
+        <p class="cb-uitleg" style="margin:0 0 var(--space-xs)">Wie deze link opent, wordt beheerder van de hele club. Deel hem alleen met mede-bestuurders.</p>
         <div class="uitnodig-link" id="clubLink">${esc(link)}</div>
-        <button class="knop licht vol klein" id="kopieerClubLink" style="margin-top:8px">${ico('action-copy',15)} Link kopiëren</button>
+        <button class="knop licht vol klein u-mt-xs" id="kopieerClubLink" >${ico('action-copy',15)} Link kopiëren</button>
       </div>
       <div class="cb-kaart cb-gevaar">
         <div class="cb-kaart-kop">${ico('action-warning',18)}<b>Gevarenzone</b></div>
-        <p class="cb-uitleg" style="margin:0 0 10px">Club opheffen ontkoppelt alle teams van de club. Teams en trainingen zelf blijven bestaan.</p>
+        <p class="cb-uitleg" style="margin:0 0 var(--space-sm)">Club opheffen ontkoppelt alle teams van de club. Teams en trainingen zelf blijven bestaan.</p>
         <button class="knop gevaar vol" id="verwijderClub">Club opheffen</button>
       </div>`;
   }
@@ -2085,10 +2085,10 @@ function modalNieuwSeizoen(){
   const voorstel = volgendSeizoen(huidig);
   openModal(`
     <h2>Nieuw seizoen starten</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px">Je huidige seizoen is <b>${esc(huidig)}</b>. Vanaf bevestigen loggen nieuwe wedstrijden, trainingen, beoordelingen en teamevaluaties van alle teams onder het nieuwe seizoen. Oude data blijft gewoon bewaard en is terug te zien via het seizoenfilter in de statistieken.</p>
+    <p class="u-t-sm u-zacht u-mb-md">Je huidige seizoen is <b>${esc(huidig)}</b>. Vanaf bevestigen loggen nieuwe wedstrijden, trainingen, beoordelingen en teamevaluaties van alle teams onder het nieuwe seizoen. Oude data blijft gewoon bewaard en is terug te zien via het seizoenfilter in de statistieken.</p>
     <div class="veldgroep"><label>Nieuw seizoen</label>
       <input class="invoer" id="mSeizoenNaam" value="${esc(voorstel)}" autocomplete="off" style="text-align:center;font-weight:700"></div>
-    <div class="rij" style="margin-top:6px">
+    <div class="rij u-mt-xs">
       <button class="knop licht vol" id="mSeizoenAnnuleer">Annuleren</button>
       <button class="knop vol" id="mSeizoenOk">Bevestigen</button>
     </div>`);
@@ -2141,7 +2141,7 @@ async function migreerSeizoenData(teams){
   } catch(e){
     meld('Migreren mislukt: ' + (e.code || e.message));
   } finally {
-    if (knop){ knop.disabled = false; knop.textContent = origTekst || '🗂️ Migreer bestaande data naar dit seizoen'; }
+    if (knop){ knop.disabled = false; knop.textContent = origTekst || 'Migreer bestaande data naar dit seizoen'; }
   }
 }
 
@@ -2153,12 +2153,12 @@ function modalClubAflasten(teams){
   const vandaag = new Date().toISOString().slice(0,10);
   openModal(`
     <h2>Training afgelasten</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px">Dit last de training af voor <b>alle ${teams.length} teams</b> van de club. Elke trainer kan het bericht daarna doorsturen in zijn eigen WhatsApp-groep.</p>
+    <p class="u-t-sm u-zacht u-mb-md">Dit last de training af voor <b>alle ${teams.length} teams</b> van de club. Elke trainer kan het bericht daarna doorsturen in zijn eigen WhatsApp-groep.</p>
     <div class="veldgroep"><label>Welke dag?</label>
       <input class="invoer" id="mAflasDatum" type="date" value="${vandaag}" min="${vandaag}"></div>
     <div class="veldgroep"><label>Reden (optioneel)</label>
       <input class="invoer" id="mAflasReden" placeholder="Bijv. slecht weer, velden onbespeelbaar" autocomplete="off" maxlength="140"></div>
-    <div class="rij" style="margin-top:6px">
+    <div class="rij u-mt-xs">
       <button class="knop licht vol" id="mAflasAnnuleer">Annuleren</button>
       <button class="knop vol" id="mAflasOk">Aflasten voor hele club</button>
     </div>`);
@@ -2280,18 +2280,18 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-tnotities]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.tnotities);
       if (!t) return;
-      const { openBeheerNotities } = await import('./training-notities-beheer.js?v=20261103e');
+      const { openBeheerNotities } = await import('./training-notities-beheer.js?v=20261106h');
       openBeheerNotities({ trainingId: t.id, titel: t.titel || t.bestandsnaam || 'Training', oefeningen: t.oefeningen || [] });
     });
     v.querySelectorAll('[data-ttekst]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261103e');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106h');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
-        meta: [t.week, datum].filter(Boolean).join(' · '),
+        meta: [t.week, datum].filter(Boolean).join(', '),
         oefeningen: t.oefeningen || [],
         paginas: t.paginas || [],
         onOpgeslagen: (nieuw) => { t.oefeningen = nieuw; },
@@ -2303,7 +2303,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     });
     v.querySelectorAll('[data-tshare]').forEach(b => b.onclick = () => {
       const t = trainingen.find(x => x.id === b.dataset.tshare);
-      const tekst = `📄 Training ${t.titel || ''}\n${t.week || ''}\n${t.url}`;
+      const tekst = `Training ${t.titel || ''}\n${t.week || ''}\n${t.url}`;
       window.open('https://wa.me/?text=' + encodeURIComponent(tekst), '_blank');
     });
     v.querySelectorAll('[data-tweg]').forEach(b => b.onclick = async () => {
@@ -2483,7 +2483,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
       try {
         await updateDoc(doc(db,'clubs',S.clubId), { sportlinkClientId: waarde });
         S.club.sportlinkClientId = waarde;
-        meld('Client ID opgeslagen — klik op “Sync nu” om op te halen');
+        meld('Client ID opgeslagen: klik op “Sync nu” om op te halen');
         renderClub();
       } catch(e){
         clientIdBtn.disabled = false; clientIdBtn.textContent = 'Opslaan';
@@ -2493,7 +2493,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     // handmatige sync nu
     const syncBtn = v.querySelector('#syncNu');
     if (syncBtn) syncBtn.onclick = async () => {
-      syncBtn.disabled = true; const orig = syncBtn.textContent; syncBtn.textContent = '🔄 Bezig met synchroniseren...';
+      syncBtn.disabled = true; const orig = syncBtn.textContent; syncBtn.textContent = 'Bezig met synchroniseren...';
       try {
         const fn = httpsCallable(functions, 'syncNu');
         const res = await fn({ clubId: S.clubId });
@@ -2519,13 +2519,13 @@ export function modalUitnodig(team){
   const link = location.origin + location.pathname + '?team=' + team.code;
   openModal(`
     <h2>Coach uitnodigen voor ${esc(team.naam)}</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Stuur deze persoonlijke link naar de coach. Hij of zij klikt erop, logt in met e-mail of Google en zit direct in dit team.</p>
+    <p class="u-t-md u-zacht u-mb-sm">Stuur deze persoonlijke link naar de coach. Hij of zij klikt erop, logt in met e-mail of Google en zit direct in dit team.</p>
     <div class="uitnodig-link" id="uitnodigLink">${esc(link)}</div>
-    <div class="rij" style="margin-top:12px">
+    <div class="rij u-mt-sm">
       <button class="knop vol" id="mUitnodigKopieer">Link kopiëren</button>
-      <button class="knop fluo vol" id="mUitnodigWa">📲 WhatsApp</button>
+      <button class="knop fluo vol" id="mUitnodigWa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A7.5 7.5 0 1 1 8.1 18.7z"/><path d="M9 9.2c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2 0 .4-.1.5l-.5.6c-.1.1-.2.3-.1.5a5 5 0 0 0 2.4 2.2c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.3.3.3.5v.5c0 .5-.4.9-.9 1a3 3 0 0 1-1.5 0 8.4 8.4 0 0 1-5.2-5c-.2-.6-.4-1.3-.3-1.9z"/></svg> WhatsApp</button>
     </div>
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:12px">Of geef de teamcode mondeling door: <b>${esc(team.code)}</b></p>`);
+    <p class="u-t-xs u-zacht u-mt-sm">Of geef de teamcode mondeling door: <b>${esc(team.code)}</b></p>`);
   $('#mUitnodigKopieer').onclick = async () => {
     try { await navigator.clipboard.writeText(link); meld('Link gekopieerd'); }
     catch { meld('Link: ' + link); }
@@ -2539,23 +2539,23 @@ export function modalUitnodig(team){
 function modalAlleLinks(teams){
   const link = t => location.origin + location.pathname + '?team=' + t.code;
   openModal(`
-    <h2>🔗 Alle uitnodigingslinks</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px">Per team kun je hier snel de uitnodiging delen. Aantal gekoppelde coaches staat erbij.</p>
-    <div style="max-height:60vh;overflow-y:auto;margin-bottom:14px">
+    <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="17.8" cy="6" r="2.6"/><circle cx="6.2" cy="12" r="2.6"/><circle cx="17.8" cy="18" r="2.6"/><path d="M15.4 7.2 8.6 10.8"/><path d="M8.6 13.2 15.4 16.8"/></svg> Alle uitnodigingslinks</h2>
+    <p class="u-t-sm u-zacht u-mb-md">Per team kun je hier snel de uitnodiging delen. Aantal gekoppelde coaches staat erbij.</p>
+    <div class="u-mb-md" style="max-height:60vh;overflow-y:auto">
       ${teams.map(t => `
         <div class="link-rij">
           <div class="link-rij-kop">
             <div><div class="titel">${esc(t.naam)}</div>
-              <div class="meta">${Object.keys(t.leden||{}).length} coach(es) · code ${esc(t.code)}</div></div>
+              <div class="meta">${Object.keys(t.leden||{}).length} coach(es)<span class="sep" aria-hidden="true"></span>code ${esc(t.code)}</div></div>
           </div>
           <div class="uitnodig-link">${esc(link(t))}</div>
-          <div class="link-actie" style="margin-top:8px">
+          <div class="link-actie u-mt-xs">
             <button data-kopieer="${esc(link(t))}">Kopieer</button>
-            <button class="wa" data-wa="${t.id}">📲 WhatsApp</button>
+            <button class="wa" data-wa="${t.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A7.5 7.5 0 1 1 8.1 18.7z"/><path d="M9 9.2c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2 0 .4-.1.5l-.5.6c-.1.1-.2.3-.1.5a5 5 0 0 0 2.4 2.2c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.3.3.3.5v.5c0 .5-.4.9-.9 1a3 3 0 0 1-1.5 0 8.4 8.4 0 0 1-5.2-5c-.2-.6-.4-1.3-.3-1.9z"/></svg> WhatsApp</button>
           </div>
         </div>`).join('')}
     </div>
-    <button class="knop vol" id="mLinksKopieerAlle">📋 Kopieer alles als lijst</button>`);
+    <button class="knop vol" id="mLinksKopieerAlle"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg> Kopieer alles als lijst</button>`);
   $$('#modalInhoud [data-kopieer]').forEach(b => b.onclick = async () => {
     try { await navigator.clipboard.writeText(b.dataset.kopieer); meld('Link gekopieerd'); }
     catch { meld('Kon niet kopiëren'); }
@@ -2642,25 +2642,25 @@ async function parseTeamsUitPDF(file){
 
 function modalImporteerPDF(){
   openModal(`
-    <h2>📥 Teams importeren uit PDF</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Upload een PDF met de teamindeling. De app leest de teamnamen en spelersnamen uit, daarna kun je alles controleren voordat je de teams aanmaakt.</p>
-    <label class="upload-knop" for="mPDFFile">📄 Kies PDF-bestand
+    <h2><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Teams importeren uit PDF</h2>
+    <p class="u-t-sm u-zacht u-mb-sm">Upload een PDF met de teamindeling. De app leest de teamnamen en spelersnamen uit, daarna kun je alles controleren voordat je de teams aanmaakt.</p>
+    <label class="upload-knop" for="mPDFFile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.6 3.4h7L18.6 8.4v12.2h-12z"/><path d="M13.6 3.4V8.4h5"/></svg> Kies PDF-bestand
       <input type="file" id="mPDFFile" accept="application/pdf" style="display:none"></label>
-    <div id="mPDFStatus" style="font-size:calc(13px * var(--fs));color:var(--ink-2);text-align:center"></div>`);
+    <div id="mPDFStatus" class="u-t-sm u-zacht u-tc"></div>`);
   $('#mPDFFile').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
-    $('#mPDFStatus').textContent = '⏳ PDF wordt gelezen, even geduld...';
+    $('#mPDFStatus').textContent = 'PDF wordt gelezen, even geduld...';
     try {
       const teams = await parseTeamsUitPDF(file);
       if (!teams.length){
-        $('#mPDFStatus').textContent = '❌ Geen teams gevonden in deze PDF. Controleer of de teamnamen in de vorm JO11-1, MO13-1 e.d. erin staan.';
+        $('#mPDFStatus').textContent = 'Geen teams gevonden in deze PDF. Controleer of de teamnamen in de vorm JO11-1, MO13-1 e.d. erin staan.';
         return;
       }
       sluitModal();
       modalImportPreview(teams);
     } catch (err) {
       console.error(err);
-      $('#mPDFStatus').textContent = '❌ Kon de PDF niet lezen: ' + err.message;
+      $('#mPDFStatus').textContent = 'Kon de PDF niet lezen: ' + err.message;
     }
   };
 }
@@ -2681,7 +2681,7 @@ function modalImportPreview(geparseerd){
           </div>
           <div class="preview-spelers">
             ${t.spelers.map((s,si) => `
-              <span class="speler ${tellingen[s.toLowerCase()]>1?'dubbel':''}" title="${tellingen[s.toLowerCase()]>1?'Dubbele voornaam — pas aan om uniek te maken':''}">
+              <span class="speler ${tellingen[s.toLowerCase()]>1?'dubbel':''}" title="${tellingen[s.toLowerCase()]>1?'Dubbele voornaam, pas aan om uniek te maken':''}">
                 <input data-ti="${ti}" data-si="${si}" value="${esc(s)}" size="${Math.max(s.length, 5)}">
                 <button data-weg="${ti}-${si}" title="Verwijderen">✕</button>
               </span>`).join('')}
@@ -2692,7 +2692,7 @@ function modalImportPreview(geparseerd){
     $('#mPrevInhoud').innerHTML = blokjes;
     const aantalAan = teams.filter(t => t.aan).length;
     const aantalSp  = teams.filter(t => t.aan).reduce((a,t) => a + t.spelers.length, 0);
-    $('#mPrevSamenvat').textContent = `${aantalAan} team${aantalAan===1?'':'s'} · ${aantalSp} speler${aantalSp===1?'':'s'} worden aangemaakt`;
+    $('#mPrevSamenvat').textContent = `${aantalAan} team${aantalAan===1?'':'s'}, ${aantalSp} speler${aantalSp===1?'':'s'} worden aangemaakt`;
     koppelPreview();
   };
   const koppelPreview = () => {
@@ -2713,11 +2713,11 @@ function modalImportPreview(geparseerd){
   };
   openModal(`
     <h2>Controleren & aanpassen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Vink teams uit die je niet wilt aanmaken, klik op een naam om aan te passen, en let op de <span style="color:var(--uit);font-weight:600">rood gekleurde</span> dubbele voornamen.</p>
-    <div id="mPrevSamenvat" style="font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--grass);text-align:center;margin:10px 0"></div>
-    <div id="mPrevInhoud" style="max-height:50vh;overflow-y:auto;margin-bottom:14px"></div>
+    <p class="u-t-sm u-zacht">Vink teams uit die je niet wilt aanmaken, klik op een naam om aan te passen, en let op de <span class="u-c-warn u-fw-6">rood gekleurde</span> dubbele voornamen.</p>
+    <div id="mPrevSamenvat" class="u-t-sm u-fw-6 u-c-accent u-tc" style="margin:var(--space-sm) 0"></div>
+    <div id="mPrevInhoud" class="u-mb-md" style="max-height:50vh;overflow-y:auto"></div>
     <button class="knop vol" id="mPrevOk">✓ Teams aanmaken</button>
-    <button class="knop licht vol" id="mPrevAnnuleer" style="margin-top:8px">Annuleren</button>`);
+    <button class="knop licht vol u-mt-xs" id="mPrevAnnuleer" >Annuleren</button>`);
   render();
   $('#mPrevAnnuleer').onclick = sluitModal;
   $('#mPrevOk').onclick = async () => {
@@ -2784,7 +2784,7 @@ function teamsTekstVan(ids, teams){
     const gi = (x.teams || []).filter(id => teams.some(t => t.id === id));
     return gi.length && gi.length === set.size && gi.every(id => set.has(id));
   });
-  if (g) return `${g.naam || ('Groep ' + g.id)} · ${ids.length} team${ids.length === 1 ? '' : 's'}`;
+  if (g) return `${g.naam || ('Groep ' + g.id)}, ${ids.length} team${ids.length === 1 ? '' : 's'}`;
   if (ids.length <= 3) return ids.map(id => teams.find(t => t.id === id)?.naam || '?').join(', ');
   return `${ids.length} teams`;
 }
@@ -2823,9 +2823,9 @@ function modalMeerdereTrainingen(files, teams){
     // terug op het één-voor-één verwerken.
     openModal(`
       <h2>${files.length} trainingen uploaden</h2>
-      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:14px">Je koos ${files.length} bestanden. Stel eerst trainingsgroepen in, dan kun je ze in één keer per groep verdelen. Zonder groepen loop je ze los langs.</p>
+      <p class="u-t-sm u-zacht u-lh-ruim u-mb-md">Je koos ${files.length} bestanden. Stel eerst trainingsgroepen in, dan kun je ze in één keer per groep verdelen. Zonder groepen loop je ze los langs.</p>
       <button class="knop vol" id="mmNaarGroepen">Trainingsgroepen instellen</button>
-      <button class="knop licht" id="mmLosLangs" style="margin-top:8px">Toch één voor één (met teams aanvinken)</button>`);
+      <button class="knop licht u-mt-xs" id="mmLosLangs" >Toch één voor één (met teams aanvinken)</button>`);
     $('#mmNaarGroepen').onclick = () => { sluitModal(); modalTrainingsGroepen(teams); };
     $('#mmLosLangs').onclick = () => verwerkRij(0, /*zonderGroep*/true);
     return;
@@ -2834,14 +2834,14 @@ function modalMeerdereTrainingen(files, teams){
   const teken = () => {
     const rijen = files.map((f,i) => {
       const opties = `<option value="">—</option>` + groepen.map(g =>
-        `<option value="${esc(g.id)}" ${keuze[i]===g.id?'selected':''}>${esc(g.id)} · ${esc(g.naam || ('Groep '+g.id))}</option>`).join('');
+        `<option value="${esc(g.id)}" ${keuze[i]===g.id?'selected':''}>${esc(g.id)}<span class="sep" aria-hidden="true"></span>${esc(g.naam || ('Groep '+g.id))}</option>`).join('');
       const sub = keuze[i] ? `herkend als groep ${esc(keuze[i])}` : 'kies een groep';
       return `
         <div class="mm-rij">
           <div class="mm-ico">PDF</div>
           <div class="mm-info">
             <div class="mm-naam">${esc(f.name)}</div>
-            <div class="mm-sub">${(f.size/1024).toFixed(0)} KB · ${sub}</div>
+            <div class="mm-sub">${(f.size/1024).toFixed(0)} KB<span class="sep" aria-hidden="true"></span>${sub}</div>
           </div>
           <select class="mm-select" data-i="${i}">${opties}</select>
         </div>`;
@@ -2850,12 +2850,12 @@ function modalMeerdereTrainingen(files, teams){
     const teamsTotaal = new Set();
     keuze.forEach(k => { if (k) (groepen.find(g=>g.id===k)?.teams||[]).forEach(t => teamsTotaal.add(t)); });
     const samenv = zonder
-      ? `<div class="mm-samenv warn">⚠️ ${zonder} bestand${zonder===1?'':'en'} ${zonder===1?'heeft':'hebben'} nog geen groep</div>`
+      ? `<div class="mm-samenv warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> ${zonder} bestand${zonder===1?'':'en'} ${zonder===1?'heeft':'hebben'} nog geen groep</div>`
       : `<div class="mm-samenv ok">✓ ${files.length} trainingen → ${teamsTotaal.size} teams in totaal</div>`;
 
     openModal(`
       <h2>${files.length} trainingen verdelen</h2>
-      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:12px">Kies per bestand de trainingsgroep. De app verwerkt ze daarna één voor één — je ziet van elke training nog de AI-preview.</p>
+      <p class="u-t-sm u-zacht u-lh-ruim u-mb-sm">Kies per bestand de trainingsgroep. De app verwerkt ze daarna één voor één, je ziet van elke training nog de AI-preview.</p>
       <div class="veldgroep"><label>Week / periode (voor alle)</label>
         <input class="invoer" id="mmWeek" value="Week ${weekNr}" autocomplete="off"></div>
       <div class="mm-lijst">${rijen}</div>
@@ -2865,7 +2865,7 @@ function modalMeerdereTrainingen(files, teams){
       <p class="bp-hint">Leeg laten = meteen zichtbaar. Tot die datum zie jij hem wel in het beheer, coaches nog niet.</p></div>
       ${htmlModelKeuze('mmModel', mmModel)}
       <button class="knop vol" id="mmStart" ${zonder?'disabled':''}>Verwerken en verdelen</button>
-      <button class="link" id="mmGroepen" style="display:block;margin:10px auto 0">⚙️ Groepen beheren</button>`);
+      <button class="link" id="mmGroepen" style="display:block;margin:var(--space-sm) auto 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Groepen beheren</button>`);
 
     $$('.mm-select').forEach(s => s.onchange = () => { keuze[+s.dataset.i] = s.value; teken(); });
     $('#mmModel').onchange = e => { mmModel = e.target.value; };
@@ -2885,9 +2885,9 @@ function modalMeerdereTrainingen(files, teams){
       });
       if (!items.length) return;
       $('#mmStart').disabled = true;
-      await voegToeAanWachtrij({ naam: `${items.length} training${items.length===1?'':'en'} · ${wk}`, teamsTxt: 'per trainingsgroep', items });
+      await voegToeAanWachtrij({ naam: `${items.length} training${items.length===1?'':'en'}, ${wk}`, teamsTxt: 'per trainingsgroep', items });
       sluitModal();
-      meld(`${items.length} training${items.length===1?'':'en'} in de wachtrij · voortgang bovenaan Trainingen`);
+      meld(`${items.length} training${items.length===1?'':'en'} in de wachtrij, voortgang bovenaan Trainingen`);
       renderClub();
     };
   };
@@ -2899,7 +2899,7 @@ function modalMeerdereTrainingen(files, teams){
     if (vasteWeek === null) vasteWeek = week();   // vastleggen vóór de modal wisselt
     if (i >= files.length){
       sluitModal(); renderClub();
-      meld(`${files.length} training${files.length===1?'':'en'} in de wachtrij · voortgang bovenaan Trainingen`);
+      meld(`${files.length} training${files.length===1?'':'en'} in de wachtrij, voortgang bovenaan Trainingen`);
       return;
     }
     const f = files[i];
@@ -2918,7 +2918,7 @@ function modalMeerdereTrainingen(files, teams){
       const g = groepen.find(x => x.id === keuze[i]);
       meta.teams = (g?.teams || []).filter(id => teams.some(t => t.id === id));
       if (!meta.teams.length){
-        meld(`Groep ${keuze[i]} heeft geen teams — bestand overgeslagen`);
+        meld(`Groep ${keuze[i]} heeft geen teams, bestand overgeslagen`);
         return volgende();
       }
       startTrainingVerwerking(f, meta);
@@ -2937,7 +2937,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     const lijst = b.teams;
     if (!lijst.length) return '';
     return `
-      <div style="font-size:calc(11.5px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin:10px 0 6px">${esc(b.naam)}</div>
+      <div class="u-t-xs u-fw-7 u-zacht" style="letter-spacing:.5px;text-transform:uppercase;margin:var(--space-sm) 0 var(--space-xs)">${esc(b.naam)}</div>
       <div class="team-chip-kies">
         ${lijst.map(t => {
           const aan = voorBouw ? b.id === voorBouw : false;
@@ -2946,13 +2946,13 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
       </div>`;
   }).join('');
   const batchBanner = batchMeta?.batchInfo
-    ? `<div class="mm-samenv ok" style="margin:-2px 0 12px">Bestand ${batchMeta.batchInfo.huidig} van ${batchMeta.batchInfo.totaal}</div>` : '';
+    ? `<div class="mm-samenv ok" style="margin:-2px 0 var(--space-sm)">Bestand ${batchMeta.batchInfo.huidig} van ${batchMeta.batchInfo.totaal}</div>` : '';
   const startTitel = batchMeta?.titel || `Week ${weekNr} - training 1`;
   const startWeek  = batchMeta?.week  || `Week ${weekNr}`;
   openModal(`
     <h2>Training uploaden</h2>
     ${batchBanner}
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mTrTitel" value="${esc(startTitel)}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
@@ -2968,17 +2968,17 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
         <option value="6">Zaterdag</option>
         <option value="7">Zondag</option>
       </select>
-      <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:6px;line-height:1.4">Standaard neemt Cluppie de trainingsdagen van elk team (training 1 op de eerste dag, enz.). Kies je hier een vaste dag, dan geldt die voor álle teams die deze oefenstof krijgen.</p>
+      <p class="u-t-xs u-zacht u-mt-xs u-lh-ruim">Standaard neemt Cluppie de trainingsdagen van elk team (training 1 op de eerste dag, enz.). Kies je hier een vaste dag, dan geldt die voor álle teams die deze oefenstof krijgen.</p>
     </div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      ${groepen.length ? `<div class="tr-groep-uitleg">Tik op een groep om alle teams in één keer te kiezen — of vink hieronder los aan.</div>${groepChipsHtml(groepen, teams)}` : ''}
+      ${groepen.length ? `<div class="tr-groep-uitleg">Tik op een groep om alle teams in één keer te kiezen, of vink hieronder los aan.</div>${groepChipsHtml(groepen, teams)}` : ''}
       <div id="mTrTeams">
-        ${teams.length ? groepHtml : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}
+        ${teams.length ? groepHtml : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}
       </div>
-      <div class="rij" style="margin-top:8px">
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mTrAlle">Alle teams</button>
         <button class="knop licht klein" id="mTrGeen">Geen</button>
-        ${groepen.length ? '<button class="knop licht klein" id="mTrGroepen">⚙️ Groepen beheren</button>' : ''}
+        ${groepen.length ? '<button class="knop licht klein" id="mTrGroepen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Groepen beheren</button>' : ''}
       </div>
     </div>
     <div class="veldgroep"><label for="mTrZicht">Zichtbaar voor het team vanaf</label>
@@ -3021,7 +3021,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     }] });
     if (batchMeta?.onKlaar){ batchMeta.onKlaar(); return; }   // doorrollen in batch (één voor één)
     sluitModal();
-    meld('Training in de wachtrij · voortgang bovenaan Trainingen');
+    meld('Training in de wachtrij, voortgang bovenaan Trainingen');
     renderClub();
   };
 }
@@ -3071,7 +3071,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20261103e');
+    const ai = await import('./training-ai.js?v=20261106h');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -3101,7 +3101,7 @@ async function startTrainingVerwerking(file, meta){
     toonPreview(file, meta, { mapId, pdfPath, pdfUrl, diagramUrls, oefeningen, doelen, score, paginas });
   } catch(e){
     console.error('[training-ai] verwerking mislukt', e);
-    meld('Verwerking mislukt — staat Firebase Storage aan?');
+    meld('Verwerking mislukt: staat Firebase Storage aan?');
     sluitModal();
   }
 }
@@ -3120,7 +3120,7 @@ function toonPreview(file, meta, ctx){
     `<span class="tr-doel-x" title="Verwijderen">✕</span></div>`;
   const doelenBlok = `
     <div class="tr-doelen" id="trDoelen">
-      <div class="tr-doelen-kop">🎯 Herkende trainingsdoelen</div>
+      <div class="tr-doelen-kop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg> Herkende trainingsdoelen</div>
       <div class="tr-doelen-uitleg">Deze doelen zijn uit de oefenstof gehaald. Coaches zien ze als
         suggestie bij een wedstrijd in deze week. Kloppen ze niet? Pas ze aan of haal ze weg.</div>
       <div id="trDoelLijst">${doelenNu.map(doelRij).join('')}</div>
@@ -3131,7 +3131,7 @@ function toonPreview(file, meta, ctx){
     <div class="tr-score ${goed?'goed':'fout'}">
       <div class="tr-score-kop">
         <span class="tr-badge ${goed?'goed-b':'fout-b'}">${goed?'✓':'!'}</span>
-        <b>${goed?'Tekstcontrole geslaagd':'Tekstcontrole — let op'}</b>
+        <b>${goed?'Tekstcontrole geslaagd':'Tekstcontrole: let op'}</b>
       </div>
       <table class="tr-tabel">
         <tr><td>Tekst behouden uit PDF</td><td class="v ${goed?'goed-t':'fout-t'}">${score.dekkingPct}%</td></tr>
@@ -3162,17 +3162,17 @@ function toonPreview(file, meta, ctx){
   const acties = `
     <div class="tr-preview-acties"><button class="knop vol" id="trDeel">✓ Zo delen</button></div>
     <div class="tr-preview-acties2">
-      <button class="knop licht" id="trTekst">📝 Tekst controleren/bewerken</button>
+      <button class="knop licht" id="trTekst"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> Tekst controleren/bewerken</button>
     </div>
     <div class="tr-preview-acties2">
-      <button class="knop licht" id="trOpnieuw">🔄 Opnieuw genereren</button>
+      <button class="knop licht" id="trOpnieuw"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Opnieuw genereren</button>
       <button class="knop grijs" id="trPdfOnly">Alleen als PDF</button>
     </div>`;
 
   zetTrainingModalInhoud('Controleer', `
     ${scoreKaart}
     ${doelenBlok}
-    <div style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.45">Zo zien je coaches de training straks.${goed?' Klopt de opmaak? Deel hem.':''}</div>
+    <div class="u-t-sm u-zacht u-mb-sm u-lh-ruim">Zo zien je coaches de training straks.${goed?' Klopt de opmaak? Deel hem.':''}</div>
     ${acties}
     ${oefHtml}
     <p class="trw-bron">Training ontwikkeld door <b>Arnoud Jonker, Deurne, Netherlands</b></p>
@@ -3228,7 +3228,7 @@ function toonPreview(file, meta, ctx){
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
     ctx.doelen = leesDoelen();   // typwijzigingen bewaren over het herteken heen
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261103e');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106h');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -3250,7 +3250,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20261103e');
+    const ai = await import('./training-ai.js?v=20261106h');
     // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
     // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
     // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden
@@ -3296,12 +3296,12 @@ async function deelAlleenPdf(file, meta, ctx){
 function toonAlleenPdfKeuze(file, meta, ctx, boodschap){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Training delen', `
-    <div class="tr-score fout" style="margin-top:4px">
+    <div class="tr-score fout u-mt-2xs">
       <div class="tr-score-kop"><span class="tr-badge fout-b">!</span><b>Automatische opmaak niet gelukt</b></div>
       <p class="tr-score-uitleg">${esc(boodschap||'')}</p>
     </div>
     <div class="tr-preview-acties"><button class="knop vol" id="trPdfOnly">Als PDF delen</button></div>
-    <div class="tr-preview-acties2"><button class="knop grijs" id="trOpnieuw2">🔄 Opnieuw proberen</button></div>`);
+    <div class="tr-preview-acties2"><button class="knop grijs" id="trOpnieuw2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg> Opnieuw proberen</button></div>`);
   $('#trPdfOnly').onclick = () => deelAlleenPdf(file, meta, ctx);
   $('#trOpnieuw2').onclick = () => startTrainingHerstructureer(file, meta, ctx);
 }
@@ -3312,7 +3312,7 @@ function modalBewerkTraining(t, teams){
   const huidig = new Set(t.teams || []);
   openModal(`
     <h2>Training aanpassen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(t.bestandsnaam || t.titel)}</b>${t.url ? ` · <a href="${esc(t.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(t.bestandsnaam || t.titel)}</b>${t.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(t.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mTbTitel" value="${esc(t.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
@@ -3320,8 +3320,8 @@ function modalBewerkTraining(t, teams){
     <div class="veldgroep"><label for="mTbZicht">Zichtbaar voor het team vanaf</label>
       <input class="invoer" type="date" id="mTbZicht" value="${esc(t.zichtbaarVanaf || '')}">
       <p class="bp-hint">Leeg = meteen zichtbaar.</p></div>
-    <div class="veldgroep"><label>Trainingsdoelen <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-2)">— getoond als suggestie bij wedstrijden in deze week</span></label>
-      <div class="tr-doelen" style="margin:0">
+    <div class="veldgroep"><label>Trainingsdoelen <span class="u-zacht" style="font-weight:400;text-transform:none;letter-spacing:0">— getoond als suggestie bij wedstrijden in deze week</span></label>
+      <div class="tr-doelen u-m-0">
         <div id="mTbDoelLijst">${(Array.isArray(t.doelen)?t.doelen:[]).map(d=>`<div class="tr-doel-rij"><span class="stip"></span><input class="tr-doel-inp mTbDoelInp" value="${esc(d||'')}" placeholder="Trainingsdoel…" maxlength="80"><span class="tr-doel-x" title="Verwijderen">✕</span></div>`).join('')}</div>
         <span class="tr-doel-toevoeg" id="mTbDoelAdd">＋ Doel toevoegen</span>
       </div></div>
@@ -3331,14 +3331,14 @@ function modalBewerkTraining(t, teams){
           const lijst = b.teams;
           if (!lijst.length) return '';
           return `
-            <div style="font-size:calc(11.5px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin:10px 0 6px">${esc(b.naam)}</div>
+            <div class="u-t-xs u-fw-7 u-zacht" style="letter-spacing:.5px;text-transform:uppercase;margin:var(--space-sm) 0 var(--space-xs)">${esc(b.naam)}</div>
             <div class="team-chip-kies">
               ${lijst.map(team => `<label data-pid="${team.id}" class="${huidig.has(team.id)?'aan':''}"><input type="checkbox" data-tid="${team.id}" ${huidig.has(team.id)?'checked':''}><span>${esc(team.naam)}</span></label>`).join('')}
             </div>`;
         }).join('')
-        : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Geen teams in deze club.</p>'}
+        : '<p class="u-t-sm u-zacht">Geen teams in deze club.</p>'}
       </div>
-      <div class="rij" style="margin-top:8px">
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mTbAlle">Alle teams</button>
         <button class="knop licht klein" id="mTbGeen">Geen</button>
       </div>
@@ -3387,7 +3387,7 @@ function teamKeuzePerBouw(teams, voorgevinkt){
     const lijst = b.teams;
     if (!lijst.length) return '';
     return `
-      <div style="font-size:calc(11.5px * var(--fs));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-2);margin:10px 0 6px">${esc(b.naam)}</div>
+      <div class="u-t-xs u-fw-7 u-zacht" style="letter-spacing:.5px;text-transform:uppercase;margin:var(--space-sm) 0 var(--space-xs)">${esc(b.naam)}</div>
       <div class="team-chip-kies">
         ${lijst.map(t => `<label data-pid="${t.id}" class="${vink.has(t.id)?'aan':''}"><input type="checkbox" data-tid="${t.id}" ${vink.has(t.id)?'checked':''}><span>${esc(t.naam)}</span></label>`).join('')}
       </div>`;
@@ -3448,7 +3448,7 @@ function modalTrainingsGroepen(teams){
         <div class="grp-beheer-rij">
           <div class="grp-badge">${esc(g.id)}</div>
           <div class="grp-body">
-            <div class="grp-naam">${esc(g.naam || ('Groep ' + g.id))} · ${namen.length} team${namen.length===1?'':'s'}</div>
+            <div class="grp-naam">${esc(g.naam || ('Groep ' + g.id))}<span class="sep" aria-hidden="true"></span>${namen.length} team${namen.length===1?'':'s'}</div>
             <div class="team-chips">${chips}</div>
             <div class="grp-acties">
               <button class="link" data-grp-teams="${esc(g.id)}">Teams wijzigen</button>
@@ -3457,13 +3457,13 @@ function modalTrainingsGroepen(teams){
             </div>
           </div>
         </div>`;
-    }).join('') : `<div class="kaart leeg" style="margin:0 0 12px">Nog geen trainingsgroepen. Maak er één aan en koppel de teams die telkens dezelfde training krijgen.</div>`;
+    }).join('') : `<div class="kaart leeg" style="margin:0 0 var(--space-sm)">Nog geen trainingsgroepen. Maak er één aan en koppel de teams die telkens dezelfde training krijgen.</div>`;
 
     openModal(`
       <h2>Trainingsgroepen</h2>
-      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);line-height:1.5;margin-bottom:14px">Bundel teams die wekelijks dezelfde training krijgen. Bij het uploaden kies je dan alleen nog de letter — de teams worden automatisch gekoppeld.</p>
+      <p class="u-t-sm u-zacht u-lh-ruim u-mb-md">Bundel teams die wekelijks dezelfde training krijgen. Bij het uploaden kies je dan alleen nog de letter, de teams worden automatisch gekoppeld.</p>
       <div id="grpLijst">${rijen}</div>
-      <button class="knop licht" id="grpNieuw" style="width:100%;margin-top:4px">＋ Nieuwe groep</button>`);
+      <button class="knop licht u-w-100 u-mt-2xs" id="grpNieuw" >＋ Nieuwe groep</button>`);
 
     $('#grpNieuw').onclick = () => grpNaamModal(null);
     $$('#grpLijst [data-grp-teams]').forEach(b => b.onclick = () => grpTeamsModal(b.dataset.grpTeams));
@@ -3486,7 +3486,7 @@ function modalTrainingsGroepen(teams){
       <div class="veldgroep"><label>Naam</label>
         <input class="invoer" id="grpNaamInp" value="${esc(bestaand?.naam || ('Groep ' + nieuwId))}" placeholder="Bijv. Groep ${nieuwId}" autocomplete="off"></div>
       <button class="knop vol" id="grpNaamOk">${bestaand ? 'Opslaan' : 'Aanmaken'}</button>
-      <button class="knop licht" id="grpNaamTerug" style="margin-top:8px">Terug</button>`);
+      <button class="knop licht u-mt-xs" id="grpNaamTerug" >Terug</button>`);
     $('#grpNaamTerug').onclick = teken;
     $('#grpNaamOk').onclick = async () => {
       const naam = $('#grpNaamInp').value.trim() || ('Groep ' + nieuwId);
@@ -3509,14 +3509,14 @@ function modalTrainingsGroepen(teams){
     openModal(`
       <h2>Teams voor groep ${esc(g.id)}</h2>
       <div class="veldgroep"><label>Welke teams krijgen deze training?</label>
-        <div id="grpTeamsKies">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
-        <div class="rij" style="margin-top:8px">
+        <div id="grpTeamsKies">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}</div>
+        <div class="rij u-mt-xs">
           <button class="knop licht klein" id="grpAlle">Alle teams</button>
           <button class="knop licht klein" id="grpGeen">Geen</button>
         </div>
       </div>
       <button class="knop vol" id="grpTeamsOk">Opslaan</button>
-      <button class="knop licht" id="grpTeamsTerug" style="margin-top:8px">Terug</button>`);
+      <button class="knop licht u-mt-xs" id="grpTeamsTerug" >Terug</button>`);
     const sync = () => $$('#grpTeamsKies label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
     $$('#grpTeamsKies input').forEach(c => c.onchange = sync);
     $('#grpAlle').onclick = () => { $$('#grpTeamsKies input').forEach(c => c.checked = true); sync(); };
@@ -3552,8 +3552,8 @@ function modalNieuweVideo(teams, voorBouw = null){
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mVdTitel" placeholder="Bijv. Passing-oefening 3-hoek" autocomplete="off"></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mVdTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mVdTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mVdAlle">Alle teams</button>
         <button class="knop licht klein" id="mVdGeen">Geen</button>
       </div>
@@ -3591,14 +3591,14 @@ function modalBewerkVideo(vid, teams){
   openModal(`
     <h2>Video aanpassen</h2>
     ${upload
-      ? `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Geüploade video: <b>${esc(vid.bestandsnaam || vid.titel || 'clip.mp4')}</b>${vid.url ? ` · <a href="${esc(vid.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het videobestand zelf blijft ongewijzigd.</p>`
+      ? `<p class="u-t-sm u-zacht u-mb-sm">Geüploade video: <b>${esc(vid.bestandsnaam || vid.titel || 'clip.mp4')}</b>${vid.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(vid.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het videobestand zelf blijft ongewijzigd.</p>`
       : `<div class="veldgroep"><label>YouTube-link</label>
       <input class="invoer" id="mVbUrl" value="${esc(vid.url || '')}" autocomplete="off"></div>`}
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mVbTitel" value="${esc(vid.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mVbTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Geen teams in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mVbTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p class="u-t-sm u-zacht">Geen teams in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mVbAlle">Alle teams</button>
         <button class="knop licht klein" id="mVbGeen">Geen</button>
       </div>
@@ -3638,12 +3638,12 @@ function modalUploadVideo(file, teams, voorBouw = null){
   const voor = voorBouw ? new Set(teams.filter(t => standaardBouwVoorStof(t) === voorBouw).map(t => t.id)) : new Set();
   openModal(`
     <h2>Video uploaden</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mVuTitel" value="${esc(file.name.replace(/\.[^.]+$/,''))}" autocomplete="off"></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mVuTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mVuTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mVuAlle">Alle teams</button>
         <button class="knop licht klein" id="mVuGeen">Geen</button>
       </div>
@@ -3677,8 +3677,8 @@ function modalUploadVideo(file, teams, voorBouw = null){
       });
       meld('Video geüpload'); renderClub();
     } catch(e){
-      console.error(e); meld('Upload mislukt — staat Firebase Storage aan?');
-      if (knop){ knop.classList.remove('bezig'); knop.textContent = '⬆️ Eigen video uploaden (mp4) voor één of meer teams'; }
+      console.error(e); meld('Upload mislukt: staat Firebase Storage aan?');
+      if (knop){ knop.classList.remove('bezig'); knop.textContent = 'Eigen video uploaden (mp4) voor één of meer teams'; }
     }
   };
 }
@@ -3692,7 +3692,7 @@ function modalUploadVideo(file, teams, voorBouw = null){
 function modalNieuwDocument(file, teams, voorCategorie = null){
   openModal(`
     <h2>Document uploaden</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mDoTitel" value="${esc(file.name.replace(/\.pdf$/i,''))}" autocomplete="off"></div>
     <div class="veldgroep"><label>Categorie</label>
@@ -3700,8 +3700,8 @@ function modalNieuwDocument(file, teams, voorCategorie = null){
         ${DOC_CATEGORIEN.map(c => `<option value="${c.id}" ${voorCategorie===c.id?'selected':''}>${c.naam}</option>`).join('')}
       </select></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mDoTeams">${teams.length ? teamKeuzePerBouw(teams, new Set()) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Maak eerst teams aan in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mDoTeams">${teams.length ? teamKeuzePerBouw(teams, new Set()) : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mDoAlle">Alle teams</button>
         <button class="knop licht klein" id="mDoGeen">Geen</button>
       </div>
@@ -3735,8 +3735,8 @@ function modalNieuwDocument(file, teams, voorCategorie = null){
       });
       meld('Document geüpload'); renderClub();
     } catch(e){
-      console.error(e); meld('Upload mislukt — staat Firebase Storage aan?');
-      if (knop){ knop.classList.remove('bezig'); knop.textContent = '📄 Document toevoegen voor één of meer teams'; }
+      console.error(e); meld('Upload mislukt: staat Firebase Storage aan?');
+      if (knop){ knop.classList.remove('bezig'); knop.textContent = 'Document toevoegen voor één of meer teams'; }
     }
   };
 }
@@ -3747,7 +3747,7 @@ function modalBewerkDocument(d, teams){
   const huidig = new Set(d.teams || []);
   openModal(`
     <h2>Document aanpassen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Bestand: <b>${esc(d.bestandsnaam || d.titel)}</b>${d.url ? ` · <a href="${esc(d.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(d.bestandsnaam || d.titel)}</b>${d.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(d.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mDbTitel" value="${esc(d.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Categorie</label>
@@ -3755,8 +3755,8 @@ function modalBewerkDocument(d, teams){
         ${DOC_CATEGORIEN.map(c => `<option value="${c.id}" ${d.categorie===c.id?'selected':''}>${c.naam}</option>`).join('')}
       </select></div>
     <div class="veldgroep"><label>Voor welke teams?</label>
-      <div id="mDbTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Geen teams in deze club.</p>'}</div>
-      <div class="rij" style="margin-top:8px">
+      <div id="mDbTeams">${teams.length ? teamKeuzePerBouw(teams, huidig) : '<p class="u-t-sm u-zacht">Geen teams in deze club.</p>'}</div>
+      <div class="rij u-mt-xs">
         <button class="knop licht klein" id="mDbAlle">Alle teams</button>
         <button class="knop licht klein" id="mDbGeen">Geen</button>
       </div>

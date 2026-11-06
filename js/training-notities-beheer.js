@@ -19,9 +19,9 @@
 import {
   db, collection, doc, query, where, getDocs, getDoc, setDoc, serverTimestamp,
   functions, httpsCallable
-} from './firebase.js?v=20260922c';
-import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261103e';
-import { blokId } from './training-aantekeningen.js?v=20261103e';
+} from './firebase.js?v=20261106h';
+import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106h';
+import { blokId } from './training-aantekeningen.js?v=20261106h';
 
 let _overlay = null;
 
@@ -205,7 +205,7 @@ function bindAiKnoppen(stage, trainingId, notities, bidx){
     const toon = (tekst, gecachet) => {
       houder.innerHTML = `
         <div class="tnb-ai-kaart">
-          <div class="tnb-ai-kop"><span class="tnb-ai-badge">✦ AI-samenvatting</span><span class="tnb-ai-anoniem">anoniem${gecachet ? '' : ' · zojuist'}</span></div>
+          <div class="tnb-ai-kop"><span class="tnb-ai-badge">✦ AI-samenvatting</span><span class="tnb-ai-anoniem">anoniem${gecachet ? '' : '<span class="sep" aria-hidden="true"></span>zojuist'}</span></div>
           <div class="tnb-ai-tekst">${esc(tekst)}</div>
         </div>`;
     };

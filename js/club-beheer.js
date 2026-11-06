@@ -12,13 +12,13 @@
    (modules.<sleutel>), zodat een onderdeel dat hier niet getoond wordt nooit
    per ongeluk wordt overschreven. Dit bestand importeert niets uit club.js
    (geen kringimport): club.js geeft een api-object mee. */
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20261103e';
-import { BOUWEN } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261103e';
-import { verwijderCoach } from './trainco-beheer.js?v=20261103f';
-import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261103e';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { BOUWEN } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261106h';
+import { verwijderCoach } from './trainco-beheer.js?v=20261106h';
+import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261106h';
 
 /* [sleutel, naam, kort, icoon, uitleg] — 'lijstjes' was eerder niet door de beheerder te regelen */
 export const MODULE_DEFS = [
@@ -83,7 +83,7 @@ function filterBalk(teams, sync){
   const aand = teams.filter(t => aandachtRedenen(t, sync).length).length;
   const std = BOUWEN.map(b => [b.id, b.naam.replace(/bouw$/i, ''), teams.filter(t => bouwVanTeam(t) === b.id).length, BOUW_KLEUR[b.id]]);
   const eig = eigenBouwen().map(b => [b.id, b.naam, teams.filter(t => (b.teams || []).includes(t.id)).length, b.kleur]);
-  return `<div class="cb-filters">${knop('alle', 'Alle', teams.length)}${aand ? knop('aandacht', '⚠ Aandacht', aand) : ''}${[...std, ...eig].filter(x => x[2]).map(x => knop(...x)).join('')}</div>`;
+  return `<div class="cb-filters">${knop('alle', 'Alle', teams.length)}${aand ? knop('aandacht', 'Aandacht', aand) : ''}${[...std, ...eig].filter(x => x[2]).map(x => knop(...x)).join('')}</div>`;
 }
 
 /* ---------- Teams ---------- */
@@ -91,7 +91,7 @@ function statusChips(t, sync){
   const s = [];
   const mo = momentenVanTeam(t);
   const zonderTijd = mo.some(m => !m.start || !m.eind);
-  s.push(mo.length ? `<span class="cb-st${zonderTijd ? ' let' : ''}">${ico('planning-calendar', 12)} ${mo.map(m => (DAGEN_KORT[m.dag - 1] || '') + (m.start ? ' ' + m.start + (m.eind ? '–' + m.eind : '') : '')).join(' + ')}${zonderTijd ? ' · tijd ontbreekt' : ''}</span>`
+  s.push(mo.length ? `<span class="cb-st${zonderTijd ? ' let' : ''}">${ico('planning-calendar', 12)} ${mo.map(m => (DAGEN_KORT[m.dag - 1] || '') + (m.start ? ' ' + m.start + (m.eind ? '–' + m.eind : '') : '')).join(' + ')}${zonderTijd ? '<span class="sep" aria-hidden="true"></span>tijd ontbreekt' : ''}</span>`
                   : `<span class="cb-st let">${ico('planning-calendar', 12)} Geen trainingsdagen</span>`);
   const st = slStatus(t, sync), slNaam = String(t.sportlinkNaam || '').trim();
   if (st === 'ok') s.push(`<span class="cb-st ok">${ico('action-check', 12)} Sportlink${slNaam ? ' ↔ ' + esc(slNaam) : ''}</span>`);
@@ -107,16 +107,16 @@ function teamKaart(t, sync){
   const ook = bouwVanTeam(t) !== ALLEEN_EIGEN ? eigenBouwenVanTeam(t).map(b => b.naam) : [];
   return `<button class="cb-team" data-cb-team="${esc(t.id)}">
     <div class="cb-team-kop"><div class="cb-fmt">${esc(t.format || '?')}v${esc(t.format || '?')}</div>
-      <div class="cb-team-naam">${esc(t.naam)}<small>${esc(t.categorie || '—')}${ook.length ? ' · ook in ' + esc(ook.join(', ')) : ''}</small></div>
+      <div class="cb-team-naam">${esc(t.naam)}<small>${esc(t.categorie || '—')}${ook.length ? '<span class="sep" aria-hidden="true"></span>ook in ' + esc(ook.join(', ')) : ''}</small></div>
       <span class="cb-pijl">${ico('navigation-forward', 18)}</span></div>
-    <div class="cb-coaches${co.length ? '' : ' geen'}">${ico('team-coach', 15)} ${co.length ? esc(co.map(c => c.naam).join(', ')) : 'Nog geen coach — nodig iemand uit'}</div>
+    <div class="cb-coaches${co.length ? '' : ' geen'}">${ico('team-coach', 15)} ${co.length ? esc(co.map(c => c.naam).join(', ')) : 'Nog geen coach, nodig iemand uit'}</div>
     <div class="cb-status">${statusChips(t, sync)}</div>
   </button>`;
 }
 export function htmlTeamsBeheer(teams, sync){
   const weergave = S._cbWeergave || 'overzicht';
   const lijst = teams.filter(t => inFilter(t, S._cbFilter, sync));
-  const seg = `<div class="segment" style="margin-bottom:12px">
+  const seg = `<div class="segment u-mb-sm">
       <button class="${weergave === 'overzicht' ? 'actief' : ''}" data-cb-weergave="overzicht">${ico('team-members', 16)} Overzicht</button>
       <button class="${weergave === 'onderdelen' ? 'actief' : ''}" data-cb-weergave="onderdelen">${ico('admin-permissions', 16)} Onderdelen</button></div>`;
   if (!teams.length) return `${seg}<div class="cb-acties">${actieKnoppen(false)}</div>
@@ -197,23 +197,23 @@ export function htmlTeamBeheer(t, sync, teams){
     co.forEach(c => m.delete(c.uid));
     return [...m.values()].filter(Boolean);
   })();
-  const slRegel = st === 'ok' ? `<span class="cb-st ok">✓ Gematcht${s.laatsteAantal != null ? ' · ' + s.laatsteAantal + ' wedstrijd' + (s.laatsteAantal === 1 ? '' : 'en') : ''}</span>`
+  const slRegel = st === 'ok' ? `<span class="cb-st ok">✓ Gematcht${s.laatsteAantal != null ? '<span class="sep" aria-hidden="true"></span>' + s.laatsteAantal + ' wedstrijd' + (s.laatsteAantal === 1 ? '' : 'en') : ''}</span>`
     : st === 'nee' ? '<span class="cb-st let">Niet gevonden in Sportlink</span>'
     : st === 'fout' ? `<span class="cb-st let">Laatste sync mislukt</span>`
     : st === 'geen' ? '<span class="cb-st">Club nog niet gekoppeld</span>' : '<span class="cb-st">Nog niet gesynct</span>';
   return `
     <div class="cb-kopblok"><div class="cb-fmt">${esc(t.format || '?')}v${esc(t.format || '?')}</div>
-      <div class="cb-team-naam">${esc(t.naam)}<small>${esc(t.categorie || '—')} · teamcode ${esc(t.code || '—')}</small></div>
+      <div class="cb-team-naam">${esc(t.naam)}<small>${esc(t.categorie || '—')}<span class="sep" aria-hidden="true"></span>teamcode ${esc(t.code || '—')}</small></div>
       <button class="knop licht klein" id="cbTeamOpenen">Team openen ›</button></div>
 
     <div class="cb-kaart">
       <div class="cb-kaart-kop">${ico('team-coach', 18)}<b>Coaches</b><span class="cb-telling">${co.length}</span></div>
       ${co.length ? co.map(c => `<div class="cb-persoon"><div class="cb-av">${esc(twee(c.naam))}</div><div class="cb-persoon-n">${esc(c.naam)}${c.uid === S.user?.uid ? ' <small>jij</small>' : ''}</div></div>`).join('')
         : '<p class="cb-waarschuwing">Dit team heeft nog geen coach.</p>'}
-      <button class="knop licht vol klein" id="cbUitnodig" style="margin-top:10px">${ico('team-player-add', 16)} Coach uitnodigen</button>
-      ${S._cbUitnodig === t.id ? `<div style="margin-top:10px"><p class="cb-uitleg" style="margin:0 0 6px">Stuur deze link naar de coach. Hij logt in met e-mail of Google en zit direct in dit team.</p>
+      <button class="knop licht vol klein u-mt-sm" id="cbUitnodig" >${ico('team-player-add', 16)} Coach uitnodigen</button>
+      ${S._cbUitnodig === t.id ? `<div class="u-mt-sm"><p class="cb-uitleg" style="margin:0 0 var(--space-xs)">Stuur deze link naar de coach. Hij logt in met e-mail of Google en zit direct in dit team.</p>
         <div class="uitnodig-link" id="cbLink">${esc(link)}</div>
-        <div class="cb-acties" style="margin:8px 0 0"><button class="knop licht klein" id="cbKopieer">${ico('action-copy', 15)} Kopiëren</button><button class="knop licht klein" id="cbWhatsapp">${ico('action-whatsapp', 15)} WhatsApp</button></div></div>` : ''}
+        <div class="cb-acties" style="margin:var(--space-xs) 0 0"><button class="knop licht klein" id="cbKopieer">${ico('action-copy', 15)} Kopiëren</button><button class="knop licht klein" id="cbWhatsapp">${ico('action-whatsapp', 15)} WhatsApp</button></div></div>` : ''}
       ${viaBouw.length ? `<p class="cb-uitleg">Ook toegang via de bouw: ${esc(viaBouw.join(', '))}.</p>` : ''}
     </div>
 
@@ -280,10 +280,10 @@ export function htmlCoaches(teams){
   const kleurVan = t => { const b = bouwVanTeam(t); return b === ALLEEN_EIGEN ? (eigenBouwenVanTeam(t)[0]?.kleur || 'var(--ink-2)') : BOUW_KLEUR[b]; };
   return `
     ${zonder.length ? `<div class="cb-kaart cb-let">
-      <div class="cb-kaart-kop" style="margin-bottom:6px"><span class="cb-let-ico">${ico('action-warning', 18)}</span><b>Teams zonder coach</b></div>
+      <div class="cb-kaart-kop u-mb-xs"><span class="cb-let-ico">${ico('action-warning', 18)}</span><b>Teams zonder coach</b></div>
       <div class="cb-tags">${zonder.map(t => `<button class="cb-tag geen" data-cb-team="${esc(t.id)}">${esc(t.naam)} ›</button>`).join('')}</div></div>` : ''}
     <div class="cb-zoek">${ico('navigation-search', 17)}<input class="invoer" id="cbZoek" placeholder="Zoek op naam of team" value="${esc(S._cbZoek || '')}" autocomplete="off"></div>
-    <div class="cb-legenda">${lijst.length} coach${lijst.length === 1 ? '' : 'es'} · tik een team om het te beheren</div>
+    <div class="cb-legenda">${lijst.length} coach${lijst.length === 1 ? '' : 'es'}<span class="sep" aria-hidden="true"></span>tik een team om het te beheren</div>
     <div id="cbCoachLijst">${lijst.map(c => `<div class="cb-coachrij"><div class="cb-av">${esc(twee(c.naam))}</div>
       <div class="cb-persoon-n">${esc(c.naam)}${c.uid === S.user?.uid ? ' <small class="cb-inline">jij</small>' : ''} ${c.rollen.map(([k, r]) => `<span class="cb-rol ${k}">${esc(r)}</span>`).join(' ')}
         <div class="cb-tags">${c.teams.map(t => `<button class="cb-tag" data-cb-team="${esc(t.id)}"><i style="background:${esc(kleurVan(t))}"></i>${esc(t.naam)}</button>`).join('') || '<span class="cb-tag">Geen eigen team</span>'}</div></div>

@@ -11,8 +11,14 @@
 
    Weggeklikt wordt lokaal onthouden in localStorage onder 'cluppie_bericht_weg'. */
 
-import { S, esc, datumNL } from './state.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+import { S, esc, datumNL } from './state.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+/* gemaakt is een Firestore-Timestamp (of null zolang de schrijfactie nog loopt);
+   datumNL() uit state.js verwacht een JJJJ-MM-DD-tekst en gaf hier "Invalid Date". */
+function datumBericht(t){
+  const d = t?.toDate ? t.toDate() : t?.seconds ? new Date(t.seconds * 1000) : t ? new Date(t) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('nl-NL', { weekday:'short', day:'numeric', month:'short' }) : 'zojuist';
+}
 
 const WEG_KEY = 'cluppie_bericht_weg';
 
@@ -68,7 +74,7 @@ export function htmlBerichtBalk(){
       <div class="bericht-tekst">
         <div class="bericht-titel">${esc(b.titel)}</div>
         <div class="bericht-body">${esc(b.body || '')}</div>
-        <div class="bericht-meta">Van ${esc(b.clubNaam || 'clubadmin')} · ${datumNL(b.gemaakt)}${rest ? ' · ' + rest : ''}</div>
+        <div class="bericht-meta">Van ${esc(b.clubNaam || 'clubadmin')}<span class="sep" aria-hidden="true"></span>${datumBericht(b.gemaakt)}${rest ? '<span class="sep" aria-hidden="true"></span>' + rest : ''}</div>
       </div>
       <button class="bericht-x" data-bericht-weg="${b.id}" title="Wegklikken">✕</button>
     </div>`;
@@ -95,7 +101,7 @@ export function htmlBerichtenArchief(){
         <span class="arch-titel">${esc(b.titel)}</span>
         <span class="arch-badge ${b.verlopen ? 'weg' : ''}">${b.verlopen ? 'Verlopen' : 'Actief'}</span>
       </div>
-      <div class="arch-datum">${datumNL(b.gemaakt)} · ${esc(b.clubNaam || 'clubadmin')}</div>
+      <div class="arch-datum">${datumBericht(b.gemaakt)}<span class="sep" aria-hidden="true"></span>${esc(b.clubNaam || 'clubadmin')}</div>
       <div class="arch-body">${esc(b.body || '')}</div>
     </div>`).join('');
 }

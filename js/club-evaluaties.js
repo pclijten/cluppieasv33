@@ -4,9 +4,9 @@
    Puur leeswerk — geen schrijf-acties hier — plus een client-side Excel-export.
    Losse module (i.p.v. in club.js) omdat de Excel-export een eigen lui geladen
    library (ExcelJS via CDN) nodig heeft die de rest van de app nooit gebruikt. */
-import { db, collection, getDocs, query, where } from './firebase.js?v=20260922c';
-import { S, esc, meld, openModal } from './state.js?v=20261103e';
-import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20261103e';
+import { db, collection, getDocs, query, where } from './firebase.js?v=20261106h';
+import { S, esc, meld, openModal } from './state.js?v=20261106h';
+import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20261106h';
 
 /* korte kolomkoppen voor de heatmap — TEAM_CATEGORIEEN.naam is te lang voor
    een tabelkop; alleen hier lokaal gebruikt, config.js blijft de brontekst. */
@@ -91,10 +91,10 @@ function evalLaagsteCategorie(ev){
 export function htmlClubEvaluaties(teamsData){
   const modus = S.clubEvalModus || 'teams';
   return `
-    <div class="rij" style="margin-bottom:14px;align-items:stretch">
-      <div class="segment" style="flex:1;margin-bottom:0">
-        <button data-evalmodus="teams" class="${modus==='teams'?'actief':''}">📈 Teamevaluaties</button>
-        <button data-evalmodus="spelers" class="${modus==='spelers'?'actief':''}">👕 Spelersbeoordelingen</button>
+    <div class="rij u-mb-md" style="align-items:stretch">
+      <div class="segment u-flex-1 u-mb-0">
+        <button data-evalmodus="teams" class="${modus==='teams'?'actief':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Teamevaluaties</button>
+        <button data-evalmodus="spelers" class="${modus==='spelers'?'actief':''}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.2 4.5 6 6.2v4l2.2-.7v10h7.6v-10l2.2.7v-4l-3.2-1.7a2.9 2.9 0 0 1-5.6 0z"/></svg> Spelersbeoordelingen</button>
       </div>
       <button class="knop licht" id="clubEvalExport">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -144,7 +144,7 @@ function htmlClubEvalTeams(teamsData){
     </div>
     <div class="heat-legenda">
       ${[1,2,3,4,5].map(n => `<span><span class="stip" style="background:${KLEUR_SCHAAL[n-1]}"></span>${n}</span>`).join('')}
-      <span style="margin-left:auto">Tik een vakje voor details →</span>
+      <span class="u-ml-auto">Tik een vakje voor details →</span>
     </div>`;
 
   /* clubbrede signalen: welke categorie is het vaakst de laagste van een team? */
@@ -168,20 +168,20 @@ function htmlClubEvalTeams(teamsData){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">🔥 Scorekaart per team · laatste 5 wedstrijden</div>
+      <div class="sectie-kop u-mt-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 3 5 13h5l-1 8 8-10h-5l1-8Z"/></svg> Scorekaart per team<span class="sep" aria-hidden="true"></span>laatste 5 wedstrijden</div>
       ${heatTabel}
     </div>
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">⚠️ Clubbrede aandachtspunten</div>
+      <div class="sectie-kop u-mt-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> Clubbrede aandachtspunten</div>
       ${signalen.length ? signalen.map(s => `
         <div class="sig-rij">
           <div class="sig-stip" style="background:var(--warn)"></div>
-          <div style="flex:1">
+          <div class="u-flex-1">
             <div class="sig-titel">${esc(s.cat.naam)}</div>
             <div class="sig-sub">Vaakst de zwakste categorie bij <b>${s.n} van de ${metData.length}</b> teams.</div>
             <div class="sig-teams">${s.teams.map(t=>`<span>${esc(t)}</span>`).join('')}</div>
           </div>
-        </div>`).join('') : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Geen duidelijk clubbreed patroon deze periode.</p>`}
+        </div>`).join('') : `<p class="u-t-sm u-zacht">Geen duidelijk clubbreed patroon deze periode.</p>`}
     </div>`;
 }
 
@@ -192,7 +192,7 @@ function htmlClubEvalSpelers(teamsData){
   }
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Gemiddeld per ontwikkeldomein · per team</div>
+      <div class="sectie-kop u-mt-0">Gemiddeld per ontwikkeldomein<span class="sep" aria-hidden="true"></span>per team</div>
       ${metData.map((d, idx) => `
         <div class="domein-rij">
           <div class="domein-rij-kop" data-domeintoggle="${idx}">
@@ -232,8 +232,8 @@ export function koppelClubEvaluaties(v, teamsData, herRender){
   v.querySelectorAll('[data-heatcel]').forEach(el => el.onclick = () => {
     openModal(`
       <h2>${esc(el.dataset.catnaam)}</h2>
-      <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:14px">${esc(el.dataset.team)} · gemiddelde laatste ${esc(el.dataset.n)} wedstrijden</p>
-      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:38px;color:${kleurVoorGemiddelde(parseFloat(el.dataset.v))}">${parseFloat(el.dataset.v).toFixed(1).replace('.',',')}<span style="font-size:calc(14px * var(--fs));color:var(--ink-2);font-weight:500"> / 5</span></div>`);
+      <p class="u-t-sm u-zacht u-mb-md">${esc(el.dataset.team)}<span class="sep" aria-hidden="true"></span>gemiddelde laatste ${esc(el.dataset.n)} wedstrijden</p>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:38px;color:${kleurVoorGemiddelde(parseFloat(el.dataset.v))}">${parseFloat(el.dataset.v).toFixed(1).replace('.',',')}<span class="u-t-md u-zacht" style="font-weight:500"> / 5</span></div>`);
   });
   v.querySelectorAll('[data-domeintoggle]').forEach(kop => kop.onclick = () => {
     const i = kop.dataset.domeintoggle;
@@ -255,7 +255,7 @@ function laadExcelJS(){
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
     script.onload = resolve;
-    script.onerror = () => { _exceljsLoad = null; reject(new Error('Kon Excel-library niet laden — controleer je internetverbinding')); };
+    script.onerror = () => { _exceljsLoad = null; reject(new Error('Kon Excel-library niet laden: controleer je internetverbinding')); };
     document.head.appendChild(script);
   });
   return _exceljsLoad;

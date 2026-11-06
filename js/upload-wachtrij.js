@@ -22,9 +22,9 @@
    hetzelfde document als via de oude flow. */
 import {
   db, storage, collection, addDoc, serverTimestamp, sRef, uploadBytes, getDownloadURL, deleteObject
-} from './firebase.js?v=20260922c';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
-import { telGebruik } from './tracker.js?v=20261103e';
+} from './firebase.js?v=20261106h';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
 
 /* [20261013c] AI-model per upload. Alleen een sleutel; de Cloud Function
    structureerTraining koppelt die aan een model (whitelist). */
@@ -223,7 +223,7 @@ const waarschuw = e => { e.preventDefault(); e.returnValue = ''; };
 const MAX_TEGELIJK = 3;
 let actief = 0;
 let aiBelofte = null;
-const aiModule = () => (aiBelofte ||= import('./training-ai.js?v=20261103e'));
+const aiModule = () => (aiBelofte ||= import('./training-ai.js?v=20261106h'));
 
 function volgende(){
   for (const job of jobs){
@@ -263,7 +263,7 @@ async function verwerkEnBewaar(job, it){
 
 async function jobKlaar(job){
   const t = telling(job);
-  meld(t.check ? `${job.naam}: ${t.ok} gedeeld · ${t.check} wacht op jouw blik` : `${job.naam}: ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`);
+  meld(t.check ? `${job.naam}: ${t.ok} gedeeld, ${t.check} wacht op jouw blik` : `${job.naam}: ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`);
   if (!t.check){
     job.afgerond = true;                       // in beeld tot "Sluiten" of herladen
     await opslag('jobs', 'readwrite', s => s.delete(job.id));
@@ -376,7 +376,7 @@ function htmlJob(job){
   if (job.concept){
     return `<div class="uq-job concept">
       <div class="uq-titel"><b>${esc(job.naam)}</b>${job.teamsTxt ? `<span>${esc(job.teamsTxt)}</span>` : ''}</div>
-      <div class="uq-status">Nog niet ingepland · ${job.items.length} training${job.items.length === 1 ? '' : 'en'}</div>
+      <div class="uq-status">Nog niet ingepland<span class="sep" aria-hidden="true"></span>${job.items.length} training${job.items.length === 1 ? '' : 'en'}</div>
       <div class="uq-acties">${knop('hervat', 'Verder instellen', 'hoofd')}${knop('weg', 'Weggooien')}</div>
     </div>`;
   }
@@ -384,15 +384,15 @@ function htmlJob(job){
   const pct = t.totaal ? Math.round(t.klaar / t.totaal * 100) : 100;
   const actief = !job.gepauzeerd && (t.wacht || t.bezig);
   let status;
-  if (job.gepauzeerd && t.wacht) status = `Onderbroken · nog ${t.wacht} te doen`;
-  else if (t.bezig) status = `Bezig met ${t.bezig} training${t.bezig === 1 ? '' : 'en'} · nog ${t.wacht} in de rij`;
-  else if (actief) status = `In de wachtrij · ${t.wacht} te doen`;
-  else if (t.check) status = `${t.ok} gedeeld · ${t.check} wacht${t.check === 1 ? '' : 'en'} op jouw blik`;
-  else status = `✓ Klaar · ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`;
+  if (job.gepauzeerd && t.wacht) status = `Onderbroken, nog ${t.wacht} te doen`;
+  else if (t.bezig) status = `Bezig met ${t.bezig} training${t.bezig === 1 ? '' : 'en'}, nog ${t.wacht} in de rij`;
+  else if (actief) status = `In de wachtrij, ${t.wacht} te doen`;
+  else if (t.check) status = `${t.ok} gedeeld, ${t.check} wacht${t.check === 1 ? '' : 'en'} op jouw blik`;
+  else status = `✓ Klaar, ${t.ok} training${t.ok === 1 ? '' : 'en'} gedeeld`;
   const afwijkers = job.items.filter(it => it.status === 'check' || it.status === 'fout').map(it => `
     <div class="uq-afwrij">
       <button type="button" class="uq-afw" data-uq="bekijk" data-job="${esc(job.id)}" data-idx="${it.idx}">
-        <span>${esc(it.titel || it.naam)}</span><b>${it.status === 'check' ? 'Bekijken' : 'Mislukt · opnieuw'}</b></button>
+        <span>${esc(it.titel || it.naam)}</span><b>${it.status === 'check' ? 'Bekijken' : 'Mislukt<span class="sep" aria-hidden="true"></span>opnieuw'}</b></button>
       <button type="button" class="uq-weg" data-uq="afwijs" data-job="${esc(job.id)}" data-idx="${it.idx}" aria-label="${esc(it.titel || it.naam)} weggooien" title="Weggooien">✕</button>
     </div>`).join('');
   const aantalAfw = job.items.filter(it => it.status === 'check' || it.status === 'fout').length;
@@ -476,7 +476,7 @@ function bevestigAfwijzen(job, items){
   const een = items.length === 1;
   openModal(`
     <h2>${een ? 'Training weggooien?' : `${items.length} trainingen weggooien?`}</h2>
-    <p style="font-size:calc(14px * var(--fs));line-height:1.5;margin:0 0 14px">${een
+    <p class="u-t-md u-lh-ruim" style="margin:0 0 var(--space-md)">${een
       ? `<b>${esc(items[0].titel || items[0].naam)}</b> wordt niet gedeeld. De AI-versie en de geüploade PDF worden verwijderd.`
       : `Deze trainingen worden niet gedeeld. De AI-versies en de geüploade PDF's worden verwijderd.`}</p>
     <div class="rij">

@@ -18,10 +18,10 @@
                         die stond te veel in beeld op mobiel.
    ============================================================================ */
 
-import { functions, httpsCallable } from './firebase.js?v=20260922c';
-import { S, esc } from './state.js?v=20261103e';
-import { telGebruik } from './tracker.js?v=20261103e';
-import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261103i';
+import { functions, httpsCallable } from './firebase.js?v=20261106h';
+import { S, esc } from './state.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261106h';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]
@@ -45,7 +45,7 @@ export function initChatbot(){
   achter.innerHTML = `
     <div class="cb-paneel">
       <div class="cb-kop">
-        <div class="cb-avatar">🐝</div>
+        <div class="cb-avatar"></div>
         <div><div class="cb-naam">Cluppie-hulp</div>
           <div class="cb-sub">Vragen over de app</div></div>
         <button class="cb-x" id="cbX" aria-label="Sluiten">✕</button>
@@ -90,7 +90,7 @@ function openChat(){
   const lijf = document.getElementById('cbLijf');
   // eerste keer: welkom + startchips
   if (!berichten.length && !lijf.children.length){
-    bot('Hoi! Ik beantwoord vragen over het <b>gebruik van Cluppie</b>. Waar kan ik je mee helpen? 👇');
+    bot('Hoi! Ik beantwoord vragen over het <b>gebruik van Cluppie</b>. Waar kan ik je mee helpen?');
     toonChips(START_CHIPS);
   }
   achter.classList.add('open');
@@ -197,8 +197,8 @@ function naspel(antwoord, hfd){
   const wrap = document.createElement('div');
   wrap.className = 'cb-actie';
   const label = hfd
-    ? `🎓 Laat me ${HFD_LABEL[hfd] || 'dit onderdeel'} zien`
-    : '🎓 Start de rondleiding';
+    ? `Laat me ${HFD_LABEL[hfd] || 'dit onderdeel'} zien`
+    : 'Start de rondleiding';
   wrap.innerHTML = `<button class="cb-actie-knop" id="cbTour">${esc(label)}</button>`;
   lijf.appendChild(wrap);
   lijf.scrollTop = lijf.scrollHeight;

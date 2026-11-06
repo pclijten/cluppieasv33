@@ -9,8 +9,8 @@
    AVG: teamniveau overal; de coach-namenlijst alleen voor beheerders.
    ====================================================================== */
 
-import { esc, isBeheerder } from './state.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+import { esc, isBeheerder } from './state.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
 /* ---------- kleine formatteerhelpers ---------- */
 const DAG_NAMEN = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
@@ -64,9 +64,9 @@ export function htmlInzichtTabs(actief){
 
 /* Lege staat als er nog nooit gesynchroniseerd is. */
 function htmlGeenData(){
-  return `<div class="kaart" style="text-align:center;padding:calc(26px * var(--fs)) calc(16px * var(--fs))">
-    <div style="font-size:calc(15px * var(--fs));font-weight:600;margin-bottom:calc(6px * var(--fs))">Nog geen cijfers</div>
-    <div style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Druk op <b>Synchroniseer</b> om de statistieken voor het eerst op te halen.</div>
+  return `<div class="kaart u-tc" style="padding:calc(26px * var(--fs)) calc(16px * var(--fs))">
+    <div class="u-t-base u-fw-6" style="margin-bottom:calc(6px * var(--fs))">Nog geen cijfers</div>
+    <div class="u-t-sm u-zacht">Druk op <b>Synchroniseer</b> om de statistieken voor het eerst op te halen.</div>
   </div>`;
 }
 
@@ -81,7 +81,7 @@ export function htmlInzichtTeams(stats){
     <div class="inz-trij">
       <div class="tn">${esc(t.naam)}</div>
       <div class="ts"><span class="tv" style="width:${Math.round(100*t.ses/maxSes)}%"></span></div>
-      <div class="tw">${t.ses}\u00d7 \u00b7 ${t.coaches} coach${t.coaches===1?'':'es'}</div>
+      <div class="tw">${t.ses}\u00d7<span class="sep" aria-hidden="true"></span>${t.coaches} coach${t.coaches===1?'':'es'}</div>
     </div>`).join('');
 
   const profielRijen = teams.slice().sort((a,b)=>{
@@ -220,7 +220,7 @@ export function htmlInzichtTijd(stats){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop">Heatmap \u2014 dag \u00d7 uur</div>
+      <div class="sectie-kop">Heatmap: dag \u00d7 uur</div>
       <div class="inz-sub">Wanneer wordt de app gebruikt? Donkerder = drukker (Nederlandse tijd)</div>
       <div class="inz-hmwrap">
         <table class="inz-hm"><tr><th class="rl"></th>${uurKop}</tr>${rijen}</table>
@@ -374,7 +374,7 @@ const CAT_KLEUR_R = { Trainingen:'#e2342f', Wedstrijden:'#2b6cb0', Spelers:'#3fb
 function periodeTekst(stats){
   if (!stats.periodeVan || !stats.periodeTot) return '';
   const f = (d) => { const [j,m,dag]=d.split('-'); return `${+dag} ${['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'][+m-1]}`; };
-  return `${f(stats.periodeVan)} \u2013 ${f(stats.periodeTot)} ${stats.periodeTot.slice(0,4)} \u00b7 ${stats.dagenGemeten} dagen`;
+  return `${f(stats.periodeVan)} \u2013 ${f(stats.periodeTot)} ${stats.periodeTot.slice(0,4)}, ${stats.dagenGemeten} dagen`;
 }
 
 function bouwRapportHtml(soort, stats){
@@ -397,7 +397,7 @@ function rapportTeams(stats){
   }).join('');
   const legenda=['Trainingen','Wedstrijden','Spelers','Media','Clubbeheer'].map(k=>`<span><i style="background:${CAT_KLEUR_R[k]}"></i>${k}</span>`).join('');
   const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">${RAPPORT_CSS}</head><body>
-    <div class="kop"><div class="merk">Cluppie \u00b7 teamgebruik</div><h1>Hoe gebruikt elk team de app?</h1><div class="sub">Activiteit en tijdsbesteding per team.</div><div class="per">${periodeTekst(stats)}</div></div>
+    <div class="kop"><div class="merk">Cluppie<span class="sep" aria-hidden="true"></span>teamgebruik</div><h1>Hoe gebruikt elk team de app?</h1><div class="sub">Activiteit en tijdsbesteding per team.</div><div class="per">${periodeTekst(stats)}</div></div>
     <div class="kpis"><div class="kpi"><div class="g">${teams.length}</div><div class="l">actieve teams</div></div><div class="kpi"><div class="g">${stats.bron?.sessies||0}</div><div class="l">sessies</div></div><div class="kpi"><div class="g">${stats.bron?.coaches||0}</div><div class="l">coaches</div></div></div>
     <div class="sectie"><div class="eyebrow">Hoe actief</div><h2>Aantal keren de app geopend</h2><div class="lead">Per team, aflopend gesorteerd.</div>${actief}</div>
     <div class="sectie"><div class="eyebrow">Tijdsbesteding</div><h2>Waar besteedt elk team zijn tijd?</h2><div class="lead">De app buigt mee met hoe een team werkt.</div>${profiel}<div class="legenda">${legenda}</div></div>
@@ -418,7 +418,7 @@ function rapportWedstrijd(stats){
   const dagN=['Ma','Di','Wo','Do','Vr','Za','Zo']; const ld=w.liveDag||new Array(7).fill(0); const maxLd=Math.max(1,...ld);
   const liveDag = dagN.map((d,i)=>`<div class="balk"><div class="n">${d}</div><div class="s"><div class="v" style="width:${Math.round(100*ld[i]/maxLd)}%">${ld[i]}</div></div></div>`).join('');
   const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">${RAPPORT_CSS}</head><body>
-    <div class="kop"><div class="merk">Cluppie \u00b7 wedstrijden</div><h1>Van opstelling tot langs de lijn</h1><div class="sub">Gebruiken coaches de app alleen vooraf, of ook tijdens de wedstrijd?</div><div class="per">${periodeTekst(stats)}</div></div>
+    <div class="kop"><div class="merk">Cluppie<span class="sep" aria-hidden="true"></span>wedstrijden</div><h1>Van opstelling tot langs de lijn</h1><div class="sub">Gebruiken coaches de app alleen vooraf, of ook tijdens de wedstrijd?</div><div class="per">${periodeTekst(stats)}</div></div>
     <div class="kpis"><div class="kpi"><div class="g">${w.opstelling_n||0}</div><div class="l">opstellingen</div></div><div class="kpi"><div class="g">${w.live_n||0}</div><div class="l">keer live gevolgd</div></div><div class="kpi"><div class="g">${w.aanwezigheid_n||0}</div><div class="l">aanwezigheid vooraf</div></div></div>
     <div class="sectie"><div class="eyebrow">De wedstrijddag in fasen</div><h2>Waar zit het gebruik?</h2><div class="lead">Opstelling vooraf versus de app live erbij pakken.</div>${fbars}</div>
     <div class="sectie"><div class="eyebrow">Live-gebruik</div><h2>Op welke dag wordt live gevolgd?</h2><div class="lead">Het openen van de kwart-schermen, per weekdag.</div>${liveDag}</div>
@@ -439,7 +439,7 @@ function rapportTijd(stats){
   const vb=stats.voorbereiding||{}; const vTot=(vb.zelf||0)+(vb.dag1||0)+(vb.dag2||0)+(vb.dag3||0)+(vb.dag4plus||0)||1;
   const pct=n=>Math.round(100*(n||0)/vTot);
   const html = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">${RAPPORT_CSS}</head><body>
-    <div class="kop"><div class="merk">Cluppie \u00b7 tijd-analyse</div><h1>Wanneer wordt de app gebruikt?</h1><div class="sub">Dag- en uurpatronen, Nederlandse tijd.</div><div class="per">${periodeTekst(stats)}</div></div>
+    <div class="kop"><div class="merk">Cluppie<span class="sep" aria-hidden="true"></span>tijd-analyse</div><h1>Wanneer wordt de app gebruikt?</h1><div class="sub">Dag- en uurpatronen, Nederlandse tijd.</div><div class="per">${periodeTekst(stats)}</div></div>
     <div class="sectie"><div class="eyebrow">Voorbereiding</div><h2>Hoe lang vóór de training?</h2><div class="lead">Openen van het trainingsscherm t.o.v. de trainingsdag.</div>
       <div class="vgrid"><div class="vc"><div class="g">${pct(vb.zelf)}%</div><div class="l">op de dag zelf</div></div><div class="vc"><div class="g">${pct(vb.dag1)}%</div><div class="l">de dag ervoor</div></div><div class="vc"><div class="g">${pct((vb.dag2||0)+(vb.dag3||0)+(vb.dag4plus||0))}%</div><div class="l">2+ dagen vooruit</div></div></div></div>
     <div class="sectie"><div class="eyebrow">Heatmap</div><h2>Dag \u00d7 uur</h2><div class="lead">Donkerder = drukker.</div>

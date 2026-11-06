@@ -5,22 +5,22 @@
    (naam wijzigen, teamcode, uitnodigen — modalUitnodig komt uit club.js). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
-} from './firebase.js?v=20260922c';
+} from './firebase.js?v=20261106h';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon, isBeheerder
-} from './state.js?v=20261103e';
-import { telGebruik } from './tracker.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+} from './state.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20261103e';
-import { htmlKompas } from './teams-leerlijn.js?v=20261103e';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20260922c';
+} from './config.js?v=20261106h';
+import { htmlKompas } from './teams-leerlijn.js?v=20261106h';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106h';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
-} from './vaste-afmeldingen.js?v=20261012a';
+} from './vaste-afmeldingen.js?v=20261106h';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de
@@ -44,7 +44,7 @@ export function afgelastDatumTekst(datum){
 /* de WhatsApp-tekst die de trainer doorstuurt naar zijn eigen teamgroep — zonder naam */
 export function afgelastWhatsappTekst(a){
   const dag = afgelastDatumTekst(a.datum);
-  let t = `⛔ *Training afgelast*\n`;
+  let t = `*Training afgelast*\n`;
   t += `De training van ${dag} gaat *niet* door.`;
   if (a.reden && a.reden.trim()) t += `\n\n${a.reden.trim()}`;
   return t;
@@ -55,10 +55,10 @@ function afgelastBannerHtml(a){
   const dag = afgelastDatumTekst(a.datum);
   return `
     <div class="afgelast-banner">
-      <div class="ab-kop"><span class="ab-ico">⛔</span><h2>Training afgelast</h2></div>
+      <div class="ab-kop"><span class="ab-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span><h2>Training afgelast</h2></div>
       <div class="ab-tekst">De training van <b>${esc(dag)}</b> gaat <b>niet</b> door.
         ${a.reden && a.reden.trim() ? `<div class="ab-reden">${esc(a.reden.trim())}</div>` : ''}</div>
-      <button class="ab-wa-vol" id="afgelastDeel">📲 Stuur door in mijn teamgroep</button>
+      <button class="ab-wa-vol" id="afgelastDeel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A7.5 7.5 0 1 1 8.1 18.7z"/><path d="M9 9.2c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2 0 .4-.1.5l-.5.6c-.1.1-.2.3-.1.5a5 5 0 0 0 2.4 2.2c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.3.3.3.5v.5c0 .5-.4.9-.9 1a3 3 0 0 1-1.5 0 8.4 8.4 0 0 1-5.2-5c-.2-.6-.4-1.3-.3-1.9z"/></svg> Stuur door in mijn teamgroep</button>
     </div>`;
 }
 
@@ -175,7 +175,7 @@ function vastRegelTekst(r, metReden = true){
   const kortD = iso => new Date(iso+'T12:00').toLocaleDateString('nl-NL',{day:'numeric',month:'short'}).replace('.','');
   const info = r.reden ? afwezigRedenInfo({ type: r.reden }) : null;
   return [`Elke ${DAGNAMEN[Number(r.dag)] || ''}`, `${kortD(r.van)} t/m ${kortD(r.tot)}`,
-    metReden && info ? info.label : null].filter(Boolean).join(' · ');
+    metReden && info ? info.label : null].filter(Boolean).join(', ');
 }
 
 /* 'vandaag' / 'morgen' / 'over 10 dagen' */
@@ -196,7 +196,7 @@ export function modalLaterAfgemeld(){
   const { vandaag, later } = presentieOverzicht();
   const rij = (p) => {
     const vast = id => p.virtueel || !!(p.afwezigRedenen||{})[id]?.vast;
-    const namen = (p.afwezig || []).map(id => { const n = speler(id)?.naam; return n ? esc(n) + (vast(id) ? ' 🔁' : '') : null; }).filter(Boolean);
+    const namen = (p.afwezig || []).map(id => { const n = speler(id)?.naam; return n ? esc(n) + (vast(id) ? ' <span class="vast-ico" title="Vaste afmelding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 16.4H6l1.5-2.4v-3a4.5 4.5 0 0 1 9 0v3z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/><path d="M5.4 5.6 3.6 3.8"/><path d="M18.6 5.6 20.4 3.8"/></svg></span>' : '') : null; }).filter(Boolean);
     return `
       <button type="button" class="later-rij" ${p.virtueel ? `data-ld="${esc(p.datum)}"` : `data-lp="${p.id}"`}>
         <span class="later-kop">
@@ -209,7 +209,7 @@ export function modalLaterAfgemeld(){
   };
   openModal(`
     <h2>Vooruit afgemeld</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Trainingen na de eerstvolgende waarvoor al afmeldingen staan. Tik op een datum om aan te passen.</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Trainingen na de eerstvolgende waarvoor al afmeldingen staan. Tik op een datum om aan te passen.</p>
     ${later.length ? later.map(rij).join('') : '<div class="kaart leeg">Geen toekomstige afmeldingen.</div>'}`);
   document.querySelectorAll('#modalInhoud .later-rij').forEach(b => b.onclick = () => {
     if (b.dataset.ld){ sluitModal(); modalPresentie(null, {startAnder:true, datum:b.dataset.ld}); return; }
@@ -248,8 +248,8 @@ export function htmlPresentieTraining(){
       ? afw.map(id => {
           const sp = S.spelers.find(s => s.id === id); if (!sp) return null;
           const reden = (p.afwezigRedenen||{})[id];
-          const icoon = (reden?.type === 'blessure' ? ' 🩹' : reden?.type === 'reden' ? ' 📋' : '') + (reden?.vast ? ' 🔁' : '');
-          const opm = reden?.notitie ? ` <span style="color:var(--ink-2);font-style:italic">“${esc(reden.notitie)}”</span>` : '';
+          const icoon = (reden?.type === 'blessure' ? ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.5 4.5h7a1 1 0 0 1 1 1v3.5a1 1 0 0 0 1 1h.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1H6a1 1 0 0 0 1-1V5.5a1 1 0 0 1 1-1Z"/><path d="M12 11v4M10 13h4"/></svg>' : reden?.type === 'reden' ? ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.4 9.6a2.7 2.7 0 0 1 5.2 1c0 1.8-2.6 2.1-2.6 3.9"/><circle cx="12" cy="17.4" r="0.6" fill="currentColor" stroke="none"/></svg>' : '') + (reden?.vast ? ' <span class="vast-ico" title="Vaste afmelding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 16.4H6l1.5-2.4v-3a4.5 4.5 0 0 1 9 0v3z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/><path d="M5.4 5.6 3.6 3.8"/><path d="M18.6 5.6 20.4 3.8"/></svg></span>' : '');
+          const opm = reden?.notitie ? ` <span class="u-zacht" style="font-style:italic">“${esc(reden.notitie)}”</span>` : '';
           return esc(sp.naam) + icoon + opm;
         }).filter(Boolean).join(', ')
       : '';
@@ -258,8 +258,8 @@ export function htmlPresentieTraining(){
         <div class="pr-datum"><span class="pr-dag">${datMooi}</span>${chip ? `<span class="pr-over">${esc(chip)}</span>` : ''}</div>
         <div class="pr-info">
           ${afw.length
-            ? `<span class="pr-afw">${aanwezig} aanwezig${laat.length?` · ${laat.length} te laat`:''} · ${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
-            : `<span class="pr-allen">✓ Iedereen aanwezig (${aanwezig})${laat.length?` · ${laat.length} te laat`:''}</span>`}
+            ? `<span class="pr-afw">${aanwezig} aanwezig${laat.length?`, ${laat.length} te laat`:''}<span class="sep" aria-hidden="true"></span>${afw.length} afwezig</span><span class="pr-namen">${afwNamen}</span>`
+            : `<span class="pr-allen">✓ Iedereen aanwezig (${aanwezig})${laat.length?`, ${laat.length} te laat`:''}</span>`}
         </div>
         <span class="acties"><button title="Aanpassen">${ico('admin-edit', 16)}</button></span>
       </div>`;
@@ -281,7 +281,7 @@ export function htmlPresentieTraining(){
   let presentieLijst;
   const historie = S.presentie.filter(p => p.id !== eerstvolgende?.id && !laterIds.has(p.id));
   if (!historie.length){
-    presentieLijst = (eerstvolgende || kaartDatum) ? '' : `<div class="kaart leeg" style="margin-bottom:14px">Nog geen presentie geregistreerd.</div>`;
+    presentieLijst = (eerstvolgende || kaartDatum) ? '' : `<div class="kaart leeg u-mb-md">Nog geen presentie geregistreerd.</div>`;
   } else {
     const perMaand = new Map();
     for (const p of historie){
@@ -299,7 +299,7 @@ export function htmlPresentieTraining(){
         <div class="maand-groep">
           <button class="maand-kop" data-maand="${ym}">
             <span class="maand-naam">${maandNaam(ym)}</span>
-            <span class="maand-tel">${items.length} training${items.length>1?'en':''}${afwTotaal?` · ${afwTotaal} afm.`:''}</span>
+            <span class="maand-tel">${items.length} training${items.length>1?'en':''}${afwTotaal?`, ${afwTotaal} afm.`:''}</span>
             <span class="maand-pijl ${open?'open':''}">▾</span>
           </button>
           ${open ? `
@@ -315,7 +315,7 @@ export function htmlPresentieTraining(){
   const knoppenRij = `
     <div class="pres-knoprij">
       <button class="knop licht" id="presentieAndereDatum">${ico('planning-calendar',18)} Andere datum invullen</button>
-      <button class="knop licht pres-later pres-vast-knop" id="presentieVast" aria-label="Vaste afmelding instellen"><span class="pres-vast-ico" aria-hidden="true">🔁</span><span class="pres-later-t">vaste<br>afmelding</span></button>
+      <button class="knop licht pres-later pres-vast-knop" id="presentieVast" aria-label="Vaste afmelding instellen"><span class="pres-vast-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 16.4H6l1.5-2.4v-3a4.5 4.5 0 0 1 9 0v3z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/><path d="M5.4 5.6 3.6 3.8"/><path d="M18.6 5.6 20.4 3.8"/></svg></span><span class="pres-later-t">vaste<br>afmelding</span></button>
       ${later.length ? `<button class="knop licht pres-later" id="presentieLater" aria-label="${later.length} ${later.length===1?'training':'trainingen'} vooruit afgemeld"><span class="pres-later-n">${later.length}</span><span class="pres-later-t">vooruit<br>afgemeld</span></button>` : ''}
     </div>${vasteRegelsHtml()}`;
 
@@ -331,17 +331,17 @@ export function htmlPresentieTraining(){
         <div class="pr-info">${(() => {
           const vast = [...vastOp(S.team, kaartDatum, S.spelers.map(p => p.id)).keys()].map(id => speler(id)?.naam).filter(Boolean);
           return vast.length
-            ? `<span class="pr-afw">${vast.length} vast afgemeld</span><span class="pr-namen">${vast.map(n => esc(n) + ' 🔁').join(', ')}</span>`
+            ? `<span class="pr-afw">${vast.length} vast afgemeld</span><span class="pr-namen">${vast.map(n => esc(n) + ' <span class="vast-ico" title="Vaste afmelding"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 16.4H6l1.5-2.4v-3a4.5 4.5 0 0 1 9 0v3z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/><path d="M5.4 5.6 3.6 3.8"/><path d="M18.6 5.6 20.4 3.8"/></svg></span>').join(', ')}</span>`
             : '<span class="pr-geen">Nog geen afmeldingen</span>';
         })()}</div>
         <span class="acties"><button title="Presentie invullen">${ico('admin-edit', 16)}</button></span>
       </div>`;
     eerstvolgendeSectie = `
-    <div class="sectie-kop" style="margin-top:0">${kaartDatum===vandaag ? 'Vandaag' : 'Eerstvolgende training'}</div>
-    <div class="kaart" style="padding:0;margin-bottom:14px;overflow:hidden">${kaartInhoud}</div>
+    <div class="sectie-kop u-mt-0">${kaartDatum===vandaag ? 'Vandaag' : 'Eerstvolgende training'}</div>
+    <div class="kaart u-mb-md" style="padding:0;overflow:hidden">${kaartInhoud}</div>
     ${knoppenRij}`;
   } else {
-    eerstvolgendeSectie = `<button class="knop vol" id="presentieVandaag" style="margin-bottom:8px">Wie is er vandaag?</button>
+    eerstvolgendeSectie = `<button class="knop vol u-mb-xs" id="presentieVandaag" >Wie is er vandaag?</button>
     ${knoppenRij}`;
   }
 
@@ -379,9 +379,9 @@ export function htmlTeamTrainingen(){
       : `<span class="dag-chip mist">dag onbekend</span>`;
     return `
       <div class="training-rij ${ongelezen?'ongelezen':''}" data-open-training="${t.id}" data-url="${esc(t.url)}" style="cursor:pointer">
-        <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 5.2 6 18h12L13.8 5.2a1.9 1.9 0 0 0-3.6 0Z"/><path d="M8.3 11.5h7.4"/><path d="M4.5 18h15"/></svg>`:'PDF'}</div>
+        <div class="ico${heeftAi?' ai':''}">${heeftAi?`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>`:'PDF'}</div>
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
-          <div class="t-meta">${chip}${t.clubNaam?' · '+esc(t.clubNaam):''}</div></div>
+          <div class="t-meta">${chip}${t.clubNaam?'<span class="sep" aria-hidden="true"></span>'+esc(t.clubNaam):''}</div></div>
         <div class="acties">
           <button title="Openen">↗</button>
         </div>
@@ -467,7 +467,7 @@ export function htmlTeamTrainingen(){
           <button class="maand-kop week-kop" data-pdfmaand="${key}">
             <span class="maand-naam">${esc(titel)}</span>
             ${isHuidig ? '<span class="week-nu">Deze week</span>' : (periode ? `<span class="week-periode">${esc(periode)}</span>` : '')}
-            <span class="maand-tel">${ongelezenInWeek?`<b style="color:var(--uit)">${ongelezenInWeek} nieuw</b>`:`${items.length}× oefenstof`}</span>
+            <span class="maand-tel">${ongelezenInWeek?`<b class="u-c-warn">${ongelezenInWeek} nieuw</b>`:`${items.length}× oefenstof`}</span>
             <span class="maand-pijl ${open?'open':''}">▾</span>
           </button>
           ${open ? `
@@ -496,12 +496,12 @@ export function htmlTeamVideos(){
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
       ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span style="position:absolute;bottom:2px;right:3px;font-size:calc(8px * var(--fs));font-weight:700;letter-spacing:.5px;color:#fff;background:rgba(0,0,0,.55);padding:1px 3px;border-radius:3px;line-height:1">MP4</span>' : ''}`;
+      : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
     return `
     <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
       <div class="thumb">${thumbInner}</div>
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
-        <div class="v-meta">${upload ? (vid.clubNaam ? esc(vid.clubNaam) + ' · geüpload' : 'Geüpload') : (vid.clubNaam ? esc(vid.clubNaam) : 'YouTube')}</div></div>
+        <div class="v-meta">${vid.clubNaam ? esc(vid.clubNaam) : (upload ? 'Eigen video' : 'YouTube')}</div></div>
       <div class="acties">
         <button class="rij-wa" data-deel-video="${esc(href)}" data-deel-type="${upload ? 'upload' : 'youtube'}" data-deel-titel="${esc(vid.titel || 'Video')}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
         <button title="Afspelen">▶</button>
@@ -531,69 +531,69 @@ export function htmlInstellingen(){
       <div class="lid-rij">
         <div class="lid-avatar">${esc(initialen(naam))}</div>
         <div class="lid-naam">${esc(naam)}${jij?'<span class="jij">(jij)</span>':''}</div>
-        ${jij ? '' : `<button class="lid-weg" data-lid-weg="${uid}" data-lid-naam="${esc(naam)}" title="Coach verwijderen">🗑</button>`}
+        ${jij ? '' : `<button class="lid-weg" data-lid-weg="${uid}" data-lid-naam="${esc(naam)}" title="Coach verwijderen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>`}
       </div>`;
-  }).join('') : '<p style="font-size:calc(14px * var(--fs))">—</p>';
+  }).join('') : '<p class="u-t-md">—</p>';
 
   return `
     ${beheer ? `<div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Teamnaam</div>
-      <input class="invoer" id="iTeamNaam" value="${esc(S.team.naam)}" autocomplete="off" style="margin-bottom:10px">
-      <label class="lid-rij" style="cursor:pointer;margin-bottom:10px">
+      <div class="sectie-kop u-mt-0">Teamnaam</div>
+      <input class="invoer" id="iTeamNaam" value="${esc(S.team.naam)}" autocomplete="off" style="margin-bottom:var(--space-sm)">
+      <label class="lid-rij u-klikbaar u-mb-sm">
         <input type="checkbox" id="iCodeVolgtNaam" checked style="width:19px;height:19px;accent-color:var(--grass)">
         <div class="lid-naam" style="font-weight:500">Code aanpassen aan de nieuwe naam
-          <span style="display:block;font-size:calc(11.5px * var(--fs));color:var(--ink-2);font-weight:400">Bijv. ASVJO10-2 — let op: oude uitnodigingslinks werken dan niet meer</span></div>
+          <span class="u-t-xs u-zacht" style="display:block;font-weight:400">Bijv. ASVJO10-2: let op: oude uitnodigingslinks werken dan niet meer</span></div>
       </label>
       <button class="knop vol" id="iNaamOk">Naam opslaan</button>
     </div>` : ''}
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Teamcode voor coaches</div>
-      <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2)">Deel deze code of een uitnodigingslink met collega-coaches. Zij loggen in met e-mail of Google en zitten direct in dit team.</p>
+      <div class="sectie-kop u-mt-0">Teamcode voor coaches</div>
+      <p class="u-t-md u-zacht">Deel deze code of een uitnodigingslink met collega-coaches. Zij loggen in met e-mail of Google en zitten direct in dit team.</p>
       <div class="teamcode">${esc(S.team.code)}</div>
       <div class="rij">
         <button class="knop licht vol" id="deelCode">Code kopiëren</button>
-        <button class="knop fluo vol" id="deelLink">📲 Uitnodigen</button>
+        <button class="knop fluo vol" id="deelLink"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A7.5 7.5 0 1 1 8.1 18.7z"/><path d="M9 9.2c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2 0 .4-.1.5l-.5.6c-.1.1-.2.3-.1.5a5 5 0 0 0 2.4 2.2c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.3.3.3.5v.5c0 .5-.4.9-.9 1a3 3 0 0 1-1.5 0 8.4 8.4 0 0 1-5.2-5c-.2-.6-.4-1.3-.3-1.9z"/></svg> Uitnodigen</button>
       </div>
-      ${beheer ? `<button class="knop licht vol" id="wijzigCode" style="margin-top:8px">✏️ Code handmatig wijzigen</button>` : ''}
+      ${beheer ? `<button class="knop licht vol u-mt-xs" id="wijzigCode" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> Code handmatig wijzigen</button>` : ''}
     </div>
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Coaches (${ledenIds.length})</div>
-      <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Staat er iemand dubbel of verkeerd in de lijst? Verwijder die met 🗑.</p>
+      <div class="sectie-kop u-mt-0">Coaches (${ledenIds.length})</div>
+      <p class="u-t-sm u-zacht u-mb-sm">Staat er iemand dubbel of verkeerd in de lijst? Verwijder die met <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg>.</p>
       ${ledenHtml}
-      <button class="knop licht vol" id="wijzigMijnNaam" style="margin-top:10px">✏️ Mijn weergavenaam wijzigen</button>
+      <button class="knop licht vol u-mt-sm" id="wijzigMijnNaam" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> Mijn weergavenaam wijzigen</button>
     </div>
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Categorie & speelregels</div>
-      <select class="invoer" id="iCategorie" style="margin-bottom:8px">
+      <div class="sectie-kop u-mt-0">Categorie & speelregels</div>
+      <select class="invoer u-mb-xs" id="iCategorie" >
         <option value="">— geen categorie —</option>
         <optgroup label="Jongens">${Object.keys(CATEGORIEEN).map(c => `<option value="${c}" ${S.team.categorie===c?'selected':''}>${c}</option>`).join('')}</optgroup>
         <optgroup label="Meiden">${Object.keys(CATEGORIEEN_MEIDEN).map(c => `<option value="${c}" ${S.team.categorie===c?'selected':''}>${c}</option>`).join('')}</optgroup>
       </select>
-      <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)" id="iCatInfo">${S.team.categorie && catInfo(S.team.categorie)
+      <p class="u-t-sm u-zacht" id="iCatInfo">${S.team.categorie && catInfo(S.team.categorie)
         ? 'KNVB: ' + esc(catInfo(S.team.categorie).knvb) + '. Nieuwe wedstrijden krijgen automatisch de juiste speeltijd en periodes.'
         : 'Kies de categorie zodat nieuwe wedstrijden automatisch de juiste KNVB-speeltijd en het juiste aantal helften/kwarten krijgen.'}</p>
 
-      <div class="veldlabel" style="margin-top:16px">Wedstrijdvorm</div>
+      <div class="veldlabel u-mt-md">Wedstrijdvorm</div>
       <div class="vxv-opties" id="iWedstrijdvorm">
         ${['6','8','9','11'].map(f => `<button class="vxv-opt ${String(S.team.format)===f?'aan':''}" data-vorm="${f}">${f} tegen ${f}</button>`).join('')}
       </div>
-      <p class="hint" style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">Standaard volgt dit de categorie, maar je kunt zelf wisselen — handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
+      <p class="hint u-t-xs u-zacht u-mt-sm u-lh-ruim">Standaard volgt dit de categorie, maar je kunt zelf wisselen, handig als je team de ene fase 11v11 en de andere 9v9 speelt. Wijzigen geldt voor <b>nieuwe</b> wedstrijden; bestaande wedstrijden houden hun eigen vorm.</p>
     </div>
     ${(() => {
       const magThema = coachMagKiezen();          // thema alleen bij coachKiest
       const v = eigenVoorkeur();
       const g = huidigeLettergrootte();
       const themaBlok = magThema ? `
-        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
-        <div class="segment" id="themaKeuze" style="margin-bottom:16px">
+        <p class="u-t-sm u-zacht u-mb-sm">Kies het thema voor de app op dit toestel. Je keuze wordt onthouden.</p>
+        <div class="segment u-mb-md" id="themaKeuze" >
           <button data-thema-kies="donker" class="${v==='donker'?'actief':''}">Donker</button>
           <button data-thema-kies="licht" class="${v==='licht'?'actief':''}">Licht</button>
         </div>` : '';
       return `
       <div class="kaart">
-        <div class="sectie-kop" style="margin-top:0">Weergave</div>
+        <div class="sectie-kop u-mt-0">Weergave</div>
         ${themaBlok}
-        <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:10px">Lettergrootte op dit toestel. Handig als je langs de lijn snel iets wilt lezen.</p>
+        <p class="u-t-sm u-zacht u-mb-sm">Lettergrootte op dit toestel. Handig als je langs de lijn snel iets wilt lezen.</p>
         <div class="segment" id="grootteKeuze">
           <button data-grootte="0.9" class="${g==='0.9'?'actief':''}">Klein</button>
           <button data-grootte="1" class="${g==='1'?'actief':''}">Normaal</button>
@@ -609,11 +609,11 @@ export function htmlInstellingen(){
 export function modalWijzigCode(){
   openModal(`
     <h2>Teamcode wijzigen</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:6px">De code is wat coaches invullen om aan te sluiten. Houd 'm herkenbaar (bijv. <b>ASVJO11-1</b>) of juist moeilijk te raden.</p>
-    <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:12px">Let op: bestaande uitnodigingslinks met de oude code werken daarna niet meer.</p>
+    <p class="u-t-md u-zacht u-mb-xs">De code is wat coaches invullen om aan te sluiten. Houd 'm herkenbaar (bijv. <b>ASVJO11-1</b>) of juist moeilijk te raden.</p>
+    <p class="u-t-xs u-zacht u-mb-sm">Let op: bestaande uitnodigingslinks met de oude code werken daarna niet meer.</p>
     <div class="veldgroep"><label>Nieuwe code</label>
       <input class="invoer" id="mWcCode" value="${esc(S.team.code)}" maxlength="20"
-        style="text-transform:uppercase;font-family:'Barlow Condensed';font-size:calc(20px * var(--fs));letter-spacing:1px"></div>
+        style="text-transform:uppercase;font-family:'Barlow Condensed';font-size:var(--t-2xl);letter-spacing:1px"></div>
     <button class="knop vol" id="mWcOk">Code opslaan</button>`);
   $('#mWcOk').onclick = async () => {
     const nieuw = $('#mWcCode').value.trim().toUpperCase().replace(/[^A-Z0-9-]+/g,'');
@@ -642,7 +642,7 @@ export function modalMijnNaam(){
   const aantalTeams = S.teams.length;
   openModal(`
     <h2>Mijn weergavenaam</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Zo verschijn je in de coachlijst. ${aantalTeams > 1 ? `De naam wordt aangepast in al je <b>${aantalTeams}</b> teams.` : ''}</p>
+    <p class="u-t-md u-zacht u-mb-sm">Zo verschijn je in de coachlijst. ${aantalTeams > 1 ? `De naam wordt aangepast in al je <b>${aantalTeams}</b> teams.` : ''}</p>
     <div class="veldgroep"><label>Je naam</label>
       <input class="invoer" id="mMnNaam" value="${esc(huidige)}" placeholder="Bijv. Paul Lijten" autocomplete="name"></div>
     <button class="knop vol" id="mMnOk">Opslaan</button>`);
@@ -713,14 +713,14 @@ export function modalPresentie(bestaande = null, opties = {}){
       </button>
       ${isAfw ? `
       <div class="pres-reden-rij">${AFWEZIG_REDENEN.map(r =>
-        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-telaat="${p.id}">⏱ Te laat</button></div>
-      ${info ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel) — bv. 'last van hamstring' of 'trein gemist'" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
+        `<button type="button" class="pres-reden-chip ${info?.id===r.id?'actief':''}" data-reden="${r.id}" data-pid="${p.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}<button type="button" class="pres-reden-chip telaat-chip" data-telaat="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Te laat</button></div>
+      ${info ? `<input class="invoer pres-reden-notitie" data-pid="${p.id}" placeholder="Toelichting (optioneel), bv. 'last van hamstring' of 'trein gemist'" value="${esc(redenen[p.id]?.notitie||'')}">` : ''}
       ${redenen[p.id]?.vast ? (() => {
         const r = (S.team?.vasteAfmeldingen || []).find(x => x.id === redenen[p.id].vast);
-        return `<div class="pres-vast-regel"><span class="pres-vast-tag">🔁 vast</span><span>${r ? esc(vastRegelTekst(r, false)) + '. ' : ''}Tik op de naam als hij er toch is.</span></div>`;
+        return `<div class="pres-vast-regel"><span class="pres-vast-tag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 16.4H6l1.5-2.4v-3a4.5 4.5 0 0 1 9 0v3z"/><path d="M10.2 19.2a2 2 0 0 0 3.6 0"/><path d="M5.4 5.6 3.6 3.8"/><path d="M18.6 5.6 20.4 3.8"/></svg> vast</span><span>${r ? esc(vastRegelTekst(r, false)) + '. ' : ''}Tik op de naam als hij er toch is.</span></div>`;
       })() : ''}
       ` : isLaat ? `
-      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}">⏱ Te laat — tik om te wissen</button></div>
+      <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Te laat: tik om te wissen</button></div>
       ` : ''}
     </div>`;
   }).join('');
@@ -728,7 +728,7 @@ export function modalPresentie(bestaande = null, opties = {}){
   openModal(`
     <h2>Presentie training</h2>
     ${kanDatumWijzigen ? `
-    <div class="veldgroep" style="margin-bottom:10px">
+    <div class="veldgroep u-mb-sm">
       <label>Datum</label>
       <div class="segment" id="mPresDatumSeg">
         <button type="button" data-d="vandaag" class="${startAnder?'':'actief'}">Vandaag</button>
@@ -736,16 +736,16 @@ export function modalPresentie(bestaande = null, opties = {}){
       </div>
       <input class="invoer" type="date" id="mPresDatumInput" value="${datum}" style="${startAnder?'':'display:none;'}margin-top:8px">
     </div>` : ''}
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:4px;text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
-    <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd — je past de bestaande registratie aan.</p>
-    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is — elke wijziging wordt meteen bewaard. Is iedereen er? Tik dan onderaan op bevestigen.</p>
+    <p class="u-t-sm u-zacht u-mb-2xs" style="text-transform:capitalize" id="mPresDatumTekst">${esc(datLeesbaar(datum))}</p>
+    <p style="font-size:calc(12px * var(--fs));color:var(--warn);margin-bottom:4px;display:none" id="mPresBestaatMelding">Let op: voor deze dag is al presentie geregistreerd, je past de bestaande registratie aan.</p>
+    <p class="u-t-sm u-zacht u-mb-xs">Iedereen staat op <b>aanwezig</b>. Tik wie er <b>niet</b> is: elke wijziging wordt meteen bewaard. Is iedereen er? Tik dan onderaan op bevestigen.</p>
     <div class="pres-opslag rust" id="mPresOpslag" aria-live="polite">
       <span class="pres-opslag-stip"></span>
       <span id="mPresOpslagTekst">Alles bewaard</span>
     </div>
     <div class="pres-lijst" id="mPresLijst">${rijenHtml()}</div>
-    <div class="rij" style="margin-top:14px">
-      ${bestaande ? '<button class="knop licht vol" id="mPresWeg" style="color:var(--uit)">Verwijderen</button>' : ''}
+    <div class="rij u-mt-md">
+      ${bestaande ? '<button class="knop licht vol u-c-warn" id="mPresWeg" >Verwijderen</button>' : ''}
       <button class="knop vol" id="mPresKlaar">Klaar</button>
     </div>`);
 
@@ -781,7 +781,7 @@ export function modalPresentie(bestaande = null, opties = {}){
     if (ietsOpgeslagen){
       knop.textContent = 'Klaar';
     } else if (afwezig.size === 0){
-      knop.textContent = 'Iedereen aanwezig — bewaren';
+      knop.textContent = 'Iedereen aanwezig: bewaren';
     } else {
       knop.textContent = 'Presentie bewaren';
     }
@@ -837,7 +837,7 @@ export function modalPresentie(bestaande = null, opties = {}){
       clearTimeout(statusRustTimer);
       statusRustTimer = setTimeout(() => zetStatus('rust', 'Alles bewaard'), 1500);
     } catch(e){
-      zetStatus('fout', 'Bewaren mislukt — probeer opnieuw');
+      zetStatus('fout', 'Bewaren mislukt: probeer opnieuw');
       meld('Opslaan mislukt: ' + (e.code || e.message));
     } finally {
       bezigMetSchrijven = false;
@@ -999,10 +999,10 @@ function vasteRegelsHtml(){
   const regels = actieveRegels(S.team, vandaag).filter(r => speler(r.spelerId));
   if (!regels.length) return '';
   return `
-    <div class="sectie-kop" style="margin-top:0">Vaste afmeldingen <span class="vast-tel">${regels.length}</span></div>
+    <div class="sectie-kop u-mt-0">Vaste afmeldingen <span class="vast-tel">${regels.length}</span></div>
     <div class="vast-lijst">${regels.map(r => `
       <div class="vast-rij">
-        <div class="vast-info"><b>${esc(speler(r.spelerId)?.naam || '')}</b><small>${esc(vastRegelTekst(r))}${r.notitie ? ` · <i>“${esc(r.notitie)}”</i>` : ''}</small></div>
+        <div class="vast-info"><b>${esc(speler(r.spelerId)?.naam || '')}</b><small>${esc(vastRegelTekst(r))}${r.notitie ? `<span class="sep" aria-hidden="true"></span><i>“${esc(r.notitie)}”</i>` : ''}</small></div>
         <button type="button" class="vast-stop" data-vaststop="${esc(r.id)}">Stoppen</button>
       </div>`).join('')}
     </div>`;
@@ -1036,7 +1036,7 @@ export function modalVasteAfmelding(){
 
   openModal(`
     <h2>Vaste afmelding</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Meld een speler in één keer af voor een vaste trainingsdag, een aantal weken lang.</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Meld een speler in één keer af voor een vaste trainingsdag, een aantal weken lang.</p>
     <div class="vast-veld"><label for="mVastSpeler">Speler</label>
       <select class="invoer" id="mVastSpeler">${spelers.map(p => `<option value="${esc(p.id)}">${esc(p.naam)}</option>`).join('')}</select></div>
     <div class="vast-blok"><label>Trainingsdag</label>
@@ -1050,9 +1050,9 @@ export function modalVasteAfmelding(){
     <div class="vast-blok"><label>Reden</label>
       <div class="pres-reden-rij vast-redenen" id="mVastReden">${redenOpties.map(r =>
         `<button type="button" class="pres-reden-chip" data-reden="${r.id}">${r.ico?ico(r.ico,16):r.emoji} ${r.label}</button>`).join('')}</div></div>
-    <input class="invoer" id="mVastNotitie" maxlength="120" placeholder="Toelichting (optioneel) — bv. 'bijles op maandag'" style="margin-bottom:12px">
+    <input class="invoer u-mb-sm" id="mVastNotitie" maxlength="120" placeholder="Toelichting (optioneel), bv. 'bijles op maandag'" >
     <div class="vast-preview"><div class="vast-preview-kop" id="mVastKop"></div><div class="vast-data" id="mVastData"></div></div>
-    <p class="vast-hint" style="margin:10px 0 14px">De speler staat op deze datums alvast op afwezig zodra je de presentie opent. Er wordt pas iets vastgelegd als je de presentie die dag invult, zodat een training die niet doorgaat niet meetelt in de opkomst.</p>
+    <p class="vast-hint" style="margin:var(--space-sm) 0 var(--space-md)">De speler staat op deze datums alvast op afwezig zodra je de presentie opent. Er wordt pas iets vastgelegd als je de presentie die dag invult, zodat een training die niet doorgaat niet meetelt in de opkomst.</p>
     <button class="knop vol" id="mVastBewaar">Afmelding bewaren</button>`);
 
   const datums = () => {
@@ -1152,7 +1152,7 @@ export function modalEigenDag(){
   const vandaag = new Date().toISOString().slice(0,10);
   openModal(`
     <h2>Eigen dag toevoegen</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Voeg een eigen datum toe aan de planning — bijvoorbeeld een toernooi, teamuitje of trainingskamp.</p>
+    <p class="u-t-md u-zacht u-mb-sm">Voeg een eigen datum toe aan de planning, bijvoorbeeld een toernooi, teamuitje of trainingskamp.</p>
     <div class="veldgroep"><label>Datum</label>
       <input class="invoer" id="mEdDatum" type="date" value="${vandaag}"></div>
     <div class="veldgroep"><label>Omschrijving</label>
@@ -1185,7 +1185,7 @@ export function modalPlanDag(it){
   const typeOpties = [['wd','Wedstrijddag'],['beker','Beker'],['inhaal','Inhaal'],['vrij','Vrij'],['eigen','Eigen dag']];
   openModal(`
     <h2>${datumNL(it.datum)}</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">${isEigen ? 'Eigen dag bewerken of verwijderen.' : 'KNVB-speeldag aanpassen of verbergen voor dit team. De originele kalender blijft bewaard.'}</p>
+    <p class="u-t-sm u-zacht u-mb-sm">${isEigen ? 'Eigen dag bewerken of verwijderen.' : 'KNVB-speeldag aanpassen of verbergen voor dit team. De originele kalender blijft bewaard.'}</p>
     <div class="veldgroep"><label>Type</label>
       <select class="invoer" id="mPdType">${typeOpties.map(([v,l]) => `<option value="${v}" ${it.type===v?'selected':''}>${l}</option>`).join('')}</select></div>
     <div class="veldgroep"><label>Omschrijving</label>
@@ -1193,9 +1193,9 @@ export function modalPlanDag(it){
     <div class="veldgroep"><label>Notitie (optioneel)</label>
       <input class="invoer" id="mPdOpm" value="${esc(it.opmerking||'')}" autocomplete="off"></div>
     <button class="knop vol" id="mPdOk">Opslaan</button>
-    <div class="rij" style="margin-top:8px">
-      ${it.aangepast && !isEigen ? `<button class="knop licht" id="mPdReset" style="flex:1">Herstel KNVB</button>` : ''}
-      <button class="knop gevaar" id="mPdWeg" style="flex:1">${isEigen ? 'Verwijderen' : 'Verbergen'}</button>
+    <div class="rij u-mt-xs">
+      ${it.aangepast && !isEigen ? `<button class="knop licht u-flex-1" id="mPdReset" >Herstel KNVB</button>` : ''}
+      <button class="knop gevaar u-flex-1" id="mPdWeg" >${isEigen ? 'Verwijderen' : 'Verbergen'}</button>
     </div>`);
   $('#mPdOk').onclick = async () => {
     const type = $('#mPdType').value;

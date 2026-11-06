@@ -6,9 +6,9 @@
    `clubs/{id}.ledenInfo`; hier maakt de beheerder iemand daarna expliciet
    trainingscoördinator. Rechtenbron: `trainingscoordinatoren.<uid> = true`.
    Importeert niets uit club.js (geen kringimport). */
-import { db, doc, updateDoc, deleteField } from './firebase.js?v=20260922c';
-import { S, esc, meld } from './state.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+import { db, doc, updateDoc, deleteField } from './firebase.js?v=20261106h';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
 const naamKort = n => String(n || 'Naamloos').split('@')[0];
 const twee = n => naamKort(n).split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -42,18 +42,18 @@ export function htmlTraincoKaart(teams){
   return `
     <div class="cb-kaart" id="traincoKaart">
       <div class="cb-kaart-kop">${ico('team-add', 18)}<b>Trainingscoördinator</b><span class="cb-telling">${co.length}</span></div>
-      <p class="cb-uitleg" style="margin:0 0 8px">Een coördinator ziet alle teams waarvoor trainingen klaarstaan: wie wanneer traint, het aantal spelers, de AI-training, de PDF en de diagrammen. Geen spelersnamen, geen video's.</p>
+      <p class="cb-uitleg" style="margin:0 0 var(--space-xs)">Een coördinator ziet alle teams waarvoor trainingen klaarstaan: wie wanneer traint, het aantal spelers, de AI-training, de PDF en de diagrammen. Geen spelersnamen, geen video's.</p>
       ${co.map(c => `<div class="cb-persoon"><div class="cb-av">${esc(twee(c.naam))}</div><div class="cb-persoon-n">${esc(c.naam)} <span class="cb-rol coord">Coördinator</span></div>
         <button class="knop licht klein" data-tc-weg="${esc(c.uid)}">Toegang intrekken</button></div>`).join('')}
-      ${wacht.length ? `<div class="sectie-kop" style="margin:12px 0 6px">Wacht op acceptatie</div>
+      ${wacht.length ? `<div class="sectie-kop" style="margin:var(--space-sm) 0 var(--space-xs)">Wacht op acceptatie</div>
         ${wacht.map(w => `<div class="cb-persoon"><div class="cb-av">${esc(twee(w.naam))}</div><div class="cb-persoon-n">${esc(w.naam)}${w.email ? `<small class="cb-inline">${esc(w.email)}</small>` : ''}
-          <div class="cb-uitleg" style="margin:2px 0 0">${w.aanvraag ? 'Heeft zich aangemeld als trainingscoördinator' : 'Clublid zonder team'}${w.teams.length ? ' · ook trainer van ' + esc(w.teams.join(', ')) : ''}</div></div>
+          <div class="cb-uitleg" style="margin:var(--space-3xs) 0 0">${w.aanvraag ? 'Heeft zich aangemeld als trainingscoördinator' : 'Clublid zonder team'}${w.teams.length ? '<span class="sep" aria-hidden="true"></span>ook trainer van ' + esc(w.teams.join(', ')) : ''}</div></div>
           <button class="knop klein" data-tc-maak="${esc(w.uid)}">Maak coördinator</button>
-          <button class="knop licht klein cb-verwijder" data-tc-afwijs="${esc(w.uid)}" style="margin-left:6px">Verwijderen</button></div>`).join('')}` : ''}
-      <div class="sectie-kop" style="margin:12px 0 6px">Uitnodigen</div>
-      <p class="cb-uitleg" style="margin:0 0 8px">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie", ook als hij al trainer is. Hij krijgt pas toegang als jij hem accepteert.</p>
+          <button class="knop licht klein cb-verwijder" data-tc-afwijs="${esc(w.uid)}" style="margin-left:var(--space-xs)">Verwijderen</button></div>`).join('')}` : ''}
+      <div class="sectie-kop" style="margin:var(--space-sm) 0 var(--space-xs)">Uitnodigen</div>
+      <p class="cb-uitleg" style="margin:0 0 var(--space-xs)">Stuur deze link. Na inloggen verschijnt de persoon hierboven onder "Wacht op acceptatie", ook als hij al trainer is. Hij krijgt pas toegang als jij hem accepteert.</p>
       <div class="uitnodig-link" id="traincoLink">${esc(link)}</div>
-      <div class="cb-acties" style="margin:10px 0 0">
+      <div class="cb-acties" style="margin:var(--space-sm) 0 0">
         <button class="knop licht klein" id="traincoKopieer">Link kopiëren</button>
         <a class="knop licht klein" id="traincoWhatsapp" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Hoi! Open deze link en log in met je e-mailadres om de trainingen van ASV\'33 te bekijken: ' + link)}">WhatsApp</a>
         <a class="knop licht klein" href="${esc(location.pathname)}?trainco=1">Bekijk als coördinator</a>
@@ -99,7 +99,7 @@ export function koppelTraincoKaart(v, api){
   const kopie = kaart.querySelector('#traincoKopieer');
   if (kopie) kopie.onclick = async () => {
     try { await navigator.clipboard.writeText(kaart.querySelector('#traincoLink').textContent); meld('Link gekopieerd'); }
-    catch(e){ meld('Kopiëren mislukt — selecteer de link handmatig'); }
+    catch(e){ meld('Kopiëren mislukt: selecteer de link handmatig'); }
   };
 }
 

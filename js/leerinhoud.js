@@ -28,9 +28,9 @@ export const LEERINHOUD = {
     waarom: "Jeugdspelers spelen van nature de veilige bal opzij. Door ze te leren éérst diep te kijken, komen ze sneller in scorende posities en leren ze vooruit voetballen in plaats van de bal rond te tikken.",
     uitleg: "Leg uit met een simpel beeld: “De snelste weg naar het doel is recht vooruit, niet opzij.” Laat op het bord zien dat één diepe pass twee tegenstanders uitschakelt, terwijl een brede pass niemand voorbij is. De vuistregel voor de speler: kijk eerst naar voren, kun je niet diep? Dán pas breed.",
     coachpunten: [
-      "Laat de spits eerst bewegen (aanbieden) vóór de pass — timing van de loopactie is de sleutel.",
+      "Laat de spits eerst bewegen (aanbieden) vóór de pass, timing van de loopactie is de sleutel.",
       "Benoem het moment: “nu kán het diep” versus “nu moet het breed”.",
-      "Beloon de poging tot diepte, ook als de bal wordt onderschept — de keuze is goed.",
+      "Beloon de poging tot diepte, ook als de bal wordt onderschept, de keuze is goed.",
       "Koppel aan omschakeling: diep spelen kan direct na balverovering het gevaarlijkst zijn.",
     ],
     voorbeelden: [
@@ -64,7 +64,7 @@ export const LEERINHOUD = {
       },
       {
         naam: "Diepte na balverovering",
-        toelichting: "Direct na balwinst is de tegenstander nog niet georganiseerd. Nummer 6 zoekt meteen de diepe bal op de doorgebroken spits — het gevaarlijkste moment om diep te spelen.",
+        toelichting: "Direct na balwinst is de tegenstander nog niet georganiseerd. Nummer 6 zoekt meteen de diepe bal op de doorgebroken spits, het gevaarlijkste moment om diep te spelen.",
         spelers: [
           { nr: 6, x: 46, y: 58 },
           { nr: 8, x: 54, y: 26 },
@@ -80,14 +80,14 @@ export const LEERINHOUD = {
 
   "Storen en veroveren": {
     principe: "Samen druk zetten: jaag met het hele team dezelfde kant op, zodat de tegenstander geen uitweg heeft en jij de bal verovert.",
-    waarom: "Spelers van 11-13 jagen vaak alleen en te wild — één rent erop af, de rest kijkt toe, en de tegenstander speelt er zo omheen. Als ze leren sámen en op het juiste moment druk te zetten, veroveren ze de bal hoger op het veld en dichter bij de goal van de tegenstander.",
-    uitleg: "Gebruik een simpel beeld: “we jagen als een roedel, niet als losse honden.” De speler dichtbij de bal zet druk (de jager), de rest schuift mee die kant op en houdt de korte pass dicht. Belangrijk: de jager loopt gebogen, niet recht — zo stuurt hij de tegenstander naar de zijlijn, waar minder ruimte is. De onthoud-zin: druk zetten doe je met z'n allen, naar één kant.",
+    waarom: "Spelers van 11-13 jagen vaak alleen en te wild, één rent erop af, de rest kijkt toe, en de tegenstander speelt er zo omheen. Als ze leren sámen en op het juiste moment druk te zetten, veroveren ze de bal hoger op het veld en dichter bij de goal van de tegenstander.",
+    uitleg: "Gebruik een simpel beeld: “we jagen als een roedel, niet als losse honden.” De speler dichtbij de bal zet druk (de jager), de rest schuift mee die kant op en houdt de korte pass dicht. Belangrijk: de jager loopt gebogen, niet recht, zo stuurt hij de tegenstander naar de zijlijn, waar minder ruimte is. De onthoud-zin: druk zetten doe je met z'n allen, naar één kant.",
     coachpunten: [
-      "Eén jaagt, de rest schuift mee — benoem wie de baldrager aanjaagt en wie de korte pass dichthoudt.",
+      "Eén jaagt, de rest schuift mee, benoem wie de baldrager aanjaagt en wie de korte pass dichthoudt.",
       "Laat de jager gebogen aanlopen (in een boog), zodat de tegenstander naar de zijlijn wordt gestuurd.",
       "Timing: druk zetten op het moment dat de bal onderweg is (de slechte controle), niet als de tegenstander al goed staat.",
-      "De zijlijn is je vriend — daar kan de tegenstander maar twee kanten op, dus daar verover je de bal.",
-      "Veroverd? Denk meteen aan diepte (link met het thema 'Dieptespel opbouw') — vlak na balwinst is de tegenstander kwetsbaar.",
+      "De zijlijn is je vriend, daar kan de tegenstander maar twee kanten op, dus daar verover je de bal.",
+      "Veroverd? Denk meteen aan diepte (link met het thema 'Dieptespel opbouw'), vlak na balwinst is de tegenstander kwetsbaar.",
     ],
     voorbeelden: [
       {
@@ -104,7 +104,7 @@ export const LEERINHOUD = {
       },
       {
         naam: "Meeschuiven en de pass dichthouden",
-        toelichting: "Terwijl nummer 7 jaagt, schuift nummer 8 mee dezelfde kant op en gaat vóór de dichtstbijzijnde medespeler van de tegenstander staan. De korte, makkelijke pass is nu dicht — de tegenstander moet risico nemen.",
+        toelichting: "Terwijl nummer 7 jaagt, schuift nummer 8 mee dezelfde kant op en gaat vóór de dichtstbijzijnde medespeler van de tegenstander staan. De korte, makkelijke pass is nu dicht, de tegenstander moet risico nemen.",
         spelers: [
           { nr: 7, x: 68, y: 30 },   // jager al bij de baldrager
           { nr: 8, x: 40, y: 48 },   // schuift mee
@@ -119,7 +119,7 @@ export const LEERINHOUD = {
       },
       {
         naam: "Veroveren en meteen diep",
-        toelichting: "Door de druk speelt de tegenstander een slechte bal. Nummer 8 onderschept en zoekt meteen de diepte — precies op het moment dat de tegenstander nog vooruit staat. Zo wordt verdedigen meteen aanvallen.",
+        toelichting: "Door de druk speelt de tegenstander een slechte bal. Nummer 8 onderschept en zoekt meteen de diepte, precies op het moment dat de tegenstander nog vooruit staat. Zo wordt verdedigen meteen aanvallen.",
         spelers: [
           { nr: 8, x: 52, y: 38 },   // onderschept
           { nr: 10, x: 48, y: 16 },  // onze spits die diep gaat

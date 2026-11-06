@@ -28,8 +28,8 @@
    verder niets aan de engine te veranderen (zie beheeromgeving-notities
    onderaan). */
 
-import { db, doc, getDoc, setDoc } from './firebase.js?v=20260922c';
-import { S, $, $$, esc, meld, modAan, toon } from './state.js?v=20261103e';
+import { db, doc, getDoc, setDoc } from './firebase.js?v=20261106h';
+import { S, $, $$, esc, meld, modAan, toon } from './state.js?v=20261106h';
 
 /* ---------- Rollen ----------
    Iedere rol krijgt alleen hoofdstukken waarvan de 'rollen'-set de rol bevat.
@@ -37,7 +37,7 @@ import { S, $, $$, esc, meld, modAan, toon } from './state.js?v=20261103e';
    schermen); 'kijker' is speler/ouder/vrijwilliger (alleen-lezen); 'beheerder'
    krijgt daarbovenop het clubdashboard. */
 export const ONBOARDING_ROLLEN = [
-  { id:'coach',     emoji:'📋', naam:'Coach / trainer', desc:'Opstelling, training, beoordelen' },
+  { id:'coach',     emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>', naam:'Coach / trainer', desc:'Opstelling, training, beoordelen' },
 ];
 /* Er is nog maar één rol: coach/trainer (dekt ook leider). Het rollen-veld op de
    stappen blijft staan zodat de engine ongewijzigd werkt en de tour later weer
@@ -86,7 +86,7 @@ function naarTab(tab){
       // Onderbalk niet in beeld (bv. wedstrijdscherm of teamsoverzicht):
       // zet de tab direct, render en toon de team-view expliciet.
       S.teamTab = tab;
-      import('./teams.js?v=20261103i').then(m => { m.renderTeam?.(); toon('team'); });
+      import('./teams.js?v=20261106h').then(m => { m.renderTeam?.(); toon('team'); });
     }
     const t0 = performance.now();
     (function wacht(){
@@ -159,7 +159,7 @@ async function zorgWedstrijdOpen(){
   const eersteId = (S.wedstrijden[0]||{}).id;
   if (!eersteId) return false;
   let m;
-  try { m = await import('./wedstrijd.js?v=20261103i'); }
+  try { m = await import('./wedstrijd.js?v=20261106h'); }
   catch(e){ console.warn('[ob] kon wedstrijd.js niet laden', e); return false; }
   m.openWedstrijd?.(eersteId);
   await wachtOpElement(() => document.querySelector('#view-wedstrijd.actief'), 2000);
@@ -171,7 +171,7 @@ async function zorgWedstrijdOpen(){
 async function verlaatWedstrijd(){
   if (!wedstrijdOpen()) return;
   try {
-    const m = await import('./wedstrijd.js?v=20261103i');
+    const m = await import('./wedstrijd.js?v=20261106h');
     m.sluitWedstrijd?.('wedstrijden');
   } catch(e){
     console.warn('[ob] sluitWedstrijd faalde, val terug op terugknop', e);
@@ -188,22 +188,22 @@ async function verlaatWedstrijd(){
 export const ONBOARDING_STAPPEN = [
   /* ══════════════ 0. WELKOM ══════════════ */
   {
-    hfd:'welkom', hfdNaam:'Welkom', emoji:'👋', rollen:['coach'],
+    hfd:'welkom', hfdNaam:'Welkom', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="7.6" r="2.9"/><path d="M3.4 19a5.6 5.6 0 0 1 11.2 0"/><rect x="16" y="8.6" width="5" height="6.6" rx="1.6"/><path d="M17.6 11.4h1.8"/></svg>', rollen:['coach'],
     titel:'Welkom bij Cluppie',
-    tekst:'Ik loop met je mee langs <b>alles</b> wat je als coach kunt doen. Je blijft steeds in de echte app en voert elke stap zelf uit — na afloop ken je de hele app.',
+    tekst:'Ik loop met je mee langs <b>alles</b> wat je als coach kunt doen. Je blijft steeds in de echte app en voert elke stap zelf uit, na afloop ken je de hele app.',
     wist:'Alles werkt <b>realtime</b>: wat jij aanpast, zien je mede-coaches meteen.',
     doel:() => null, midden:true,
   },
 
   /* ══════════════ 1. TEAM OPENEN ══════════════ */
   {
-    hfd:'team', hfdNaam:'Je team', emoji:'⚽', rollen:['coach'],
+    hfd:'team', hfdNaam:'Je team', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>', rollen:['coach'],
     titel:'Open je team',
     tekst:'Dit is je startscherm met de teams waar je coach van bent. Tik op een team om te beginnen.',
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        try { const t = await import('./teams.js?v=20261103i'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
+        try { const t = await import('./teams.js?v=20261106h'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
@@ -216,7 +216,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 2. WEDSTRIJDEN ══════════════ */
   {
-    hfd:'wedstrijden', hfdNaam:'Wedstrijden', emoji:'📋', rollen:['coach'],
+    hfd:'wedstrijden', hfdNaam:'Wedstrijden', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>', rollen:['coach'],
     titel:'De Wedstrijden-tab',
     tekst:'Hier staan alle wedstrijden van je team. Vanaf hier open je een wedstrijd om de opstelling te maken.',
     opdracht:'Tik op de tab “Wedstr.” onderin',
@@ -225,17 +225,17 @@ export const ONBOARDING_STAPPEN = [
     wacht:(klaar) => bijTabWissel('wedstrijden', klaar),
   },
   {
-    hfd:'wedstrijden', hfdNaam:'Wedstrijden', emoji:'➕', rollen:['coach'],
+    hfd:'wedstrijden', hfdNaam:'Wedstrijden', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14"/><path d="M5 12h14"/></svg>', rollen:['coach'],
     titel:'Nieuwe wedstrijd',
     tekst:'Met deze knop zet je een wedstrijd klaar: datum, tegenstander en thuis/uit. Competitiewedstrijden staan er vaak al automatisch in.',
-    wist:'De KNVB-kalender wordt <b>elke nacht</b> uit voetbal.nl opgehaald — zodra de poule bekend is, staan de wedstrijden er vanzelf.',
+    wist:'De KNVB-kalender wordt <b>elke nacht</b> uit voetbal.nl opgehaald: zodra de poule bekend is, staan de wedstrijden er vanzelf.',
     voor:() => naarTab('wedstrijden'),
     doel:() => document.querySelector('#view-team #nieuweWedstrijd'),
   },
 
   /* ══════════════ 3. OPSTELLING MAKEN (het hart van de app) ══════════════ */
   {
-    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'🎽', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.2 4.5 6 6.2v4l2.2-.7v10h7.6v-10l2.2.7v-4l-3.2-1.7a2.9 2.9 0 0 1-5.6 0z"/></svg>', rollen:['coach'],
     titel:'Open een wedstrijd',
     tekst:'Tik op een wedstrijd in de lijst om het wedstrijdscherm te openen. Daar maak je de opstelling en houd je de wedstrijd bij.',
     opdracht:'Open een wedstrijd uit de lijst',
@@ -245,7 +245,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !heeftWedstrijden(), // sla over als er nog geen wedstrijd is
   },
   {
-    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'🔢', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M3.2 12h17.6"/><circle cx="12" cy="12" r="3.2"/><path d="M12 6.4v2.4M12 15.2v2.4"/></svg>', rollen:['coach'],
     titel:'Per kwart',
     tekst:'Bovenin kies je het <b>kwart</b> (of de helft). Elke periode heeft zijn eigen opstelling, zodat je speeltijd eerlijk kunt verdelen.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -253,7 +253,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'👆', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="3.4" width="17.6" height="17.2" rx="2.4"/><path d="M3.2 12h17.6"/><circle cx="8" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="7.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="8" cy="16.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="16" cy="16.6" r="1.5" fill="currentColor" stroke="none"/></svg>', rollen:['coach'],
     titel:'Speler op het veld zetten',
     tekst:'Zo werkt de opstelling: <b>tik een speler</b> op de bank (hij licht op) en <b>tik dan een lege plek</b> op het veld. Nog een keer tikken wisselt spelers om.',
     opdracht:'Tik een speler en zet hem op een positie',
@@ -262,7 +262,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'🪑', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Opstelling', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 8.8h13"/><path d="M13.6 5.4 17 8.8l-3.4 3.4"/><path d="M20 15.2H7"/><path d="M10.4 11.8 7 15.2l3.4 3.4"/></svg>', rollen:['coach'],
     titel:'De bank & selectie',
     tekst:'Onder het veld staat de <b>bank</b>. Spelers met de minste speeltijd staan bovenaan. Via “selectie” bepaal je wie er bij deze wedstrijd hoort.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -270,7 +270,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'⏱', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg>', rollen:['coach'],
     titel:'De wedstrijdklok',
     tekst:'Start de klok bij het fluitsignaal. De app telt de <b>speeltijd per speler</b> automatisch mee, zodat je precies ziet wie hoeveel speelt.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -278,7 +278,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'⚽', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>', rollen:['coach'],
     titel:'Doelpunten & kaarten',
     tekst:'Tik op het bal-icoon in het scorebord om een <b>doelpunt</b> te loggen, of op de gele knop bij de klok voor een kaart. Alles komt in het wedstrijdverslag.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -286,15 +286,15 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'🔄', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 8.8h13"/><path d="M13.6 5.4 17 8.8l-3.4 3.4"/><path d="M20 15.2H7"/><path d="M10.4 11.8 7 15.2l3.4 3.4"/></svg>', rollen:['coach'],
     titel:'Wissel plannen',
-    tekst:'Plan vooraf een wissel in: “speler X erin voor Y na 10 minuten”. Op het juiste moment krijg je een seintje — handig langs de lijn.',
+    tekst:'Plan vooraf een wissel in: “speler X erin voor Y na 10 minuten”. Op het juiste moment krijg je een seintje, handig langs de lijn.',
     voor:async () => { await zorgWedstrijdOpen(); },
     doel:() => document.querySelector('#view-wedstrijd #planWissel'),
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'📋', rollen:['coach'],
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>', rollen:['coach'],
     titel:'Wedstrijdverslag',
     tekst:'Na afloop zie je hier een compleet <b>verslag</b>: uitslag, doelpunten, speeltijd per speler en de opstelling per kwart.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -302,7 +302,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !wedstrijdOpen(),
   },
   {
-    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'📈', rollen:['coach'], modKey:'evaluaties',
+    hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>', rollen:['coach'], modKey:'evaluaties',
     titel:'Team evalueren',
     tekst:'Direct na de wedstrijd leg je kort vast wat goed ging en wat aandacht vraagt. Deze teamevaluaties verzamelen zich onder <b>Stats</b>.',
     voor:async () => { await zorgWedstrijdOpen(); },
@@ -312,7 +312,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 4. SPELERS ══════════════ */
   {
-    hfd:'spelers', hfdNaam:'Spelers', emoji:'👥', rollen:['coach'],
+    hfd:'spelers', hfdNaam:'Spelers', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>', rollen:['coach'],
     titel:'Je selectie',
     tekst:'Onder <b>Spelers</b> beheer je de selectie: namen, rugnummers, beoordelingen en leerpunten.',
     opdracht:'Open de tab “Spelers”',
@@ -321,14 +321,14 @@ export const ONBOARDING_STAPPEN = [
     wacht:(klaar) => bijTabWissel('spelers', klaar),
   },
   {
-    hfd:'spelers', hfdNaam:'Spelers', emoji:'➕', rollen:['coach'],
+    hfd:'spelers', hfdNaam:'Spelers', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14"/><path d="M5 12h14"/></svg>', rollen:['coach'],
     titel:'Speler toevoegen',
     tekst:'Nieuwe speler erbij? Eén naam en rugnummer is genoeg. Zo bouw je in een minuut je hele selectie op.',
     voor:() => naarTab('spelers'),
     doel:() => document.querySelector('#view-team #nieuweSpeler'),
   },
   {
-    hfd:'spelers', hfdNaam:'Spelers', emoji:'👤', rollen:['coach'],
+    hfd:'spelers', hfdNaam:'Spelers', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>', rollen:['coach'],
     titel:'Open een spelersprofiel',
     tekst:'Tik op een speler om zijn profiel te openen. Daar vind je overzicht, leerlijn en historie.',
     opdracht:'Open een speler',
@@ -338,10 +338,10 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !heeftSpelers(),
   },
   {
-    hfd:'spelers', hfdNaam:'Beoordelen', emoji:'⭐', rollen:['coach'], modKey:'leerlijn',
+    hfd:'spelers', hfdNaam:'Beoordelen', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 14.5 9.4l5.5.8-4 4 1 5.6L12 17.2l-5 2.6 1-5.6-4-4 5.5-.8z"/></svg>', rollen:['coach'], modKey:'leerlijn',
     titel:'Beoordelen & leerpunten',
     tekst:'In het profiel leg je korte <b>beoordelingen</b> vast op vijf domeinen (TE·TA·FY·ME·GE) en formuleer je concrete <b>leerpunten</b> die over meerdere metingen doorlopen.',
-    wist:'Beoordelingen zijn alleen zichtbaar voor coaches — spelers en ouders zien ze niet.',
+    wist:'Beoordelingen zijn alleen zichtbaar voor coaches, spelers en ouders zien ze niet.',
     voor:() => { /* profiel-tabs staan al in beeld als een profiel open is */ },
     doel:() => document.querySelector('#view-team #profielTabs, #view-team .speler-rij[data-open-profiel]'),
     optioneelAls:() => !heeftSpelers(),
@@ -349,23 +349,23 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 5. TRAINING ══════════════ */
   {
-    hfd:'training', hfdNaam:'Training', emoji:'📄', rollen:['coach'],
+    hfd:'training', hfdNaam:'Training', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.6 3.4h7L18.6 8.4v12.2h-12z"/><path d="M13.6 3.4V8.4h5"/></svg>', rollen:['coach'],
     titel:'Trainingen',
-    tekst:'Onder <b>Training</b> vind je de oefenstof (PDF) voor de komende week. Een <b>🔴 rood stipje</b> op de tab betekent iets nieuws.',
+    tekst:'Onder <b>Training</b> vind je de oefenstof (PDF) voor de komende week. Een <b>rood stipje</b> op de tab betekent iets nieuws.',
     opdracht:'Open de tab “Training”',
     voor:async () => { S._beoordeelProfiel = null; await naarTab('spelers'); },
     doel:() => tabKnop('trainingen'),
     wacht:(klaar) => bijTabWissel('trainingen', klaar),
   },
   {
-    hfd:'training', hfdNaam:'Presentie', emoji:'✅', rollen:['coach'],
+    hfd:'training', hfdNaam:'Presentie', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M8 12.2 11 15.2 16.2 9.4"/></svg>', rollen:['coach'],
     titel:'Presentie bijhouden',
     tekst:'Met “Wie is er vandaag?” vink je in één scherm de aanwezigheid af. Zo bouw je een beeld op van wie er vaak traint.',
     voor:() => naarTab('trainingen'),
     doel:() => document.querySelector('#view-team #presentieVandaag, #view-team .presentie-rij'),
   },
   {
-    hfd:'training', hfdNaam:'ASV-kompas', emoji:'🧭', rollen:['coach'], modKey:'kompas',
+    hfd:'training', hfdNaam:'ASV-kompas', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg>', rollen:['coach'], modKey:'kompas',
     titel:'Het ASV-kompas',
     tekst:'Bovenaan de Training-tab staat de wekelijkse <b>ASV-kompas</b>-tip: een pedagogisch thema uit het jeugdbeleidsplan om je training richting te geven.',
     voor:() => naarTab('trainingen'),
@@ -375,7 +375,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 6. VIDEO ══════════════ */
   {
-    hfd:'video', hfdNaam:'Video', emoji:'🎬', rollen:['coach'],
+    hfd:'video', hfdNaam:'Video', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>', rollen:['coach'],
     titel:'Video’s',
     tekst:'Onder <b>Video</b> staan YouTube-links met oefeningen of beelden om je training mee voor te bereiden.',
     opdracht:'Open de tab “Video”',
@@ -386,7 +386,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 7. MEER-menu ══════════════ */
   {
-    hfd:'meer', hfdNaam:'Meer', emoji:'⋯', rollen:['coach'],
+    hfd:'meer', hfdNaam:'Meer', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5.6" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>', rollen:['coach'],
     titel:'Het “Meer”-menu',
     tekst:'Niet alles past in de balk. Onder <b>Meer</b> vind je Planning, Documenten, Stats en de Handleiding.',
     opdracht:'Open “Meer”',
@@ -397,16 +397,16 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 8. PLANNING ══════════════ */
   {
-    hfd:'planning', hfdNaam:'Planning', emoji:'📅', rollen:['coach'],
+    hfd:'planning', hfdNaam:'Planning', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg>', rollen:['coach'],
     titel:'Seizoensplanning',
-    tekst:'De <b>Planning</b> toont de hele seizoenskalender per maand. Echte wedstrijden verschijnen automatisch met een ⚽-stip.',
+    tekst:'De <b>Planning</b> toont de hele seizoenskalender per maand. Echte wedstrijden verschijnen automatisch met een <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>-stip.',
     opdracht:'Open “Planning”',
     voor:() => naarTab('meer'),
     doel:() => meerTegel('planning'),
     wacht:(klaar) => bijTabWissel('planning', klaar),
   },
   {
-    hfd:'planning', hfdNaam:'Planning', emoji:'🔎', rollen:['coach'],
+    hfd:'planning', hfdNaam:'Planning', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3 20 20"/></svg>', rollen:['coach'],
     titel:'Filteren & eigen dag',
     tekst:'Met de filterchips bekijk je gericht wedstrijden, speeldagen of vrije dagen. Met <b>“+ Eigen dag”</b> voeg je zelf een toernooi of vrije dag toe.',
     voor:() => naarTab('planning'),
@@ -416,9 +416,9 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 9. DOCUMENTEN ══════════════ */
   {
-    hfd:'documenten', hfdNaam:'Documenten', emoji:'📂', rollen:['coach'],
+    hfd:'documenten', hfdNaam:'Documenten', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.4" y="4.6" width="17.2" height="4.4" rx="1.8"/><path d="M5.2 9v10.4h13.6V9"/><path d="M10 13h4"/></svg>', rollen:['coach'],
     titel:'Documenten',
-    tekst:'Onder <b>Documenten</b> staan gedeelde bestanden: draaiboeken, protocollen en clubinfo — als PDF, direct in de app te lezen.',
+    tekst:'Onder <b>Documenten</b> staan gedeelde bestanden: draaiboeken, protocollen en clubinfo: als PDF, direct in de app te lezen.',
     opdracht:'Open “Documenten”',
     voor:() => naarTab('meer'),
     doel:() => meerTegel('documenten'),
@@ -427,9 +427,9 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 10. STATS ══════════════ */
   {
-    hfd:'stats', hfdNaam:'Stats', emoji:'📊', rollen:['coach'], modKey:'evaluaties',
+    hfd:'stats', hfdNaam:'Stats', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>', rollen:['coach'], modKey:'evaluaties',
     titel:'Stats & speeltijd',
-    tekst:'Onder <b>Stats</b> zie je per speler de opgebouwde speeltijd en — via de segment-knoppen — de teamevaluaties over het seizoen.',
+    tekst:'Onder <b>Stats</b> zie je per speler de opgebouwde speeltijd en, via de segment-knoppen, de teamevaluaties over het seizoen.',
     opdracht:'Open “Stats”',
     voor:() => naarTab('meer'),
     doel:() => meerTegel('stats'),
@@ -437,7 +437,7 @@ export const ONBOARDING_STAPPEN = [
     optioneelAls:() => !meerTegel('stats'),
   },
   {
-    hfd:'stats', hfdNaam:'Stats', emoji:'🗓', rollen:['coach'], modKey:'evaluaties',
+    hfd:'stats', hfdNaam:'Stats', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M3.5 14.6h17"/><circle cx="7.6" cy="12.1" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12.1" r="1.2" fill="currentColor" stroke="none"/><circle cx="16.4" cy="12.1" r="1.2" fill="currentColor" stroke="none"/></svg>', rollen:['coach'], modKey:'evaluaties',
     titel:'Spelers, team & seizoen',
     tekst:'Wissel tussen <b>Spelers</b> en <b>Team</b>, en filter op seizoen. Zo vergelijk je ontwikkeling door het jaar heen.',
     voor:() => naarTab('stats'),
@@ -447,7 +447,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 11. TEAMINSTELLINGEN ══════════════ */
   {
-    hfd:'instellingen', hfdNaam:'Instellingen', emoji:'⚙️', rollen:['coach'],
+    hfd:'instellingen', hfdNaam:'Instellingen', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg>', rollen:['coach'],
     titel:'Teaminstellingen',
     tekst:'Via de tegel <b>Instellingen</b> (onder Meer) regel je de teamnaam, de speelcategorie en je eigen weergavenaam.',
     opdracht:'Open Instellingen',
@@ -459,7 +459,7 @@ export const ONBOARDING_STAPPEN = [
     hfd:'instellingen', hfdNaam:'Uitnodigen', emoji:'📲', rollen:['coach'],
     titel:'Coaches uitnodigen',
     tekst:'Hier vind je de <b>teamcode</b> en een <b>uitnodigingslink</b>. Deel die via WhatsApp en collega-coaches sluiten met één tik aan.',
-    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261103i'); m.renderTeam?.();
+    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261106h'); m.renderTeam?.();
       await wachtOpElement(() => document.querySelector('#view-team #deelLink, #view-team #deelCode')); },
     doel:() => document.querySelector('#view-team #deelLink, #view-team #deelCode'),
     optioneelAls:() => !document.querySelector('#view-team #deelLink, #view-team #deelCode'),
@@ -467,7 +467,7 @@ export const ONBOARDING_STAPPEN = [
 
   /* ══════════════ 12. HANDLEIDING ══════════════ */
   {
-    hfd:'help', hfdNaam:'Handleiding', emoji:'📖', rollen:['coach'],
+    hfd:'help', hfdNaam:'Handleiding', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 5.6a2.2 2.2 0 0 1 2.2-2.2h13v17.2H6.6a2.2 2.2 0 0 0-2.2 2.2z"/><path d="M8.4 8.4h7"/><path d="M8.4 12h4.6"/></svg>', rollen:['coach'],
     titel:'Altijd hulp bij de hand',
     tekst:'Onder <b>Meer → Handleiding</b> staat alles nog eens rustig uitgelegd, met een zoekbalk. En deze rondleiding kun je daar altijd opnieuw starten.',
     opdracht:'Open de Handleiding',
@@ -518,7 +518,7 @@ function bouwLagen(){
     <div class="ob-ring" id="obRing" style="display:none"></div>
     <div class="ob-bubbel" id="obBubbel" style="display:none"></div>
     <div class="ob-hud" id="obHud" style="display:none">
-      <button class="ob-hud-knop coach" id="obCoachKnop" title="Vraag de coach">💬</button>
+      <button class="ob-hud-knop coach" id="obCoachKnop" title="Vraag de coach"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5.5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 3.2V16.5H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 9.5h8M8 12.5h5"/></svg></button>
       <div class="ob-voortgang"><div class="ob-voortgang-vul" id="obVul"></div></div>
       <span class="ob-hud-badge" id="obBadge">0/0</span>
       <button class="ob-hud-knop" id="obSluit" title="Later hervatten">✕</button>
@@ -774,14 +774,14 @@ async function toonStap(){
   b.innerHTML = `
     <div class="ob-b-label"><span class="ob-b-label-dot"></span>Uitleg</div>
     <div class="ob-b-kop" id="obSleepGreep" title="Versleep om het venster te verplaatsen">
-      <span class="ob-b-emoji">${stap.emoji||'💡'}</span>
+      <span class="ob-b-emoji">${stap.emoji||'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.5 1.5M16.2 16.2l1.5 1.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5"/></svg>'}</span>
       <span class="ob-b-titel">${esc(stap.titel)}</span>
       <span class="ob-b-stap">${st.i+1}/${totaal}</span>
       <span class="ob-b-greep" aria-hidden="true">⠿</span>
     </div>
     <div class="ob-b-tekst">${stap.tekst}</div>
     ${stap.opdracht ? `<div class="ob-b-opdr"><span class="ob-pijltje">➜</span>${esc(stap.opdracht)}</div>` : ''}
-    ${stap.wist ? `<div class="ob-b-wist">💡 <b>Wist je dat?</b> ${stap.wist}</div>` : ''}
+    ${stap.wist ? `<div class="ob-b-wist"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.5 1.5M16.2 16.2l1.5 1.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5"/></svg> <b>Wist je dat?</b> ${stap.wist}</div>` : ''}
     <div class="ob-b-voet">
       <div class="ob-links">
         <button class="ob-knop sec mini" id="obVorig" ${st.i===0?'disabled':''}>‹ Vorige</button>
@@ -849,7 +849,7 @@ function toonIntro(bekendeRol){
   intro.innerHTML = `
     <img class="ob-intro-logo" src="icons/icon-192.png" alt="Cluppie" onerror="this.onerror=null;this.style.background='var(--accent)';this.removeAttribute('src')">
     <h1>Even samen<br>rondkijken</h1>
-    <p>In een paar minuten leer je de hele app kennen als coach — en je doet alles meteen zelf. Elk uitlegvenster kun je <b>verslepen</b> om achter het scherm te kijken.</p>
+    <p>In een paar minuten leer je de hele app kennen als coach, en je doet alles meteen zelf. Elk uitlegvenster kun je <b>verslepen</b> om achter het scherm te kijken.</p>
     <button class="ob-intro-start" id="obStart">Start de rondleiding</button>
     <button class="ob-intro-skip" id="obSkip">Overslaan, ik red me wel</button>`;
   document.body.appendChild(intro);
@@ -893,7 +893,7 @@ function stopTour(voltooid){
     // bij een volgende keer inloggen. Hij blijft altijd zelf te starten via
     // Meer → Handleiding (knop "Rondleiding opnieuw").
     voortgangSchrijf({ rol:st.rol, overgeslagen:true, gestart:true, laatsteIndex:st.i });
-    meld('Rondleiding gestopt — opnieuw starten kan via Meer → Handleiding');
+    meld('Rondleiding gestopt: opnieuw starten kan via Meer → Handleiding');
   }
   st.hfdFilter = null;
 }
@@ -912,21 +912,21 @@ function voltooien(){
   const scherm = document.createElement('div');
   scherm.className = 'ob-klaar'; scherm.id = 'obKlaar';
   const behaalde = [...new Set(st.stappen.map(s => s.hfd))];
-  const badgeEmoji = { welkom:'👋', team:'⚽', wedstrijden:'📋', spelers:'👥',
-    training:'📄', video:'🎬', meer:'⋯', planning:'📅', documenten:'📂',
-    stats:'📊', instellingen:'⚙️', help:'📖', clubbeheer:'🏛' };
+  const badgeEmoji = { welkom:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="7.6" r="2.9"/><path d="M3.4 19a5.6 5.6 0 0 1 11.2 0"/><rect x="16" y="8.6" width="5" height="6.6" rx="1.6"/><path d="M17.6 11.4h1.8"/></svg>', team:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>', wedstrijden:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>', spelers:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg>',
+    training:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6.6 3.4h7L18.6 8.4v12.2h-12z"/><path d="M13.6 3.4V8.4h5"/></svg>', video:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg>', meer:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="5.6" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>', planning:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg>', documenten:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.4" y="4.6" width="17.2" height="4.4" rx="1.8"/><path d="M5.2 9v10.4h13.6V9"/><path d="M10 13h4"/></svg>',
+    stats:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg>', instellingen:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg>', help:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 5.6a2.2 2.2 0 0 1 2.2-2.2h13v17.2H6.6a2.2 2.2 0 0 0-2.2 2.2z"/><path d="M8.4 8.4h7"/><path d="M8.4 12h4.6"/></svg>', clubbeheer:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><circle cx="12" cy="10.4" r="2.1"/><path d="M8.8 16.2a3.6 3.6 0 0 1 6.4 0"/></svg>' };
   const top = behaalde.slice(0, 6);
   scherm.innerHTML = `
-    <div class="ob-klaar-emoji">🎉</div>
+    <div class="ob-klaar-emoji"></div>
     <h1>Je bent er klaar voor!</h1>
-    <p>Je hebt alle belangrijke schermen van Cluppie nu zelf gebruikt. Vanaf hier ben je zelfstandig — en je kunt alles nog eens nalezen in de handleiding.</p>
+    <p>Je hebt alle belangrijke schermen van Cluppie nu zelf gebruikt. Vanaf hier ben je zelfstandig, en je kunt alles nog eens nalezen in de handleiding.</p>
     <div class="ob-badges">
       ${top.map(h => `<div class="ob-badge">
-        <div class="ob-badge-cirkel">${badgeEmoji[h]||'⭐'}</div>
+        <div class="ob-badge-cirkel">${badgeEmoji[h]||'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 14.5 9.4l5.5.8-4 4 1 5.6L12 17.2l-5 2.6 1-5.6-4-4 5.5-.8z"/></svg>'}</div>
         <div class="ob-badge-naam">${esc((st.stappen.find(s=>s.hfd===h)||{}).hfdNaam || h)}</div>
       </div>`).join('')}
     </div>
-    <button class="ob-intro-start" id="obKlaarOk">Aan de slag ⚽</button>`;
+    <button class="ob-intro-start" id="obKlaarOk">Aan de slag <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></button>`;
   document.body.appendChild(scherm);
   requestAnimationFrame(() => scherm.classList.add('aan'));
   confetti();
@@ -966,15 +966,15 @@ function confetti(){
    zodat de coach nooit met een dood scherm blijft zitten. */
 const COACH_FAQ = [
   { v:/opstelling|kwart|wissel/i, a:'Open een wedstrijd en kies bovenaan een <b>kwart</b>. Sleep spelers vanaf de bank het veld in; de speeltijd telt automatisch mee.' },
-  { v:/uitnodig|code|coach toevoeg/i, a:'Ga naar <b>⚙️ Teaminstellingen</b>. Daar vind je de teamcode en een uitnodigingslink die je via WhatsApp kunt delen.' },
+  { v:/uitnodig|code|coach toevoeg/i, a:'Ga naar <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.2 13.6 5.4l2.6-.6 1 2.5 2.6.7-.5 2.6L21 12l-1.7 1.4.5 2.6-2.6.7-1 2.5-2.6-.6L12 20.8l-1.6-2.2-2.6.6-1-2.5-2.6-.7.5-2.6L3 12l1.7-1.4-.5-2.6 2.6-.7 1-2.5 2.6.6z"/></svg> Teaminstellingen</b>. Daar vind je de teamcode en een uitnodigingslink die je via WhatsApp kunt delen.' },
   { v:/training|pdf|oefen/i, a:'Onder de tab <b>Training</b> staan de PDF-oefeningen; een rood stipje betekent iets nieuws. Video-oefeningen staan onder <b>Video</b>.' },
   { v:/beoordel|profiel|leerpunt/i, a:'Tik onder <b>Spelers</b> op een naam om het profiel te openen. Daar leg je korte beoordelingen (TE·TA·FY·ME·GE) en leerpunten vast.' },
   { v:/planning|kalender|voetbal\.?nl/i, a:'De <b>Planning</b> (via Meer) toont de seizoenskalender. Competitiewedstrijden komen automatisch uit voetbal.nl; eigen dagen voeg je met “+ Eigen dag” toe.' },
-  { v:/verder|kwijt|vast|hoe nu/i, a:'Geen zorgen — tik op <b>Volgende</b> in de bubbel, of op <b>Overslaan</b>. Je kunt de rondleiding later hervatten via Meer → Handleiding.' },
+  { v:/verder|kwijt|vast|hoe nu/i, a:'Geen zorgen: tik op <b>Volgende</b> in de bubbel, of op <b>Overslaan</b>. Je kunt de rondleiding later hervatten via Meer → Handleiding.' },
 ];
 function coachAntwoord(vraag){
   const hit = COACH_FAQ.find(f => f.v.test(vraag));
-  return hit ? hit.a : 'Goede vraag! Kijk gerust rond — en in de <b>Handleiding</b> (Meer-menu) staat alles stap voor stap. Zal ik verdergaan met de rondleiding?';
+  return hit ? hit.a : 'Goede vraag! Kijk gerust rond: en in de <b>Handleiding</b> (Meer-menu) staat alles stap voor stap. Zal ik verdergaan met de rondleiding?';
 }
 function openCoach(){
   let achter = document.getElementById('obCoachAchter');
@@ -984,13 +984,13 @@ function openCoach(){
     achter.innerHTML = `
       <div class="ob-coach">
         <div class="ob-coach-kop">
-          <div class="ob-coach-avatar">🐝</div>
+          <div class="ob-coach-avatar"></div>
           <div><div class="ob-coach-naam">Coach Cluppie</div>
             <div class="ob-coach-sub">Vraag me alles over de app</div></div>
           <button class="ob-coach-x" id="obCoachX">✕</button>
         </div>
         <div class="ob-coach-lijf" id="obCoachLijf">
-          <div class="ob-msg bot">Hoi! Ik help je op weg. Waar loop je tegenaan? 👇</div>
+          <div class="ob-msg bot">Hoi! Ik help je op weg. Waar loop je tegenaan?</div>
         </div>
         <div class="ob-coach-chips" id="obCoachChips">
           ${['Hoe maak ik een opstelling?','Hoe nodig ik een coach uit?','Waar staan de trainingen?','Ga verder met de tour']
@@ -1082,9 +1082,9 @@ export function startOnboardingHoofdstuk(hfd){
 /* HTML-blokje voor onderaan de Handleiding of Instellingen. */
 export function onboardingHerstartBlok(){
   return `<div class="ob-herstart-blok" id="obHerstartBlok">
-    <span class="ob-hb-emoji">🎓</span>
+    <span class="ob-hb-emoji"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2 1c0 1.8-2.5 2.2-2.5 4"/><circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="none"/></svg></span>
     <div class="ob-hb-txt"><b>Rondleiding opnieuw</b>
-      <span>Loop stap voor stap door de app — je doet alles zelf.</span></div>
+      <span>Loop stap voor stap door de app, je doet alles zelf.</span></div>
     <button class="ob-knop prim mini" id="obHerstartKnop">Start</button>
   </div>`;
 }

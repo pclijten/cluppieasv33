@@ -13,15 +13,15 @@
    de DOM (MutationObserver op #app) om te weten welk scherm actief is.
    Stijl: blok "DESKTOP-SCHIL" achteraan in styles.css (html.desk).
 ========================================================================== */
-import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { BOUWEN } from './config.js?v=20261103e';
-import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20261103i';
-import { initSchermen, ruimOp } from './desktop-schermen.js?v=20261103i';
-import { openBouw, bouwTeams, bouwHuidig, zetHerteken, bouwIsSelectie } from './desktop-bouw.js?v=20261103i';
-import { ongelezenBerichten } from './berichten.js?v=20261103e';
-import { evaluatieOpen } from './teams-hub.js?v=20261103e';
-import { telNav } from './tracker.js?v=20261103e';
+import { S, $, esc, modAan, isBeheerder, stopUnsubs, meld } from './state.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { BOUWEN } from './config.js?v=20261106h';
+import { openTeam, zetTeamTab, verlaatTeamView, updatesInfo, renderTeam } from './teams.js?v=20261106h';
+import { initSchermen, ruimOp } from './desktop-schermen.js?v=20261106h';
+import { openBouw, bouwTeams, bouwHuidig, zetHerteken, bouwIsSelectie } from './desktop-bouw.js?v=20261106h';
+import { ongelezenBerichten } from './berichten.js?v=20261106h';
+import { evaluatieOpen } from './teams-hub.js?v=20261106h';
+import { telNav } from './tracker.js?v=20261106h';
 
 const K_KLEIN = 'cluppie_zijbalk_klein';
 let openBouwSleutel = null, openBouwTeam = null;
@@ -55,9 +55,9 @@ function rolNaam(){
    loopt onze vervolgstap gegarandeerd ná die render. */
 async function sluitOpenWedstrijd(){
   if (huidigeView() !== 'wedstrijd' && !S.wedstrijdId) return;
-  const w = await import('./wedstrijd.js?v=20261103i');
+  const w = await import('./wedstrijd.js?v=20261106h');
   w.sluitWedstrijd();
-  await import('./teams.js?v=20261103i');
+  await import('./teams.js?v=20261106h');
   await new Promise(r => requestAnimationFrame(() => r()));
 }
 /* Club-view verlaten zónder terug te springen naar het teamoverzicht
@@ -73,7 +73,7 @@ async function gaNaarTab(tab, opties = {}){
   telNav('desk:' + tab, 'zijbalk');
   const view = huidigeView();
   if (view === 'wedstrijd'){
-    const w = await import('./wedstrijd.js?v=20261103i');
+    const w = await import('./wedstrijd.js?v=20261106h');
     if (opties.profiel) S._beoordeelProfiel = opties.profiel;
     w.sluitWedstrijd(tab);
     return;
@@ -99,16 +99,16 @@ async function naarOverzicht(){
   teamKeuzeOpen = false;
   await sluitOpenWedstrijd();
   if (S.teamId){ verlaatTeamView(); return; }
-  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20261103i'); c.verlaatClubView(); }
+  if (huidigeView() === 'club'){ const c = await import('./club.js?v=20261106h'); c.verlaatClubView(); }
 }
 async function openClubDesk(id){
   await sluitOpenWedstrijd();
   if (S.teamId) verlaatTeamView();
-  const c = await import('./club.js?v=20261103i');
+  const c = await import('./club.js?v=20261106h');
   c.openClub(id);
 }
 async function openBouwDesk(clubId, bouw){
-  const b = await import('./bouw-hub.js?v=20261103i');
+  const b = await import('./bouw-hub.js?v=20261106h');
   b.openBouwHub(clubId, bouw);
 }
 /* Bouw-omgeving openen: eerst een open wedstrijd/club/team netjes verlaten. */
@@ -152,16 +152,16 @@ async function voerActieUit(actie, data = {}){
     if (data.pag === 'dash' || data.pag === 'uit' || data.pag === 'selmaken') return naarBouw(data.club, data.bouw, data.pag);
     return naarBouwPag(data.club, data.bouw, data.team, data.pag);
   }
-  if (actie === 'trainco')    return import('./trainco.js?v=20261103i').then(m => m.openVanuitApp());
+  if (actie === 'trainco')    return import('./trainco.js?v=20261106h').then(m => m.openVanuitApp());
   if (actie === 'coordbeheer'){
     await openClubDesk(data.id);
     S.clubTab = 'bouwen';          // [20260929a] coördinatoren staan nu onder Club → Bouwen
     return;
   }
-  if (actie === 'chat')       return import('./chatbot.js?v=20261103i').then(m => m.openChatbot());
+  if (actie === 'chat')       return import('./chatbot.js?v=20261106h').then(m => m.openChatbot());
   if (actie === 'tactiek'){
     if (!S.teamId){ const tid = laatsteTeamId(); if (tid) openTeam(tid); }
-    return import('./tactiekbord.js?v=20261103e').then(m => m.openTactiekBibliotheek());
+    return import('./tactiekbord.js?v=20261106h').then(m => m.openTactiekBibliotheek());
   }
   if (actie === 'speler'){ S._dkModus = null; S._profielTab = 'overzicht'; return gaNaarTab('spelers', { profiel: data.id }); }
   if (actie === 'selectie'){ S._dkModus = null; return gaNaarTab('spelers'); }
@@ -173,7 +173,7 @@ async function voerActieUit(actie, data = {}){
   }
   if (actie === 'wedstrijd'){
     if (huidigeView() !== 'team' && huidigeView() !== 'wedstrijd') return;
-    return import('./wedstrijd.js?v=20261103i').then(m => m.openWedstrijd(data.id));
+    return import('./wedstrijd.js?v=20261106h').then(m => m.openWedstrijd(data.id));
   }
 }
 
@@ -248,8 +248,8 @@ function groepen(){
     beheer.push({ actie:'coordbeheer', id:c.id, ico:'team-members', naam:'Coördinatoren & bouwen', sub:1 });
   }
   for (const b of (S.coordinatorBouwen || []))
-    if (!S.clubs.some(c => c.id === b.clubId)) bouwItems(b.clubId, b.bouw, b.bouwNaam + (b.clubNaam ? ' \u00b7 ' + b.clubNaam : ''));
-  if (beheer.length) g.push(['Club \u00b7 beheer', beheer]);
+    if (!S.clubs.some(c => c.id === b.clubId)) bouwItems(b.clubId, b.bouw, b.bouwNaam + (b.clubNaam ? ', ' + b.clubNaam : ''));
+  if (beheer.length) g.push(['Club, beheer', beheer]);
   return g;
 }
 function sleutel(it){
@@ -310,7 +310,7 @@ function teken(){
     <div class="zb-teamwrap">
       <button class="zb-team" data-actie="teamkeuze" title="Wissel van team">
         <img src="icons/asv-schild.png" alt="" class="zb-schild">
-        <span class="zb-tekst"><b>${esc(team?.naam || 'Cluppie')}</b><small>${team ? esc([team.categorie, team.format ? team.format+' tegen '+team.format : ''].filter(Boolean).join(' \u00b7 ')) : 'Kies een team'}</small></span>
+        <span class="zb-tekst"><b>${esc(team?.naam || 'Cluppie')}</b><small>${team ? esc([team.categorie, team.format ? team.format+' tegen '+team.format : ''].filter(Boolean).join(', ')) : 'Kies een team'}</small></span>
         <svg class="zb-pijl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4 4 4-4"/></svg>
       </button>
       <div class="zb-teamkeuze ${teamKeuzeOpen ? 'open' : ''}">

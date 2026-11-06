@@ -1,36 +1,36 @@
-import { S } from './state.js?v=20261103e';
+import { S } from './state.js?v=20261106h';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)
    Pupillen spelen officieel 2 helften met een time-out halverwege
    elke helft — in de praktijk dus 4 kwarten. Junioren/senioren: 2 helften. */
 export const CATEGORIEEN = {
-  'JO7':  {format:'4',  periodes:4, duur:10,   knvb:'4 tegen 4 · geen keeper · 2×20 min'},
-  'JO8':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6 · 2×20 min, time-out per helft'},
-  'JO9':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6 · 2×20 min, time-out per helft'},
-  'JO10': {format:'6',  periodes:4, duur:12.5, knvb:'6 tegen 6 · 2×25 min, time-out per helft'},
-  'JO11': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8 · 2×30 min, time-out per helft'},
-  'JO12': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8 · 2×30 min, time-out per helft'},
-  'JO13': {format:'11', periodes:2, duur:30,   knvb:'11 tegen 11 · 2×30 min'},
-  'JO14': {format:'11', periodes:2, duur:35,   knvb:'11 tegen 11 · 2×35 min'},
-  'JO15': {format:'11', periodes:2, duur:35,   knvb:'11 tegen 11 · 2×35 min'},
-  'JO16': {format:'11', periodes:2, duur:40,   knvb:'11 tegen 11 · 2×40 min'},
-  'JO17': {format:'11', periodes:2, duur:40,   knvb:'11 tegen 11 · 2×40 min'},
-  'JO19': {format:'11', periodes:2, duur:45,   knvb:'11 tegen 11 · 2×45 min'},
-  'Senioren': {format:'11', periodes:2, duur:45, knvb:'11 tegen 11 · 2×45 min'},
+  'JO7':  {format:'4',  periodes:4, duur:10,   knvb:'4 tegen 4, geen keeper, 2×20 min'},
+  'JO8':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6, 2×20 min, time-out per helft'},
+  'JO9':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6, 2×20 min, time-out per helft'},
+  'JO10': {format:'6',  periodes:4, duur:12.5, knvb:'6 tegen 6, 2×25 min, time-out per helft'},
+  'JO11': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8, 2×30 min, time-out per helft'},
+  'JO12': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8, 2×30 min, time-out per helft'},
+  'JO13': {format:'11', periodes:2, duur:30,   knvb:'11 tegen 11, 2×30 min'},
+  'JO14': {format:'11', periodes:2, duur:35,   knvb:'11 tegen 11, 2×35 min'},
+  'JO15': {format:'11', periodes:2, duur:35,   knvb:'11 tegen 11, 2×35 min'},
+  'JO16': {format:'11', periodes:2, duur:40,   knvb:'11 tegen 11, 2×40 min'},
+  'JO17': {format:'11', periodes:2, duur:40,   knvb:'11 tegen 11, 2×40 min'},
+  'JO19': {format:'11', periodes:2, duur:45,   knvb:'11 tegen 11, 2×45 min'},
+  'Senioren': {format:'11', periodes:2, duur:45, knvb:'11 tegen 11, 2×45 min'},
 };
 export const CATEGORIEEN_MEIDEN = {
-  'MO7':  {format:'4',  periodes:4, duur:10,   knvb:'4 tegen 4 · geen keeper · 2×20 min'},
-  'MO8':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6 · 2×20 min, time-out per helft'},
-  'MO9':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6 · 2×20 min, time-out per helft'},
-  'MO10': {format:'6',  periodes:4, duur:12.5, knvb:'6 tegen 6 · 2×25 min, time-out per helft'},
-  'MO11': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8 · 2×30 min, time-out per helft'},
-  'MO12': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8 · 2×30 min, time-out per helft'},
-  'MO13': {format:'9',  periodes:2, duur:30,   knvb:'9 tegen 9 · 2×30 min'},
-  'MO15': {format:'9',  periodes:2, duur:35,   knvb:'9 tegen 9 · 2×35 min'},
-  'MO17': {format:'9',  periodes:2, duur:40,   knvb:'9 tegen 9 · 2×40 min'},
-  'MO20': {format:'9',  periodes:2, duur:45,   knvb:'9 tegen 9 · 2×45 min'},
-  'Vrouwen': {format:'11', periodes:2, duur:45, knvb:'11 tegen 11 · 2×45 min'},
+  'MO7':  {format:'4',  periodes:4, duur:10,   knvb:'4 tegen 4, geen keeper, 2×20 min'},
+  'MO8':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6, 2×20 min, time-out per helft'},
+  'MO9':  {format:'6',  periodes:4, duur:10,   knvb:'6 tegen 6, 2×20 min, time-out per helft'},
+  'MO10': {format:'6',  periodes:4, duur:12.5, knvb:'6 tegen 6, 2×25 min, time-out per helft'},
+  'MO11': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8, 2×30 min, time-out per helft'},
+  'MO12': {format:'8',  periodes:4, duur:15,   knvb:'8 tegen 8, 2×30 min, time-out per helft'},
+  'MO13': {format:'9',  periodes:2, duur:30,   knvb:'9 tegen 9, 2×30 min'},
+  'MO15': {format:'9',  periodes:2, duur:35,   knvb:'9 tegen 9, 2×35 min'},
+  'MO17': {format:'9',  periodes:2, duur:40,   knvb:'9 tegen 9, 2×40 min'},
+  'MO20': {format:'9',  periodes:2, duur:45,   knvb:'9 tegen 9, 2×45 min'},
+  'Vrouwen': {format:'11', periodes:2, duur:45, knvb:'11 tegen 11, 2×45 min'},
 };
 export function catInfo(naam){ return CATEGORIEEN[naam] || CATEGORIEEN_MEIDEN[naam] || null; }
 
@@ -44,7 +44,7 @@ export function tijdstrafSec(){
   if (cat === 'Senioren' || cat === 'Vrouwen') return 600;
   return 300;
 }
-export const KAART_ICOON = {geel:'🟨', rood:'🟥', tijd:'⏱'};
+export const KAART_ICOON = {geel:'<span class="kaartje geel" aria-hidden="true"></span>', rood:'<span class="kaartje rood" aria-hidden="true"></span>', tijd:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg>'};
 export const KAART_NAAM  = {geel:'gele kaart', rood:'rode kaart', tijd:'tijdstraf'};
 
 export function periodeNaam(w){
@@ -295,7 +295,7 @@ export const KNVB_KALENDER = {
   pup: [
     {d:'2026-08-16',t:'vrij',l:'Vrij',n:'Schoolvakanties N t/m 16 aug'},
     {d:'2026-08-23',t:'vrij',l:'Vrij',n:'Schoolvakanties Z t/m 23 aug.'},
-    {d:'2026-08-30',t:'wd',l:'Fase 1 · start',n:'Schoolvakanties M t/m 30 aug.'},
+    {d:'2026-08-30',t:'wd',l:'Fase 1, start',n:'Schoolvakanties M t/m 30 aug.'},
     {d:'2026-09-06',t:'wd',l:'Fase 1'},
     {d:'2026-09-13',t:'wd',l:'Fase 1'},
     {d:'2026-09-20',t:'wd',l:'Fase 1'},
@@ -304,7 +304,7 @@ export const KNVB_KALENDER = {
     {d:'2026-10-11',t:'wd',l:'Fase 1',n:'Herfstvakantie N: 10-18 okt'},
     {d:'2026-10-18',t:'vrij',l:'Vrij',n:'Herfstvakantie alle regio\'s'},
     {d:'2026-10-25',t:'vrij',l:'Vrij',n:'Herfstvakantie M-Z: 17-25 okt'},
-    {d:'2026-10-31',t:'wd',l:'Fase 2 · start'},
+    {d:'2026-10-31',t:'wd',l:'Fase 2, start'},
     {d:'2026-11-08',t:'wd',l:'Fase 2'},
     {d:'2026-11-15',t:'wd',l:'Fase 2'},
     {d:'2026-11-22',t:'wd',l:'Fase 2'},
@@ -314,7 +314,7 @@ export const KNVB_KALENDER = {
     {d:'2026-12-20',t:'vrij',l:'Vrij',n:'Kerstvakantie 19 dec.-3 jan.'},
     {d:'2027-01-10',t:'vrij',l:'Vrij'},
     {d:'2027-01-17',t:'vrij',l:'Vrij'},
-    {d:'2027-01-24',t:'wd',l:'Fase 3 · start'},
+    {d:'2027-01-24',t:'wd',l:'Fase 3, start'},
     {d:'2027-01-31',t:'wd',l:'Fase 3'},
     {d:'2027-02-07',t:'vrij',l:'Vrij',n:'Carnavalsweekend'},
     {d:'2027-02-14',t:'vrij',l:'Vrij',n:'Vrj.vak. Z: 13-21 feb.'},
@@ -325,7 +325,7 @@ export const KNVB_KALENDER = {
     {d:'2027-03-21',t:'wd',l:'Fase 3'},
     {d:'2027-03-27',t:'vrij',l:'Vrij',n:'Paaszaterdag'},
     {d:'2027-03-29',t:'vrij',l:'Vrij',n:'2e Paasdag'},
-    {d:'2027-04-04',t:'wd',l:'Fase 4 · start'},
+    {d:'2027-04-04',t:'wd',l:'Fase 4, start'},
     {d:'2027-04-11',t:'wd',l:'Fase 4'},
     {d:'2027-04-18',t:'wd',l:'Fase 4'},
     {d:'2027-04-25',t:'vrij',l:'Vrij',n:'Meivakantie 24 apr.-2 mei'},
@@ -427,7 +427,7 @@ export const KNVB_KALENDER = {
   mei: [
     {d:'2026-08-16',t:'vrij',l:'Vrij',n:'Schoolvakanties N t/m 16 aug'},
     {d:'2026-08-23',t:'vrij',l:'Vrij',n:'Schoolvakanties Z t/m 23 aug.'},
-    {d:'2026-08-30',t:'wd',l:'Fase 1 · start',n:'Schoolvakanties M t/m 30 aug.'},
+    {d:'2026-08-30',t:'wd',l:'Fase 1, start',n:'Schoolvakanties M t/m 30 aug.'},
     {d:'2026-09-06',t:'wd',l:'Fase 1'},
     {d:'2026-09-13',t:'wd',l:'Fase 1'},
     {d:'2026-09-20',t:'wd',l:'Fase 1'},
@@ -495,7 +495,7 @@ export function knvbKalenderVoorTeam(team){
    "Leren voetballen, met plezier als basis en groei als doel."
    De pedagogische laag komt uit §5 (normen & waarden, teamgevoel, inzet, plezier). */
 export const SKILLS = [
-  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', ico:'football-ball', kleur:'#3b82f6', omschrijving:'Balbeheersing, traptechniek, 1v1 — elke 1v1 durven aangaan'},
+  {id:'TE', naam:'Technisch', kort:'Techniek', emoji:'⚽', ico:'football-ball', kleur:'#3b82f6', omschrijving:'Balbeheersing, traptechniek, 1v1: elke 1v1 durven aangaan'},
   {id:'TA', naam:'Tactisch',  kort:'Tactiek',  emoji:'🧠', ico:'tag-insight', kleur:'#a855f7', omschrijving:'Inzicht, positiespel, keuzes maken, omschakelen'},
   {id:'FY', naam:'Fysiek',    kort:'Fysiek',   emoji:'💪', ico:'tag-effort', kleur:'#f59e0b', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid'},
   {id:'ME', naam:'Mentaal',   kort:'Mentaal',  emoji:'🔥', ico:'tag-strong-second', kleur:'#10b981', omschrijving:'Zelfvertrouwen, durven kiezen, spelen onder weerstand'},
@@ -595,13 +595,13 @@ const DOEL_SUGGESTIES_BANDEN = [
   ]},
   {tot:15, teksten:[
     'Voorzetten geven vanaf de zijkant',
-    'Snel omschakelen bij balwinst — meteen vooruit denken',
+    'Snel omschakelen bij balwinst: meteen vooruit denken',
     'Tegenstander naar de zijlijn dwingen bij verdedigen',
     'Bewust omschakelen bij balverlies: direct terugzakken of aftroeven',
   ]},
   {tot:99, teksten:[
     'Bij balbezit een verdediger laten inschuiven naar het middenveld',
-    'Compact blijven staan — linies dicht bij elkaar',
+    'Compact blijven staan: linies dicht bij elkaar',
     'Constant coachen van je medespelers',
     'Bewust balverlies voorkomen in de opbouw',
   ]},
@@ -700,7 +700,7 @@ export function afwezigRedenInfo(record){
   let type = record.type;
   if (type === 'reden') type = 'anders'; // oud training-formaat
   const r = AFWEZIG_REDENEN.find(x => x.id === type) || AFWEZIG_REDENEN.find(x => x.id === 'anders');
-  return { id:r.id, emoji:r.emoji, label:r.label, notitie: record.notitie || '' };
+  return { id:r.id, emoji:r.emoji, ico:r.ico, label:r.label, notitie: record.notitie || '' };
 }
 
 /* ==================== FUNCTIEGEBRUIK — EVENT-CATALOGUS ====================

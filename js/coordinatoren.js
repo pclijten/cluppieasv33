@@ -15,9 +15,9 @@
    welke knoppen/schermen tonen we — de eigenlijke afdwinging staat in de
    rules. Een coördinator die ook zelf coach is, blijft dat gewoon; beide
    rollen tellen los van elkaar mee. */
-import { S, esc, meld, openModal, sluitModal, initialen } from './state.js?v=20261103e';
-import { db, doc, updateDoc, deleteField } from './firebase.js?v=20260922c';
-import { BOUWEN, bouwNaam } from './config.js?v=20261103e';
+import { S, esc, meld, openModal, sluitModal, initialen } from './state.js?v=20261106h';
+import { db, doc, updateDoc, deleteField } from './firebase.js?v=20261106h';
+import { BOUWEN, bouwNaam } from './config.js?v=20261106h';
 
 /* ---------- Rechten-check (zelfde patroon als isBeheerder() in state.js) ---------- */
 export function isBouwCoordinator(bouw){
@@ -51,21 +51,21 @@ export function htmlCoordinatorenBeheer(teams){
   const blok = (b) => {
     const uids = Object.keys(S.club.bouwCoordinatoren?.[b.id] || {});
     return `
-      <div class="kaart" style="margin-bottom:10px">
-        <div class="veldlabel" style="margin-top:0">${esc(b.naam)}</div>
+      <div class="kaart u-mb-sm">
+        <div class="veldlabel u-mt-0">${esc(b.naam)}</div>
         ${uids.length ? uids.map(uid => `
           <div class="lid-rij" data-coord-rij="${b.id}|${uid}">
             <div class="lid-avatar">${esc(initialen(info[uid]?.naam || '?'))}</div>
             <div class="lid-naam">${esc(info[uid]?.naam || 'Onbekende coach')}</div>
             <button class="lid-weg" data-coord-weg="${b.id}|${uid}" aria-label="Verwijderen als coördinator">✕</button>
           </div>`).join('')
-        : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin:2px 0 8px">Nog geen coördinator aangewezen.</p>`}
-        <button class="knop licht klein" data-coord-toevoegen="${b.id}" style="margin-top:4px">+ Coördinator toevoegen</button>
+        : `<p class="u-t-sm u-zacht" style="margin:var(--space-3xs) 0 var(--space-xs)">Nog geen coördinator aangewezen.</p>`}
+        <button class="knop licht klein" data-coord-toevoegen="${b.id}" style="margin-top:var(--space-2xs)">+ Coördinator toevoegen</button>
       </div>`;
   };
   return `
-    <div class="sectie-kop" style="font-size:calc(13px * var(--fs))">🧭 Bouwcoördinatoren</div>
-    <p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2);line-height:1.5;margin:0 0 10px">Een coördinator ziet en beheert alle teams binnen zijn bouw — precies als een coach, inclusief beoordelingen en notities. Iemand kan daarnaast gewoon coach van een eigen team blijven.</p>
+    <div class="sectie-kop u-t-sm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3.5 8.2 6 4.8h5.6l2 3.4H20a.7.7 0 0 1 .7.7v9.3a1 1 0 0 1-1 1H4.3a1 1 0 0 1-1-1V8.9a.7.7 0 0 1 .2-.7z"/></svg> Bouwcoördinatoren</div>
+    <p class="u-t-sm u-zacht u-lh-ruim" style="margin:0 0 var(--space-sm)">Een coördinator ziet en beheert alle teams binnen zijn bouw, precies als een coach, inclusief beoordelingen en notities. Iemand kan daarnaast gewoon coach van een eigen team blijven.</p>
     ${BOUWEN.map(blok).join('')}`;
 }
 
@@ -90,12 +90,12 @@ function modalCoordinatorToevoegen(bouw, teams){
   const bestaand = new Set(Object.keys(S.club.bouwCoordinatoren?.[bouw] || {}));
   const opties = kandidaten(teams).filter(k => !bestaand.has(k.uid));
   openModal(`
-    <h2>Coördinator · ${esc(bouwNaam(bouw))}</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">Kies een coach die al bij de club bekend is.</p>
+    <h2>Coördinator<span class="sep" aria-hidden="true"></span>${esc(bouwNaam(bouw))}</h2>
+    <p class="u-t-sm u-zacht u-mb-sm">Kies een coach die al bij de club bekend is.</p>
     ${opties.length ? opties.map(k => `
       <button class="knop licht" data-coord-kies="${k.uid}" style="text-align:left;justify-content:flex-start">${esc(k.naam)}</button>`).join('')
-    : `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2)">Geen kandidaten gevonden — er moet eerst iemand als coach bij een team staan.</p>`}
-    <button class="knop licht vol" id="coordToevoegenAnnuleer" style="margin-top:10px">Annuleren</button>`);
+    : `<p class="u-t-sm u-zacht">Geen kandidaten gevonden, er moet eerst iemand als coach bij een team staan.</p>`}
+    <button class="knop licht vol u-mt-sm" id="coordToevoegenAnnuleer" >Annuleren</button>`);
   document.getElementById('coordToevoegenAnnuleer').onclick = sluitModal;
   document.querySelectorAll('[data-coord-kies]').forEach(btn => {
     btn.onclick = async () => {

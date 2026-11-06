@@ -17,9 +17,9 @@
    kan zichzelf geen toegang geven.
    Getekend in Club → Bouwen (sinds 20260929a), onder de standaardbouwen.
 ======================================================== */
-import { S, esc, meld } from './state.js?v=20261103e';
-import { db, doc, updateDoc } from './firebase.js?v=20260922c';
-import { BOUWEN, bouwVanCategorie } from './config.js?v=20261103e';
+import { S, esc, meld } from './state.js?v=20261106h';
+import { db, doc, updateDoc } from './firebase.js?v=20261106h';
+import { BOUWEN, bouwVanCategorie } from './config.js?v=20261106h';
 
 const KLEUREN = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444'];
 let concept = null;           // { id, naam, kleur, teams:[], coaches:{}, selectie:bool|null, nieuw:bool } — de bouw die open staat
@@ -88,11 +88,11 @@ function binnen(teams){
     const bt = sorteer(teams.filter(t => (b.teams || []).includes(t.id)));
     return `
     <div class="cb-bouw" style="--kl:${esc(b.kleur || KLEUREN[0])}">
-      <div class="cb-bouw-kop"><div class="eb-naam">${esc(b.naam)}<small>${bt.length} team${bt.length === 1 ? '' : 's'} \u00b7 ${uids.length} gekoppelde coach${uids.length === 1 ? '' : 'es'}</small></div>
+      <div class="cb-bouw-kop"><div class="eb-naam">${esc(b.naam)}<small>${bt.length} team${bt.length === 1 ? '' : 's'}<span class="sep" aria-hidden="true"></span>${uids.length} gekoppelde coach${uids.length === 1 ? '' : 'es'}</small></div>
         <span class="cb-soort">${isSelectie(b) ? 'Selectie 1e + 2e' : 'Eigen bouw'}</span></div>
       <div class="cb-bouw-sub">
         <div class="cb-bouw-lbl">Teams <button class="cb-link" data-eb-bewerk="${esc(b.id)}">Bewerken</button></div>
-        <div class="eb-tags" style="margin-top:0">${bt.map(t => `<span>${esc(t.naam)}</span>`).join('') || '<em>Nog geen teams</em>'}</div>
+        <div class="eb-tags u-mt-0">${bt.map(t => `<span>${esc(t.naam)}</span>`).join('') || '<em>Nog geen teams</em>'}</div>
       </div>
       <div class="cb-bouw-sub">
         <div class="cb-bouw-lbl">Gekoppelde coaches <button class="cb-link" data-eb-bewerk="${esc(b.id)}">+ Toevoegen</button></div>
@@ -104,22 +104,22 @@ function binnen(teams){
   const editor = () => {
     const c = concept;
     return `
-    <div class="kaart eb-editor" style="margin-bottom:10px">
-      <div class="veldlabel" style="margin-top:0">${c.nieuw ? 'Nieuwe bouw' : 'Bouw bewerken'}</div>
+    <div class="kaart eb-editor u-mb-sm">
+      <div class="veldlabel u-mt-0">${c.nieuw ? 'Nieuwe bouw' : 'Bouw bewerken'}</div>
       <input class="invoer" id="ebNaam" value="${esc(c.naam)}" placeholder="Naam, bijv. Meidenbouw" autocomplete="off">
       <div class="veldlabel">Kleur</div>
       <div class="eb-kleuren">${KLEUREN.map(k => `<button type="button" class="eb-kleurknop ${k === c.kleur ? 'aan' : ''}" data-eb-kleur="${k}" style="background:${k}" aria-label="Kleur ${k}"></button>`).join('')}</div>
-      <div class="veldlabel">Teams <span style="font-weight:500;text-transform:none;letter-spacing:0">\u00b7 tik om te koppelen of los te maken \u2014 een team mag in meerdere bouwen</span></div>
-      <div class="eb-chips">${sorteer(teams).map(t => `<button type="button" class="eb-chip ${c.teams.includes(t.id) ? 'aan' : ''}" data-eb-team="${esc(t.id)}">${esc(t.naam)}</button>`).join('') || '<span style="color:var(--ink-2)">Nog geen teams in de club.</span>'}</div>
+      <div class="veldlabel">Teams <span style="font-weight:500;text-transform:none;letter-spacing:0"><span class="sep" aria-hidden="true"></span>tik om te koppelen of los te maken: een team mag in meerdere bouwen</span></div>
+      <div class="eb-chips">${sorteer(teams).map(t => `<button type="button" class="eb-chip ${c.teams.includes(t.id) ? 'aan' : ''}" data-eb-team="${esc(t.id)}">${esc(t.naam)}</button>`).join('') || '<span class="u-zacht">Nog geen teams in de club.</span>'}</div>
       <div class="eb-snel"><button type="button" class="knop licht klein" data-eb-snel="mo">Alle MO-teams</button><button type="button" class="knop licht klein" data-eb-snel="leeg">Niets</button></div>
-      <div class="veldlabel">Gekoppelde coaches <span style="font-weight:500;text-transform:none;letter-spacing:0">\u00b7 krijgen dezelfde rechten als een bouwcoördinator</span></div>
+      <div class="veldlabel">Gekoppelde coaches <span style="font-weight:500;text-transform:none;letter-spacing:0"><span class="sep" aria-hidden="true"></span>krijgen dezelfde rechten als een bouwcoördinator</span></div>
       <div class="eb-chips">${coachesVan(teams).map(co => `<button type="button" class="eb-chip ${c.coaches[co.uid] ? 'aan' : ''}" data-eb-coach="${esc(co.uid)}">${esc(co.naam)}${co.uid === S.user?.uid ? ' <small>(jij)</small>' : co.teams.length ? ` <small>${esc(co.teams.slice(0, 2).join(', '))}</small>` : ''}</button>`).join('')}</div>
       <div class="veldlabel">Soort bouw</div>
       <div class="eb-chips"><button type="button" class="eb-chip ${isSelectie(c) ? 'aan' : ''}" data-eb-selectie="1">Selectie met 1e en 2e elftal</button></div>
-      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin:6px 0 0">Aan: het dashboard toont per team de evaluatie-radar en de tegel Selectie maken, waar je per speler 1e, 2e of beide kiest. Het eerste team op naam is het 1e elftal.</p>
-      <p style="font-size:calc(12px * var(--fs));color:var(--ink-2);line-height:1.45;margin:8px 0 0">Zij zien deze bouw in hun menu (dashboard, uitleningen, alle teams) en mogen de teams in deze bouw bekijken en aanpassen. Koppel jezelf om het dashboard van deze bouw zelf te kunnen zien.</p>
+      <p class="u-t-xs u-zacht u-lh-ruim" style="margin:var(--space-xs) 0 0">Aan: het dashboard toont per team de evaluatie-radar en de tegel Selectie maken, waar je per speler 1e, 2e of beide kiest. Het eerste team op naam is het 1e elftal.</p>
+      <p class="u-t-xs u-zacht u-lh-ruim" style="margin:var(--space-xs) 0 0">Zij zien deze bouw in hun menu (dashboard, uitleningen, alle teams) en mogen de teams in deze bouw bekijken en aanpassen. Koppel jezelf om het dashboard van deze bouw zelf te kunnen zien.</p>
       <div class="eb-knoppen"><button class="knop fluo" id="ebOpslaan">Opslaan</button><button class="knop licht" id="ebAnnuleer">Annuleren</button>
-        ${c.nieuw ? '' : '<button class="knop licht" id="ebWeg" style="color:var(--uit)">Verwijderen</button>'}</div>
+        ${c.nieuw ? '' : '<button class="knop licht u-c-warn" id="ebWeg" >Verwijderen</button>'}</div>
     </div>`;
   };
   return `

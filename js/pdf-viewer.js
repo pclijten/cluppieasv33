@@ -12,7 +12,7 @@
    club-evaluaties.js) — de rest van de app heeft deze library nooit
    nodig, dus pas ophalen op het moment dat een trainer echt een
    training opent. */
-import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261103e';
+import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106h';
 
 const PDFJS_VERSIE = '3.11.174';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIE}/`;
@@ -28,7 +28,7 @@ export function laadPdfJs(){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.js';
       resolve();
     };
-    script.onerror = () => { _pdfjsLoad = null; reject(new Error('Kon PDF-library niet laden — controleer je internetverbinding')); };
+    script.onerror = () => { _pdfjsLoad = null; reject(new Error('Kon PDF-library niet laden: controleer je internetverbinding')); };
     document.head.appendChild(script);
   });
   return _pdfjsLoad;
@@ -98,10 +98,10 @@ function bouwOverlay(){
         <div class="pdfv-meta"></div>
       </div>
       <div class="pdfv-teller"></div>
-      <button class="pdfv-download" aria-label="Downloaden" disabled>⬇</button>
+      <button class="pdfv-download" aria-label="Downloaden" disabled></button>
     </div>
     <div class="pdfv-stage"></div>
-    <div class="pdfv-footer">🔍 dubbeltik of pinch om in te zoomen · scroll omlaag voor volgende pagina</div>`;
+    <div class="pdfv-footer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3 20 20"/></svg> dubbeltik of pinch om in te zoomen<span class="sep" aria-hidden="true"></span>scroll omlaag voor volgende pagina</div>`;
   document.body.appendChild(el);
   el.querySelector('.pdfv-sluit').onclick = () => sluitPdfViewer();
   _overlay = el;
@@ -181,7 +181,7 @@ export async function openPdfViewer({ url, titel, meta }){
       };
     }
   } catch (err){
-    stage.innerHTML = `<div class="pdfv-laad">⚠️ Kon de PDF niet laden.<br><span style="font-size:calc(11.5px * var(--fs));opacity:.7">Open 'm evt. rechtstreeks via de link.</span></div>`;
+    stage.innerHTML = `<div class="pdfv-laad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> Kon de PDF niet laden.<br><span class="u-t-xs" style="opacity:.7">Open 'm evt. rechtstreeks via de link.</span></div>`;
     meld('PDF laden mislukt');
     console.error('PDF-viewer fout:', err);
   }

@@ -5,15 +5,15 @@
    spelersstatistieken uit wedstrijd.js. */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc
-} from './firebase.js?v=20260922c';
+} from './firebase.js?v=20261106h';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20261103e';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+} from './state.js?v=20261106h';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
-import { htmlStats } from './wedstrijd.js?v=20261103i';
-import { telGebruik } from './tracker.js?v=20261103e';
+import { htmlStats } from './wedstrijd.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */
@@ -24,7 +24,7 @@ function deelnemer(){
 export function modalTeamEvaluatie(wedstrijdId){
   if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   const w = S.wedstrijden.find(x => x.id === wedstrijdId);
-  if (!w) return meld('Kon de wedstrijd niet vinden — probeer de pagina te verversen');
+  if (!w) return meld('Kon de wedstrijd niet vinden, probeer de pagina te verversen');
   const bestaande = S.teamEvaluaties.find(e => e.wedstrijdId === wedstrijdId) || null;
   const scores = {...(bestaande?.scores || {})};
   let gekozenTags = new Set(bestaande?.tags || []);
@@ -34,21 +34,21 @@ export function modalTeamEvaluatie(wedstrijdId){
 
   const catBlok = (c) => `
     <div class="cat-eval-kop">
-      <div class="veldlabel" style="margin:0">${esc(c.naam)}</div>
+      <div class="veldlabel u-m-0">${esc(c.naam)}</div>
       <div class="cat-eval-status" data-status="${c.id}"></div>
     </div>${kleurbalk(c.id)}`;
 
   openModal(`
     <h2>${bestaande?'Team-evaluatie bijwerken':'Team evalueren'}</h2>
     <div class="snel-kop">
-      <div class="mini-shirt">⚽</div>
+      <div class="mini-shirt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></div>
       <div><div class="nm">${esc(S.team.naam)} – ${esc(w.tegenstander)}</div>
-        <div class="pos">${datumNL(w.datum)}${w.thuis!=null?(w.thuis?' · Thuis':' · Uit'):''}</div></div>
+        <div class="pos">${datumNL(w.datum)}${w.thuis!=null?(w.thuis?'<span class="sep" aria-hidden="true"></span>Thuis':'<span class="sep" aria-hidden="true"></span>Uit'):''}</div></div>
     </div>
 
     <div class="te-samenvatting">
       <div class="te-ring" id="mTeRing">—</div>
-      <div class="te-sam-tekst" id="mTeSam">Vul in wat je opviel — categorieën die je overslaat tellen niet mee.</div>
+      <div class="te-sam-tekst" id="mTeSam">Vul in wat je opviel, categorieën die je overslaat tellen niet mee.</div>
     </div>
 
     ${TEAM_CATEGORIEEN.map(catBlok).join('')}
@@ -63,9 +63,9 @@ export function modalTeamEvaluatie(wedstrijdId){
     <div class="veldlabel">Aandachtspunt voor volgende training? (optioneel)</div>
     <textarea class="invoer" id="mTeAandacht" rows="2" placeholder="Bijv. rustiger opbouwen vanuit de verdediging">${esc(bestaande?.notitieAandacht||'')}</textarea>
 
-    <button class="knop vol fluo" id="mTeOk" style="margin-top:12px">${bestaande?'Bijwerken':'Opslaan'}</button>
-    ${bestaande?`<button class="knop vol gevaar" id="mTeWeg" style="margin-top:8px">Verwijderen</button>`:''}
-    <p style="font-size:calc(11.5px * var(--fs));color:var(--ink-2);margin-top:10px;line-height:1.5">💡 Alleen ingevulde categorieën tellen mee in de groeicurve. Na een drukke wedstrijd hoef je niet alles in te vullen.</p>`);
+    <button class="knop vol fluo u-mt-sm" id="mTeOk" >${bestaande?'Bijwerken':'Opslaan'}</button>
+    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mTeWeg" >Verwijderen</button>`:''}
+    <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.5 1.5M16.2 16.2l1.5 1.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5"/></svg> Alleen ingevulde categorieën tellen mee in de groeicurve. Na een drukke wedstrijd hoef je niet alles in te vullen.</p>`);
 
   const werkSamenvattingBij = () => {
     const ingevuld = Object.keys(scores).length;
@@ -79,7 +79,7 @@ export function modalTeamEvaluatie(wedstrijdId){
     const sam = $('#mTeSam');
     if (sam) sam.innerHTML = ingevuld
       ? `<b>${ingevuld} van ${TEAM_CATEGORIEEN.length}</b> categorieën ingevuld. De rest mag je overslaan.`
-      : `Vul in wat je opviel — categorieën die je overslaat tellen niet mee.`;
+      : `Vul in wat je opviel, categorieën die je overslaat tellen niet mee.`;
     for (const c of TEAM_CATEGORIEEN){
       const el = $(`[data-status="${c.id}"]`);
       if (el){
@@ -128,7 +128,7 @@ export function modalTeamEvaluatie(wedstrijdId){
    Zelfde documentvorm als voorheen; geeft true terug bij succes. */
 export async function bewaarTeamEvaluatie(wedstrijdId, { scores, tags = [], notitieGoed = '', notitieAandacht = '' }){
   const w = S.wedstrijden.find(x => x.id === wedstrijdId);
-  if (!w){ meld('Kon de wedstrijd niet vinden — probeer de pagina te verversen'); return false; }
+  if (!w){ meld('Kon de wedstrijd niet vinden, probeer de pagina te verversen'); return false; }
   if (!scores || !Object.keys(scores).length){ meld('Vul minstens één categorie in'); return false; }
   const bestaande = S.teamEvaluaties.find(e => e.wedstrijdId === wedstrijdId) || null;
   const data = {
@@ -186,7 +186,7 @@ function htmlTeamEvalHistorie(evalsOudNieuw){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">🗂️ Historie · al je evaluaties</div>
+      <div class="sectie-kop u-mt-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.4" y="4.6" width="17.2" height="4.4" rx="1.8"/><path d="M5.2 9v10.4h13.6V9"/><path d="M10 13h4"/></svg> Historie<span class="sep" aria-hidden="true"></span>al je evaluaties</div>
       ${getoond.map(rij).join('')}
       ${rest > 0 ? `<button class="hist-meer" data-hist-toon-meer>Toon ${rest} eerdere wedstrijd${rest===1?'':'en'}</button>` : ''}
     </div>`;
@@ -196,7 +196,7 @@ export function htmlTeamEvaluatieDashboard(){
   const alleSeizoenen = S.statsSeizoen === 'alles';
   const evals = alleSeizoenen ? S.teamEvaluaties : S.teamEvaluaties.filter(e => e.seizoen === S.statsSeizoen); // oud → nieuw
   if (!evals.length){
-    return `<div class="kaart leeg">Nog geen teamevaluaties${alleSeizoenen?'':' dit seizoen'}.<br>Vul na de eerstvolgende wedstrijd "Team evalueren" in op het wedstrijdscherm — daarna verschijnt hier de groeicurve.</div>`;
+    return `<div class="kaart leeg">Nog geen teamevaluaties${alleSeizoenen?'':' dit seizoen'}.<br>Vul na de eerstvolgende wedstrijd "Team evalueren" in op het wedstrijdscherm, daarna verschijnt hier de groeicurve.</div>`;
   }
   const laatste = evals[evals.length-1];
   const vorige = evals.length > 1 ? evals[evals.length-2] : null;
@@ -254,59 +254,59 @@ export function htmlTeamEvaluatieDashboard(){
 
   return `
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">📈 Groeicurve</div>
-      <div style="margin:4px 0 2px">
-        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:30px">${gemLaatste.toFixed(1).replace('.',',')}</span><span style="font-size:calc(13px * var(--fs));color:var(--ink-2)"> / 5</span>
-        <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:8px">Laatste wedstrijd (${esc(laatste.tegenstander)}, ${datumNL(laatste.datum)})${verschil!=null?` · <span style="color:${verschil>=0?'var(--ok)':'var(--warn)'};font-weight:700">${verschil>=0?'↑':'↓'} ${Math.abs(verschil).toFixed(1).replace('.',',')} t.o.v. vorige</span>`:''}</div>
+      <div class="sectie-kop u-mt-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Groeicurve</div>
+      <div style="margin:var(--space-2xs) 0 var(--space-3xs)">
+        <span class="u-fw-7 u-t-5xl" style="font-family:'Barlow Condensed'">${gemLaatste.toFixed(1).replace('.',',')}</span><span class="u-t-sm u-zacht"> / 5</span>
+        <div class="u-t-xs u-zacht u-mb-xs">Laatste wedstrijd (${esc(laatste.tegenstander)}, ${datumNL(laatste.datum)})${verschil!=null?`<span class="sep" aria-hidden="true"></span><span style="color:${verschil>=0?'var(--ok)':'var(--warn)'};font-weight:700">${verschil>=0?'↑':'↓'} ${Math.abs(verschil).toFixed(1).replace('.',',')} t.o.v. vorige</span>`:''}</div>
       </div>
       ${punten.length > 1 ? `
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:90px">
         <polyline points="${lijnPad}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="${laatstePunt.x}" cy="${laatstePunt.y}" r="4.5" fill="var(--accent)"/>
         <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--line-d)" stroke-width="1"/>
-      </svg>` : `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog minstens 2 evaluaties nodig voor een lijn.</p>`}
+      </svg>` : `<p class="u-t-sm u-zacht">Nog minstens 2 evaluaties nodig voor een lijn.</p>`}
     </div>
 
     ${htmlTeamEvalHistorie(evals)}
 
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">Categorieën · laatste ${Math.min(5,evals.length)} wedstrijden</div>
+      <div class="sectie-kop u-mt-0">Categorieën<span class="sep" aria-hidden="true"></span>laatste ${Math.min(5,evals.length)} wedstrijden</div>
       ${catRijen.map(c => `
-        <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--hair)">
-          <span style="flex:1;font-size:calc(13px * var(--fs));font-weight:600">${esc(c.naam)}</span>
+        <div style="display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-xs) 0;border-bottom:1px solid var(--hair)">
+          <span class="u-flex-1 u-t-sm u-fw-6">${esc(c.naam)}</span>
           <span style="width:80px;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;flex-shrink:0">
             <span style="display:block;height:100%;border-radius:4px;width:${c.nu?Math.round((c.nu/5)*100):0}%;background:${c.kleur}"></span>
           </span>
-          <span style="width:34px;text-align:right;font-family:'Barlow Condensed';font-weight:700;font-size:calc(15px * var(--fs))">${c.nu?c.nu.toFixed(1).replace('.',','):'—'}</span>
+          <span class="u-fw-7 u-t-base" style="width:34px;text-align:right;font-family:'Barlow Condensed'">${c.nu?c.nu.toFixed(1).replace('.',','):'—'}</span>
           <span style="width:16px;text-align:center;font-size:calc(12px * var(--fs));color:${c.trend==='↘'?'var(--warn)':'var(--ink-2)'}">${c.trend}</span>
         </div>`).join('')}
     </div>
 
     <div class="kaart">
-      <div class="sectie-kop" style="margin-top:0">⚠️ Terugkerende aandachtspunten</div>
+      <div class="sectie-kop u-mt-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg> Terugkerende aandachtspunten</div>
       ${signalen.length ? signalen.map(s => `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair)">
-          <div style="width:9px;height:9px;border-radius:50%;background:var(--warn);flex-shrink:0;margin-top:5px"></div>
-          <div><div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(s.cat.naam)}</div>
-            <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px">Laagst scorende onderdeel in ${s.n} van de laatste ${laatste4.length} wedstrijden.</div></div>
+        <div style="display:flex;align-items:flex-start;gap:var(--space-sm);padding:var(--space-xs) 0;border-bottom:1px solid var(--hair)">
+          <div class="u-mt-2xs" style="width:9px;height:9px;border-radius:50%;background:var(--warn);flex-shrink:0"></div>
+          <div><div class="u-fw-6 u-t-md">${esc(s.cat.naam)}</div>
+            <div class="u-t-xs u-zacht" style="margin-top:1px">Laagst scorende onderdeel in ${s.n} van de laatste ${laatste4.length} wedstrijden.</div></div>
         </div>`).join('') : ''}
       ${groeiers.length && groeiers[0].nu ? `
         <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;${signalen.length?'':''}">
-          <div style="width:9px;height:9px;border-radius:50%;background:var(--ok);flex-shrink:0;margin-top:5px"></div>
-          <div><div style="font-weight:600;font-size:calc(13.5px * var(--fs))">${esc(groeiers[0].naam)}</div>
-            <div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-top:1px">Positieve trend de laatste wedstrijden.</div></div>
+          <div class="u-mt-2xs" style="width:9px;height:9px;border-radius:50%;background:var(--ok);flex-shrink:0"></div>
+          <div><div class="u-fw-6 u-t-md">${esc(groeiers[0].naam)}</div>
+            <div class="u-t-xs u-zacht" style="margin-top:1px">Positieve trend de laatste wedstrijden.</div></div>
         </div>` : ''}
-      ${(!signalen.length && !groeiers.length) ? `<p style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">Nog geen duidelijk patroon — na een paar evaluaties verschijnen hier terugkerende punten.</p>` : ''}
+      ${(!signalen.length && !groeiers.length) ? `<p class="u-t-sm u-zacht">Nog geen duidelijk patroon, na een paar evaluaties verschijnen hier terugkerende punten.</p>` : ''}
     </div>
 
     ${adviesCat ? `
     <div class="kaart" ${adviesCat.leercurve?`data-thema-info="${esc(adviesCat.leercurve)}" style="background:linear-gradient(150deg,var(--accent),var(--grass-2));border:none;cursor:pointer"`:`style="background:linear-gradient(150deg,var(--accent),var(--grass-2));border:none"`}>
-      <div style="color:rgba(255,255,255,.85);font-size:calc(11px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">💡 Voorgesteld trainingsthema</div>
-      <div style="color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:calc(19px * var(--fs));text-transform:uppercase;margin-bottom:4px">${esc(adviesCat.leercurve || adviesCat.naam)}${adviesCat.leercurve?' <span style="font-size:calc(14px * var(--fs));opacity:.85">›</span>':''}</div>
-      <div style="color:rgba(255,255,255,.9);font-size:calc(12.5px * var(--fs));line-height:1.5">${adviesCat.leercurve
-        ? `Leercurve-thema uit het jeugdbeleidsplan (§3.3) — sluit direct aan op "${esc(adviesCat.naam)}", het onderdeel dat nu aandacht vraagt.`
-        : `"${esc(adviesCat.naam)}" vraagt nu de meeste aandacht — geen apart leercurve-thema, wel een mooi gespreksonderwerp voor de volgende training.`}</div>
-      ${adviesCat.leercurve?`<div style="color:rgba(255,255,255,.75);font-size:calc(11px * var(--fs));margin-top:8px;font-weight:600">Tik voor achtergrond en oefentips →</div>`:''}
+      <div class="u-t-2xs u-fw-7 u-mb-2xs" style="color:color-mix(in srgb, var(--wit) 85%, transparent);text-transform:uppercase;letter-spacing:.4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.5 1.5M16.2 16.2l1.5 1.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5"/></svg> Voorgesteld trainingsthema</div>
+      <div class="u-fw-7 u-t-2xl u-mb-2xs" style="color:var(--wit);font-family:'Barlow Condensed';text-transform:uppercase">${esc(adviesCat.leercurve || adviesCat.naam)}${adviesCat.leercurve?' <span class="u-t-md" style="opacity:.85">›</span>':''}</div>
+      <div class="u-t-sm u-lh-ruim" style="color:color-mix(in srgb, var(--wit) 90%, transparent)">${adviesCat.leercurve
+        ? `Leercurve-thema uit het jeugdbeleidsplan (§3.3), sluit direct aan op "${esc(adviesCat.naam)}", het onderdeel dat nu aandacht vraagt.`
+        : `"${esc(adviesCat.naam)}" vraagt nu de meeste aandacht, geen apart leercurve-thema, wel een mooi gespreksonderwerp voor de volgende training.`}</div>
+      ${adviesCat.leercurve?`<div class="u-t-2xs u-mt-xs u-fw-6" style="color:color-mix(in srgb, var(--wit) 75%, transparent)">Tik voor achtergrond en oefentips →</div>`:''}
     </div>` : ''}`;
 }
 
@@ -335,7 +335,7 @@ export function htmlSeizoenFilter(){
       <button data-seizoenfilter="alles" class="${alleActief?'actief':''}">Alle</button>
     </div>
     ${alleActief && oudere.length ? `
-    <div class="segment segment-sub" id="statsSeizoenOud" style="margin-bottom:10px">
+    <div class="segment segment-sub u-mb-sm" id="statsSeizoenOud" >
       <button data-seizoenfilter="alles" class="${S.statsSeizoen==='alles'?'actief':''}">Alle seizoenen</button>
       ${oudere.map(sz => `<button data-seizoenfilter="${esc(sz)}" class="${S.statsSeizoen===sz?'actief':''}">${esc(sz)}</button>`).join('')}
     </div>` : ''}`;
@@ -346,7 +346,7 @@ export function htmlSeizoenFilter(){
    Wedstrijden → Evaluatie, samengesteld in teams.js). */
 export function htmlStatsTab(){
   return htmlSeizoenFilter() + htmlStats() + `
-    <button class="knop licht vol" id="statsExcelExport" style="margin-top:14px">
-      📊 Exporteer naar Excel</button>`;
+    <button class="knop licht vol u-mt-md" id="statsExcelExport" >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg> Exporteer naar Excel</button>`;
 }
 

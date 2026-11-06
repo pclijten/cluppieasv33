@@ -10,9 +10,9 @@
    pagina stuurt: alleen die ene training + de presentie ervan. Zie
    deel-boot.js voor de kant van de ouder, en firestore.rules voor hoe die
    toegang precies is afgebakend (trainingDeel + trainingToegang). */
-import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20260922c';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20261106h';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
 let _ctx = null;
 
@@ -71,9 +71,9 @@ function openDeelModal(){
   const gegevens = { ..._ctx };
   openModal(`
     <h2>Training delen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:10px">
+    <p class="u-t-sm u-zacht u-mb-sm">
       Deel <b>${esc(gegevens.titel)}</b> met een ouder die vandaag meehelpt. Die krijgt een
-      link waarmee hij de training kan bekijken én kan zien wie er is (presentie, alleen-lezen) — verder niets
+      link waarmee hij de training kan bekijken én kan zien wie er is (presentie, alleen-lezen), verder niets
       van de app.
     </p>
     <div class="veldgroep">
@@ -83,12 +83,12 @@ function openDeelModal(){
       </div>
     </div>
     <button class="knop vol" id="mDeelMaak">Deellink maken</button>
-    <button class="knop licht vol" id="mDeelAnnuleer" style="margin-top:8px">Annuleren</button>
+    <button class="knop licht vol u-mt-xs" id="mDeelAnnuleer" >Annuleren</button>
     <div id="mDeelResultaat" style="display:none;margin-top:14px">
       <div class="veldgroep">
         <label>Link (geldig tot <span id="mDeelVervalt"></span>)</label>
-        <div style="display:flex;gap:8px">
-          <input class="invoer" id="mDeelLinkVeld" readonly style="flex:1;font-size:calc(12.5px * var(--fs))">
+        <div style="display:flex;gap:var(--space-xs)">
+          <input class="invoer u-flex-1 u-t-sm" id="mDeelLinkVeld" readonly >
           <button class="knop licht" id="mDeelKopieer" style="flex-shrink:0">Kopieer</button>
         </div>
       </div>

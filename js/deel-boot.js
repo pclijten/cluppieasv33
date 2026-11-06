@@ -12,23 +12,23 @@
    lijst. firestore.rules staat schrijven op presentie voor een
    trainingToegang-sessie dan ook niet meer toe. */
 import { auth, db, signInAnonymously, doc, getDoc, setDoc,
-         collection, getDocs, query, where } from './firebase.js?v=20260922c';
-import { esc } from './state.js?v=20261103e';
-import { afwezigRedenInfo } from './config.js?v=20261103e';
-import { oefHtml, bronHtml } from './training-weergave.js?v=20261103e';
+         collection, getDocs, query, where } from './firebase.js?v=20261106h';
+import { esc } from './state.js?v=20261106h';
+import { afwezigRedenInfo } from './config.js?v=20261106h';
+import { oefHtml, bronHtml } from './training-weergave.js?v=20261106h';
 
 function schermHtml(inhoud){
   return `<div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:20px 16px calc(40px + env(safe-area-inset-bottom));box-sizing:border-box">${inhoud}</div>`;
 }
 function laadHtml(tekst){
-  return schermHtml(`<div style="text-align:center;padding:60px 0;color:var(--ink-2);font-size:calc(14px * var(--fs))">${esc(tekst||'Bezig met laden…')}</div>`);
+  return schermHtml(`<div class="u-tc u-zacht u-t-md" style="padding:60px 0">${esc(tekst||'Bezig met laden…')}</div>`);
 }
 function foutHtml(tekst){
   return schermHtml(`
-    <div style="text-align:center;padding:60px 20px">
-      <div style="font-size:38px;margin-bottom:12px">🔒</div>
-      <h1 style="font-size:calc(18px * var(--fs));margin-bottom:8px">Deze link werkt niet (meer)</h1>
-      <p style="color:var(--ink-2);font-size:calc(13.5px * var(--fs));line-height:1.5">${esc(tekst)}</p>
+    <div class="u-tc" style="padding:60px 20px">
+      <div class="u-t-6xl u-mb-sm"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></div>
+      <h1 class="u-t-xl u-mb-xs">Deze link werkt niet (meer)</h1>
+      <p class="u-zacht u-t-md u-lh-ruim">${esc(tekst)}</p>
     </div>`);
 }
 
@@ -124,26 +124,26 @@ function renderDeelPagina(el, ctx){
       <div class="pres-speler-kop" style="cursor:default">
         <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
         <span class="pres-naam">${esc(p.naam)}</span>
-        <span class="pres-status">${isAfw?(info?`Afwezig · ${esc(info.label)}`:'Afwezig'):'Aanwezig'}</span>
+        <span class="pres-status">${isAfw?(info?`Afwezig, ${esc(info.label)}`:'Afwezig'):'Aanwezig'}</span>
       </div>
-      ${isAfw && redenen[p.id]?.notitie ? `<p style="margin:2px 0 0 44px;color:var(--ink-2);font-size:calc(12px * var(--fs))">“${esc(redenen[p.id].notitie)}”</p>` : ''}
+      ${isAfw && redenen[p.id]?.notitie ? `<p class="u-zacht u-t-xs" style="margin:var(--space-3xs) 0 0 44px">“${esc(redenen[p.id].notitie)}”</p>` : ''}
     </div>`;
   };
 
   el.innerHTML = schermHtml(`
-    <div class="kop" style="margin-bottom:4px"><h1 style="font-size:calc(19px * var(--fs))">${esc(deel.teamNaam || 'Training')}</h1></div>
-    <p style="color:var(--ink-2);font-size:calc(12.5px * var(--fs));margin-bottom:20px">
-      ${esc(deel.clubNaam||'')}${deel.clubNaam?' · ':''}gedeeld door je coach · geldig tot ${esc(vervaltTekst)}
+    <div class="kop u-mb-2xs"><h1 class="u-t-2xl">${esc(deel.teamNaam || 'Training')}</h1></div>
+    <p class="u-zacht u-t-sm" style="margin-bottom:20px">
+      ${esc(deel.clubNaam||'')}${deel.clubNaam?'<span class="sep" aria-hidden="true"></span>':''}gedeeld door je coach<span class="sep" aria-hidden="true"></span>geldig tot ${esc(vervaltTekst)}
     </p>
 
     <div class="kaart" style="margin-bottom:20px">
-      <div class="sectie-kop" style="margin:0 0 4px">${ico_placeholder()} ${esc(deel.titel||'Training')}</div>
-      ${oefeningen.length ? `<p style="color:var(--ink-2);font-size:calc(12.5px * var(--fs))">${oefeningen.length} oefening${oefeningen.length===1?'':'en'} — scrol naar beneden voor de details.</p>` : `<p style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Nog geen gestructureerde oefenstof bij deze training.</p>`}
+      <div class="sectie-kop" style="margin:0 0 var(--space-2xs)">${ico_placeholder()} ${esc(deel.titel||'Training')}</div>
+      ${oefeningen.length ? `<p class="u-zacht u-t-sm">${oefeningen.length} oefening${oefeningen.length===1?'':'en'} — scrol naar beneden voor de details.</p>` : `<p class="u-zacht u-t-sm">Nog geen gestructureerde oefenstof bij deze training.</p>`}
     </div>
 
-    <button type="button" class="lijst-item" id="deelPresToggle" style="margin-bottom:0">
+    <button type="button" class="lijst-item u-mb-0" id="deelPresToggle" >
       <div class="li-tekst">
-        <div class="titel">Presentie — vandaag</div>
+        <div class="titel">Presentie: vandaag</div>
         <div class="meta">${presentieDoc ? `${aantalAanwezig} van ${spelers.length} aanwezig` : 'Nog niet ingevuld door de coach'}</div>
       </div>
       <span class="pijl" id="deelPresPijl">›</span>
@@ -165,4 +165,4 @@ function renderDeelPagina(el, ctx){
 // Klein, plaatsonafhankelijk icoontje zonder afhankelijkheid van icons.js
 // (die module is opgebouwd rond SVG-sprites die in deze losstaande pagina
 // niet per se geladen zijn) — gewoon een emoji, functioneel identiek.
-function ico_placeholder(){ return '📋'; }
+function ico_placeholder(){ return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg>'; }

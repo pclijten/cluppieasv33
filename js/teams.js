@@ -1,28 +1,28 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, deleteField,
   setDoc, getDocs, query, where, onSnapshot, serverTimestamp
-} from './firebase.js?v=20260922c';
+} from './firebase.js?v=20261106h';
 import {
   S, $, $$, esc, meld, datumNL, teamCode, clubAfkorting, speler, isBeheerder,
   openModal, sluitModal, toon, stopUnsubs, bewaakTerug, modAan,
   bewaarPositie, leesPositie, wisPositie
-} from './state.js?v=20261103e';
+} from './state.js?v=20261106h';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, bouwVanCategorie, BOUWEN,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek, afwezigRedenInfo
-} from './config.js?v=20261103e';
-import { kompasTips, startContentListener } from './content.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
+} from './config.js?v=20261106h';
+import { kompasTips, startContentListener } from './content.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
 
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
-import { telGebruik, telNav } from './tracker.js?v=20261103e';
-import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20261103f';
-import { tekenPwaBanner } from './pwa.js?v=20260922c';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
+import { telGebruik, telNav } from './tracker.js?v=20261106h';
+import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20261106h';
+import { tekenPwaBanner } from './pwa.js?v=20261106h';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20261103i';
-import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261103i';
+} from './wedstrijd.js?v=20261106h';
+import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261106h';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -34,7 +34,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20261103i')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20261106h')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlProfiel,
@@ -42,30 +42,30 @@ import {
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn, modalLeenOverlay, definitiefOverzetten, herberekenDossier,
   modalGast, verwijderGast, modalKoppelGast, modalNotitie, startRondeFlow,
-} from './teams-spelers.js?v=20261103i';
-import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20261103e';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261103i';
+} from './teams-spelers.js?v=20261106h';
+import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20261106h';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261106h';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalLaterAfgemeld, modalVasteAfmelding, stopVasteAfmelding, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20261103e';
-import { htmlTeamDocumenten } from './teams-documenten.js?v=20261103e';
+} from './teams-training.js?v=20261106h';
+import { htmlTeamDocumenten } from './teams-documenten.js?v=20261106h';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
-} from './teams-hub.js?v=20261103e';
-import { htmlHandleiding } from './teams-handleiding.js?v=20261103i';
-import { koppelElftalFilter, modalElftalToewijzen, elftalPillWedstrijd } from './elftallen.js?v=20261103e';
+} from './teams-hub.js?v=20261106h';
+import { htmlHandleiding } from './teams-handleiding.js?v=20261106h';
+import { koppelElftalFilter, modalElftalToewijzen, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
 import {
   htmlLijstjes, htmlLijst, lijstTitel, koppelLijstjes, luisterLijsten, lijstPlanningItems, openLijst,
-} from './teams-lijsten.js?v=20261103e';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20261103i';
-import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20261103e';
-import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20260922c';
+} from './teams-lijsten.js?v=20261106h';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20261106h';
+import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20261106h';
+import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20261106h';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20261103i' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20261106h' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -145,7 +145,7 @@ export function startTeams(){
   if (!S.unsub.content) S.unsub.content = startContentListener();
   const meldFout = (naam) => (err) => {
     console.error(`[Cluppie] Listener "${naam}" kon niet lezen:`, err.code, err.message);
-    if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}" — controleer de Firestore-rules`);
+    if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}": controleer de Firestore-rules`);
   };
   const q1 = query(collection(db,'teams'), where('leden.'+S.user.uid, '==', true));
   S.unsub.teams = onSnapshot(q1, snap => {
@@ -177,7 +177,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20261103i').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20261106h').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -189,7 +189,7 @@ export function startTeams(){
        eigen, alleen-lezen scherm i.p.v. de lege coach-app. */
     if (!snap.size && !S._traincoGeprobeerd){
       S._traincoGeprobeerd = true;
-      import('./trainco.js?v=20261103i').then(m => m.probeerTrainco()).catch(() => {});
+      import('./trainco.js?v=20261106h').then(m => m.probeerTrainco()).catch(() => {});
     }
   }, meldFout('teams'));
   const q2 = query(collection(db,'clubs'), where('admins.'+S.user.uid, '==', true));
@@ -204,7 +204,7 @@ export function startTeams(){
     S.traincoClubs = snap.docs.map(d => ({id:d.id, ...d.data()}));
     /* Net geaccepteerd en geen eigen team: direct naar het coördinatorscherm. */
     if (S._teamsGeladen && !S.teams.length && S.traincoClubs.length)
-      import('./trainco.js?v=20261103i').then(m => m.probeerTrainco()).catch(() => {});
+      import('./trainco.js?v=20261106h').then(m => m.probeerTrainco()).catch(() => {});
     if (S.team && S.teamTab === 'meer' && !S.wedstrijdId) renderTeam();
   }, () => { S.traincoClubs = []; });
   const q3 = query(collection(db,'gebruikers',S.user.uid,'gelezen'));
@@ -288,7 +288,7 @@ function laadTrainingenVoorTeams(){
       if (S.team) renderTeam();
     }, (err) => {
       console.error(`[Cluppie] Listener "trainingen" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
-      if (err.code === 'permission-denied') meld('Geen toegang tot trainingen — controleer de Firestore-rules');
+      if (err.code === 'permission-denied') meld('Geen toegang tot trainingen: controleer de Firestore-rules');
     });
     trainingenUnsubs.push(u);
   });
@@ -317,7 +317,7 @@ function laadBerichtenVoorTeams(){
       if (S.team) renderTeam();
     }, (err) => {
       console.error(`[Cluppie] Listener "berichten" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
-      if (err.code === 'permission-denied') meld('Geen toegang tot berichten — controleer de Firestore-rules');
+      if (err.code === 'permission-denied') meld('Geen toegang tot berichten: controleer de Firestore-rules');
     });
     berichtenUnsubs.push(u);
   });
@@ -347,7 +347,7 @@ function laadVideosVoorTeams(){
       if (S.team) renderTeam();
     }, (err) => {
       console.error(`[Cluppie] Listener "videos" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
-      if (err.code === 'permission-denied') meld('Geen toegang tot video\'s — controleer de Firestore-rules');
+      if (err.code === 'permission-denied') meld('Geen toegang tot video\'s: controleer de Firestore-rules');
     });
     videoUnsubs.push(u);
   });
@@ -377,7 +377,7 @@ function laadDocumentenVoorTeams(){
       if (S.team) renderTeam();
     }, (err) => {
       console.error(`[Cluppie] Listener "documenten" kon niet lezen (teams=${c.join(',')}):`, err.code, err.message);
-      if (err.code === 'permission-denied') meld('Geen toegang tot documenten — controleer de Firestore-rules');
+      if (err.code === 'permission-denied') meld('Geen toegang tot documenten: controleer de Firestore-rules');
     });
     documentenUnsubs.push(u);
   });
@@ -415,18 +415,18 @@ function cruijffVanVandaag(){
 
 /* WMO-weercode -> emoji + kort label (Open-Meteo) */
 function weerIcoon(code){
-  if (code === 0) return ['☀️','helder'];
-  if ([1,2].includes(code)) return ['🌤️','licht bewolkt'];
-  if (code === 3) return ['☁️','bewolkt'];
-  if ([45,48].includes(code)) return ['🌫️','mist'];
-  if ([51,53,55,56,57].includes(code)) return ['🌦️','motregen'];
-  if ([61,63,65].includes(code)) return ['🌧️','regen'];
-  if ([66,67].includes(code)) return ['🌧️','ijzel'];
-  if ([71,73,75,77].includes(code)) return ['❄️','sneeuw'];
-  if ([80,81,82].includes(code)) return ['🌦️','buien'];
-  if ([85,86].includes(code)) return ['🌨️','sneeuwbuien'];
-  if ([95,96,99].includes(code)) return ['⛈️','onweer'];
-  return ['🌡️',''];
+  if (code === 0) return ['','helder'];
+  if ([1,2].includes(code)) return ['','licht bewolkt'];
+  if (code === 3) return ['','bewolkt'];
+  if ([45,48].includes(code)) return ['','mist'];
+  if ([51,53,55,56,57].includes(code)) return ['','motregen'];
+  if ([61,63,65].includes(code)) return ['','regen'];
+  if ([66,67].includes(code)) return ['','ijzel'];
+  if ([71,73,75,77].includes(code)) return ['','sneeuw'];
+  if ([80,81,82].includes(code)) return ['','buien'];
+  if ([85,86].includes(code)) return ['','sneeuwbuien'];
+  if ([95,96,99].includes(code)) return ['','onweer'];
+  return ['',''];
 }
 
 async function weerOphalen(){
@@ -436,8 +436,8 @@ async function weerOphalen(){
     const res = await fetch(url);
     const data = await res.json();
     const temp = Math.round(data.current.temperature_2m);
-    const [ico] = weerIcoon(data.current.weather_code);
-    return `${ico} ${temp}°`;
+    const [, omschrijving] = weerIcoon(data.current.weather_code);
+    return `${temp}° ${omschrijving}`.trim();
   } catch(e){ return null; }
 }
 
@@ -456,7 +456,7 @@ async function eerstvolgendeWedstrijd(){
   }
   if (!beste) return null;
   const thuisuit = beste.thuis ? 'thuis vs' : 'uit bij';
-  return `⚽ ${datumNL(beste.datum)} · ${thuisuit} ${esc(beste.tegenstander || 'onbekend')}`;
+  return `${datumNL(beste.datum)}, ${thuisuit} ${esc(beste.tegenstander || 'onbekend')}`;
 }
 
 function welkomStripInhoud(cache){
@@ -514,13 +514,13 @@ function nogTeEvaluerenHtml(){
   const items = S._evalCache?.items;
   if (!items || !items.length) return '';
   return `
-    <div class="sectie-kop" style="margin-top:4px">📝 Nog te evalueren</div>
+    <div class="sectie-kop u-mt-2xs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg> Nog te evalueren</div>
     ${items.map(w => `
       <div class="lijst-item" data-eval-open="${w.id}" data-eval-team="${w.teamId}" style="cursor:pointer">
-        <div class="team-shirt">⚽</div>
+        <div class="team-shirt"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></div>
         <div class="li-tekst"><div class="titel">${esc(w.teamNaam)} – ${esc(w.tegenstander)}</div>
         <div class="meta">${datumNL(w.datum)}</div></div>
-        <button data-eval-negeer="${w.id}" data-eval-negeer-team="${w.teamId}" title="Negeren" style="background:none;color:var(--ink-2);font-size:calc(18px * var(--fs));padding:6px;flex-shrink:0">✕</button>
+        <button data-eval-negeer="${w.id}" data-eval-negeer-team="${w.teamId}" title="Negeren" style="background:none;color:var(--ink-2);font-size:var(--t-xl);padding:var(--space-xs);flex-shrink:0">✕</button>
       </div>`).join('')}`;
 }
 
@@ -603,7 +603,7 @@ export function renderTeams(){
 
     <div id="nogTeEvalueren">${nogTeEvaluerenHtml()}</div>
 
-    ${S.clubs.length ? `<div class="sectie-kop" style="margin-top:4px">Clubs die je beheert</div>
+    ${S.clubs.length ? `<div class="sectie-kop u-mt-2xs">Clubs die je beheert</div>
       ${S.clubs.map(c => `
         <button class="lijst-item" data-open-club="${c.id}">
           <div class="club-shirt"><img src="icons/asv-schild.png" alt="" class="club-schild"></div>
@@ -612,7 +612,7 @@ export function renderTeams(){
           <span class="pijl">›</span>
         </button>`).join('')}` : ''}
 
-    ${S.coordinatorBouwen.length ? `<div class="sectie-kop" style="margin-top:4px">Bouwen die je coördineert</div>
+    ${S.coordinatorBouwen.length ? `<div class="sectie-kop u-mt-2xs">Bouwen die je coördineert</div>
       ${S.coordinatorBouwen.map(b => `
         <button class="lijst-item" data-open-bouw="${b.clubId}|${b.bouw}">
           <div class="club-shirt"><img src="icons/asv-schild.png" alt="" class="club-schild"></div>
@@ -626,7 +626,7 @@ export function renderTeams(){
         <button class="lijst-item" data-open-team="${t.id}">
           <div class="team-shirt">${esc(t.format)}<small>v${esc(t.format)}</small></div>
           <div class="li-tekst"><div class="titel">${esc(t.naam)}${t.club ? ' <span class="club-badge licht">'+esc(t.clubNaam||'club')+'</span>' : ''}</div>
-          <div class="meta">${Object.keys(t.leden||{}).length} coach(es) · code ${esc(t.code)}</div></div>
+          <div class="meta">${Object.keys(t.leden||{}).length} coach(es)<span class="sep" aria-hidden="true"></span>code ${esc(t.code)}</div></div>
           <span class="pijl">›</span>
         </button>`).join('')}`
       : !S.clubs.length ? `<div class="kaart leeg">Nog geen teams.<br>${isBeheerder()
@@ -634,24 +634,24 @@ export function renderTeams(){
           : 'Vraag je hoofdtrainer om een uitnodigingslink, of sluit je aan met een teamcode die je hebt gekregen.'}</div>` : ''}
 
     ${isBeheerder() ? `
-    <div class="rij" style="margin-top:14px">
+    <div class="rij u-mt-md">
       <button class="knop vol" id="nieuwTeam">+ Nieuw team</button>
       <button class="knop licht vol" id="joinTeam">Code invoeren</button>
     </div>
-    <button class="knop club-knop vol" id="nieuwClub" style="margin-top:8px">🏛 Nieuwe club aanmaken</button>`
+    <button class="knop club-knop vol u-mt-xs" id="nieuwClub" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3 20 6.5V11c0 4.5-3.1 8.7-8 10-4.9-1.3-8-5.5-8-10V6.5z"/><circle cx="12" cy="10.4" r="2.1"/><path d="M8.8 16.2a3.6 3.6 0 0 1 6.4 0"/></svg> Nieuwe club aanmaken</button>`
     : `
-    <button class="knop licht vol" id="joinTeam" style="margin-top:14px">Aansluiten met teamcode</button>`}`;
+    <button class="knop licht vol u-mt-md" id="joinTeam" >Aansluiten met teamcode</button>`}`;
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261103i').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261106h').then(m => m.openClub(b.dataset.openClub)));
   v.querySelectorAll('[data-open-bouw]').forEach(b => b.onclick = () => {
     const [clubId, bouw] = b.dataset.openBouw.split('|');
-    import('./bouw-hub.js?v=20261103i').then(m => m.openBouwHub(clubId, bouw));
+    import('./bouw-hub.js?v=20261106h').then(m => m.openBouwHub(clubId, bouw));
   });
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261103i').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261106h').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -708,12 +708,12 @@ export function modalNieuwTeam(clubId = null){
     <div class="rij">
       <div class="veldgroep" style="flex:2"><label>Categorie</label>
         <select class="invoer" id="mTeamCat"></select></div>
-      <div class="veldgroep" style="flex:1"><label>Team</label>
+      <div class="veldgroep u-flex-1"><label>Team</label>
         <select class="invoer" id="mTeamSub">${subOpties}</select></div>
     </div>
     <div class="veldgroep"><label>Teamnaam</label>
       <input class="invoer" id="mTeamNaam" autocomplete="off"></div>
-    <div class="kaart" style="margin-bottom:14px"><p style="font-size:calc(13px * var(--fs));color:var(--ink-2)" id="mTeamKnvb"></p></div>
+    <div class="kaart u-mb-md"><p class="u-t-sm u-zacht" id="mTeamKnvb"></p></div>
     <button class="knop vol" id="mTeamOk">Team aanmaken</button>`);
   let geslacht = 'j';
   const vulCategorieen = () => {
@@ -755,7 +755,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20261103i').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20261106h').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -767,7 +767,7 @@ function modalTeamKeuze(beginTab, titel){
   const rijen = S.teams.map(t => {
     const ongelezen = beginTab === 'trainingen'
       && S.trainingen.some(tr => (tr.teams||[]).includes(t.id) && !S.trainingenGelezen[tr.id]);
-    return `<button class="lijst-item" data-keuze-team="${t.id}" style="margin-bottom:8px">
+    return `<button class="lijst-item" data-keuze-team="${t.id}" style="margin-bottom:var(--space-xs)">
       <div class="team-shirt">${esc(t.format)}<small>v${esc(t.format)}</small></div>
       <div class="li-tekst"><div class="titel">${esc(t.naam)}${ongelezen ? ' <span class="nieuw-stip" title="Nieuwe oefenstof"></span>' : ''}${t.club ? ' <span class="club-badge licht">'+esc(t.clubNaam||'club')+'</span>' : ''}</div>
       <div class="meta">${Object.keys(t.leden||{}).length} coach(es)</div></div>
@@ -776,7 +776,7 @@ function modalTeamKeuze(beginTab, titel){
   }).join('');
   openModal(`
     <h2>${esc(titel)}</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Je hebt meerdere teams. Kies voor welk team je verder wilt.</p>
+    <p class="u-t-md u-zacht u-mb-sm">Je hebt meerdere teams. Kies voor welk team je verder wilt.</p>
     ${rijen}`);
   $$('#modalInhoud [data-keuze-team]').forEach(b => b.onclick = () => {
     sluitModal();
@@ -790,7 +790,7 @@ function modalTeamKeuze(beginTab, titel){
 function modalBerichtenArchief(){
   openModal(`
     <h2>Berichten</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px">Berichten van je clubadmin voor jouw team(s).</p>
+    <p class="u-t-sm u-zacht u-mb-sm">Berichten van je clubadmin voor jouw team(s).</p>
     ${htmlBerichtenArchief()}`);
 }
 
@@ -801,16 +801,15 @@ function htmlBerichtenTab(){
   const balk = htmlBerichtBalk();
   return `
     ${balk ? `<div id="berichtBalkTab">${balk}</div>` : ''}
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:12px;line-height:1.5">Berichten van je clubadmin voor dit team. Wegklikken (✕) verbergt de balk alleen op dit apparaat; alles blijft hieronder terug te lezen.</p>
+    <p class="u-t-sm u-zacht u-mb-sm u-lh-ruim">Berichten van je clubadmin voor dit team. Wegklikken (✕) verbergt de balk alleen op dit apparaat; alles blijft hieronder terug te lezen.</p>
     ${htmlBerichtenArchief()}`;
 }
 
 function modalJoinTeam(){
   openModal(`
     <h2>Aansluiten bij team</h2>
-    <p style="font-size:calc(13.5px * var(--fs));color:var(--ink-2);margin-bottom:12px">Vraag de teamcode aan een coach van het team (te vinden onder het tabblad Team).</p>
-    <div class="veldgroep"><input class="invoer" id="mCode" placeholder="ASVJO11-1" maxlength="20"
-      style="text-transform:uppercase;text-align:center;font-family:'Barlow Condensed';font-size:calc(22px * var(--fs));letter-spacing:2px"></div>
+    <p class="u-t-md u-zacht u-mb-sm">Vraag de teamcode aan een coach van het team (te vinden onder het tabblad Team).</p>
+    <div class="veldgroep"><input class="invoer u-tc u-t-3xl" id="mCode" placeholder="ASVJO11-1" maxlength="20" style="text-transform:uppercase;font-family:'Barlow Condensed';letter-spacing:2px"></div>
     <button class="knop vol" id="mCodeOk">Aansluiten</button>`);
   $('#mCodeOk').onclick = async () => {
     const code = $('#mCode').value.trim().toUpperCase();
@@ -845,7 +844,7 @@ export function openTeam(teamId, beginTab = 'hub', opties = {}){
   stopUnsubs('team','spelers','wedstrijden','presentie','planning','poule','beoordelingen','teamevaluaties','seizoen','sjablonen','uitleningen','uitleningenIn','lijsten');
   const luisterfout = (naam) => (err) => {
     console.error(`[Cluppie] Listener "${naam}" kon niet lezen (teamId=${teamId}):`, err.code, err.message);
-    if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}" — controleer de Firestore-rules`);
+    if (err.code === 'permission-denied') meld(`Geen toegang tot "${naam}": controleer de Firestore-rules`);
   };
   S.unsub.team = onSnapshot(doc(db,'teams',teamId), snap => {
     if (!snap.exists()){
@@ -974,7 +973,7 @@ function startSeizoenListener(teamId){
     zetClubModus(d?.themaModus);
   }, (err) => {
     console.error(`[Cluppie] Listener "seizoen" kon niet lezen (clubId=${clubId}):`, err.code, err.message);
-    if (err.code === 'permission-denied') meld('Kon seizoensinstelling niet laden — controleer de Firestore-rules');
+    if (err.code === 'permission-denied') meld('Kon seizoensinstelling niet laden: controleer de Firestore-rules');
   });
 }
 function startUitleningenListener(teamId){
@@ -989,7 +988,7 @@ function startUitleningenListener(teamId){
   };
   const foutmelding = (err) => {
     console.error(`[Cluppie] Listener "uitleningen" kon niet lezen (clubId=${clubId}):`, err.code, err.message);
-    if (err.code === 'permission-denied') meld('Kon uitleningen niet laden — controleer de Firestore-rules');
+    if (err.code === 'permission-denied') meld('Kon uitleningen niet laden: controleer de Firestore-rules');
   };
   /* Twee losse, where()-gefilterde queries i.p.v. één ongefilterde collection-
      listener: de Firestore-rule voor uitleningen toetst per document op
@@ -1160,7 +1159,7 @@ const UPDATES = [
   ]},
   { datum:'2026-10-12', titel:'Vaste afmelding: speler in één keer afmelden voor meerdere weken', punten:[
     'Kan een speler een tijd lang op een vaste trainingsdag niet (bijvoorbeeld elke maandag, 10 weken)? Tik op het presentie-tabblad op “Vaste afmelding”, kies speler, trainingsdag, startdatum, aantal weken en eventueel een reden.',
-    'Op die datums staat hij alvast op afwezig zodra je de presentie opent, met een 🔁-label. Is hij er toch, tik dan op zijn naam.',
+    'Op die datums staat hij alvast op afwezig zodra je de presentie opent, met een-label. Is hij er toch, tik dan op zijn naam.',
     'De afwezigheid telt pas mee in de opkomst als je de presentie die dag echt invult. Gaat een training niet door, dan telt hij dus ook niet als gemist.',
     'Onder de knoppen zie je de lopende vaste afmeldingen. Met “Stoppen” haal je er een weg.',
   ]},
@@ -1237,17 +1236,17 @@ const UPDATES = [
   ]},
   { datum:'2026-09-23', titel:'Eigen bouwen, zoals een Meidenbouw', punten:[
     'Clubbeheerders kunnen in Club \u2192 Instellingen eigen bouwen maken, bijvoorbeeld een Meidenbouw, en daar teams aan koppelen. Een team mag in meerdere bouwen zitten.',
-    'Eigen bouwen staan op de laptop in het menu onder Club \u00b7 beheer, met hetzelfde dashboard, dezelfde uitleningen en dezelfde teamschermen.',
+    'Eigen bouwen staan op de laptop in het menu onder Club, beheer, met hetzelfde dashboard, dezelfde uitleningen en dezelfde teamschermen.',
     'Oefenstof en coördinatoren blijven bij de standaardbouw (onder-, midden- of bovenbouw).',
   ]},
   { datum:'2026-09-23', titel:'Desktop: speler bewerken en de bouw-omgeving', punten:[
     'Klik je in Selectie op een speler, dan bewerk je direct zijn gegevens, voorkeurspositie en notitie, en kun je hem uitlenen aan een ander team.',
-    'Onder Club \u00b7 beheer klapt elke bouw uit: een dashboard met alle teams (uitslagen, komende wedstrijden, opkomst, uitleningen), een overzicht van de uitleningen en per team Selectie, Evaluatie spelers, Evaluatie wedstrijden en Stats.',
+    'Onder Club, beheer klapt elke bouw uit: een dashboard met alle teams (uitslagen, komende wedstrijden, opkomst, uitleningen), een overzicht van de uitleningen en per team Selectie, Evaluatie spelers, Evaluatie wedstrijden en Stats.',
     'Bij teams waar je geen coach van bent kijk je mee: alleen lezen.',
   ]},
   { datum:'2026-09-23', titel:'Desktop: planning als kalender en bouw-dashboards in het menu', punten:[
     'Planning toont op de laptop een maandkalender met wedstrijden, trainingen en speeldagen. Klik op een dag om hem te openen of aan te passen.',
-    'Clubbeheerders vinden in het menu links onder Club · beheer de dashboards van de onder-, midden- en bovenbouw en de plek om coördinatoren toe te wijzen.',
+    'Clubbeheerders vinden in het menu links onder Club, beheer de dashboards van de onder-, midden- en bovenbouw en de plek om coördinatoren toe te wijzen.',
   ]},
   { datum:'2026-09-23', titel:'Desktopweergave uitgebreid', punten:[
     'Speeltijd op het dashboard nu in procenten: groen gespeeld, geel reserve. Opkomst bij training toont de datum.',
@@ -1272,41 +1271,41 @@ const UPDATES = [
   ]},
   { datum:'2026-09-22', titel:'Training delen met een ouder', punten:[
     'Helpt er een ouder mee bij de training? Deel de training via het knopje rechtsboven in de oefenstof-weergave.',
-    'Kies hoelang de link geldig is; de ouder kan — zonder eigen account — de training bekijken én zien wie er is (presentie, alleen-lezen). Verder krijgt hij nergens toegang toe.',
+    'Kies hoelang de link geldig is; de ouder kan, zonder eigen account, de training bekijken én zien wie er is (presentie, alleen-lezen). Verder krijgt hij nergens toegang toe.',
   ]},
   { datum:'2026-09-21', titel:'Presentie: twee kleine, merkbare verbeteringen', punten:[
-    'De eerstvolgende training staat nu altijd apart bovenaan het presentie-tabblad, los van de geschiedenis — voorheen kon een vooraf ingevulde afmelding voor een latere datum boven de training van vanavond staan.',
+    'De eerstvolgende training staat nu altijd apart bovenaan het presentie-tabblad, los van de geschiedenis, voorheen kon een vooraf ingevulde afmelding voor een latere datum boven de training van vanavond staan.',
     'Bij het afmelden van een speler kun je nu bij élke reden een toelichting typen, niet meer alleen bij "Anders".',
   ]},
   { datum:'2026-09-08', titel:'Trainingsopkomst klopt nu ook voor spelers die later instroomden', punten:[
-    'Een speler die halverwege het seizoen bij het team komt — een gast, een inleen of een nieuwe aanwinst — kreeg tot nu toe 100% opkomst over alle trainingen van vóór zijn komst. Hij was er simpelweg niet om afwezig gezet te worden. Vanaf nu legt de app bij elke presentie vast wie er die dag in de selectie zat, en telt zijn percentage alleen over de trainingen waar hij bij hoorde.',
+    'Een speler die halverwege het seizoen bij het team komt, een gast, een inleen of een nieuwe aanwinst, kreeg tot nu toe 100% opkomst over alle trainingen van vóór zijn komst. Hij was er simpelweg niet om afwezig gezet te worden. Vanaf nu legt de app bij elke presentie vast wie er die dag in de selectie zat, en telt zijn percentage alleen over de trainingen waar hij bij hoorde.',
     'Onder zijn naam staat een chip die vertelt hoeveel trainingen buiten zijn telling vielen, zodat een stand van 1 / 1 niet als registratiefout leest.',
     'Het aandacht-blad signaleert lage opkomst pas vanaf drie meetellende trainingen. Eén gemiste training van iemand die net binnen is, is geen patroon.',
-    'Ook het opkomstcijfer op het clubdashboard, het spelersprofiel en de Excel-export rekenen op deze manier — die liepen anders uit elkaar.'],
+    'Ook het opkomstcijfer op het clubdashboard, het spelersprofiel en de Excel-export rekenen op deze manier, die liepen anders uit elkaar.'],
   },
   { datum:'2026-09-07', titel:'Stats overzichtelijker + geleende spelers meteen op de bank', punten:[
       'De tabbladen Speel en Wed zijn samengevoegd tot één blad Spelers: speeltijd, wedstrijden, reserve, doelpunten, aanvoerder, keeper en kaarten staan nu naast elkaar in dezelfde tabel.',
-      'Kolommen waarin het hele team op nul staat worden weggelaten — heeft niemand een kaart gekregen, dan zie je die kolommen ook niet. Een 0 in een kolom die verder wel gevuld is, staat gedempt.',
+      'Kolommen waarin het hele team op nul staat worden weggelaten, heeft niemand een kaart gekregen, dan zie je die kolommen ook niet. Een 0 in een kolom die verder wel gevuld is, staat gedempt.',
       'De tabel staat nu op naam gesorteerd, zodat je een speler altijd op dezelfde plek terugvindt. Spelers onder de 50% speeltijd krijgen een lichte tint.',
       'Gebruik je beoordelingen, dan staat achter elke naam een klein lijntje met zijn ontwikkeling: elke snelle beoordeling en het gemiddelde van elke volledige beoordeling, oudste links.',
       'Een speler die je van een ander team leent staat nu meteen in de selectie van nog niet gespeelde wedstrijden, in plaats van bij afwezig. Haal je hem er zelf uit, dan blijft dat zo.',
     ]},
   { datum:'2026-09-07', titel:'Speeltijd: alle kwarten in één tabel', punten:[
       'Onder “Speeltijd deze wedstrijd” zie je nu alle kwarten (of helften) naast elkaar in plaats van alleen het kwart waar je op staat. Zo zie je in één oogopslag hoe de speeltijd over de wedstrijd verdeeld is.',
-      'Het kwart waar je nu in zit is rood gemarkeerd. De spelernaam en de totaalkolom blijven staan als je de tabel opzij schuift — handig bij een toernooi met veel periodes.',
+      'Het kwart waar je nu in zit is rood gemarkeerd. De spelernaam en de totaalkolom blijven staan als je de tabel opzij schuift, handig bij een toernooi met veel periodes.',
       'Elke cel is aan te tikken om die periode voor die speler te corrigeren; voorheen kon dat alleen bij het actieve kwart.',
       'De aparte keeperkolom is vervangen door een oranje K achter de speeltijd, zodat je meteen ziet in wélke periodes iemand op doel stond.',
     ]},
   { datum:'2026-09-05', titel:'Speelminuten: twee telfouten hersteld', punten:[
-      'Werd een speler gewisseld terwijl hij niet in de startopstelling van die periode stond — bijvoorbeeld omdat je de opstelling pas na het starten van de klok neerzette, of omdat je de wissel achteraf toevoegde — dan viel zijn gespeelde tijd in die periode volledig weg. Die tijd telt nu gewoon mee.',
+      'Werd een speler gewisseld terwijl hij niet in de startopstelling van die periode stond, bijvoorbeeld omdat je de opstelling pas na het starten van de klok neerzette, of omdat je de wissel achteraf toevoegde, dan viel zijn gespeelde tijd in die periode volledig weg. Die tijd telt nu gewoon mee.',
       'Zette je de klok halverwege een periode op pauze en startte je hem niet meer, dan gold die klokstand als de lengte van de hele periode. Iedereen verloor daardoor minuten en een invaller kwam op 0:00 uit. De ingestelde periodeduur is nu de ondergrens; de klok kan een periode alleen nog verlengen bij blessuretijd.',
-      'Beide correcties werken met terugwerkende kracht op al gespeelde wedstrijden. Speelminuten en eerlijkheidspercentages kunnen daardoor iets afwijken van wat je eerder zag — die nieuwe waarden zijn de juiste.',
+      'Beide correcties werken met terugwerkende kracht op al gespeelde wedstrijden. Speelminuten en eerlijkheidspercentages kunnen daardoor iets afwijken van wat je eerder zag, die nieuwe waarden zijn de juiste.',
     ]},
-  { datum:'2026-09-02', titel:'Spelers uitlenen tussen teams — vernieuwd', punten:[
+  { datum:'2026-09-02', titel:'Spelers uitlenen tussen teams: vernieuwd', punten:[
       'Leen je een speler uit aan een ander team, dan doet die daar nu volwaardig mee: de ontvangende coach kan hem opstellen, presentie bijhouden en beoordelen, precies als bij een eigen speler. Open een speler en tik onderaan op “⇄ Uitlenen aan ander team”.',
-      'Bij jou wordt een uitgeleende speler grijs weergegeven onder “Uitgeleend” en verdwijnt hij uit je opstellingen, presenties en evaluaties — tot hij terugkomt. Je eigen speler blijft altijd van jou: met “Terughalen” zet je hem meteen terug in je selectie.',
+      'Bij jou wordt een uitgeleende speler grijs weergegeven onder “Uitgeleend” en verdwijnt hij uit je opstellingen, presenties en evaluaties, tot hij terugkomt. Je eigen speler blijft altijd van jou: met “Terughalen” zet je hem meteen terug in je selectie.',
       'De ontvangende coach mag het rugnummer en de voorkeurspositie van een ingeleende speler bij zich aanpassen (via “Nummer/positie bij jou”). Dat geldt alleen in zijn eigen team; jouw origineel blijft ongemoeid.',
-      'Nog niet bekend wie je precies inleent, maar wil je alvast opstellen? Maak een gastspeler aan (“+ Gastspeler aanmaken”). Zodra bekend is wie het wordt, koppel je de gast aan de echte uitleen — je bestaande opstellingen en presenties blijven behouden.',
+      'Nog niet bekend wie je precies inleent, maar wil je alvast opstellen? Maak een gastspeler aan (“+ Gastspeler aanmaken”). Zodra bekend is wie het wordt, koppel je de gast aan de echte uitleen, je bestaande opstellingen en presenties blijven behouden.',
       'Terugzetten kan door beide coaches. De clubadmin kan een uitleen bovendien definitief maken (de speler verhuist dan echt naar het nieuwe team) of terugzetten naar het oorspronkelijke team.',
     ]},
   { datum:'2026-09-02', titel:'Positie in de spelerslijst', punten:[
@@ -1316,24 +1315,24 @@ const UPDATES = [
   { datum:'2026-08-28', titel:'Tactiekbord: teken je plan op het veld', punten:[
       'Open bij een wedstrijd het nieuwe Tactiekbord (onderaan het wedstrijdscherm). Het veld verschijnt schermvullend met de spelers uit de opstelling van de gekozen periode.',
       'Teken loopwegen (gestreepte pijl), passes (doorgetrokken pijl) of vrij met het potlood, en versleep spelers, tegenstanders en een bal precies waar je ze wilt hebben.',
-      'Zet “Volg-loopweg” aan en sleep een speler: de loopweg tekent zich vanzelf mee — handig om te laten zien waar iemand naartoe loopt.',
+      'Zet “Volg-loopweg” aan en sleep een speler: de loopweg tekent zich vanzelf mee, handig om te laten zien waar iemand naartoe loopt.',
       'Je kunt meerdere tactiekborden per wedstrijd bewaren (bijvoorbeeld “K1 omschakeling” of “corner voor”), en een bord als afbeelding delen met je mede-coaches.',
     ]},
   { datum:'2026-08-26', titel:'Wijzig opzet slaat nu alles automatisch op', punten:[
       'In het scherm “Wijzig opzet” hoef je niet meer op Opslaan te tikken: elke keuze wordt meteen bewaard. Kies je een aanvoerder, aantal spelers, formatie of een doel-suggestie, dan staat het direct vast.',
       'Tekstvelden (tegenstander, datum, minuten, wedstrijddoel en notitie) worden opgeslagen zodra je uit het veld tikt. Bij elk opgeslagen veld verschijnt kort een groen “Opgeslagen”-vinkje, en onderaan zie je wat er als laatste is bewaard.',
-      'De Opslaan-knop is vervangen door “Klaar”. Sluiten met het kruisje kan ook gewoon — je wijzigingen staan dan al veilig.',
+      'De Opslaan-knop is vervangen door “Klaar”. Sluiten met het kruisje kan ook gewoon, je wijzigingen staan dan al veilig.',
     ]},
   { datum:'2026-08-26', titel:'Standaardopstellingen (sjablonen)', punten:[
-      'Je kunt nu een vaste opstelling voor alle kwarten bewaren als sjabloon en die in één keer op een andere wedstrijd leggen — inclusief dezelfde spelers. Handig als je week na week met (grotendeels) dezelfde opstelling begint.',
+      'Je kunt nu een vaste opstelling voor alle kwarten bewaren als sjabloon en die in één keer op een andere wedstrijd leggen, inclusief dezelfde spelers. Handig als je week na week met (grotendeels) dezelfde opstelling begint.',
       'Onder het tabblad Wedstrijden staat een nieuwe knop “Opstelling-sjablonen”. Daar maak je een sjabloon van de grond af op: kies aantal spelers en formatie, en tik per kwart de spelers op hun plek. Met “⧉ Naar K2/K3/K4” kopieer je een kwart razendsnel naar het volgende.',
       'Al een mooie opstelling gemaakt in een wedstrijd? Onderaan het wedstrijdscherm bewaar je die met één tik als sjabloon via “Opslaan als sjabloon”.',
-      'Bij een nog lege wedstrijd verschijnt bovenaan de knop “Opstelling invoegen”: kies een sjabloon óf een vorige wedstrijd en alle kwarten worden in één keer gevuld. Spelers die niet in je selectie zitten worden netjes overgeslagen — je hoort achteraf hoeveel.',
-      'Ook via “Wijzig opzet” (onder Speelwijze & formatie) kun je een standaardopstelling invoegen — óók als de wedstrijd al een opstelling heeft. Je krijgt eerst een bevestiging voordat de bestaande opstellingen worden vervangen.',
+      'Bij een nog lege wedstrijd verschijnt bovenaan de knop “Opstelling invoegen”: kies een sjabloon óf een vorige wedstrijd en alle kwarten worden in één keer gevuld. Spelers die niet in je selectie zitten worden netjes overgeslagen, je hoort achteraf hoeveel.',
+      'Ook via “Wijzig opzet” (onder Speelwijze & formatie) kun je een standaardopstelling invoegen, óók als de wedstrijd al een opstelling heeft. Je krijgt eerst een bevestiging voordat de bestaande opstellingen worden vervangen.',
       'Sjablonen zijn per team: elk team beheert z’n eigen standaardopstellingen.',
     ]},
   { datum:'2026-08-25', titel:'Zie meteen wat er nieuw is', punten:[
-      'Zodra er updates zijn die je nog niet hebt bekeken, verschijnt er bovenaan je startscherm — net onder de teamnaam — een duidelijke melding met een NIEUW-label, het aantal nieuwe updates en de titel van de nieuwste. Eén tik erop opent dit updates-overzicht.',
+      'Zodra er updates zijn die je nog niet hebt bekeken, verschijnt er bovenaan je startscherm, net onder de teamnaam, een duidelijke melding met een NIEUW-label, het aantal nieuwe updates en de titel van de nieuwste. Eén tik erop opent dit updates-overzicht.',
       'Wil je de melding even wegklikken? Tik op het kruisje rechtsboven in het balkje; hij blijft dan weg tot je de app opnieuw opent. De updates gelden pas als gelezen zodra je dit overzicht echt hebt geopend.',
       'Ook de regel “Wat is er nieuw?” onderaan het startscherm laat nu met een stipje en een teller zien hoeveel updates er nog voor je klaarstaan. Heb je alles bekeken, dan wordt het weer een rustige, gewone link.',
     ]},
@@ -1342,45 +1341,45 @@ const UPDATES = [
       'De notitie-knop bij een speler is een strak icoonknopje geworden (een potlood als er al een notitie staat, een plusje om er een toe te voegen). De werking blijft precies hetzelfde.',
     ]},
   { datum:'2026-08-24', titel:'Coach-notitie per speler', punten:[
-      'Bij elke speler kun je nu een vrije notitie kwijt — bijzonderheden, afspraken of aandachtspunten. Bijvoorbeeld: ‘is de eerste van de maand afwezig voor werk’ of ‘vindt het fijn om extra complimenten te krijgen’.',
+      'Bij elke speler kun je nu een vrije notitie kwijt, bijzonderheden, afspraken of aandachtspunten. Bijvoorbeeld: ‘is de eerste van de maand afwezig voor werk’ of ‘vindt het fijn om extra complimenten te krijgen’.',
       'Je vindt het veld bovenaan het spelersprofiel onder “Notitie”. Tik op Toevoegen of Bewerken om ’m te vullen of aan te passen.',
-      'Zodra een speler een notitie heeft, verschijnt er een amberkleurig uitroepteken achter de naam in de spelerslijst — zo zie je in één oogopslag bij wie iets staat.',
+      'Zodra een speler een notitie heeft, verschijnt er een amberkleurig uitroepteken achter de naam in de spelerslijst, zo zie je in één oogopslag bij wie iets staat.',
       'De notitie is coach-only: spelers en ouders zien ’m niet. Zet er geen gevoelige (medische) gegevens in.',
     ]},
   { datum:'2026-08-23', titel:'Eigen aantekeningen bij de oefenstof', punten:[
       'Je kunt nu je eigen aantekeningen bij een training maken zonder dat het origineel verandert. Open een AI-training en tik rechtsboven op het potlood ✎ om de notitie-laag aan te zetten.',
       'Tik daarna op een regel om ’m te markeren als aandachtspunt (amber), er een opmerking bij te typen, of een YouTube-filmpje te koppelen. Een genummerd bolletje achter de regel brengt je naar je opmerking en weer terug.',
-      'Alles wat je toevoegt is zichtbaar voor alle trainers van jouw team — handig om ervaringen te delen. Je eigen opmerkingen en filmpjes kun je altijd weer weghalen; het origineel blijft sowieso bewaard.',
-      'Voor de clubadmin: bij elke AI-training staat nu een notitie-knop 💬 die laat zien waar coaches op reageren — met de drukste plekken bovenaan — zodat je de oefenstof gericht kunt verbeteren.',
+      'Alles wat je toevoegt is zichtbaar voor alle trainers van jouw team, handig om ervaringen te delen. Je eigen opmerkingen en filmpjes kun je altijd weer weghalen; het origineel blijft sowieso bewaard.',
+      'Voor de clubadmin: bij elke AI-training staat nu een notitie-knop die laat zien waar coaches op reageren, met de drukste plekken bovenaan, zodat je de oefenstof gericht kunt verbeteren.',
     ]},
   { datum:'2026-08-22', titel:'Stats: eerlijke speeltijd in één blik', punten:[
-      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer (0–100) dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger — met de speler die het minst aan bod komt er meteen bij.',
-      'Nieuw blad ‘Aandacht’, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen — op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
+      'Bovenaan de Stats-tab staat nu een eerlijkheidsmeter: één rapportcijfer (0–100) dat laat zien hoe gelijk de speeltijd over je selectie verdeeld is. Hoe dichter iedereen bij elkaar zit, hoe hoger, met de speler die het minst aan bod komt er meteen bij.',
+      'Nieuw blad ‘Aandacht’, helemaal vooraan: de app haalt automatisch de spelers naar boven die een gesprek verdienen, op basis van weinig speeltijd, lage trainingsopkomst of een disciplinaire reservebeurt. Puur ter signalering, geen oordeel. Tik op een speler voor het volledige profiel.',
       'Daaronder een korte kern-strip met het aantal wedstrijden, doelpunten en de gemiddelde opkomst van het team.',
       'De bestaande bladen (Speelminuten, Wedstrijd, Training) blijven precies zoals je ze kent.',
     ]},
   { datum:'2026-08-19', titel:'Eigen speelwijzen & inzoombare tekeningen', punten:[
       'Je kunt nu je eigen speelwijze samenstellen: typ een linie-indeling (bijvoorbeeld 4-2-1-3) en de app plaatst de spelers automatisch netjes op het veld en bewaart ’m bij je team. Daarna kies je ’m gewoon naast de vaste formaties.',
       'Twee formaties toegevoegd: 3-1-3 voor 8-tegen-8 en 4-2-1-3 voor 11-tegen-11.',
-      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen — handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
+      'Veldtekeningen bij de oefenstof kun je nu schermvullend openen en met twee vingers (of dubbeltik) inzoomen, handig voor de details langs het veld. De telefoon-terugknop sluit de tekening weer.',
     ]},
   { datum:'2026-08-18', titel:'Nieuw startscherm: alles op één plek', punten:[
       'Na het inloggen land je nu direct op het startscherm van je team, met overzichtelijke tegels per onderwerp: Oefenstof, Presentie, Wedstrijden, Spelers en Meer. De balk onderin is verdwenen.',
       'Heb je meerdere teams? Tik op de teamnaam bovenaan om te wisselen.',
       'Presentie voor wedstrijden heeft een eigen scherm: de eerstvolgende wedstrijd staat klaar, je vinkt per speler aan wie meespeelt (met reden bij afwezigheid), en via de kiezer pak je elke andere wedstrijd erbij.',
       'Nieuw onder Spelers: Leerlijn toont alle leerpunten van het hele team in één overzicht, en via Historie open je per speler de ontwikkeling over de tijd.',
-      'De tegel Evaluatie verzamelt de gespeelde wedstrijden die je nog moet evalueren — met een teller zodat je niets vergeet.',
+      'De tegel Evaluatie verzamelt de gespeelde wedstrijden die je nog moet evalueren, met een teller zodat je niets vergeet.',
       'Berichten van je clubadmin vind je voortaan onder Meer → Berichten, met een rood bolletje als er iets nieuws is.',
     ]},
   { datum:'2026-08-17', titel:'Speelwijze per kwart of helft', punten:[
-      'Je kunt nu per kwart (of helft) een eigen speelwijze kiezen — bijvoorbeeld 1e kwart 1-3-3 en 2e kwart 2-3-2 — zonder dat de andere periodes meeveranderen.',
+      'Je kunt nu per kwart (of helft) een eigen speelwijze kiezen, bijvoorbeeld 1e kwart 1-3-3 en 2e kwart 2-3-2, zonder dat de andere periodes meeveranderen.',
       'Linksboven in het veld zie je welk kwart en welke speelwijze je bekijkt. Tik rechtsboven in het veld op de knop ‘Speelwijze’ (of op de onderstreepte formatie onder de titel) om ’m aan te passen.',
       'Wijzig je de speelwijze, dan blijven de opgestelde spelers zoveel mogelijk op hun plek: verdedigers bij de verdediging, middenvelders op het middenveld, aanvallers voorin.',
       'De startformatie die je bij ‘Wijzig opzet’ kiest, geldt als beginwaarde voor nog lege kwarten.',
     ]},
   { datum:'2026-08-17', titel:'Poule-programma per speelronde', punten:[
       'Het tabblad Stand & Poule heeft nu naast de Stand een tweede tabje: Programma.',
-      'Daar zie je alle wedstrijden binnen je poule — ook die van de andere teams, en ook de nog te spelen wedstrijden.',
+      'Daar zie je alle wedstrijden binnen je poule, ook die van de andere teams, en ook de nog te spelen wedstrijden.',
       'Blader met de pijltjes ‹ / › per speelronde. Gespeelde wedstrijden tonen de uitslag, komende de aftraptijd. Je eigen team staat gemarkeerd.',
     ]},
   { datum:'2026-08-17', titel:'Kies je eigen weergave: licht/ donker of groot of klein lettertype', punten:[
@@ -1388,7 +1387,7 @@ const UPDATES = [
       'Heb je iets minder goede ogen? Dan pas je het lettertype aan.',
       'Coaches stellen dit zelf in via Meer → Instellingen → Weergave. Je keuze wordt op je eigen toestel onthouden.',
       'Clubbeheerders kiezen onder Club → instellingen of coaches zelf mogen kiezen, of stellen één vaste weergave in voor de hele club.',
-      'Het scorebord, de klok en de bank blijven altijd donker — witte cijfers op een donkere achtergrond lezen langs de lijn nu eenmaal het beste.',
+      'Het scorebord, de klok en de bank blijven altijd donker, witte cijfers op een donkere achtergrond lezen langs de lijn nu eenmaal het beste.',
     ]},
   { datum:'2026-08-16', titel:'Frisse, moderne look', punten:[
       'De hele app heeft een strakkere, rustigere uitstraling gekregen.',
@@ -1400,7 +1399,7 @@ const UPDATES = [
       'Kleine verbeteringen aan de spelers- en trainingsschermen.',
     ]},
   { datum:'2026-08-14', titel:'AI-wedstrijdverslag & wisselreden', punten:[
-      'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen gaan nooit naar de AI — dat gebeurt volledig privacyproof (AVG).',
+      'Na afloop maakt de app automatisch een leesbaar wedstrijdverslag op basis van wat je hebt gelogd. Spelersnamen gaan nooit naar de AI, dat gebeurt volledig privacyproof (AVG).',
       'Bij een wissel kun je nu een reden aangeven (Blessure, Tactisch, Gedrag, Trainingsopkomst), zichtbaar en aanpasbaar in het logboek.',
       'Speeltijd wordt in de teamstatistieken getoond als percentage gespeeld en reserve, zodat je in één oogopslag ziet of iedereen eerlijk aan bod komt.',
     ]},
@@ -1422,7 +1421,7 @@ const UPDATES = [
       'Weet je even niet waar iets staat of hoe iets werkt? Tik op Hulpchat en je krijgt meteen uitleg.',
     ]},
   { datum:'2026-07-27', titel:'Rondleiding voor nieuwe coaches', punten:[
-      'Een interactieve rondleiding die je stap voor stap door alle schermen leidt — van je team openen tot een wedstrijd draaien.',
+      'Een interactieve rondleiding die je stap voor stap door alle schermen leidt, van je team openen tot een wedstrijd draaien.',
       'Later opnieuw te starten via Help.',
     ]},
   { datum:'2026-07-15', titel:'Teamevaluatie & dashboard', punten:[
@@ -1445,11 +1444,11 @@ const UPDATES = [
       'Op het veld werk je nu met tikken in plaats van slepen, zodat je makkelijk kunt scrollen tijdens de wedstrijd.',
     ]},
   { datum:'2026-06-20', titel:'Cluppie op je beginscherm', punten:[
-      'De app heet voortaan Cluppie en kun je op je telefoon-beginscherm zetten — open hem met één tik, ook zonder browser.',
+      'De app heet voortaan Cluppie en kun je op je telefoon-beginscherm zetten, open hem met één tik, ook zonder browser.',
       'Wedstrijden worden automatisch ingeladen vanuit de KNVB-kalender (thuis/uit, datum, tegenstander).',
     ]},
   { datum:'2026-06-12', titel:'De eerste versie', punten:[
-      'Zet je spelers op het veld, start de wedstrijdklok per kwart of helft, en wissel tijdens het spel — elke wissel wordt automatisch met tijdstip gelogd.',
+      'Zet je spelers op het veld, start de wedstrijdklok per kwart of helft, en wissel tijdens het spel, elke wissel wordt automatisch met tijdstip gelogd.',
       'Registreer doelpunten en kaarten volgens de KNVB-regels; de bank staat op volgorde van minste speeltijd, zodat je ziet wie aan de beurt is.',
       'Houd spelers en trainingsopkomst bij, bekijk oefenstof en video\'s, en nodig als beheerder coaches uit via een persoonlijke link.',
     ]},
@@ -1469,13 +1468,18 @@ function htmlUpdates(){
   try { localStorage.setItem('cluppie_updates_gezien', UPDATES[0]?.datum || ''); } catch(e){}
   const maand = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
   const datumMooi = (iso) => { const d = new Date(iso); return `${d.getDate()} ${maand[d.getMonth()]} ${d.getFullYear()}`; };
-  return `<div class="updates-lijst">
-    ${UPDATES.map(u => `
+  const kaart = u => `
       <div class="kaart update-kaart">
         <div class="update-datum">${datumMooi(u.datum)}</div>
         <div class="update-titel">${esc(u.titel)}</div>
         <ul class="update-punten">${u.punten.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
-      </div>`).join('')}
+      </div>`;
+  /* De nieuwste vijf staan open; de rest zit achter één uitklapper, zodat het
+     scherm niet meer 60+ kaarten lang is. Alles blijft leesbaar. */
+  const recent = UPDATES.slice(0, 5), ouder = UPDATES.slice(5);
+  return `<div class="updates-lijst">
+    ${recent.map(kaart).join('')}
+    ${ouder.length ? `<details class="updates-ouder"><summary>Oudere updates <span class="u-zacht">${ouder.length}</span></summary>${ouder.map(kaart).join('')}</details>` : ''}
   </div>`;
 }
 
@@ -1635,7 +1639,7 @@ function htmlPoule(){
       ${regels}
       <p class="poule-hint">Alle wedstrijden binnen de poule. Blader per speelronde. Ververst automatisch met de nachtelijke sync.</p>`;
   } else {
-    progHtml = `<div class="kaart leeg">Nog geen programma beschikbaar.<br>Zodra de competitie-indeling bekend is en de sync heeft gedraaid, verschijnt hier het volledige poule-programma — ook van de andere teams.</div>`;
+    progHtml = `<div class="kaart leeg">Nog geen programma beschikbaar.<br>Zodra de competitie-indeling bekend is en de sync heeft gedraaid, verschijnt hier het volledige poule-programma, ook van de andere teams.</div>`;
   }
 
   return subtabs + (sub==='stand' ? standHtml : progHtml);
@@ -1670,7 +1674,7 @@ export function renderTeam(){
   if (tab === 'presentietraining') inhoud = htmlPresentieTraining();
   if (tab === 'preswedstrijd') inhoud = htmlPresWedstrijd();
   if (tab === 'evaluatie')   { inhoud = htmlEvaluatieLijst()
-    + `<div class="sectie-kop" style="margin-top:22px">📈 Teamevaluatie</div>`
+    + `<div class="sectie-kop u-mt-lg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Teamevaluatie</div>`
     + htmlSeizoenFilter() + htmlTeamEvaluatieDashboard(); telGebruik('stats_bekeken'); }
   if (tab === 'leerlijnoverzicht') { inhoud = htmlLeerlijnOverzicht(); telGebruik('leerlijn'); }
   if (tab === 'historie')    inhoud = htmlHistorieLijst();
@@ -1722,7 +1726,7 @@ function wedstrijdRegel(w){
   const uitslag = (w.goals||[]).length || analyseWedstrijd(w).kwarten
     ? (w.thuis ? `${voor}–${tegen}` : `${tegen}–${voor}`) : '';
   const titel = w.type === 'toernooi'
-    ? '🏆 ' + esc(w.tegenstander)
+    ? esc(w.tegenstander)
     : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam));
   // Onderdelen alleen tonen als ze bestaan: geïmporteerde wedstrijden hebben
   // nog geen format/formatie tot de coach de wedstrijd opent (normaliseerWedstrijd).
@@ -1735,18 +1739,18 @@ function wedstrijdRegel(w){
     if (w.format) metaDelen.push(`${esc(w.format)}v${esc(w.format)}`);
     if (w.formatie) metaDelen.push(esc(w.formatie));
   }
-  const meta = metaDelen.join(' · ');
+  const meta = metaDelen.join(', ');
   return `
     <button class="lijst-item" data-open-w="${w.id}">
       <div class="li-tekst"><div class="titel">${titel}</div>
       <div class="meta">${elftalPillWedstrijd(w)}${meta}</div></div>
-      ${uitslag ? `<span class="badge" style="font-family:'Barlow Condensed';font-size:calc(15px * var(--fs));font-weight:700">${uitslag}</span>` : ''}
+      ${uitslag ? `<span class="badge u-t-base u-fw-7" style="font-family:'Barlow Condensed'">${uitslag}</span>` : ''}
       <span class="pijl">›</span></button>`;
 }
 
 function htmlWedstrijden(){
-  const knop = `<button class="knop vol" id="nieuweWedstrijd" style="margin-bottom:8px">+ Nieuwe wedstrijd</button>
-    <button class="knop licht vol" id="sjabloonBeheer" style="margin-bottom:14px">⧉ Opstelling-sjablonen</button>`;
+  const knop = `<button class="knop vol u-mb-xs" id="nieuweWedstrijd" >+ Nieuwe wedstrijd</button>
+    <button class="knop licht vol u-mb-md" id="sjabloonBeheer" >⧉ Opstelling-sjablonen</button>`;
 
   if (!S.wedstrijden.length){
     return knop + `<div class="kaart leeg">Nog geen wedstrijden.<br>Maak je eerste wedstrijd aan en zet de opstelling per kwart klaar.</div>`;
@@ -1779,13 +1783,13 @@ function htmlWedstrijden(){
 
   const komendBlok = komend.length
     ? komendRegels
-    : `<div class="kaart leeg" style="margin-bottom:12px">Geen komende wedstrijden gepland.</div>`;
+    : `<div class="kaart leeg u-mb-sm">Geen komende wedstrijden gepland.</div>`;
 
   let afgelopenBlok = '';
   if (afgelopen.length){
     const open = S._afgelopenOpen;
     afgelopenBlok = `
-      <div class="maand-groep" style="margin-top:16px">
+      <div class="maand-groep u-mt-md">
         <button class="maand-kop" data-afgelopen>
           <span class="maand-naam">Afgelopen</span>
           <span class="maand-tel">${afgelopen.length} wedstrijd${afgelopen.length===1?'':'en'}</span>
@@ -1804,7 +1808,7 @@ function htmlWedstrijden(){
    omdat ze uitsluitend door planningItems()/htmlPlanning() hieronder gebruikt
    worden. */
 const PLAN_TYPE = {
-  wedstrijd: {kort:'⚽', klas:'wedstrijd', naam:'Wedstrijd'},
+  wedstrijd: {kort:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg>', klas:'wedstrijd', naam:'Wedstrijd'},
   wd:     {kort:'WD',   klas:'wd',     naam:'Wedstrijddag'},
   beker:  {kort:'BEK',  klas:'beker',  naam:'Beker'},
   inhaal: {kort:'INH',  klas:'inhaal', naam:'Inhaal'},
@@ -1868,9 +1872,9 @@ export function planningItems(){
     // thuis kan bij een nog niet geopende geïmporteerde wedstrijd ontbreken;
     // standaard tonen we eigen team links (thuis), zodat 'wie tegen wie' altijd in beeld is.
     const label = w.type === 'toernooi'
-      ? '🏆 ' + (w.tegenstander || 'Toernooi')
+      ? (w.tegenstander || 'Toernooi')
       : (w.thuis === false ? `${tegenstander} – ${eigen}` : `${eigen} – ${tegenstander}`);
-    const sub = [w.tijd || '', uitslag].filter(Boolean).join(' · ');
+    const sub = [w.tijd || '', uitslag].filter(Boolean).join(', ');
     items.push({
       bron: 'wedstrijd', docId: w.id, datum: w.datum,
       type: 'wedstrijd', label, opmerking: sub, aangepast: false,
@@ -1913,7 +1917,7 @@ function htmlPlanning(){
     `<button class="plan-chip ${filter===id?'aan':''}" data-planfilter="${id}">${lbl}</button>`).join('');
 
   const eerderKnop = verledenItems.length
-    ? `<button class="knop licht klein" id="planEerder" style="margin-bottom:12px;width:100%">
+    ? `<button class="knop licht klein u-mb-sm u-w-100" id="planEerder" >
         ${S._planningToonEerder ? '↑ Verberg eerdere speeldagen' : `← ${verledenItems.length} eerdere speeldag${verledenItems.length===1?'':'en'} bekijken`}
       </button>`
     : '';
@@ -1945,7 +1949,7 @@ function htmlPlanning(){
         return `
           <button class="plan-rij ${ti.klas} ${isVerleden?'verleden':''}" data-plandag="${it.datum}" data-planbron="${it.bron}" data-plandoc="${it.docId||''}">
             <div class="plan-datum"><span class="d">${dag}</span><span class="w">${wdag}</span></div>
-            <div class="plan-tekst"><div class="plan-titel">${esc(it.label)}${it.aangepast?' <span class="plan-mark">·aangepast</span>':''}</div>${opm}</div>
+            <div class="plan-tekst"><div class="plan-titel">${esc(it.label)}${it.aangepast?' <span class="plan-mark">aangepast</span>':''}</div>${opm}</div>
             ${badge}
           </button>`;
       }).join('');
@@ -2019,7 +2023,7 @@ async function deelVideo(url, titel, type, knop){
   // 3. Fallback: link naar klembord.
   try {
     await navigator.clipboard.writeText(url);
-    meld('Link gekopieerd — plak \'m in WhatsApp');
+    meld('Link gekopieerd: plak \'m in WhatsApp');
   } catch {
     window.open(url, '_blank');
   }
@@ -2042,8 +2046,8 @@ async function deelDocument(d){
   // begeleidende zin in de tekst te zetten (en géén url-veld mee te geven),
   // ziet de ontvanger nette context met de link erin.
   const bericht = url
-    ? `📄 *${titel}*\nBekijk of download hier:\n${url}`
-    : `📄 *${titel}*`;
+    ? `*${titel}*\nBekijk of download hier:\n${url}`
+    : `*${titel}*`;
 
   if (navigator.share){
     try {
@@ -2057,7 +2061,7 @@ async function deelDocument(d){
   try {
     window.open('https://wa.me/?text=' + encodeURIComponent(bericht), '_blank');
   } catch {
-    try { await navigator.clipboard.writeText(bericht); meld('Gekopieerd — plak \'m in WhatsApp'); }
+    try { await navigator.clipboard.writeText(bericht); meld('Gekopieerd: plak \'m in WhatsApp'); }
     catch { if (url) window.open(url, '_blank'); }
   }
 }
@@ -2076,10 +2080,10 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20261103i').then(m => m.openChatbot());
+      import('./chatbot.js?v=20261106h').then(m => m.openChatbot());
     const tactiekKnop = v.querySelector('[data-open-tactiek]');
     if (tactiekKnop) tactiekKnop.onclick = () =>
-      import('./tactiekbord.js?v=20261103e').then(m => m.openTactiekBibliotheek());
+      import('./tactiekbord.js?v=20261106h').then(m => m.openTactiekBibliotheek());
     /* [20260928e] Selectie-dashboard (alleen teams met een 1e + 2e elftal):
        elftalfilter, spelersrij → profiel, en de toewijs-modal. */
     koppelElftalFilter(v, renderTeam);
@@ -2222,17 +2226,17 @@ function koppelTeamTab(v, tab){
       zetTeamTab(b.dataset.meerOpen);
     });
     const tcKnop = v.querySelector('[data-open-trainco]');
-    if (tcKnop) tcKnop.onclick = () => import('./trainco.js?v=20261103i').then(m => m.openVanuitApp());
+    if (tcKnop) tcKnop.onclick = () => import('./trainco.js?v=20261106h').then(m => m.openVanuitApp());
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20261103i').then(m => m.openChatbot());
+      import('./chatbot.js?v=20261106h').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
     v.querySelectorAll('[data-open-document]').forEach(r => r.onclick = async () => {
       const id = r.dataset.openDocument;
       const d = S.documenten.find(x => x.id === id);
-      const { openPdfViewer } = await import('./pdf-viewer.js?v=20261103e');
+      const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106h');
       openPdfViewer({
         url: r.dataset.url,
         titel: d?.titel || d?.bestandsnaam || 'Document',
@@ -2343,17 +2347,17 @@ function koppelTeamTab(v, tab){
       const t = S.trainingen.find(x => x.id === id);
       const datum = t?.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
       const titel = t?.titel || t?.bestandsnaam || 'Training';
-      const meta  = [t?.week, datum].filter(Boolean).join(' · ');
+      const meta  = [t?.week, datum].filter(Boolean).join(', ');
 
       const openOrigineel = async () => {
         telGebruik('document_open');
-        const { openPdfViewer } = await import('./pdf-viewer.js?v=20261103e');
+        const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106h');
         openPdfViewer({ url: r.dataset.url, titel, meta });
       };
 
       // AI-gestructureerde training → scrolbare weergave; anders de PDF-viewer.
       if (Array.isArray(t?.oefeningen) && t.oefeningen.length){
-        const { openTrainingWeergave } = await import('./training-weergave.js?v=20261103e');
+        const { openTrainingWeergave } = await import('./training-weergave.js?v=20261106h');
         openTrainingWeergave({
           titel, meta,
           oefeningen: t.oefeningen,
@@ -2435,10 +2439,10 @@ function koppelTeamTab(v, tab){
         const titel = r.dataset.videoTitel || 'Video';
         const url   = r.dataset.openVideo;
         openModal(`
-          <h2 style="margin-bottom:12px">${esc(titel)}</h2>
+          <h2 class="u-mb-sm">${esc(titel)}</h2>
           <video src="${esc(url)}" controls autoplay playsinline preload="metadata"
-                 style="width:100%;max-height:70vh;border-radius:12px;background:#000;display:block"></video>
-          <button class="knop fluo vol" id="videoDeelKnop" style="margin-top:12px;display:flex;align-items:center;justify-content:center;gap:7px">${ico('action-whatsapp',18)}<span>Delen via WhatsApp</span></button>`);
+                 style="width:100%;max-height:70vh;border-radius:12px;background:var(--zwart);display:block"></video>
+          <button class="knop fluo vol u-mt-sm" id="videoDeelKnop" style="display:flex;align-items:center;justify-content:center;gap:var(--space-xs)">${ico('action-whatsapp',18)}<span>Delen via WhatsApp</span></button>`);
         const dk = v.ownerDocument.getElementById('videoDeelKnop');
         if (dk) dk.onclick = () => deelVideo(url, titel, 'upload', dk);
       } else {
@@ -2493,7 +2497,7 @@ function koppelTeamTab(v, tab){
     v.querySelectorAll('[data-gast-weg]').forEach(b => b.onclick = () => verwijderGast(b.dataset.gastWeg));
     v.querySelectorAll('[data-weg-speler]').forEach(b => b.onclick = async () => {
       const p = speler(b.dataset.wegSpeler);
-      if (p?._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen — zet hem terug naar het bronteam');
+      if (p?._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen, zet hem terug naar het bronteam');
       if (p && confirm(`${p.naam} verwijderen uit de selectie? Beoordelingen en leerpunten gaan ook verloren.`)){
         await deleteDoc(doc(db,'teams',S.teamId,'spelers',p.id));
         S._beoordeelProfiel = null; renderTeam();
@@ -2527,7 +2531,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261103i').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261106h').then(m => m.modalUitnodig(S.team));
     const wcKnop = v.querySelector('#wijzigCode'); if (wcKnop) wcKnop.onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     const naamOk = v.querySelector('#iNaamOk');
@@ -2552,7 +2556,7 @@ function koppelTeamTab(v, tab){
           data.code = teamCode(naam, afk, bestaande);
         }
         await updateDoc(doc(db,'teams',S.teamId), data);
-        meld(codeMee ? `Naam opgeslagen · code is nu ${data.code}` : 'Naam opgeslagen');
+        meld(codeMee ? `Naam opgeslagen, code is nu ${data.code}` : 'Naam opgeslagen');
       } catch(e){
         meld('Opslaan mislukt: ' + (e.code || e.message));
       } finally {

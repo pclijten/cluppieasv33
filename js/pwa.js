@@ -91,7 +91,7 @@ export function tekenPwaBanner(){
 
   el.innerHTML = `
     <div class="pwa-banner">
-      <div class="pwa-icoon">📲</div>
+      <div class="pwa-icoon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A7.5 7.5 0 1 1 8.1 18.7z"/><path d="M9 9.2c.2-.5.4-.5.7-.5h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2 0 .4-.1.5l-.5.6c-.1.1-.2.3-.1.5a5 5 0 0 0 2.4 2.2c.2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.3.3.3.5v.5c0 .5-.4.9-.9 1a3 3 0 0 1-1.5 0 8.4 8.4 0 0 1-5.2-5c-.2-.6-.4-1.3-.3-1.9z"/></svg></div>
       <div class="pwa-tekst">
         <div class="pwa-titel">Zet Cluppie op je beginscherm</div>
         <div class="pwa-sub">Open de app voortaan met één tik, ook zonder browser.</div>

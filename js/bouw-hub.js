@@ -20,17 +20,17 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20261103e';
+import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20261106h';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
-} from './firebase.js?v=20260922c';
-import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261103e';
-import { ico } from './icons.js?v=20260922c';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261103i';
-import { telGebruik } from './tracker.js?v=20261103e';
-import { analyseWedstrijd } from './analyse.js?v=20261103e';
-import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20260922c';
-import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261103e';
+} from './firebase.js?v=20261106h';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261106h';
+import { ico } from './icons.js?v=20261106h';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106h';
+import { telGebruik } from './tracker.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106h';
+import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106h';
+import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261106h';
 
 /* [20260929a] Voortgang van de "verplichte" evaluatie per team: de lopende
    evaluatieronde van de club als die er is, anders (zoals voorheen) de
@@ -61,7 +61,7 @@ function bouwLaag(){
   el.id = 'bouwhubPagina';
   el.style.cssText = 'position:fixed;inset:0;z-index:45;background:var(--bg);display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;';
   el.innerHTML = `
-    <div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:16px 16px 96px;box-sizing:border-box;">
+    <div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:var(--space-md) var(--space-md) 96px;box-sizing:border-box">
       <div class="kop">
         <button class="terug" id="bouwhubTerugStap">‹</button>
         <h1 id="bouwhubTitel">Bouw</h1>
@@ -94,8 +94,8 @@ function zetKop(titel, terugFn, toonInstellingen){
    rules/sync nodig. Alles staat standaard AAN. */
 const WIDGET_DEFS = [
   { id:'sportlink',         label:'Laatste Sportlink-uitslag + vorm' },
-  { id:'presentieTraining', label:'Presentie — trainingen' },
-  { id:'presentieWedstrijd',label:'Presentie — wedstrijden' },
+  { id:'presentieTraining', label:'Presentie: trainingen' },
+  { id:'presentieWedstrijd',label:'Presentie: wedstrijden' },
   { id:'evalRadar',         label:'Evaluatie-radar (gemiddelde + laatste)' },
   { id:'evalVoortgang',     label:'Evaluatie-voortgang (lopende ronde)' },
   { id:'teamEval',          label:'Teamevaluaties (na de wedstrijd)' },
@@ -113,13 +113,13 @@ function openWidgetInstellingen(){
   const huidig = widgetVoorkeuren();
   openModal(`
     <h2>Dashboard-onderdelen</h2>
-    <p style="font-size:calc(13px * var(--fs));color:var(--ink-2);margin-bottom:8px">Kies welke onderdelen je op elke teamkaart wilt zien. Geldt alleen op dit toestel.</p>
+    <p class="u-t-sm u-zacht u-mb-xs">Kies welke onderdelen je op elke teamkaart wilt zien. Geldt alleen op dit toestel.</p>
     ${WIDGET_DEFS.map(w => `
-      <label style="display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--surface-2)">
+      <label style="display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) 0;border-bottom:1px solid var(--surface-2)">
         <input type="checkbox" data-bh-w="${w.id}" ${huidig[w.id]?'checked':''} style="width:19px;height:19px;flex-shrink:0;accent-color:var(--accent)">
-        <span style="font-size:calc(14px * var(--fs))">${esc(w.label)}</span>
+        <span class="u-t-md">${esc(w.label)}</span>
       </label>`).join('')}
-    <button class="knop vol" id="mWidgetOk" style="margin-top:16px">Klaar</button>`);
+    <button class="knop vol u-mt-md" id="mWidgetOk" >Klaar</button>`);
   document.getElementById('mWidgetOk').onclick = () => {
     const v = {};
     document.querySelectorAll('[data-bh-w]').forEach(cb => { v[cb.dataset.bhW] = cb.checked; });
@@ -141,7 +141,7 @@ function toonTerugPil(){
     + 'z-index:40;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:11px 18px;'
     + 'font-family:Inter,sans-serif;font-weight:600;font-size:calc(13px * var(--fs));box-shadow:0 8px 22px rgba(226,52,47,.35);'
     + 'display:flex;align-items:center;gap:8px;cursor:pointer;';
-  el.innerHTML = `↩ Terug naar ${esc(bouwNaam(huidigeContext.bouw))} <span style="opacity:.7;font-weight:700;margin-left:2px" id="bouwhubPilSluit">✕</span>`;
+  el.innerHTML = `↩ Terug naar ${esc(bouwNaam(huidigeContext.bouw))} <span class="u-fw-7" style="opacity:.7;margin-left:var(--space-3xs)" id="bouwhubPilSluit">✕</span>`;
   el.onclick = (e) => {
     if (e.target.id === 'bouwhubPilSluit'){ verbergTerugPil(); return; }
     verbergTerugPil();
@@ -202,7 +202,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261103i'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261106h'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -217,7 +217,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
 
   zetKop(naamVanBouw(bouw), null);
   const inhoud = el.querySelector('#bouwhubInhoud');
-  inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--ink-2);text-align:center;padding:30px 0">Dashboard laden…</p>`;
+  inhoud.innerHTML = `<p class="u-t-sm u-zacht u-tc" style="padding:32px 0">Dashboard laden…</p>`;
 
   let teams = [], seizoen = SEIZOEN_FALLBACK;
   try {
@@ -237,11 +237,11 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
     seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
   } catch(e){
     console.error('[Cluppie] bouw-hub: teams ophalen mislukt:', e.code, e.message);
-    inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Teams ophalen mislukt: ${esc(e.code||e.message)}</p>`;
+    inhoud.innerHTML = `<p class="u-t-sm u-c-warn u-tc" style="padding:32px 0">Teams ophalen mislukt: ${esc(e.code||e.message)}</p>`;
     return;
   }
   if (!teams.length){
-    inhoud.innerHTML = `<div class="kaart leeg">Nog geen teams met dit bouw-veld gevonden.<br>Bestaande teams hebben mogelijk nog geen <code>bouw</code>-veld — zie de migratienotitie.</div>`;
+    inhoud.innerHTML = `<div class="kaart leeg">Nog geen teams met dit bouw-veld gevonden.<br>Bestaande teams hebben mogelijk nog geen <code>bouw</code>-veld, zie de migratienotitie.</div>`;
     huidigeContext = {clubId, bouw, teams: [], data: new Map(), uitleningen: [], rondes: rondesClub};
     return;
   }
@@ -257,7 +257,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
     huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, rondes: rondesClub};
   } catch(e){
     console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
-    inhoud.innerHTML = `<p style="font-size:calc(13px * var(--fs));color:var(--uit);text-align:center;padding:30px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
+    inhoud.innerHTML = `<p class="u-t-sm u-c-warn u-tc" style="padding:32px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
     return;
   }
   renderDashboard();
@@ -588,9 +588,9 @@ function radarSVG(values, opts={}){
   return radarSVGAssen(values, DOM.map(d => DOM_LABEL[d]), opts);
 }
 function radarLegende(a, b){
-  return `<div style="display:flex;justify-content:center;gap:16px;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-top:-2px">
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);margin-right:5px"></span>${esc(a)}</span>
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;border:1.6px dashed var(--ink-2);margin-right:5px"></span>${esc(b)}</span>
+  return `<div class="u-t-2xs u-zacht" style="display:flex;justify-content:center;gap:var(--space-md);margin-top:-2px">
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--accent);margin-right:var(--space-2xs)"></span>${esc(a)}</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;border:1.6px dashed var(--ink-2);margin-right:var(--space-2xs)"></span>${esc(b)}</span>
   </div>`;
 }
 /* Overlay-radar: alle teams in één chart, elk in een eigen kleur, i.p.v. losse
@@ -641,7 +641,7 @@ function renderDashboard(){
 
   const signalen = aandachtSignalen();
   const aandachtHtml = signalen.length ? `
-    <div class="sectie-kop" style="margin-top:0">${ico('action-warning',15)||''} Aandacht nodig</div>
+    <div class="sectie-kop u-mt-0">${ico('action-warning',15)||''} Aandacht nodig</div>
     <div class="kaart">
       ${signalen.map(s => `
         <div class="aandacht-kaart" style="cursor:default">
@@ -655,8 +655,8 @@ function renderDashboard(){
   const VORMKLEUR = {w:'var(--ok)', g:'var(--warn)', v:'var(--uit)'};
   const VORMLETTER = {w:'W', g:'G', v:'V'};
   const balkje = (label, pct, kleur) => `
-    <div style="flex:1;min-width:0">
-      <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
+    <div class="u-flex-1" style="min-width:0">
+      <div class="u-t-2xs u-zacht u-mb-2xs" style="display:flex;justify-content:space-between">
         <span>${label}</span><span style="font-weight:700;color:${kleur}">${pct==null?'–':pct+'%'}</span>
       </div>
       <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
@@ -665,10 +665,10 @@ function renderDashboard(){
     </div>`;
 
   const teamKaartenHtml = `
-    <div class="sectie-kop" style="margin-top:0">Teams in het kort</div>
+    <div class="sectie-kop u-mt-0">Teams in het kort</div>
     ${teams.map(t => {
       const u = uitslagenTeam(t);
-      const positie = u.stand ? `${u.stand.positie}${u.totaalTeams?'<span style="font-size:.6em;font-weight:600;opacity:.7"> / '+u.totaalTeams+'</span>':''}` : '–';
+      const positie = u.stand ? `${u.stand.positie}${u.totaalTeams?'<span class="u-fw-6" style="font-size:.6em;opacity:.7"> / '+u.totaalTeams+'</span>':''}` : '–';
       const d = huidigeContext.data.get(t.id);
 
       const pctTraining = presentiePctTeam(t);
@@ -684,14 +684,14 @@ function renderDashboard(){
       const evalKleur = evalPct===100 ? 'var(--ok)' : evalPct>=50 ? 'var(--warn)' : 'var(--uit)';
 
       const vormDots = u.vorm.length
-        ? `<div style="display:flex;gap:4px">${u.vorm.map(x => `<span style="width:9px;height:9px;border-radius:50%;background:${VORMKLEUR[x]}"></span>`).join('')}</div>`
+        ? `<div style="display:flex;gap:var(--space-2xs)">${u.vorm.map(x => `<span style="width:9px;height:9px;border-radius:50%;background:${VORMKLEUR[x]}"></span>`).join('')}</div>`
         : '';
       const laatsteHtml = u.laatste
         ? (() => { const uitk = u.laatste.voor>u.laatste.tegen?'w':u.laatste.voor<u.laatste.tegen?'v':'g';
-            return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:calc(12.5px * var(--fs));color:var(--ink-2)">
+            return `<span class="u-t-sm u-zacht" style="display:inline-flex;align-items:center;gap:var(--space-2xs)">
               <span style="background:${VORMKLEUR[uitk]};color:#12140f;font-weight:800;font-size:10px;border-radius:5px;padding:1px 5px">${VORMLETTER[uitk]}</span>
               vs ${esc(u.laatste.tegenstander)} ${u.laatste.voor}-${u.laatste.tegen}</span>`; })()
-        : `<span style="font-size:calc(12.5px * var(--fs));color:var(--ink-2)">${u.knvbVerborgen ? 'KNVB publiceert geen uitslagen (O10 en jonger)' : 'Nog geen uitslag bekend'}</span>`;
+        : `<span class="u-t-sm u-zacht">${u.knvbVerborgen ? 'KNVB publiceert geen uitslagen (O10 en jonger)' : 'Nog geen uitslag bekend'}</span>`;
 
       const balkjesRij = [
         w.presentieTraining ? balkje('Training', pctTraining, pctTrainingKleur) : '',
@@ -701,50 +701,50 @@ function renderDashboard(){
       const radarLaatste = w.evalRadar ? teamRadarLaatste(t) : null;
       const radarGem = w.evalRadar ? teamRadarGemiddelde(t) : null;
       const radarHtml = w.evalRadar ? (radarLaatste
-        ? `<button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:center;margin-top:10px">${radarSVG(radarLaatste, {size:170, compare: radarGem})}</button>`
-        : `<div style="text-align:center;color:var(--ink-2);font-size:calc(11.5px * var(--fs));padding:8px 0">Nog geen evaluaties met domeinscores</div>`) : '';
+        ? `<button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;background:none;border:none;padding:0;cursor:pointer;text-align:center;margin-top:var(--space-sm)">${radarSVG(radarLaatste, {size:170, compare: radarGem})}</button>`
+        : `<div class="u-tc u-zacht u-t-xs" style="padding:var(--space-xs) 0">Nog geen evaluaties met domeinscores</div>`) : '';
 
       const teStats = w.teamEval ? teamEvalStatsTeam(t) : null;
       const teKleur = teStats?.laatsteGem ? niveauKleur(Math.max(1, Math.round(teStats.laatsteGem))) : 'var(--surface-2)';
       const teamEvalHtml = w.teamEval ? (teStats ? `
-        <button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;text-align:left;background:none;border:none;padding:0;margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2);cursor:pointer">
+        <button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;text-align:left;background:none;border:none;padding:0;margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--surface-2);cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">Teamevaluaties · na de wedstrijd</span>
-            <span style="font-size:calc(11px * var(--fs));color:var(--ink-2)">${teStats.count}× ›</span>
+            <span class="u-t-2xs u-zacht">Teamevaluaties<span class="sep" aria-hidden="true"></span>na de wedstrijd</span>
+            <span class="u-t-2xs u-zacht">${teStats.count}× ›</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <div class="u-mt-2xs" style="display:flex;align-items:center;gap:var(--space-xs)">
             <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
-            <span style="font-size:calc(12px * var(--fs));color:var(--ink-2)">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?` · gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
+            <span class="u-t-xs u-zacht">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?`, gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
           </div>
         </button>` : `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2);color:var(--ink-2);font-size:calc(11.5px * var(--fs))">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
+        <div class="u-mt-sm u-zacht u-t-xs" style="padding-top:var(--space-sm);border-top:1px solid var(--surface-2)">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
 
       const leningen = w.uitleningen ? uitleningenVoorTeam(t.id) : [];
       const leningHtml = (w.uitleningen && leningen.length) ? `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--surface-2)">
-          ${leningen.map(l => `<div style="font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:2px">
-            <b style="color:var(--ink)">${esc(l.naam)}</b> ${l.richting==='uit'?'uitgeleend aan':'ingeleend van'} ${esc(l.ander)}
+        <div class="u-mt-sm" style="padding-top:var(--space-sm);border-top:1px solid var(--surface-2)">
+          ${leningen.map(l => `<div class="u-t-xs u-zacht u-mb-3xs">
+            <b class="u-c-ink">${esc(l.naam)}</b> ${l.richting==='uit'?'uitgeleend aan':'ingeleend van'} ${esc(l.ander)}
           </div>`).join('')}
         </div>` : '';
 
-      return `<div class="kaart" style="margin-bottom:10px">
+      return `<div class="kaart u-mb-sm">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <b style="font-size:calc(15px * var(--fs))">${esc(t.naam)}</b>
-          <span style="font-family:'Barlow Condensed';font-weight:800;font-size:calc(19px * var(--fs));color:var(--accent);line-height:1">${positie}</span>
+          <b class="u-t-base">${esc(t.naam)}</b>
+          <span class="u-t-2xl u-c-accent" style="font-family:'Barlow Condensed';font-weight:800;line-height:1">${positie}</span>
         </div>
         ${w.sportlink ? (u.gespeeld > 0
-          ? `<button type="button" data-bh-uitslagen="${t.id}" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:6px;flex-wrap:wrap;gap:6px;background:none;border:none;padding:0;cursor:pointer;text-align:left">
+          ? `<button type="button" data-bh-uitslagen="${t.id}" style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:var(--space-xs);flex-wrap:wrap;gap:var(--space-xs);background:none;border:none;padding:0;cursor:pointer;text-align:left">
               ${laatsteHtml}
-              <span style="display:flex;align-items:center;gap:6px">${vormDots}<span class="pijl">›</span></span>
+              <span style="display:flex;align-items:center;gap:var(--space-xs)">${vormDots}<span class="pijl">›</span></span>
             </button>`
-          : `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px">
+          : `<div class="u-mt-xs" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-xs)">
               ${laatsteHtml}
               ${vormDots}
             </div>`) : ''}
-        ${balkjesRij.length ? `<div style="display:flex;gap:14px;margin-top:12px">${balkjesRij.join('')}</div>` : ''}
+        ${balkjesRij.length ? `<div class="u-mt-sm" style="display:flex;gap:var(--space-md)">${balkjesRij.join('')}</div>` : ''}
         ${w.evalVoortgang ? `<div style="margin-top:${balkjesRij.length?'8':'12'}px">
-          <div style="display:flex;justify-content:space-between;font-size:calc(11px * var(--fs));color:var(--ink-2);margin-bottom:3px">
-            <span>${esc(em.naam)}${losseCount>0?` · +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
+          <div class="u-t-2xs u-zacht u-mb-2xs" style="display:flex;justify-content:space-between">
+            <span>${esc(em.naam)}${losseCount>0?`, +${losseCount} los`:''}</span><span style="font-weight:700;color:${evalKleur}">${officieelCount}/${evalTotaal}</span>
           </div>
           <div style="height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:${evalPct}%;background:${evalKleur};border-radius:3px"></div>
@@ -758,10 +758,10 @@ function renderDashboard(){
 
   const uitgeleend = uitgeleendeSpelersBouw();
   const uitleenHtml = `
-    <div class="sectie-kop">Actuele uitleningen — hele bouw</div>
+    <div class="sectie-kop">Actuele uitleningen: hele bouw</div>
     <div class="kaart">
-      ${uitgeleend.length ? uitgeleend.map(u => `<div style="margin-bottom:6px;font-size:calc(13px * var(--fs))"><b>${esc(u.naam)}</b><span style="color:var(--ink-2);font-size:calc(12px * var(--fs))"> · ${esc(u.van)} → ${esc(u.naar)}</span></div>`).join('')
-        : `<span style="color:var(--ink-2);font-size:calc(13px * var(--fs))">Niemand momenteel uitgeleend.</span>`}
+      ${uitgeleend.length ? uitgeleend.map(u => `<div class="u-mb-xs u-t-sm"><b>${esc(u.naam)}</b><span class="u-zacht u-t-xs"><span class="sep" aria-hidden="true"></span>${esc(u.van)} → ${esc(u.naar)}</span></div>`).join('')
+        : `<span class="u-zacht u-t-sm">Niemand momenteel uitgeleend.</span>`}
     </div>`;
 
   const tegelsHtml = `
@@ -807,12 +807,12 @@ function renderUitslagenScherm(teamId){
   const uitkomst = r => r.voor > r.tegen ? 'w' : r.voor < r.tegen ? 'v' : 'g';
 
   inhoud.innerHTML = `
-    <div class="sectie-kop" style="margin-top:0">${u.gespeeld} bekende uitslag${u.gespeeld===1?'':'en'}${u.stand ? ` · ${esc(String(u.stand.positie))}${u.totaalTeams?'/'+u.totaalTeams:''} in de poule` : ''}</div>
-    <div class="kaart" style="display:flex;justify-content:space-around;text-align:center">
-      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--ok)">${u.w}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">W</div></div>
-      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--warn)">${u.g}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">G</div></div>
-      <div><div style="font-size:calc(20px * var(--fs));font-weight:800;color:var(--uit)">${u.v}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">V</div></div>
-      <div><div style="font-size:calc(20px * var(--fs));font-weight:800">${u.voor}-${u.tegen}</div><div style="font-size:calc(11px * var(--fs));color:var(--ink-2)">doelpunten</div></div>
+    <div class="sectie-kop u-mt-0">${u.gespeeld} bekende uitslag${u.gespeeld===1?'':'en'}${u.stand ? `, ${esc(String(u.stand.positie))}${u.totaalTeams?'/'+u.totaalTeams:''} in de poule` : ''}</div>
+    <div class="kaart u-tc" style="display:flex;justify-content:space-around">
+      <div><div class="u-t-2xl u-c-ok" style="font-weight:800">${u.w}</div><div class="u-t-2xs u-zacht">W</div></div>
+      <div><div class="u-t-2xl u-c-warn" style="font-weight:800">${u.g}</div><div class="u-t-2xs u-zacht">G</div></div>
+      <div><div class="u-t-2xl u-c-warn" style="font-weight:800">${u.v}</div><div class="u-t-2xs u-zacht">V</div></div>
+      <div><div class="u-t-2xl" style="font-weight:800">${u.voor}-${u.tegen}</div><div class="u-t-2xs u-zacht">doelpunten</div></div>
     </div>
     <div class="sectie-kop">Wedstrijden</div>
     ${lijst.length ? lijst.map(r => {
@@ -820,8 +820,8 @@ function renderUitslagenScherm(teamId){
       return `<div class="lijst-item" style="cursor:default">
         <div class="team-shirt" style="background:${VORMKLEUR[uitk]};color:#12140f">${VORMLETTER[uitk]}</div>
         <div class="li-tekst">
-          <div class="titel">${esc(r.tegenstander)} <span style="color:var(--ink-2);font-weight:600">${r.voor}-${r.tegen}</span></div>
-          <div class="meta">${r.thuis?'Thuis':'Uit'} · ${esc(r.datum||'')}</div>
+          <div class="titel">${esc(r.tegenstander)} <span class="u-zacht u-fw-6">${r.voor}-${r.tegen}</span></div>
+          <div class="meta">${r.thuis?'Thuis':'Uit'}<span class="sep" aria-hidden="true"></span>${esc(r.datum||'')}</div>
         </div>
       </div>`;
     }).join('') : `<div class="kaart leeg">Nog geen bekende uitslagen.</div>`}`;
@@ -833,20 +833,20 @@ function renderTeamsScherm(){
   const inhoud = laag.querySelector('#bouwhubInhoud');
   const { teams } = huidigeContext;
   inhoud.innerHTML = `
-    <div class="sectie-kop" style="margin-top:0">${teams.length} team${teams.length===1?'':'s'}</div>
+    <div class="sectie-kop u-mt-0">${teams.length} team${teams.length===1?'':'s'}</div>
     ${teams.map(t => `
       <button class="lijst-item" data-bh-open-team="${t.id}">
         <div class="team-shirt">${esc(t.format||'?')}<small>v${esc(t.format||'?')}</small></div>
         <div class="li-tekst">
           <div class="titel">${esc(t.naam)}</div>
-          <div class="meta">${esc(t.categorie||'—')} · ${Object.keys(t.leden||{}).length} coach(es)</div>
+          <div class="meta">${esc(t.categorie||'—')}<span class="sep" aria-hidden="true"></span>${Object.keys(t.leden||{}).length} coach(es)</div>
         </div>
         <span class="pijl">›</span>
       </button>`).join('')}`;
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261103i');
+      const m = await import('./teams.js?v=20261106h');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -890,8 +890,8 @@ function posititiesPerTeam(team){
   return resultaat;
 }
 function trendPijl(t){
-  if (t==='up') return ' <span style="color:var(--ok);font-weight:700">↑</span>';
-  if (t==='down') return ' <span style="color:var(--uit);font-weight:700">↓</span>';
+  if (t==='up') return ' <span class="u-c-ok u-fw-7">↑</span>';
+  if (t==='down') return ' <span class="u-c-warn u-fw-7">↓</span>';
   return '';
 }
 function renderSpelersScherm(){
@@ -930,14 +930,14 @@ function badgeRij(p){
     const kleur = p.cijfer.cijfer>=4 ? 'var(--ok)' : p.cijfer.cijfer>=2.5 ? 'var(--warn)' : 'var(--uit)';
     stukjes.push(`<span style="color:${kleur};font-weight:700">${p.cijfer.cijfer.toFixed(1)}${trendPijl(p.cijfer.trend)}</span>`);
   }
-  return stukjes.length ? stukjes.join(' <span style="color:var(--line-d)">·</span> ') : 'Nog geen gegevens';
+  return stukjes.length ? stukjes.join('<span class="sep" aria-hidden="true"></span>') : 'Nog geen gegevens';
 }
 function tekenSpelersLijst(filterTeamId){
   const inhoud = laag.querySelector('#bouwhubInhoud');
   const { teams, spelersLijst } = huidigeContext;
   const items = filterTeamId === 'alle' ? spelersLijst : spelersLijst.filter(p => p.teamId === filterTeamId);
   inhoud.innerHTML = `
-    <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:12px">
+    <div class="u-mb-sm" style="display:flex;gap:var(--space-xs);overflow-x:auto">
       <button class="knop klein" data-bh-filter="alle" style="white-space:nowrap${filterTeamId==='alle'?';background:var(--accent);color:#fff':';background:var(--card);color:var(--ink)'}">Alle teams</button>
       ${teams.map(t => `<button class="knop klein" data-bh-filter="${t.id}" style="white-space:nowrap${filterTeamId===t.id?';background:var(--accent);color:#fff':';background:var(--card);color:var(--ink)'}">${esc(t.naam)}</button>`).join('')}
     </div>
@@ -945,8 +945,8 @@ function tekenSpelersLijst(filterTeamId){
       <button class="lijst-item" data-bh-open-speler="${p.id}" data-bh-team="${p.teamId}">
         <div class="team-shirt">${p.nummer!=null&&p.nummer!==''?esc(String(p.nummer)):'?'}</div>
         <div class="li-tekst">
-          <div class="titel">${esc(p.naam)} <span style="font-weight:400;color:var(--ink-2);font-size:.85em">· ${esc(p.teamNaam)}</span></div>
-          <div class="meta" style="font-size:calc(12px * var(--fs));margin-top:3px">${badgeRij(p)}</div>
+          <div class="titel">${esc(p.naam)} <span class="u-zacht" style="font-weight:400;font-size:.85em"><span class="sep" aria-hidden="true"></span>${esc(p.teamNaam)}</span></div>
+          <div class="meta u-t-xs u-mt-2xs">${badgeRij(p)}</div>
         </div>
         <span class="pijl">›</span>
       </button>`).join('') : `<div class="kaart leeg">Geen spelers gevonden.</div>`}`;
@@ -978,8 +978,8 @@ function renderUitleningenScherm(){
     const magTeam = (teamId) => isBeheerder() || eigenTeamIds.has(teamId) || coordBouwen.has(bouwPerTeam[teamId]);
 
     inhoud.innerHTML = `
-      <button class="knop vol" id="bhNieuweUitlening" style="margin-top:2px">+ Speler uitlenen</button>
-      <div class="sectie-kop">Actief · ${uitleningen.length}</div>
+      <button class="knop vol u-mt-3xs" id="bhNieuweUitlening" >+ Speler uitlenen</button>
+      <div class="sectie-kop">Actief<span class="sep" aria-hidden="true"></span>${uitleningen.length}</div>
       ${uitleningen.length ? uitleningen.map(u => {
         const magDefinitief = magTeam(u.vanTeam) && magTeam(u.naarTeam);
         return `
@@ -989,10 +989,10 @@ function renderUitleningenScherm(){
             <div class="titel">${esc(u.snapshot?.naam || 'Speler')}</div>
             <div class="meta">${esc(u.vanTeamNaam||'?')} → ${esc(u.naarTeamNaam||'?')}</div>
           </div>
-          <div style="display:flex;gap:6px;width:100%;margin-top:8px">
+          <div class="u-w-100 u-mt-xs" style="display:flex;gap:var(--space-xs)">
             <button class="knop licht klein" data-bh-terug="${u.id}" style="flex:1">Terugzetten</button>
             ${magDefinitief ? `<button class="knop gevaar klein" data-bh-definitief="${u.id}" style="flex:1">Definitief</button>`
-              : `<button class="knop licht klein" disabled title="Vereist rechten op beide teams" style="flex:1;opacity:.5">Definitief</button>`}
+              : `<button class="knop licht klein u-flex-1" disabled title="Vereist rechten op beide teams" style="opacity:.5">Definitief</button>`}
           </div>
         </div>`;
       }).join('') : `<div class="kaart leeg">Geen actieve uitleningen in deze bouw.</div>`}`;
@@ -1025,17 +1025,17 @@ export async function modalNieuweUitleningVanuitBouw(verversScherm){
 
   openModal(`
     <h2>Speler uitlenen</h2>
-    <div class="veldgroep"><label>Stap 1 — vanuit welk team (in deze bouw)?</label>
+    <div class="veldgroep"><label>Stap 1: vanuit welk team (in deze bouw)?</label>
       <select class="invoer" id="bhUlVanTeam"><option value="">Kies een team…</option>
         ${teams.map(t => `<option value="${t.id}">${esc(t.naam)}</option>`).join('')}
       </select></div>
-    <div class="veldgroep"><label>Stap 2 — welke speler?</label>
+    <div class="veldgroep"><label>Stap 2: welke speler?</label>
       <select class="invoer" id="bhUlSpeler" disabled><option value="">Kies eerst een team…</option></select></div>
-    <div class="veldgroep"><label>Stap 3 — naar welk team wordt hij uitgeleend?</label>
+    <div class="veldgroep"><label>Stap 3: naar welk team wordt hij uitgeleend?</label>
       <select class="invoer" id="bhUlNaarTeam" disabled><option value="">Kies eerst een speler…</option></select></div>
-    <div class="avg-balk">${ico('action-info',17) || ''}<span>De speler doet vanaf nu volwaardig mee bij het gekozen team. Bij het bronteam blijft hij ook gewoon bruikbaar. Geen einddatum — een van beide coaches (of jij) zet hem later terug.</span></div>
+    <div class="avg-balk">${ico('action-info',17) || ''}<span>De speler doet vanaf nu volwaardig mee bij het gekozen team. Bij het bronteam blijft hij ook gewoon bruikbaar. Geen einddatum: een van beide coaches (of jij) zet hem later terug.</span></div>
     <button class="knop vol" id="bhUlOk" disabled>Uitlenen bevestigen</button>
-    <button class="knop licht vol" id="bhUlAnnuleer" style="margin-top:8px">Annuleren</button>`);
+    <button class="knop licht vol u-mt-xs" id="bhUlAnnuleer" >Annuleren</button>`);
 
   const $ = sel => document.getElementById(sel);
   $('bhUlAnnuleer').onclick = () => sluitModal();
@@ -1053,7 +1053,7 @@ export async function modalNieuweUitleningVanuitBouw(verversScherm){
       const spelers = d ? d.spelers : (await getDocs(collection(db,'teams',vanTeam,'spelers'))).docs.map(x => ({id:x.id, ...x.data()})).filter(p=>!p.gast&&!p._ingeleend&&!p.gearchiveerd);
       const gesorteerd = [...spelers].sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
       spelerSel.innerHTML = gesorteerd.length
-        ? '<option value="">Kies een speler…</option>' + gesorteerd.map(p => `<option value="${p.id}">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?' · #'+esc(p.nummer):''}</option>`).join('')
+        ? '<option value="">Kies een speler…</option>' + gesorteerd.map(p => `<option value="${p.id}">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?'<span class="sep" aria-hidden="true"></span>#'+esc(p.nummer):''}</option>`).join('')
         : '<option value="">Geen spelers gevonden</option>';
       spelerSel.disabled = !gesorteerd.length;
     } catch(e){ spelerSel.innerHTML = '<option value="">Ophalen mislukt</option>'; }
@@ -1138,8 +1138,8 @@ function renderEvaluatiesScherm(){
   }).sort((a,b) => (a.totaal ? a.officieel/a.totaal : 1) - (b.totaal ? b.officieel/b.totaal : 1));
 
   inhoud.innerHTML = `
-    <div class="sectie-kop" style="margin-top:0">${esc([...new Set(rijen.map(r => r.naam))].join(' / ') || 'Halfjaarevaluatie')} · per team</div>
-    <p style="color:var(--ink-2);font-size:calc(12px * var(--fs));margin:-6px 0 12px">Inclusief losse beoordelingen tussendoor (bij wedstrijden/trainingen) — tik een team voor het volledige overzicht.</p>
+    <div class="sectie-kop u-mt-0">${esc([...new Set(rijen.map(r => r.naam))].join(' / ') || 'Halfjaarevaluatie')}<span class="sep" aria-hidden="true"></span>per team</div>
+    <p class="u-zacht u-t-xs" style="margin:-8px 0 var(--space-sm)">Inclusief losse beoordelingen tussendoor (bij wedstrijden/trainingen), tik een team voor het volledige overzicht.</p>
     ${rijen.map(r => {
       const ratio = r.totaal ? r.officieel/r.totaal : 0;
       const kleur = ratio===1 ? 'var(--ok)' : ratio<0.5 ? 'var(--uit)' : 'var(--warn)';
@@ -1147,7 +1147,7 @@ function renderEvaluatiesScherm(){
         <div class="team-shirt" style="background:${kleur};color:#12140f">${r.officieel}/${r.totaal}</div>
         <div class="li-tekst">
           <div class="titel">${esc(r.team.naam)}</div>
-          <div class="meta">${esc(r.naam)}${r.losseMetingen>0?` · +${r.losseMetingen} losse beoordeling${r.losseMetingen===1?'':'en'}`:''}</div>
+          <div class="meta">${esc(r.naam)}${r.losseMetingen>0?`, +${r.losseMetingen} losse beoordeling${r.losseMetingen===1?'':'en'}`:''}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;
@@ -1179,8 +1179,8 @@ function renderEvaluatieTeamDetail(teamId){
   const losseCijfers = spelers.map(p => cijferSpeler(p, p.metingen)).filter(Boolean);
   const losGem = losseCijfers.length ? (losseCijfers.reduce((s,c)=>s+c.cijfer,0)/losseCijfers.length).toFixed(1).replace('.',',') : null;
   const indivRadarHtml = indivLaatste
-    ? `<div style="text-align:center">${radarSVG(indivLaatste, {size:170, compare:indivGem})}${indivGem?radarLegende('laatste meting','gemiddelde'):''}</div>`
-    : `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:20px 0;text-align:center">Nog geen volledige (5-domeinen) evaluatie in dit team.${losGem?`<br>Wel ${losseCijfers.length} losse beoordeling${losseCijfers.length===1?'':'en'}, gemiddeld cijfer ${losGem}.`:''}</div>`;
+    ? `<div class="u-tc">${radarSVG(indivLaatste, {size:170, compare:indivGem})}${indivGem?radarLegende('laatste meting','gemiddelde'):''}</div>`
+    : `<div class="u-zacht u-t-sm u-tc" style="padding:20px 0">Nog geen volledige (5-domeinen) evaluatie in dit team.${losGem?`<br>Wel ${losseCijfers.length} losse beoordeling${losseCijfers.length===1?'':'en'}, gemiddeld cijfer ${losGem}.`:''}</div>`;
 
   const evals = d.teamevaluaties || [];
   const evalsChron = [...evals].sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
@@ -1188,10 +1188,10 @@ function renderEvaluatieTeamDetail(teamId){
   const teLaatste = evalsChron.length ? teamEvalRadarWaarden([evalsChron[evalsChron.length-1]]) : null;
   const teAsLabels = TEAM_CATEGORIEEN.map(c => TEAM_CAT_KORT[c.id] || c.naam.slice(0,6));
   const teRadarHtml = teLaatste
-    ? `<div style="text-align:center">${radarSVGAssen(teLaatste, teAsLabels, {size:170, compare:teGem})}${radarLegende('laatste wedstrijd','gemiddelde')}</div>`
-    : `<div style="color:var(--ink-2);font-size:calc(13px * var(--fs));padding:20px 0;text-align:center">Nog geen teamevaluatie na een wedstrijd.</div>`;
+    ? `<div class="u-tc">${radarSVGAssen(teLaatste, teAsLabels, {size:170, compare:teGem})}${radarLegende('laatste wedstrijd','gemiddelde')}</div>`
+    : `<div class="u-zacht u-t-sm u-tc" style="padding:20px 0">Nog geen teamevaluatie na een wedstrijd.</div>`;
   const teHistorieHtml = evalsChron.length ? `
-    <div class="sectie-kop">Historie — na de wedstrijd</div>
+    <div class="sectie-kop">Historie: na de wedstrijd</div>
     ${[...evalsChron].reverse().map(ev => {
       const vals = Object.values(ev.scores||{});
       const gem = vals.length ? (vals.reduce((s,x)=>s+x,0)/vals.length) : null;
@@ -1207,11 +1207,11 @@ function renderEvaluatieTeamDetail(teamId){
 
   inhoud.innerHTML = `
     <div class="kaart">
-      <div class="sectie-kop" style="margin:0 0 4px">Teamprofiel — individuele evaluaties</div>
+      <div class="sectie-kop" style="margin:0 0 var(--space-2xs)">Teamprofiel, individuele evaluaties</div>
       ${indivRadarHtml}
     </div>
-    <div class="kaart" style="margin-top:10px">
-      <div class="sectie-kop" style="margin:0 0 4px">Teamprofiel — na de wedstrijd</div>
+    <div class="kaart u-mt-sm">
+      <div class="sectie-kop" style="margin:0 0 var(--space-2xs)">Teamprofiel, na de wedstrijd</div>
       ${teRadarHtml}
     </div>
     ${teHistorieHtml}
@@ -1219,11 +1219,11 @@ function renderEvaluatieTeamDetail(teamId){
     ${spelers.map(p => {
       const m = volledigLaatste(p);
       if (m){
-        const extra = p.metingen.length > 1 ? ` · ${p.metingen.length}×` : '';
+        const extra = p.metingen.length > 1 ? `, ${p.metingen.length}×` : '';
         return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
-          <div class="li-tekst" style="flex:1">
-            <div class="titel">${esc(p.naam)}${esc(extra)}${m.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
-            <div class="meta" style="display:flex;gap:5px;margin-top:4px">
+          <div class="li-tekst u-flex-1">
+            <div class="titel">${esc(p.naam)}${esc(extra)}${m.officieel?' <span class="u-c-accent u-t-2xs u-fw-7"><span class="sep" aria-hidden="true"></span>HALFJAAR</span>':''}</div>
+            <div class="meta u-mt-2xs" style="display:flex;gap:var(--space-2xs)">
               ${DOM.map(dom => `<span style="display:inline-flex;align-items:center;justify-content:center;background:${KLEUR_CIJFER[m.scores[dom]]||'var(--surface-2)'};color:#12140f;border-radius:6px;padding:2px 6px;font-size:11px;font-weight:700">${m.scores[dom]||'–'}</span>`).join('')}
             </div>
           </div>
@@ -1235,9 +1235,9 @@ function renderEvaluatieTeamDetail(teamId){
       // "nog niet geëvalueerd" te zeggen terwijl er wel degelijk iets is.
       const cijfer = cijferSpeler(p, p.metingen);
       return `<button class="lijst-item" data-bh-open-profiel="${p.id}">
-        <div class="li-tekst" style="flex:1">
+        <div class="li-tekst u-flex-1">
           <div class="titel">${esc(p.naam)}</div>
-          <div class="meta">${cijfer ? `Losse beoordeling: cijfer ${cijfer.cijfer}${trendPijl(cijfer.trend)} · ${p.metingen.length} meting${p.metingen.length===1?'':'en'}` : 'Nog niet geëvalueerd'}</div>
+          <div class="meta">${cijfer ? `Losse beoordeling: cijfer ${cijfer.cijfer}${trendPijl(cijfer.trend)}, ${p.metingen.length} meting${p.metingen.length===1?'':'en'}` : 'Nog niet geëvalueerd'}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;
@@ -1263,10 +1263,10 @@ function renderTeamEvaluatieDetail(teamId, ev){
 
   inhoud.innerHTML = `
     <div class="kaart">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div class="u-mb-xs" style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div style="font-weight:700;font-size:calc(15px * var(--fs))">${esc(ev.tegenstander||'Onbekend')}</div>
-          <div style="color:var(--ink-2);font-size:calc(12px * var(--fs))">${esc(ev.datum||'')}</div>
+          <div class="u-fw-7 u-t-base">${esc(ev.tegenstander||'Onbekend')}</div>
+          <div class="u-zacht u-t-xs">${esc(ev.datum||'')}</div>
         </div>
         <div style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f;font-weight:800">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
       </div>
@@ -1275,20 +1275,20 @@ function renderTeamEvaluatieDetail(teamId, ev){
     <div class="kaart">
       ${TEAM_CATEGORIEEN.map(c => {
         const s = ev.scores?.[c.id];
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--surface-2)">
-          <span style="font-size:calc(13px * var(--fs))">${esc(c.naam)}</span>
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-xs) 0;border-bottom:1px solid var(--surface-2)">
+          <span class="u-t-sm">${esc(c.naam)}</span>
           <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:7px;background:${s?niveauKleur(s):'var(--surface-2)'};color:#12140f;font-weight:700;font-size:calc(12px * var(--fs))">${s||'–'}</span>
         </div>`;
       }).join('')}
     </div>
-    ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:6px">${ev.tags.map(t => `<span class="tag aan">${esc(t)}</span>`).join('')}</div>` : ''}
-    ${ev.notitieGoed ? `<div class="sectie-kop">Wat ging het beste?</div><div class="kaart" style="font-size:calc(13px * var(--fs))">${esc(ev.notitieGoed)}</div>` : ''}
-    ${ev.notitieAandacht ? `<div class="sectie-kop">Aandachtspunt</div><div class="kaart" style="font-size:calc(13px * var(--fs))">${esc(ev.notitieAandacht)}</div>` : ''}
+    ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:var(--space-xs)">${ev.tags.map(t => `<span class="tag aan">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${ev.notitieGoed ? `<div class="sectie-kop">Wat ging het beste?</div><div class="kaart u-t-sm">${esc(ev.notitieGoed)}</div>` : ''}
+    ${ev.notitieAandacht ? `<div class="sectie-kop">Aandachtspunt</div><div class="kaart u-t-sm">${esc(ev.notitieAandacht)}</div>` : ''}
   `;
 }
 
 function metingLabel(m){
-  if (m.soort === 'snel') return `Losse beoordeling${m.bron?.label ? ' · '+esc(m.bron.label) : ''}`;
+  if (m.soort === 'snel') return `Losse beoordeling${m.bron?.label ? ', '+esc(m.bron.label) : ''}`;
   return esc(m.bron?.label || 'Meting');
 }
 
@@ -1309,12 +1309,12 @@ function renderSpelerprofielScherm(teamId, p, actieveMeting, opties = {}){
   const historie = [...p.metingen].reverse();
 
   const radarBlok = m ? `
-    <div class="kaart" style="text-align:center">
-      <div class="sectie-kop" style="margin:0 0 4px;text-align:left">${esc(m.bron?.label || 'meting')} · ${esc(m.datum||'')}</div>
+    <div class="kaart u-tc">
+      <div class="sectie-kop" style="margin:0 0 var(--space-2xs);text-align:left">${esc(m.bron?.label || 'meting')}<span class="sep" aria-hidden="true"></span>${esc(m.datum||'')}</div>
       ${radarSVG(DOM.map(dom => m.scores[dom]||0), {size:170, compare: v ? DOM.map(dom => v.scores[dom]||0) : null})}
       ${v ? radarLegende(m.bron?.label||'huidig', v.bron?.label||'vorige') : ''}
     </div>`
-    : `<div class="kaart" style="text-align:center;color:var(--ink-2);font-size:calc(13px * var(--fs));padding:24px 0">Nog geen volledige evaluatie — wel losse beoordeling(en) hieronder.</div>`;
+    : `<div class="kaart u-tc u-zacht u-t-sm" style="padding:var(--space-lg) 0">Nog geen volledige evaluatie, wel losse beoordeling(en) hieronder.</div>`;
 
   // [20260922] Bugfix: bij precies 1 losse (niet-volledige) meting toonde
   // "historie.length > 1" hier niets, terwijl de tekst hierboven al zegt
@@ -1334,8 +1334,8 @@ function renderSpelerprofielScherm(teamId, p, actieveMeting, opties = {}){
         const klikbaar = isVolledig;
         return `<div class="lijst-item" ${klikbaar?`data-bh-meting="${p.metingen.indexOf(x)}"`:''} style="${klikbaar?'cursor:pointer':'cursor:default'}${x===m?';border-left:3px solid var(--accent)':''}">
           <div class="li-tekst">
-            <div class="titel">${metingLabel(x)}${x.officieel?' <span style="color:var(--accent);font-size:11px;font-weight:700">· HALFJAAR</span>':''}</div>
-            ${!isVolledig ? `<div class="meta">Cijfer ${x.niveau ?? '–'}${x.notities?.algemeen ? ' · “'+esc(x.notities.algemeen)+'”' : ''}</div>` : ''}
+            <div class="titel">${metingLabel(x)}${x.officieel?' <span class="u-c-accent u-t-2xs u-fw-7"><span class="sep" aria-hidden="true"></span>HALFJAAR</span>':''}</div>
+            ${!isVolledig ? `<div class="meta">Cijfer ${x.niveau ?? '–'}${x.notities?.algemeen ? '<span class="sep" aria-hidden="true"></span>“'+esc(x.notities.algemeen)+'”' : ''}</div>` : ''}
           </div>
           <div class="meta">${esc(x.datum||'')}</div>
         </div>`;
@@ -1354,12 +1354,12 @@ function spelerOverzichtHtml(p){
   return `<div class="kaart">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div>
-        <div style="color:var(--ink-2);font-size:calc(12px * var(--fs))">${esc(p.teamNaam||'')}${p.nummer!=null&&p.nummer!==''?' · #'+esc(String(p.nummer)):''}</div>
+        <div class="u-zacht u-t-xs">${esc(p.teamNaam||'')}${p.nummer!=null&&p.nummer!==''?'<span class="sep" aria-hidden="true"></span>#'+esc(String(p.nummer)):''}</div>
       </div>
       <div class="team-shirt">${p.nummer!=null&&p.nummer!==''?esc(String(p.nummer)):'?'}</div>
     </div>
-    <div style="margin-top:8px;font-size:calc(13px * var(--fs))">${badgeRij(p)}</div>
-    ${leerpuntenOpen>0 ? `<div style="margin-top:6px;font-size:calc(12px * var(--fs));color:var(--ink-2)">${leerpuntenOpen} open leerpunt${leerpuntenOpen===1?'':'en'}</div>` : ''}
+    <div class="u-mt-xs u-t-sm">${badgeRij(p)}</div>
+    ${leerpuntenOpen>0 ? `<div class="u-mt-xs u-t-xs u-zacht">${leerpuntenOpen} open leerpunt${leerpuntenOpen===1?'':'en'}</div>` : ''}
   </div>`;
 }
 
