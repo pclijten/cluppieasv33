@@ -371,7 +371,7 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106r'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106s'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
