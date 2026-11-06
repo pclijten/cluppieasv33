@@ -1,11 +1,11 @@
 import {
   db, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp,
   functions, httpsCallable, query, where, getDocs
-} from './firebase.js?v=20261106k';
+} from './firebase.js?v=20261106m';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan, bewaarPositie
-} from './state.js?v=20261106k';
+} from './state.js?v=20261106m';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
@@ -13,16 +13,16 @@ import {
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo, slotPositieNaam
-} from './config.js?v=20261106k';
+} from './config.js?v=20261106m';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd,
-  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106k';
-import { ico } from './icons.js?v=20261106k';
+  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106m';
+import { ico } from './icons.js?v=20261106m';
 
-import { telGebruik, telNav } from './tracker.js?v=20261106k';
-import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106k';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106k';
+import { telGebruik, telNav } from './tracker.js?v=20261106m';
+import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106m';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106m';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
-  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106k';
+  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106m';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261106k').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261106m').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261106k').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261106m').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2095,6 +2095,7 @@ function plaats(pid, slotId){
     const sec = Math.round(klokSec(k));
     k.events.push({in: pid, uit: bezet || null, slot: slotId, sec});
     telGebruik('wissel_direct');
+    S._zlWissel = false;
     if (bezet){
       meld(`${spelerNaam(pid)} erin, ${spelerNaam(bezet)} eruit, ${mmss(sec)}`);
       S.geselecteerd = null;
@@ -2117,6 +2118,7 @@ function naarBank(pid){
     const sec = Math.round(klokSec(k));
     k.events.push({in: null, uit: pid, slot, sec});
     telGebruik('wissel_direct');
+    S._zlWissel = false;
     meld(`${spelerNaam(pid)} eruit, ${mmss(sec)}`);
     S.geselecteerd = null;
     bewaarWedstrijd(); renderWedstrijd();
@@ -2619,7 +2621,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261106k').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261106m').then(m => m.renderTeam?.());
   });
 }
 
@@ -2804,6 +2806,150 @@ export async function exportStatsExcel(knop){
   }
 }
 
+/* ==================== ZIJLIJNSCHERM (proef) ====================
+   Rustiger wedstrijdscherm voor langs de zijlijn. Aan/uit per toestel
+   (localStorage); het oude scherm blijft de standaard. Alles hergebruikt de
+   bestaande logica: klok, wissels, doelpunten, kaarten en correcties. */
+const ZL_SLEUTEL = 'cluppieZijlijn';
+function zijlijnAan(){ try { return localStorage.getItem(ZL_SLEUTEL) === '1'; } catch(e){ return false; } }
+function zetZijlijn(aan){
+  try { if (aan) localStorage.setItem(ZL_SLEUTEL, '1'); else localStorage.removeItem(ZL_SLEUTEL); } catch(e){}
+  telGebruik(aan ? 'zijlijn_proberen' : 'zijlijn_terug');
+  S._zlWissel = false; S.geselecteerd = null; S._zlUndo = null; S._zlSnapVorig = null;
+  renderWedstrijd(); window.scrollTo(0, 0);
+  meld(aan ? 'Nieuw wedstrijdscherm aan. Terug kan via Menu.' : 'Terug naar het oude wedstrijdscherm');
+}
+function vandaagLokaal(){
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+/* Afgelopen: de laatste periode heeft zijn eindtijd gehaald, of de wedstrijddag is voorbij. */
+function wedstrijdAfgelopen(w){
+  const nrs = periodeNrs(w);
+  const kk = w.kwarten?.[nrs[nrs.length-1]];
+  const duur = Math.round((w.kwartduur||0)*60);
+  if (kk?.klok && !kk.klok.running && kk.klok.base > 0 && kk.klok.base >= duur) return true;
+  return !!w.datum && String(w.datum).slice(0,10) < vandaagLokaal();
+}
+
+/* Ongedaan maken: bij elke weergave bewaren we een kopie van doelpunten, kaarten
+   en wissels. Komt er door een eigen tik iets bij, dan kan de vorige kopie terug. */
+const kloon = x => JSON.parse(JSON.stringify(x || []));
+function zlTelling(w){
+  return (w.goals||[]).length + (w.kaarten||[]).length
+    + Object.values(w.kwarten||{}).reduce((a, kk) => a + ((kk && kk.events) || []).length, 0);
+}
+function zlSnap(w){
+  const events = {};
+  for (const [nr, kk] of Object.entries(w.kwarten||{})) events[nr] = kloon(kk?.events);
+  return { wid: S.wedstrijdId, tel: zlTelling(w), goals: kloon(w.goals), kaarten: kloon(w.kaarten), events };
+}
+function zlNieuwsteTekst(w, snap){
+  if ((w.goals||[]).length > snap.goals.length){
+    const g = w.goals[w.goals.length-1];
+    return g.type === 'voor' ? 'Doelpunt' + (g.pid ? ' ' + spelerNaam(g.pid) : '') : 'Tegendoelpunt';
+  }
+  if ((w.kaarten||[]).length > snap.kaarten.length){
+    const c = w.kaarten[w.kaarten.length-1];
+    return (KAART_NAAM[c.type] || 'Kaart') + ' ' + spelerNaam(c.pid);
+  }
+  for (const [nr, kk] of Object.entries(w.kwarten||{})){
+    const oud = snap.events[nr] || [];
+    if ((kk?.events||[]).length > oud.length){
+      const e = kk.events[kk.events.length-1];
+      if (e.in && e.uit) return `Wissel: ${spelerNaam(e.in)} voor ${spelerNaam(e.uit)}`;
+      return e.uit ? `${spelerNaam(e.uit)} naar de bank` : `${spelerNaam(e.in)} erin`;
+    }
+  }
+  return 'Laatste actie';
+}
+function zlOngedaan(){
+  const u = S._zlUndo, w = S.wedstrijd;
+  if (!u || !w || u.snap.wid !== S.wedstrijdId) return;
+  w.goals = u.snap.goals; w.kaarten = u.snap.kaarten;
+  for (const [nr, ev] of Object.entries(u.snap.events)) if (w.kwarten[nr]) w.kwarten[nr].events = ev;
+  S._zlUndo = null; S._zlSnapVorig = null;
+  telGebruik('zijlijn_ongedaan');
+  bewaarWedstrijd(); renderWedstrijd();
+  meld('Ongedaan gemaakt');
+}
+
+/* Menu van het zijlijnscherm: alles wat je tijdens de wedstrijd zelden nodig hebt. */
+function zlMenu(acties){
+  const item = (id, tekst, sub = '', cls = '') =>
+    `<button type="button" class="zl-menu-item ${cls}" id="${id}"><span>${tekst}</span>${sub ? `<small>${sub}</small>` : ''}</button>`;
+  openModal(`<h2>Menu</h2><div class="zl-menu">
+    ${item('zmOpzet', 'Wijzig opzet', 'Speelwijze, doel, tegenstander en tijden')}
+    ${item('zmVerslag', 'Wedstrijdverslag')}
+    ${modAan('evaluaties') ? item('zmEval', 'Team evalueren') : ''}
+    ${item('zmTactiek', 'Tactiekbord')}
+    ${item('zmBijwerk', 'Wedstrijd achteraf bijwerken')}
+    ${item('zmSjabloon', 'Opslaan als sjabloon')}
+    ${item('zmOud', 'Terug naar het oude wedstrijdscherm', 'Proberen kan later opnieuw')}
+    ${item('zmWeg', 'Wedstrijd verwijderen', '', 'weg')}
+  </div>`);
+  const bind = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { sluitModal(); f(); }; };
+  bind('zmOpzet', () => toonWijzigOpzet());
+  bind('zmVerslag', acties.verslag);
+  bind('zmEval', acties.evaluatie);
+  bind('zmTactiek', acties.tactiek);
+  bind('zmBijwerk', acties.bijwerk);
+  bind('zmSjabloon', acties.sjabloon);
+  bind('zmOud', () => zetZijlijn(false));
+  bind('zmWeg', acties.verwijder);
+}
+
+/* Beoordeling van het nieuwe scherm, na afloop. Bewaard bij de wedstrijd
+   (per coach) en als telling in het functiegebruik. */
+function zlFeedbackHtml(w){
+  const uid = S.user?.uid; if (!uid) return '';
+  const fb = (w.zijlijnFeedback || {})[uid];
+  if (fb && !S._zlFbOpnieuw) return `
+    <div class="zl-fb klaar">
+      <p class="zl-fb-titel">Bedankt voor je beoordeling</p>
+      <p class="zl-fb-tekst">Je gaf het nieuwe wedstrijdscherm een ${fb.cijfer} van de 5.${fb.notitie ? ' Je opmerking is meegestuurd.' : ''}</p>
+      <button type="button" class="zl-link" id="zlFbWijzig">Beoordeling wijzigen</button>
+    </div>`;
+  const cijfer = S._zlFbCijfer || fb?.cijfer || 0;
+  return `
+    <div class="zl-fb">
+      <p class="zl-fb-titel">Hoe beviel het nieuwe wedstrijdscherm?</p>
+      <p class="zl-fb-tekst">Jouw cijfer helpt beslissen of iedereen overstapt.</p>
+      <div class="zl-fb-cijfers" role="radiogroup" aria-label="Cijfer van 1 tot 5">
+        ${[1,2,3,4,5].map(n => `<button type="button" role="radio" aria-checked="${n === cijfer}" class="zl-cijfer${n === cijfer ? ' aan' : ''}" data-zl-cijfer="${n}">${n}</button>`).join('')}
+      </div>
+      <div class="zl-fb-schaal"><span>slecht</span><span>top</span></div>
+      <label class="zl-fb-label" for="zlFbNotitie">Opmerkingen</label>
+      <textarea class="invoer zl-fb-notitie" id="zlFbNotitie" rows="3" placeholder="Wat werkte fijn, wat miste je?">${esc(S._zlFbNotitie ?? fb?.notitie ?? '')}</textarea>
+      <button type="button" class="knop fluo vol" id="zlFbStuur"${cijfer ? '' : ' disabled'}>Beoordeling versturen</button>
+    </div>`;
+}
+function koppelZlFeedback(v){
+  const w = S.wedstrijd;
+  const wijzig = v.querySelector('#zlFbWijzig');
+  if (wijzig) wijzig.onclick = () => { S._zlFbOpnieuw = true; renderWedstrijd(); };
+  const notitie = v.querySelector('#zlFbNotitie');
+  if (notitie) notitie.oninput = () => { S._zlFbNotitie = notitie.value; };
+  v.querySelectorAll('[data-zl-cijfer]').forEach(b => b.onclick = () => {
+    S._zlFbCijfer = Number(b.dataset.zlCijfer); renderWedstrijd();
+  });
+  const stuur = v.querySelector('#zlFbStuur');
+  if (stuur) stuur.onclick = () => {
+    const cijfer = S._zlFbCijfer || ((w.zijlijnFeedback||{})[S.user.uid]?.cijfer) || 0;
+    if (!cijfer) return;
+    (w.zijlijnFeedback ||= {})[S.user.uid] = {
+      cijfer,
+      notitie: (notitie?.value || '').trim().slice(0, 1000),
+      naam: S.user.displayName || (S.user.email ? S.user.email.split('@')[0] : '') || 'Coach',
+      ts: Date.now(),
+    };
+    telGebruik('zijlijn_cijfer_' + cijfer);
+    S._zlFbCijfer = 0; S._zlFbNotitie = undefined; S._zlFbOpnieuw = false;
+    bewaarWedstrijd(); renderWedstrijd();
+    meld('Bedankt, je beoordeling is opgeslagen');
+  };
+}
+
 /* ==================== WEERGAVE ==================== */
 /* Melding "X van Y spelers op het veld". Alleen zinvol zolang de periode nog
    loopt: na het eindsignaal is de eindopstelling gewoon wat hij is, en na een
@@ -2844,6 +2990,8 @@ export function renderWedstrijd(){
   const aWed = analyseWedstrijd(w);
   const bank = (w.selectie||[]).filter(pid => !opVeld.has(pid) && speler(pid))
     .sort((a,b) => (aWed.tijd[a]||0) - (aWed.tijd[b]||0));
+  const ZL = zijlijnAan();
+  const afgelopen = wedstrijdAfgelopen(w);
 
   const historie = {};
   for (let nr = 1; nr < Number(S.kwart); nr++){
@@ -2872,7 +3020,7 @@ export function renderWedstrijd(){
       data-chip="${pid}" data-bron="${bron}" data-chipslot="${slotId}">
       ${bron === 'bank' && veldVol ? `<button class="chip-reden ${straf?'straf':''}" data-bankreden="${pid}" title="Reden bankbeurt"></button>` : ''}
       <div class="shirt">${esc(spelerNr(pid))}${aanv ? '<span class="aanvoerder-band">C</span>' : ''}</div>
-      <div class="naam">${esc(spelerNaam(pid))}</div>${laatMin ? `<div class="telaat-label" title="Komt later, erbij vanaf minuut ${esc(laatMin)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> ${esc(laatMin)}'</div>` : ''}${dotsHtml(pid)}</div>`;
+      <div class="naam">${esc(spelerNaam(pid))}</div>${ZL && bron === 'bank' ? `<div class="zl-min" title="Speeltijd deze wedstrijd">${Math.round((aWed.tijd[pid]||0)/60)} min</div>` : ''}${laatMin ? `<div class="telaat-label" title="Komt later, erbij vanaf minuut ${esc(laatMin)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> ${esc(laatMin)}'</div>` : ''}${dotsHtml(pid)}</div>`;
   };
 
   const inHuidigeW = g => !isToernooi(w) || toernooiWnr(w, g.kwart) === toernooiWnr(w);
@@ -2889,19 +3037,103 @@ export function renderWedstrijd(){
 
   const v = $('#view-wedstrijd');
   const sbPuls = !!S._sbPuls; S._sbPuls = false;
+  v.classList.toggle('zijlijn', ZL);
+
+  /* Zijlijnscherm: kwam er net door een eigen tik een doelpunt, kaart of wissel
+     bij, dan bieden we 8 seconden "Ongedaan maken" aan. */
+  let zlUndoHtml = '';
+  if (ZL){
+    const vorige = S._zlSnapVorig;
+    if (vorige && vorige.wid === S.wedstrijdId && zlTelling(w) > vorige.tel && Date.now() - (S.lokaalTot||0) < 3000)
+      S._zlUndo = { snap: vorige, tot: Date.now() + 8000, tekst: zlNieuwsteTekst(w, vorige) };
+    if (S._zlUndo && (S._zlUndo.snap.wid !== S.wedstrijdId || Date.now() > S._zlUndo.tot)) S._zlUndo = null;
+    S._zlSnapVorig = zlSnap(w);
+    if (S._zlUndo) zlUndoHtml = `<div class="zl-undo" id="zlUndo" role="status">
+      <span>${esc(S._zlUndo.tekst)}</span>
+      <button type="button" id="zlUndoKnop">Ongedaan maken</button></div>`;
+  }
+
+  /* Instructie in wisselmodus: zegt per stap wat je moet tikken. */
+  const zlWisselHtml = (() => {
+    if (!ZL || !(S._zlWissel || S.geselecteerd)) return '';
+    const sel = S.geselecteerd;
+    const tekst = !sel ? 'Tik de speler die eruit gaat.'
+      : sel.bron === 'veld' ? `<b>${esc(spelerNaam(sel.pid))}</b> eruit. Tik wie erin komt, of tik de bank als er niemand in komt.`
+      : `<b>${esc(spelerNaam(sel.pid))}</b> erin. Tik de veldspeler die eruit gaat.`;
+    const stil = !kwartLive(k) ? `<span class="zl-instructie-sub">De klok staat nog op 0:00, dus dit past de opstelling aan en telt niet als wissel.</span>` : '';
+    return `<div class="zl-instructie" role="status"><div><span class="zl-instructie-tekst">${tekst}</span>${stil}</div>
+      <button type="button" id="zlWisselStop">Stoppen</button></div>`;
+  })();
+
+  /* Tijdlijn van de huidige periode, nieuwste bovenaan. Elke regel is te wijzigen. */
+  const zlTijdlijnHtml = (() => {
+    if (!ZL) return '';
+    const items = [
+      ...k.events.map((e,i) => ({soort:'wissel', ...e, i})),
+      ...w.goals.map((g,i) => ({soort:'goal', ...g, i})).filter(g => String(g.kwart) === S.kwart),
+      ...(w.kaarten||[]).map((c,i) => ({soort:'kaart', ...c, i})).filter(c => String(c.kwart) === S.kwart),
+    ].sort((a,b) => (b.sec||0) - (a.sec||0));
+    // Stand na elk doelpunt, in de volgorde links–rechts van het scorebord
+    const stand = {}; let nv = 0, nt = 0;
+    w.goals.map((g,i) => ({g, i})).filter(x => inHuidigeW(x.g))
+      .sort((a,b) => (Number(a.g.kwart) - Number(b.g.kwart)) || ((a.g.sec||0) - (b.g.sec||0)))
+      .forEach(x => { if (x.g.type === 'voor') nv++; else nt++; stand[x.i] = w.thuis ? `${nv}–${nt}` : `${nt}–${nv}`; });
+    const kruis = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10"/><path d="M17 7L7 17"/></svg>';
+    const rij = (cls, tijd, titel, sub, knoppen) => `<li class="zl-ev ${cls}">
+      <span class="zl-tijd">${tijd}</span><span class="zl-punt" aria-hidden="true"></span>
+      <div class="zl-tekst"><span class="zl-titel">${titel}</span>${sub ? `<span class="zl-sub">${sub}</span>` : ''}</div>
+      ${knoppen ? `<div class="zl-knoppen">${knoppen}</div>` : ''}</li>`;
+    const regels = items.map(e => {
+      const tijd = gebeurtenisTijd(e.sec, w);
+      if (e.soort === 'wissel'){
+        const r = e.reden ? wisselReden(e.reden) : null;
+        const titel = e.in && e.uit ? 'Wissel' : e.uit ? 'Naar de bank' : 'Erin';
+        const sub = `${e.in ? `<span><span class="zl-pil in">in</span>${esc(spelerNaam(e.in))}</span>` : ''}${e.uit ? `<span><span class="zl-pil uit">uit</span>${esc(spelerNaam(e.uit))}</span>` : ''}`;
+        const knoppen = `${e.uit ? `<button type="button" class="zl-knop${r ? ' heeft' : ''}${e.disciplinair ? ' disc' : ''}" data-reden-ev="${e.i}">${r ? (r.ico ? ico(r.ico, 14) : '') + esc(r.label) : 'Reden'}</button>` : ''}
+          <button type="button" class="zl-knop weg" data-weg-ev="${e.i}" aria-label="Wissel verwijderen">${kruis}</button>`;
+        return rij('zl-wis', tijd, titel, sub, knoppen);
+      }
+      if (e.soort === 'goal'){
+        const eigen = e.type === 'voor';
+        const titel = `${eigen ? (e.pid ? esc(spelerNaam(e.pid)) : 'Doelpunt') : 'Tegendoelpunt'}<span class="zl-stand">${stand[e.i] || ''}</span>`;
+        const sub = eigen ? (e.assist ? `Doelpunt, assist ${esc(spelerNaam(e.assist))}` : 'Doelpunt') : esc(tegenNaam || 'Tegenstander');
+        return rij('zl-goal ' + (eigen ? 'voor' : 'tegen'), tijd, titel, sub,
+          `<button type="button" class="zl-knop" data-corrigeer-goal="${e.i}">Wijzig</button>`);
+      }
+      return rij('zl-krt ' + esc(e.type), tijd, esc(spelerNaam(e.pid)),
+        `${esc(KAART_NAAM[e.type] || 'Kaart')}${e.type === 'tijd' ? ', ' + Math.round((e.duur||0)/60) + ' min' : ''}${e.auto ? ', automatisch' : ''}`,
+        e.auto ? '' : `<button type="button" class="zl-knop" data-corrigeer-kaart="${e.i}">Wijzig</button>`);
+    });
+    const duur = Math.round((w.kwartduur||0)*60);
+    if (duur && !k.klok.running && k.klok.base >= duur) regels.unshift(rij('zl-mijl', gebeurtenisTijd(k.klok.base, w), `Einde ${esc(periodeOmschrijving(w))}`, '', ''));
+    if (kwartLive(k)) regels.push(rij('zl-mijl', '0:00', 'Aftrap', '', ''));
+    return `<section class="zl-blok" aria-labelledby="zlTijdlijnKop">
+      <div class="zl-blok-kop"><h2 id="zlTijdlijnKop">Tijdlijn ${esc(periodeLabel(w, S.kwart))}</h2>
+        <span class="zl-blok-hint">Verkeerd getikt? Wijzig het hier.</span></div>
+      ${regels.length ? `<ol class="zl-tijdlijn">${regels.join('')}</ol>`
+        : `<p class="zl-leeg">Nog niets gebeurd in ${esc(periodeOmschrijving(w))}. Wissels, doelpunten en kaarten komen hier met de tijd erbij.</p>`}
+    </section>`;
+  })();
+
   v.innerHTML = `
     <div class="kop"><button class="terug" id="naarTeam">‹</button>
       <h1>${isToernooi(w)
         ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.4 4h7.2v3.6a3.6 3.6 0 0 1-7.2 0z"/><path d="M8.4 5.4H5.8a2.4 2.4 0 0 0 2.6 3.2"/><path d="M15.6 5.4h2.6a2.4 2.4 0 0 1-2.6 3.2"/><path d="M12 11.2v3"/><path d="M9.2 19.8h5.6l-.7-3.6h-4.2z"/></svg> '+esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam))}
       <span class="sub">${datumNL(w.datum)}<span class="sep" aria-hidden="true"></span>${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden<span class="sep" aria-hidden="true"></span>' : ''}<span id="subFormatieKlik" class="u-klikbaar" style="text-decoration:underline dotted">${esc(kFormatie)}</span></span></h1>
-      <button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
+      ${ZL ? `<button class="terug opzet-knop zl-menu-knop" id="zlMenuKnop" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Menu</span>
+      </button>` : `<button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 3L20 6.5V11C20 15.5 16.9 19.7 12 21C7.1 19.7 4 15.5 4 11V6.5L12 3Z" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
           <path d="M9 12L11 14L15.5 9.5" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
         <span>Wijzig opzet</span>
-      </button></div>
+      </button>`}</div>
+    ${ZL ? '' : `<button type="button" class="zl-probeer" id="zlProbeer">
+      <span class="zl-probeer-tekst"><b>Probeer het nieuwe wedstrijdscherm</b><span>Rustiger langs de zijlijn. Terug kan altijd.</span></span>
+      <span class="zl-probeer-pijl" aria-hidden="true">›</span></button>`}
     <div class="kaart doelbanner" id="doelBanner" style="${w.doel
       ? 'background:rgba(226,52,47,.12);border-left:3px solid var(--accent)'
       : 'background:rgba(226,52,47,.10);border-left:3px dashed var(--accent)'};font-size:calc(13.5px * var(--fs));color:var(--ink);padding:10px 12px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">${w.doel
@@ -2948,6 +3180,14 @@ ${confroHtml}
         <button id="klokStart" class="primair${k.klok.running ? ' loopt' : ''}" title="${k.klok.running?'Pauze':'Start'}" aria-label="${k.klok.running?'Pauzeer de klok':'Start de klok'}">${k.klok.running ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>' : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>'}</button>
       </div>
     </div>
+
+    ${ZL ? `<div class="zl-acties">
+      <button type="button" class="zl-actie wissel${S._zlWissel || S.geselecteerd ? ' aan' : ''}" id="zlWissel" aria-pressed="${!!(S._zlWissel || S.geselecteerd)}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v14"/><path d="M3.5 14.5L7 18l3.5-3.5"/><path d="M17 20V6"/><path d="M13.5 9.5L17 6l3.5 3.5"/></svg>
+        <span>Wissel</span></button>
+      <button type="button" class="zl-actie kaart" id="zlKaart"><span class="kaartje geel" aria-hidden="true"></span><span>Kaart</span></button>
+    </div>
+    <div class="zl-instructie-plek">${zlWisselHtml}</div>` : ''}
 
     ${(() => {
       // "Opstelling invoegen" — snelknop bovenaan zolang de héle wedstrijd nog
@@ -3019,6 +3259,7 @@ ${confroHtml}
         ...w.goals.map((g,i) => ({soort:'goal', ...g, i})).filter(g => String(g.kwart) === S.kwart),
         ...(w.kaarten||[]).map((c,i) => ({soort:'kaart', ...c, i})).filter(c => String(c.kwart) === S.kwart),
       ].sort((a,b) => (a.sec||0) - (b.sec||0));
+      if (ZL) return zlTijdlijnHtml;
       if (!items.length) return '';
       return `<div class="log">
         <div class="sectie-kop">Gebeurtenissen ${esc(periodeOmschrijving(w))}</div>
@@ -3053,7 +3294,7 @@ ${confroHtml}
       </div>`;
     })()}
 
-    <details class="uitklap" id="speeltijdUitklap"${(() => { const o = S._speeltijdOpen; S._speeltijdOpen = false; return o ? ' open' : ''; })()}><summary>Speeltijd deze wedstrijd</summary>
+    <details class="uitklap" id="speeltijdUitklap"${(() => { const o = S._speeltijdOpen; S._speeltijdOpen = false; return (o || (ZL && S._zlSpeeltijdOpen)) ? ' open' : ''; })()}><summary>Speeltijd deze wedstrijd</summary>
       ${(() => {
         /* Alle periodes naast elkaar: per periode een kolom, plus het wedstrijdtotaal.
            Spelernaam en Totaal blijven bij horizontaal scrollen staan (sticky), zodat
@@ -3113,21 +3354,72 @@ ${confroHtml}
       })()}
     </details>
 
+    ${ZL ? `
+    ${afgelopen ? `<section class="zl-blok zl-na" aria-labelledby="zlNaKop">
+      <div class="zl-blok-kop"><h2 id="zlNaKop">Na de wedstrijd</h2></div>
+      <div class="zl-na-knoppen">
+        <button type="button" class="knop secundair" id="toonVerslag">Wedstrijdverslag</button>
+        ${modAan('evaluaties') ? `<button type="button" class="knop secundair" id="teamEvalKnop">${teamEvalBestaand ? 'Teamevaluatie bijwerken' : 'Team evalueren'}</button>` : ''}
+        <button type="button" class="knop secundair" id="tactiekbordKnop">Tactiekbord</button>
+        <button type="button" class="knop secundair" id="bijwerkKnop">Achteraf bijwerken</button>
+      </div>
+      ${zlFeedbackHtml(w)}
+    </section>` : `<p class="zl-na-hint">Verslag, evaluatie en tactiekbord komen hier na het laatste fluitsignaal. Tijdens de wedstrijd staan ze onder Menu.</p>`}
+    <button class="knop fluo vol u-mt-md" id="wedstrijdKlaar">${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
+    ${zlUndoHtml}` : `
     <button class="knop fluo vol u-mt-md" id="wedstrijdKlaar" >${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
     <button class="knop secundair vol u-mt-sm" id="bijwerkKnop" >✎ Wedstrijd achteraf bijwerken</button>
     <button class="knop secundair vol u-mt-sm" id="toonVerslag" ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="4.5" width="14" height="16" rx="2.2"/><path d="M9 3.2h6v3H9z"/><path d="M8.8 11.4h6.4"/><path d="M8.8 15.4h4"/></svg> Wedstrijdverslag</button>
     ${modAan('evaluaties') ? `<button class="knop secundair vol u-mt-sm" id="teamEvalKnop" >${teamEvalBestaand?'✓ Teamevaluatie bijwerken':'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team evalueren'}</button>` : ''}
     <button class="knop secundair vol u-mt-sm" id="tactiekbordKnop" >✎ Tactiekbord</button>
     <button class="knop secundair vol u-mt-sm" id="bewaarSjabloon" >⧉ Opslaan als sjabloon</button>
-    <button class="knop destructief vol u-mt-md" id="wegWedstrijd" >Wedstrijd verwijderen</button>`;
+    <button class="knop destructief vol u-mt-md" id="wegWedstrijd" >Wedstrijd verwijderen</button>`}`;
 
   /* ---- koppelingen ---- */
   v.querySelector('#naarTeam').onclick = () => history.back();
-  v.querySelector('#wInstellingen').onclick = () => toonWijzigOpzet();
+  { const wi = v.querySelector('#wInstellingen'); if (wi) wi.onclick = () => toonWijzigOpzet(); }
+
+  /* Acties die in het oude scherm onderaan staan en in het zijlijnscherm ook in het menu. */
+  const acties = {
+    verslag: modalVerslag,
+    evaluatie: () => import('./teams.js?v=20261106m').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
+    tactiek: () => import('./tactiekbord.js?v=20261106m').then(m => m.openTactiekLijst(w)),
+    bijwerk: () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); },
+    sjabloon: () => bewaarWedstrijdAlsSjabloon(w),
+    verwijder: async () => {
+      if (!confirm('Deze wedstrijd en alle opstellingen verwijderen?')) return;
+      await deleteDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId));
+      sluitWedstrijd();
+    },
+  };
+  if (ZL){
+    v.querySelector('#zlMenuKnop').onclick = () => zlMenu(acties);
+    v.querySelector('#zlWissel').onclick = () => {
+      const aan = S._zlWissel || S.geselecteerd;
+      S._zlWissel = !aan; S.geselecteerd = null;
+      renderWedstrijd();
+      if (S._zlWissel) requestAnimationFrame(() => requestAnimationFrame(() => v.querySelector('#veld')?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })));
+    };
+    { const st = v.querySelector('#zlWisselStop'); if (st) st.onclick = () => { S._zlWissel = false; S.geselecteerd = null; renderWedstrijd(); }; }
+    v.querySelector('#zlKaart').onclick = modalKaart;
+    { const sp = v.querySelector('#speeltijdUitklap'); if (sp) sp.addEventListener('toggle', () => { S._zlSpeeltijdOpen = sp.open; }); }
+    const uk = v.querySelector('#zlUndoKnop');
+    if (uk){
+      uk.onclick = zlOngedaan;
+      clearTimeout(S._zlUndoTimer);
+      S._zlUndoTimer = setTimeout(() => {
+        S._zlUndo = null;
+        const el = document.querySelector('#zlUndo'); if (el) el.remove();
+      }, Math.max(0, S._zlUndo.tot - Date.now()));
+    }
+    koppelZlFeedback(v);
+  } else {
+    const pb = v.querySelector('#zlProbeer'); if (pb) pb.onclick = () => zetZijlijn(true);
+  }
   const bsj = v.querySelector('#bewaarSjabloon');
   if (bsj) bsj.onclick = () => bewaarWedstrijdAlsSjabloon(w);
   const tbk = v.querySelector('#tactiekbordKnop');
-  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106k').then(m => m.openTactiekLijst(w));
+  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106m').then(m => m.openTactiekLijst(w));
   v.querySelector('#doelBanner').onclick = () => toonWijzigOpzet('doel');
   v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonKwartFormatie(); };
   { const kfk = v.querySelector('#kwartFormatieKnop'); if (kfk) kfk.onclick = toonKwartFormatie; }
@@ -3150,11 +3442,11 @@ ${confroHtml}
     meld('Wedstrijd opgeslagen');
     sluitWedstrijd('wedstrijden');
   };
-  v.querySelector('#toonVerslag').onclick = modalVerslag;
+  { const tv = v.querySelector('#toonVerslag'); if (tv) tv.onclick = modalVerslag; }
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261106k').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261106m').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3258,11 +3550,7 @@ ${confroHtml}
       sp.addEventListener('toggle', naarNu);
       naarNu();
     } }
-  v.querySelector('#wegWedstrijd').onclick = async () => {
-    if (!confirm('Deze wedstrijd en alle opstellingen verwijderen?')) return;
-    await deleteDoc(doc(db,'teams',S.teamId,'wedstrijden',S.wedstrijdId));
-    sluitWedstrijd();
-  };
+  { const ww = v.querySelector('#wegWedstrijd'); if (ww) ww.onclick = acties.verwijder; }
 
   clearInterval(S.klokInterval);
   if (k.klok.running) S.klokInterval = setInterval(tikKlok, 500);

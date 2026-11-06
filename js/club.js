@@ -3,26 +3,26 @@ import {
   query, where, onSnapshot, serverTimestamp, documentId, writeBatch,
   sRef, uploadBytes, getDownloadURL, deleteObject,
   functions, httpsCallable
-} from './firebase.js?v=20261106k';
+} from './firebase.js?v=20261106m';
 import {
   S, $, $$, esc, meld, nieuweCode, teamCode, clubAfkorting, openModal, sluitModal, toon, stopUnsubs, initialen, isBeheerder
-} from './state.js?v=20261106k';
-import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20261106k';
-import { teltMee } from './opkomst.js?v=20261106k';
-import { analyseWedstrijd } from './analyse.js?v=20261106k';
-import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261106k';
-import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261106k';
-import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261106k';
-import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261106k';
-import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261106k';
-import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261106k';
-import { telGebruik, telNav } from './tracker.js?v=20261106k';
-import { ico } from './icons.js?v=20261106k';
-import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261106k';
-import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261106k';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261106k';
-import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261106k';
-import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261106k';
+} from './state.js?v=20261106m';
+import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20261106m';
+import { teltMee } from './opkomst.js?v=20261106m';
+import { analyseWedstrijd } from './analyse.js?v=20261106m';
+import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261106m';
+import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261106m';
+import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261106m';
+import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261106m';
+import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261106m';
+import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261106m';
+import { telGebruik, telNav } from './tracker.js?v=20261106m';
+import { ico } from './icons.js?v=20261106m';
+import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261106m';
+import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261106m';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261106m';
+import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261106m';
+import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261106m';
 
 /* [20261013b] Uploadwachtrij: trainingen worden op de achtergrond verwerkt.
    De wachtrij leeft in upload-wachtrij.js; de schermen die hij nodig heeft
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261106k'); }
+async function teamsModule(){ return await import('./teams.js?v=20261106m'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261106k').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261106m').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -253,6 +253,9 @@ async function clubDashboardOphalen(teams){
       team:t, spelersAantal, coachesAantal: Object.keys(t.leden||{}).length,
       wedstrijdenAantal: wedstrijden.length, opkomstPct, laatsteDatum, activiteiten,
       heeftCategorie: !!t.categorie,
+      // Beoordelingen van het nieuwe wedstrijdscherm (proef), per coach per wedstrijd
+      feedback: wedstrijden.flatMap(w => Object.values(w.zijlijnFeedback || {}).map(f => ({
+        ...f, team: t.naam, tegenstander: w.tegenstander || '', datum: w.datum || '' }))),
     };
   }));
 }
@@ -345,8 +348,27 @@ function htmlDashAandacht(dash){
 }
 
 /* Dashboard-scherm 3: Gebruik — logins + functiegebruik. */
-function htmlDashGebruik(gebruik){
-  return htmlClubGebruik(gebruik) + htmlClubFunctiegebruik(gebruik);
+function htmlDashGebruik(gebruik, dash){
+  return htmlZijlijnFeedback(dash) + htmlClubGebruik(gebruik) + htmlClubFunctiegebruik(gebruik);
+}
+
+/* Beoordelingen van het nieuwe wedstrijdscherm: gemiddelde, verdeling en opmerkingen. */
+function htmlZijlijnFeedback(dash){
+  const lijst = (dash || []).flatMap(d => d.feedback || []).sort((a,b) => (b.ts||0) - (a.ts||0));
+  if (!lijst.length) return '';
+  const gem = lijst.reduce((a,f) => a + (f.cijfer||0), 0) / lijst.length;
+  const verdeling = [5,4,3,2,1].map(n => ({ n, aantal: lijst.filter(f => f.cijfer === n).length }));
+  const max = Math.max(1, ...verdeling.map(x => x.aantal));
+  const notities = lijst.filter(f => f.notitie);
+  return `
+    <div class="kaart">
+      <div class="sectie-kop u-mt-0">Nieuw wedstrijdscherm</div>
+      <p class="u-t-sm u-zacht u-mb-sm">Gemiddeld <b class="u-c-ink">${gem.toFixed(1).replace('.', ',')}</b> van de 5, uit ${lijst.length} ${lijst.length === 1 ? 'beoordeling' : 'beoordelingen'}.</p>
+      ${verdeling.map(x => `<div class="inz-dagrij"><span class="dn">${x.n}</span><span class="ds"><span class="dv" style="width:${Math.round(100*x.aantal/max)}%"></span></span><span class="dw">${x.aantal}</span></div>`).join('')}
+      ${notities.length ? `<div class="zl-fb-lijst">${notities.map(f => `
+        <div class="zl-fb-rij"><div class="zl-fb-wie"><b>${esc(f.naam || 'Coach')}</b><span>${esc(f.team)}${f.tegenstander ? ' tegen ' + esc(f.tegenstander) : ''}</span><span class="zl-fb-cijfer">${f.cijfer}</span></div>
+          <p>${esc(f.notitie)}</p></div>`).join('')}</div>` : ''}
+    </div>`;
 }
 
 /* ==================== GEBRUIKSSTATISTIEKEN (logins) ====================
@@ -1032,7 +1054,9 @@ async function renderClub(opts = {}){
       inhoud = tab === 'dash-overzicht' ? htmlDashOverzicht(teams, dash) : htmlDashAandacht(dash);
     } else {
       const gebruik = await clubGebruikOphalen(teams);
-      inhoud = tab === 'dash-gebruik' ? htmlDashGebruik(gebruik) : htmlClubNavigatie(gebruik);
+      const dashFb = tab === 'dash-gebruik' ? (S._clubDashCache || await clubDashboardOphalen(teams).catch(() => null)) : null;
+      if (dashFb) S._clubDashCache = dashFb;
+      inhoud = tab === 'dash-gebruik' ? htmlDashGebruik(gebruik, dashFb) : htmlClubNavigatie(gebruik);
     }
   }
   else if (tab === 'teams')      inhoud = htmlTeamsBeheer(teams, syncStatus);
@@ -2280,14 +2304,14 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-tnotities]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.tnotities);
       if (!t) return;
-      const { openBeheerNotities } = await import('./training-notities-beheer.js?v=20261106k');
+      const { openBeheerNotities } = await import('./training-notities-beheer.js?v=20261106m');
       openBeheerNotities({ trainingId: t.id, titel: t.titel || t.bestandsnaam || 'Training', oefeningen: t.oefeningen || [] });
     });
     v.querySelectorAll('[data-ttekst]').forEach(b => b.onclick = async () => {
       const t = trainingen.find(x => x.id === b.dataset.ttekst);
       if (!t) return;
       const datum = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds*1000).toLocaleDateString('nl-NL',{day:'numeric',month:'short'}) : '';
-      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106k');
+      const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106m');
       openTrainingBewerken({
         trainingId: t.id,
         titel: t.titel || t.bestandsnaam || 'Training',
@@ -3071,7 +3095,7 @@ async function startTrainingVerwerking(file, meta){
     rest.map(t=>`<div>${t}</div>`).join('');
 
   try {
-    const ai = await import('./training-ai.js?v=20261106k');
+    const ai = await import('./training-ai.js?v=20261106m');
 
     toonVerwerk(stap([], 'PDF inlezen…', ['Diagrammen opslaan','Oefeningen structureren','Controleren']));
     const { paginas, diagramBlobs, bytes, aantalPaginas } = await ai.leesPdf(file);
@@ -3228,7 +3252,7 @@ function toonPreview(file, meta, ctx){
   $$('#trOpnieuw').forEach(b => b.onclick = () => startTrainingHerstructureer(file, meta, ctx));
   $$('#trTekst').forEach(b => b.onclick = async () => {
     ctx.doelen = leesDoelen();   // typwijzigingen bewaren over het herteken heen
-    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106k');
+    const { openTrainingBewerken } = await import('./training-bewerken.js?v=20261106m');
     openTrainingBewerken({
       titel: meta.titel || file.name,
       meta: meta.week || '',
@@ -3250,7 +3274,7 @@ async function startTrainingHerstructureer(file, meta, ctx){
   const mod = $('.modal'); if (!mod) return;
   zetTrainingModalInhoud('Opnieuw genereren', `<div class="tr-verwerk"><div class="tr-spin"></div><p>De AI probeert de opmaak nog een keer.</p></div>`);
   try {
-    const ai = await import('./training-ai.js?v=20261106k');
+    const ai = await import('./training-ai.js?v=20261106m');
     // Ook de diagrammen opnieuw uitlezen én overschrijven: zo herstelt "opnieuw
     // genereren" ook een fout diagram (bv. een logo/avatar dat als veld doorkwam),
     // niet alleen de tekst-layout. uploadDiagrammen schrijft naar dezelfde paden

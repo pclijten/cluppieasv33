@@ -15,8 +15,8 @@
    Flush-momenten: bij het verbergen/sluiten van de app (visibilitychange →
    hidden, en pagehide) en als veiligheidsnet elke ~2 minuten. */
 
-import { db, doc, setDoc, increment, serverTimestamp } from './firebase.js?v=20261106k';
-import { S } from './state.js?v=20261106k';
+import { db, doc, setDoc, increment, serverTimestamp } from './firebase.js?v=20261106m';
+import { S } from './state.js?v=20261106m';
 
 const LS_BUFFER = 'cluppie_gebruik_buffer';   // {datum, tellingen:{ev:n}}
 const FLUSH_INTERVAL_MS = 2 * 60 * 1000;

@@ -1,4 +1,4 @@
-import { S } from './state.js?v=20261106k';
+import { S } from './state.js?v=20261106m';
 
 /* ==================== KNVB-CATEGORIEËN ====================
    Bron: KNVB wedstrijdvormen & speeltijden (knvb.nl)
@@ -718,6 +718,16 @@ export const GEBRUIK_CATEGORIEEN = [
     {ev:'kaart',                label:'Kaart geregistreerd'},
     {ev:'verslag_ai',           label:'Verslag gegenereerd'},
     {ev:'speeltijd_correctie',  label:'Speeltijd gecorrigeerd'},
+  ]},
+  { id:'zijlijn', naam:'Nieuw wedstrijdscherm (proef)', events:[
+    {ev:'zijlijn_proberen',     label:'Nieuw scherm aangezet'},
+    {ev:'zijlijn_terug',        label:'Terug naar oude scherm'},
+    {ev:'zijlijn_ongedaan',     label:'Ongedaan maken gebruikt'},
+    {ev:'zijlijn_cijfer_5',     label:'Beoordeeld met 5'},
+    {ev:'zijlijn_cijfer_4',     label:'Beoordeeld met 4'},
+    {ev:'zijlijn_cijfer_3',     label:'Beoordeeld met 3'},
+    {ev:'zijlijn_cijfer_2',     label:'Beoordeeld met 2'},
+    {ev:'zijlijn_cijfer_1',     label:'Beoordeeld met 1'},
   ]},
   { id:'beoordelen', naam:'Beoordelen', events:[
     {ev:'snel_beoordeling',     label:'Snel beoordelen'},

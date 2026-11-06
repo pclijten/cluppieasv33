@@ -14,7 +14,7 @@
 
    Eén training na de andere (zwaar werk voor de browser), met voortgang. */
 
-import { db, doc, updateDoc } from './firebase.js?v=20261106k';
+import { db, doc, updateDoc } from './firebase.js?v=20261106m';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 
@@ -103,7 +103,7 @@ export function koppelDiagramHerstel(v, trainingen, api){
     const toon = tekst => { if (uit) uit.textContent = tekst; };
 
     let ai;
-    try { ai = await import('./training-ai.js?v=20261106k'); }
+    try { ai = await import('./training-ai.js?v=20261106m'); }
     catch(e){
       console.error('[herstel] training-ai laden mislukt', e);
       toon('Laden mislukt. Ververs de pagina en probeer het opnieuw.');

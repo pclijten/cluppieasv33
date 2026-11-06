@@ -12,8 +12,8 @@
 
    Zelfde overlay-aanpak en terug-bewaking als de andere fullscreen-weergaven. */
 
-import { db, doc, updateDoc } from './firebase.js?v=20261106k';
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld } from './state.js?v=20261106k';
+import { db, doc, updateDoc } from './firebase.js?v=20261106m';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld } from './state.js?v=20261106m';
 
 let _overlay = null;
 let _ctx = null;   // { trainingId, oefeningen, origPerPagina }
