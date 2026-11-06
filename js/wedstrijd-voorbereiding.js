@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc } from './firebase.js?v=20261106r';
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106t';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106u';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -59,7 +59,10 @@ function pouleGespeeld(){
   const gezien = new Map();
   for (const r of rijen){
     if (!r || !r.uitslag || !r.datum) continue;
-    const [a, b] = String(r.uitslag).split('-').map(x => parseInt(x, 10));
+    /* Sportlink schrijft de score met wisselende streepjes (-, – of −) en soms
+       spaties; daarom op de twee getallen matchen in plaats van op één teken. */
+    const m = String(r.uitslag).match(/(\d+)\D+?(\d+)/);
+    const [a, b] = m ? [+m[1], +m[2]] : [NaN, NaN];
     if (!Number.isFinite(a) || !Number.isFinite(b)) continue;
     const k = `${r.datum}|${norm(r.thuis)}|${norm(r.uit)}`;
     if (!gezien.has(k)) gezien.set(k, { datum: r.datum, thuis: r.thuis, uit: r.uit, a, b });
@@ -377,7 +380,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261106t');
+      const m = await import('./wedstrijd.js?v=20261106u');
       m.openWedstrijd(id);
       return;
     }

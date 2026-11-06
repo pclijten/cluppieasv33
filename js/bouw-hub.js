@@ -26,7 +26,7 @@ import {
 } from './firebase.js?v=20261106r';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106t';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106u';
 import { telGebruik } from './tracker.js?v=20261106r';
 import { analyseWedstrijd } from './analyse.js?v=20261106r';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
@@ -202,7 +202,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261106t'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261106u'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -413,7 +413,8 @@ export function uitslagenTeam(team){
     if (!gezien.has(k)) gezien.set(k, r);
   }
   const sportlink = [...gezien.values()].map(r => {
-    const [a, b] = String(r.uitslag).split('-').map(x => parseInt(x, 10));
+    const sc = String(r.uitslag).match(/(\d+)\D+?(\d+)/);   // -, – of − als scheidingsteken
+    const [a, b] = sc ? [+sc[1], +sc[2]] : [NaN, NaN];
     let thuis;
     if (isEigen(r.thuis)) thuis = true;
     else if (isEigen(r.uit)) thuis = false;
@@ -846,7 +847,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261106t');
+      const m = await import('./teams.js?v=20261106u');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
