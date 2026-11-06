@@ -6447,3 +6447,20 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .vb-weg:hover { color: var(--ink); background: var(--surface); }
 .vb-weg:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .vb-na { resize: vertical; min-height: 88px; font-family: inherit; line-height: 1.45; }
+
+/* ==================== SCOUTING-TAB, ALLEEN EERSTE ELFTAL (v20261106v) ==================== */
+.vb-tabs-4 button { font-size: var(--t-sm); padding-left: var(--space-3xs); padding-right: var(--space-3xs); }
+.vb-scoutstatus { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); border-radius: 14px; background: var(--card); border: 1px solid var(--hair); color: var(--ok); }
+.vb-scoutstatus > div { display: flex; flex-direction: column; color: var(--ink); min-width: 0; }
+.vb-scoutstatus .knop { min-height: 44px; }
+.vb-tekst { margin: 0; }
+.vb-bronref { font-size: var(--t-xs); font-weight: 600; color: var(--elf2); text-decoration: none; white-space: nowrap; }
+.vb-lijst { margin: 0; padding-left: var(--space-md); display: grid; gap: var(--space-xs); }
+.vb-spelers, .vb-nieuws { margin: 0; padding: 0; list-style: none; }
+.vb-spelers li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line-d); }
+.vb-spelers li:last-child { border-bottom: 0; }
+.vb-spelers li > div { display: flex; flex-direction: column; min-width: 0; }
+.vb-nr-zacht { background: var(--surface-2); color: var(--ink); }
+.vb-nieuws li { display: flex; flex-direction: column; padding: var(--space-xs) 0; }
+.vb-bronnen { margin: 0; padding-left: var(--space-lg); display: grid; gap: var(--space-xs); font-size: var(--t-sm); }
+.vb-bronnen a { color: var(--elf2); overflow-wrap: anywhere; }

@@ -18,11 +18,11 @@
    AVG: naar de weerdienst gaat alleen een plaatsnaam en coördinaten, geen
    spelers- of teamgegevens. Spelersnamen staan alleen op het scherm van de
    coach en nooit in de deeltekst. */
-import { db, doc, setDoc, updateDoc } from './firebase.js?v=20261106r';
+import { db, doc, setDoc, updateDoc, getDoc, functions, httpsCallable } from './firebase.js?v=20261106r';
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106u';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106v';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -298,8 +298,84 @@ function tabPlan(w){
     ${kaart('Na afloop', na)}`;
 }
 
+/* ==================== TAB: SCOUTING (alleen eerste elftal) ====================
+   [20261106] Rapport van de Cloud Function scoutTegenstander (functions/scouting.js),
+   opgeslagen in teams/{id}/wedstrijden/{wid}/scouting/laatste. Elke donderdag
+   20:00 automatisch, of via de knop "Nu zoeken" (max. eens per 6 uur). */
+export function isEersteElftal(team){
+  const naam = String(team?.sportlinkNaam || '').trim() || String(team?.naam || '');
+  let s = naam.toLowerCase().replace(/asv['’`]?\s*33/g, ' ');
+  if (S.club?.naam) s = s.split(String(S.club.naam).toLowerCase()).join(' ');
+  s = s.replace(/\(?\s*(zon|zat)[a-z]*\s*\)?/g, ' ').replace(/[^a-z0-9]+/g, '');
+  return s === '1';
+}
+const _scout = new Map();   // wid → { laden, data, fout, zoekt }
+function laadScout(wid, opnieuw){
+  const st = _scout.get(wid);
+  if (st && !opnieuw) return;
+  _scout.set(wid, { laden: true });
+  getDoc(doc(db, 'teams', S.teamId, 'wedstrijden', wid, 'scouting', 'laatste'))
+    .then(d => _scout.set(wid, { data: d.exists() ? d.data() : null }))
+    .catch(e => { console.warn('[scouting] laden mislukt', e); _scout.set(wid, { fout: 'Het rapport kon niet worden geladen. Controleer je verbinding.' }); })
+    .finally(() => { if (_wid === wid && S._vbTab === 'scouting') teken(); });
+}
+const bronRef = nrs => (nrs || []).map(n => `<a class="vb-bronref" href="#vbBron${n}" aria-label="Bron ${n}">[${n}]</a>`).join(' ');
+function gemaaktTekst(d){
+  if (!d?.gemaaktMs) return '';
+  const t = new Date(d.gemaaktMs);
+  return `${hoofd(DAG_LANG[t.getDay()].slice(0, 2))} ${t.getDate()} ${MAAND[t.getMonth()].slice(0, 3)}, ${p2(t.getHours())}:${p2(t.getMinutes())}`;
+}
+function tabScouting(w){
+  if (!_scout.has(w.id)) laadScout(w.id);
+  const st = _scout.get(w.id) || {};
+  const zoekKnop = (label) => `<button type="button" class="knop licht" data-vb-scout ${st.zoekt ? 'disabled' : ''}>${st.zoekt ? 'Zoeken…' : esc(label)}</button>`;
+  if (st.laden) return kaart('Scouting', leeg('Rapport laden…'));
+  if (st.zoekt) return kaart('Scouting', `${leeg('Zoeken naar verslagen en nieuws over ' + esc(w.tegenstander) + '. Dit duurt ongeveer een minuut.')}`);
+  const d = st.data;
+  const status = d ? `<div class="vb-scoutstatus">${ico(d.status === 'klaar' ? 'action-check' : 'action-info', 20)}
+      <div><b>Gezocht ${esc(gemaaktTekst(d))}</b><span class="vb-zacht">${d.bronnen?.length || 0} bronnen · automatisch elke donderdag</span></div>
+      ${zoekKnop('Opnieuw')}</div>` : '';
+  const fout = st.fout ? `<p class="vb-afwezig" role="alert">${esc(st.fout)}</p>` : '';
+  if (!d){
+    return kaart('Scouting', `${leeg('Nog geen scoutingrapport voor deze wedstrijd. Het rapport wordt elke donderdagavond automatisch gemaakt voor de eerstvolgende wedstrijd.')}
+      ${fout}<div class="nu-acties">${zoekKnop('Nu zoeken')}</div>`);
+  }
+  if (d.status !== 'klaar'){
+    return `${status}${fout}${kaart('In het kort', leeg('Er is weinig openbare informatie gevonden over deze tegenstander.'))}`;
+  }
+  const blok = (kop, html) => html ? kaart(kop, html) : '';
+  const speelwijze = (d.speelwijze || []).length ? `<ul class="vb-lijst">${d.speelwijze.map(x => `<li>${esc(x.tekst)} ${bronRef(x.bronnen)}</li>`).join('')}</ul>` : '';
+  const spelers = (d.spelers || []).length ? `<ul class="vb-spelers">${d.spelers.map(x => `<li><span class="vb-nr vb-nr-zacht">${x.rugnummer ?? '·'}</span>
+      <div><b>${esc(x.naam)}</b><span class="vb-zacht">${esc([x.rol, x.tekst].filter(Boolean).join(', '))} ${bronRef(x.bronnen)}</span></div></li>`).join('')}</ul>
+      <p class="vb-bron">Alleen wat in openbare wedstrijdverslagen staat. Geen sociale media.</p>` : '';
+  const nieuws = (d.nieuws || []).length ? `<ul class="vb-nieuws">${d.nieuws.map(x => `<li>${x.datum ? `<span class="vb-zacht">${esc(datumLang(x.datum))}</span>` : ''}<span>${esc(x.tekst)} ${bronRef(x.bronnen)}</span></li>`).join('')}</ul>` : '';
+  const bronnen = `<ol class="vb-bronnen">${(d.bronnen || []).map(b => `<li id="vbBron${b.nr}"><a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer">${esc(b.titel)}</a> <span class="vb-zacht">· ${esc(b.site)}</span></li>`).join('')}</ol>`;
+  return `${status}${fout}
+    ${blok('In het kort', d.kort ? `<p class="vb-tekst">${esc(d.kort)} ${bronRef(d.kortBronnen)}</p>` : '')}
+    ${blok('Speelwijze volgens verslagen', speelwijze)}
+    ${blok('Opvallende spelers in de verslagen', spelers)}
+    ${blok('Nieuws rond de club', nieuws)}
+    ${blok('Bronnen', bronnen)}
+    <p class="vb-bron">${ico('action-info', 16)}Samengesteld door AI uit openbare bronnen. Controleer bij twijfel de bron. Stand, vorm en eerdere duels staan onder Tegenstander.</p>`;
+}
+async function startScout(w){
+  const st = _scout.get(w.id) || {};
+  _scout.set(w.id, { ...st, zoekt: true, fout: null });
+  teken();
+  telGebruik('scouting_zoeken');
+  try {
+    const res = await httpsCallable(functions, 'scoutTegenstander')({ teamId: S.teamId, wedstrijdId: w.id });
+    _scout.set(w.id, { data: { ...res.data, gemaaktMs: res.data?.gemaaktMs || Date.now() } });
+  } catch (e){
+    const m = String(e?.message || '');
+    _scout.set(w.id, { ...st, zoekt: false, fout: m && !/internal/i.test(m) ? m : 'Zoeken mislukt. Probeer het later opnieuw.' });
+  }
+  if (_wid === w.id && S._vbTab === 'scouting') teken();
+}
+
 /* ==================== VENSTER ==================== */
-const TABS = [['tegenstander', 'Tegenstander'], ['praktisch', 'Praktisch'], ['plan', 'Plan']];
+const TABS_BASIS = [['tegenstander', 'Tegenstander'], ['praktisch', 'Praktisch'], ['plan', 'Plan']];
+const tabsVoorTeam = () => isEersteElftal(S.team) ? [TABS_BASIS[0], ['scouting', 'Scouting'], TABS_BASIS[1], TABS_BASIS[2]] : TABS_BASIS;
 let _ctx = null, _wid = null;
 const huidig = () => (S.wedstrijden || []).find(x => x.id === _wid) || null;
 
@@ -310,7 +386,7 @@ function kopHtml(w){
       <p class="nu-titel">${esc(w.tegenstander || 'Wedstrijd')}</p>
       <p class="nu-meta"><span>${esc(hoofd(datumLang(w.datum)))}</span></p>
     </div>
-    <div class="segment vb-tabs" role="tablist" aria-label="Onderdelen">${TABS.map(([id, naam]) =>
+    <div class="segment vb-tabs${tabsVoorTeam().length > 3 ? ' vb-tabs-4' : ''}" role="tablist" aria-label="Onderdelen">${tabsVoorTeam().map(([id, naam]) =>
       `<button type="button" role="tab" id="vbTab-${id}" aria-selected="${S._vbTab === id}" aria-controls="vbPaneel" class="${S._vbTab === id ? 'actief' : ''}" data-vb-tab="${id}">${naam}</button>`).join('')}</div>`;
 }
 
@@ -319,8 +395,9 @@ function teken(){
   const w = huidig();
   if (!body) return;
   if (!w){ sluitModal(); return; }
+  if (!tabsVoorTeam().some(([id]) => id === S._vbTab)) S._vbTab = 'tegenstander';
   const tab = S._vbTab;
-  const inhoud = tab === 'praktisch' ? tabPraktisch(w) : tab === 'plan' ? tabPlan(w) : tabTegenstander(w);
+  const inhoud = tab === 'praktisch' ? tabPraktisch(w) : tab === 'plan' ? tabPlan(w) : tab === 'scouting' ? tabScouting(w) : tabTegenstander(w);
   body.innerHTML = `${kopHtml(w)}<div id="vbPaneel" role="tabpanel" aria-labelledby="vbTab-${tab}" class="vb-paneel">${inhoud}</div>`;
   if (tab === 'praktisch'){
     const vak = body.querySelector('[data-vb-weer]');
@@ -380,12 +457,15 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261106u');
+      const m = await import('./wedstrijd.js?v=20261106v');
       m.openWedstrijd(id);
       return;
     }
     const tt = ev.target.closest('[data-vb-tab-team]');
     if (tt){ sluitModal(); _ctx?.zetTeamTab?.(tt.dataset.vbTabTeam); return; }
+    if (ev.target.closest('[data-vb-scout]')){ startScout(w); return; }
+    const br = ev.target.closest('.vb-bronref');
+    if (br){ ev.preventDefault(); document.querySelector(br.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     if (ev.target.closest('[data-vb-pres]')){ S._presWedstrijdId = w.id; sluitModal(); _ctx?.zetTeamTab?.('preswedstrijd'); return; }
     const weg = ev.target.closest('[data-vb-weg]');
     if (weg){
