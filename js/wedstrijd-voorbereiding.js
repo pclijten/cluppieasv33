@@ -340,13 +340,21 @@ function cijfersHtml(c){
   const reeks = c.reeks ? rij('Reeks', `${c.reeks.aantal}x ${RES_LABEL[c.reeks.res]} op rij${c.reeks.ongeslagen > 1 ? `, ${c.reeks.ongeslagen} duels ongeslagen` : ''}`) : '';
   const gem = (c.gemeenschappelijk || []).length ? `<h4 class="vb-subkop">Zelfde tegenstanders, zij en wij</h4>
     <ul class="vb-uitslagen">${c.gemeenschappelijk.map(g => `<li><span>${esc(g.tegen)}</span><b><span class="${RES_KLASSE[g.zijRes] || ''}-t">${esc(g.zij)}</span> · <span class="${RES_KLASSE[g.wijRes] || ''}-t">wij ${esc(g.wij)}</span></b></li>`).join('')}</ul>` : '';
-  const hist = (c.historie || []).length ? `<h4 class="vb-subkop">Eerdere onderlinge duels</h4>
+  /* Sportlink (wedstrijd-historische-resultaten) gaat over alle seizoenen; anders Cluppie zelf. */
+  const sl = c.sportlink || {};
+  const hist = (sl.onderling || []).length ? `<h4 class="vb-subkop">Alle onderlinge duels (Sportlink)</h4>
+    <ul class="vb-uitslagen">${sl.onderling.map(h => `<li><span>${esc(h.seizoen || h.datum.slice(0, 4))} · ${esc(h.wedstrijd)}</span><b>${esc(h.uitslag || '–')}</b></li>`).join('')}</ul>`
+    : (c.historie || []).length ? `<h4 class="vb-subkop">Eerdere onderlinge duels</h4>
     <ul class="vb-uitslagen">${c.historie.map(h => `<li><span>${esc(hoofd(datumLang(h.datum)))} · ${h.thuis ? 'thuis' : 'uit'}</span><b>${esc(h.score || 'onbekend')}</b></li>`).join('')}</ul>` : '';
+  const cs = sl.clubstat;
+  const clubRij = (x) => x && (x.thuis || x.uit) ? rij(x.naam, `${esc(x.thuis || '–')} thuis · ${esc(x.uit || '–')} uit`) : '';
+  const clubHist = cs ? `<h4 class="vb-subkop">Winstpercentage club, alle jaren</h4>${feiten(clubRij(cs.tegenstander), clubRij(cs.eigen))}` : '';
   return kaart('Cijfers (Sportlink en Cluppie)', `${tegels}
     ${feiten(regel('Thuis', c.thuis), regel('Uit', c.uit), regel('Tegen bovenste helft', c.tegenTop), regel('Tegen onderste helft', c.tegenOnder), reeks,
       c.grootsteWinst ? rij('Grootste winst', `${esc(c.grootsteWinst.score)} tegen ${esc(c.grootsteWinst.tegen)}`) : '',
-      c.grootsteVerlies ? rij('Grootste verlies', `${esc(c.grootsteVerlies.score)} tegen ${esc(c.grootsteVerlies.tegen)}`) : '')}
-    ${gem}${hist}`);
+      c.grootsteVerlies ? rij('Grootste verlies', `${esc(c.grootsteVerlies.score)} tegen ${esc(c.grootsteVerlies.tegen)}`) : '',
+      sl.scheidsrechter ? rij('Scheidsrechter', esc(sl.scheidsrechter)) : '')}
+    ${gem}${hist}${clubHist}`);
 }
 const itemLijst = arr => (arr || []).length ? `<ul class="vb-lijst">${arr.map(x => `<li>${esc(x.tekst)} ${bronRef(x.bronnen)}</li>`).join('')}</ul>` : '';
 function tabScouting(w){
