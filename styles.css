@@ -6053,6 +6053,72 @@ html.desk .trw-nav { top: var(--dk-kop, 64px); }
 /* Historie: rugnummer zichtbaar in beide thema's (was wit op niets in licht) */
 [data-hist-profiel] .pres-shirt { background: var(--surface-2); color: var(--ink); }
 
+/* ══ 3e. Nu-scherm in de team-hub (js/nu-scherm.js) ══════════════════ */
+.nu-blokje { margin: var(--space-md) 0 var(--space-lg); }
+.nu-kaart { padding: var(--space-md); border: 1px solid var(--line-d); border-radius: var(--radius); background: var(--surface); }
+.nu-kaart.nu-s-live { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.nu-kaart-kop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); margin-bottom: var(--space-sm); }
+.nu-tag { display: inline-flex; align-items: center; min-height: 26px; padding: 0 var(--space-sm); border-radius: 999px; background: var(--surface-2); font-size: var(--t-sm); font-weight: 600; line-height: 1; }
+.nu-tag-live { background: var(--accent-vlak); color: var(--accent-ink); }
+.nu-tag-ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.nu-tag-warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.nu-tag-accent { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.nu-titel { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: var(--t-5xl); line-height: 1.02; text-transform: uppercase; letter-spacing: .005em; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
+.nu-meta { display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); margin-top: var(--space-xs); color: var(--ink-2); }
+.nu-meta > * + * { padding-left: var(--space-sm); border-left: 1px solid var(--line-d); }
+.nu-meta b { color: var(--ink); }
+.nu-zacht { color: var(--ink-2); font-weight: 400; }
+.nu-feiten { margin: var(--space-md) 0 0; border-bottom: 1px solid var(--line-d); }
+.nu-rij { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-md); padding: var(--space-sm) 0; border-top: 1px solid var(--line-d); }
+.nu-rij dt { flex-shrink: 0; color: var(--ink-2); }
+.nu-rij dd { margin: 0; min-width: 0; text-align: right; }
+.nu-let { color: var(--warn); font-weight: 600; }
+.nu-blok { margin-top: var(--space-md); }
+.nu-blok-kop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--space-2xs) var(--space-sm); }
+.nu-blok-naam { font-weight: 600; }
+.nu-blok-wk { font-size: var(--t-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.nu-blok-balk { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: var(--space-2xs); margin-top: var(--space-sm); }
+.nu-blok-balk span { height: 6px; border-radius: 999px; background: var(--surface-2); }
+.nu-blok-balk span.af { background: var(--ink-2); }
+.nu-blok-balk span.nu { background: var(--accent); }
+.nu-doel { display: flex; gap: var(--space-xs); align-items: flex-start; margin-top: var(--space-sm); line-height: 1.5; }
+.nu-doel svg { margin-top: var(--space-3xs); color: var(--accent); flex-shrink: 0; }
+.nu-pres { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "g p" "a p"; gap: var(--space-3xs) var(--space-sm); align-items: center; width: 100%; margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border: 0; border-radius: 12px; background: var(--surface-2); color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.nu-pres:hover { background: color-mix(in srgb, var(--ink) 8%, var(--surface-2)); }
+.nu-pres-getal { grid-area: g; font-variant-numeric: tabular-nums; }
+.nu-pres-af { grid-area: a; font-size: var(--t-sm); color: var(--warn); font-weight: 600; }
+.nu-pres-laat { display: block; }
+.nu-pres-pijl { grid-area: p; color: var(--ink-2); }
+.nu-bord { margin-top: var(--space-md); padding: var(--space-md); border-radius: 12px; background: var(--scorebord-bg); color: var(--fluo); text-align: center; }
+.nu-klok { margin: 0 0 var(--space-sm); }
+.nu-klok-sub { font-size: var(--t-sm); color: color-mix(in srgb, var(--fluo) 75%, transparent); }
+.nu-stand { display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr); align-items: center; gap: var(--space-xs); }
+.nu-ploeg { font-size: var(--t-sm); font-weight: 600; overflow-wrap: break-word; min-width: 0; }
+.nu-ploeg:first-child { text-align: right; }
+.nu-ploeg:last-child { text-align: left; }
+.nu-score { display: grid; place-items: center; min-width: 3rem; padding: var(--space-2xs) var(--space-xs); border-radius: 10px; background: color-mix(in srgb, var(--fluo) 10%, transparent); font-family: var(--font-display); font-size: var(--t-4xl); font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.nu-acties { display: grid; gap: var(--space-xs); margin-top: var(--space-md); }
+.nu-sectiekop { margin: var(--space-lg) 0 var(--space-xs); font-family: var(--font-display); font-weight: 700; font-size: var(--t-2xl); text-transform: uppercase; line-height: 1.05; }
+.nu-daarna { border-bottom: 1px solid var(--line-d); }
+.nu-rij-d { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr) auto 2.75rem 20px; align-items: center; gap: var(--space-sm); width: 100%; min-height: 48px; padding: var(--space-sm) var(--space-xs); border: 0; border-top: 1px solid var(--line-d); background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.nu-rij-d:hover { background: var(--surface); }
+.nu-rij-d:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.nu-d-dag { font-weight: 600; }
+.nu-d-wat { min-width: 0; overflow-wrap: break-word; text-wrap: balance; }
+.nu-d-tijd, .nu-d-tel { text-align: right; font-variant-numeric: tabular-nums; }
+.nu-d-tel { font-size: var(--t-sm); color: var(--ink-2); }
+.nu-d-pijl { display: grid; place-items: center; color: var(--ink-2); }
+.nu-d-pijl svg { transition: transform var(--dur-short) var(--ease-in-out); }
+.nu-d-item.open .nu-d-pijl svg { transform: rotate(180deg); }
+.nu-d-item.open > .nu-rij-d { background: var(--surface); }
+.nu-d-paneel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms cubic-bezier(0.7, 0, 0.84, 0); }
+.nu-d-item.open > .nu-d-paneel { grid-template-rows: 1fr; transition: grid-template-rows var(--dur-long) var(--ease-out); }
+.nu-d-in { min-height: 0; overflow: hidden; }
+.nu-d-blok { margin: 0 0 var(--space-sm); padding: var(--space-md); border: 1px solid var(--line-d); border-radius: var(--radius); background: var(--surface); transform: translateY(calc(var(--space-xs) * -1)); transition: transform 300ms cubic-bezier(0.7, 0, 0.84, 0); }
+.nu-d-item.open .nu-d-blok { transform: none; transition: transform var(--dur-long) var(--ease-out); }
+.nu-d-blok > .nu-meta:first-child { margin-top: 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* ══ 3c. Hulpclasses (vervangen inline stijlen uit de JS) ══ */
 .u-c-accent { color:var(--accent) !important; }
 .u-c-ink { color:var(--ink) !important; }

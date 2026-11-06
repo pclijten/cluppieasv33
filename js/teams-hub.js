@@ -19,6 +19,7 @@ import { telGebruik } from './tracker.js?v=20261106h';
 import { ongelezenBerichten } from './berichten.js?v=20261106h';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106h';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261106h';
+import { htmlNu } from './nu-scherm.js?v=20261106h';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
@@ -156,6 +157,7 @@ export function htmlHub(updInfo){
       <button class="uitlog-knop" id="hubUitloggen" title="Uitloggen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3"/></svg></button>
     </div>
     ${teamKeuze}
+    ${htmlNu({ evaluatie: modAan('evaluaties') })}
     ${updBanner}
     ${modAan('evaluaties') ? htmlRondeBalk(S._clubRondes, S.teamId, S.spelers, S.beoordelingen) : ''}
     ${htmlSelectieDashboard()}

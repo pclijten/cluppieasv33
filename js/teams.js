@@ -55,6 +55,7 @@ import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
 } from './teams-hub.js?v=20261106h';
+import { koppelNu } from './nu-scherm.js?v=20261106h';
 import { htmlHandleiding } from './teams-handleiding.js?v=20261106h';
 import { koppelElftalFilter, modalElftalToewijzen, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
 import {
@@ -2073,6 +2074,8 @@ async function deelDocument(d){
 function koppelTeamTab(v, tab){
   if (tab === 'lijstjes' || tab === 'lijst'){ koppelLijstjes(v, tab, { zetTeamTab, renderTeam }); return; }
   if (tab === 'hub'){
+    // Nu-blok bovenaan: kaart, Daarna-lijst en knoppen naar de bestaande schermen
+    koppelNu(v, { zetTeamTab, evaluatie: modAan('evaluaties') });
     // tegels → tabbladen (zetTeamTab regelt de vaste beginstand per tab)
     v.querySelectorAll('[data-hub-open]').forEach(b => b.onclick = () => {
       S._beoordeelProfiel = null;
