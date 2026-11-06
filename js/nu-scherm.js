@@ -120,6 +120,12 @@ function trainingVan(datum){
   return items[Math.min(idx, items.length - 1)];
 }
 
+/* Knop naar de oefenstof: opent direct de training van die dag; zonder training de lijst. */
+function stofKnop(datum, label, primair){
+  const t = trainingVan(datum);
+  return knop(label, 'training-plan', t ? `data-nu-training="${esc(t.id)}"` : 'data-nu-tab="trainingen"', primair);
+}
+
 /* ---------- bouwstenen ---------- */
 const rij = (l, w) => `<div class="nu-rij"><dt>${esc(l)}</dt><dd>${w}</dd></div>`;
 const feiten = (...r) => { const h = r.filter(Boolean).join(''); return h ? `<dl class="nu-feiten">${h}</dl>` : ''; };
@@ -230,7 +236,7 @@ function kaartHtml(c, nu){
       ${presKnopTraining(e.datum)}
       ${acties(c.fase === 'na'
         ? knop('Presentie afronden', 'attendance-fill', `data-nu-pres-training="${e.datum}"`, true)
-        : knop(heeftStof ? 'Bekijk de oefenstof' : 'Naar oefenstof', 'training-plan', 'data-nu-tab="trainingen"', true))}`;
+        : stofKnop(e.datum, heeftStof ? 'Bekijk de oefenstof' : 'Naar oefenstof', true))}`;
   }
   /* rust: de eerstvolgende activiteit */
   if (!e){
@@ -250,7 +256,7 @@ function kaartHtml(c, nu){
     ${meta(`${esc(dagLabel(e.datum, nu))} ${hhmm(e.start)} tot ${hhmm(e.eind)}`)}
     ${oefenstofBlok(e.datum)}
     ${presKnopTraining(e.datum)}
-    ${acties(knop('Oefenstof voorbereiden', 'training-plan', 'data-nu-tab="trainingen"', true))}`;
+    ${acties(stofKnop(e.datum, 'Oefenstof voorbereiden', true))}`;
 }
 
 /* ---------- Daarna: uitklapbare rijen met hetzelfde blok als op de dag zelf ---------- */
@@ -264,7 +270,7 @@ function daarnaItem(e, nu){
     wat = afgelastOp(e.datum) ? 'Training (afgelast)' : 'Training';
     tel = `${p.totaal - p.afwezig.length}/${p.totaal}<span class="visually-hidden"> aanwezig</span>`;
     inhoud = afgelastOp(e.datum) ? meta('Deze training gaat niet door.') : `${meta(`${hhmm(e.start)} tot ${hhmm(e.eind)}`)}${oefenstofBlok(e.datum)}${presKnopTraining(e.datum)}
-      ${acties(knop('Naar oefenstof', 'training-plan', 'data-nu-tab="trainingen"', false))}`;
+      ${acties(stofKnop(e.datum, 'Naar oefenstof', false))}`;
   } else {
     const w = e.w._w, p = presentieWedstrijd(w), ok = opstellingKlaar(w);
     wat = `Wedstrijd ${esc(w.tegenstander || '').replace(/-/g, '‑')}`;
@@ -338,7 +344,13 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106i'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106j'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    const tr = ev.target.closest('[data-nu-training]');
+    if (tr){
+      const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
+      if (!gelukt) ctx.zetTeamTab('trainingen');
+      return;
+    }
     const t = ev.target.closest('[data-nu-tab]');
     if (t){ ctx.zetTeamTab(t.dataset.nuTab); }
   });
