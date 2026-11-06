@@ -5,15 +5,15 @@
    spelersstatistieken uit wedstrijd.js. */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc
-} from './firebase.js?v=20261106q';
+} from './firebase.js?v=20261106r';
 import {
   S, $, $$, esc, meld, datumNL, openModal, sluitModal, toon, modAan
-} from './state.js?v=20261106q';
-import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20261106q';
-import { ico } from './icons.js?v=20261106q';
+} from './state.js?v=20261106r';
+import { NIVEAUS, niveauKleur, TEAM_CATEGORIEEN, TEAM_TAGS, teamCategorie, SEIZOEN_FALLBACK } from './config.js?v=20261106r';
+import { ico } from './icons.js?v=20261106r';
 
-import { htmlStats } from './wedstrijd.js?v=20261106q';
-import { telGebruik } from './tracker.js?v=20261106q';
+import { htmlStats } from './wedstrijd.js?v=20261106r';
+import { telGebruik } from './tracker.js?v=20261106r';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
    — bewust hier gedupliceerd i.p.v. een cross-module import voor één regel. */

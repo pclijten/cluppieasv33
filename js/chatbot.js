@@ -18,10 +18,10 @@
                         die stond te veel in beeld op mobiel.
    ============================================================================ */
 
-import { functions, httpsCallable } from './firebase.js?v=20261106q';
-import { S, esc } from './state.js?v=20261106q';
-import { telGebruik } from './tracker.js?v=20261106q';
-import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261106q';
+import { functions, httpsCallable } from './firebase.js?v=20261106r';
+import { S, esc } from './state.js?v=20261106r';
+import { telGebruik } from './tracker.js?v=20261106r';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261106r';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]

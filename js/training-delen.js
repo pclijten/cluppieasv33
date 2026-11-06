@@ -10,9 +10,9 @@
    pagina stuurt: alleen die ene training + de presentie ervan. Zie
    deel-boot.js voor de kant van de ouder, en firestore.rules voor hoe die
    toegang precies is afgebakend (trainingDeel + trainingToegang). */
-import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20261106q';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106q';
-import { ico } from './icons.js?v=20261106q';
+import { db, collection, addDoc, serverTimestamp, Timestamp } from './firebase.js?v=20261106r';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
+import { ico } from './icons.js?v=20261106r';
 
 let _ctx = null;
 

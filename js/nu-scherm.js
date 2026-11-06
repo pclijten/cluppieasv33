@@ -14,13 +14,13 @@
    teams-training.js, de wedstrijdpresentie in de hub en de wedstrijd zelf.
    Geen locatie/GPS: dat vraagt toestemming en hoort niet ongevraagd in de app.
    Wel de wedstrijdplek: sportpark met routelink (uit), veld en kleedkamer. */
-import { S, esc } from './state.js?v=20261106q';
-import { ico } from './icons.js?v=20261106q';
-import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106q';
-import { bepaalNu, evenementen } from './nu-context.js?v=20261106q';
-import { momentenVanTeam } from './trainingsmomenten.js?v=20261106q';
-import { vastePrefill } from './vaste-afmeldingen.js?v=20261106q';
-import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106q';
+import { S, esc } from './state.js?v=20261106r';
+import { ico } from './icons.js?v=20261106r';
+import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106r';
+import { bepaalNu, evenementen } from './nu-context.js?v=20261106r';
+import { momentenVanTeam } from './trainingsmomenten.js?v=20261106r';
+import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
+import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106r';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -138,23 +138,25 @@ const acties = (...k) => `<div class="nu-acties">${k.filter(Boolean).join('')}</
 const knop = (tekst, icoon, attr, primair) =>
   `<button type="button" class="knop vol ${primair ? 'fluo' : 'licht'}" ${attr}>${icoon ? ico(icoon, 20) : ''}${esc(tekst)}</button>`;
 /* Waar speelt het team: sportpark met route (uit), plus veld en kleedkamer (thuis en uit).
-   Locatie komt uit Sportlink, adres, veld en kleedkamer vult de coach in bij Wijzig opzet. */
-const metVoorvoegsel = (v, woord) => { const t = String(v || '').trim(); return !t ? '' : /^\d+[a-z]?$/i.test(t) ? `${woord} ${t}` : t; };
+   Locatie, plaats, veld (slVeld) en kleedkamer (slKleedkamer) komen uit Sportlink; wat de coach
+   bij Wijzig opzet invult (adres, veld, kleedkamer) gaat voor. */
+const metVoorvoegsel = (v, woord) => { const t = String(v || '').trim().replace(/\s+/g, ' '); return !t ? '' : /^\d+\s?[a-z]?$/i.test(t) ? `${woord} ${t}` : t.charAt(0).toUpperCase() + t.slice(1); };
+const plaatsNaam = p => String(p || '').trim().toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
 function routeUrl(w){
   const club = String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim();
-  const doel = (w.adres || '').trim() || [w.locatie, club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+  const doel = (w.adres || '').trim() || [w.locatie, plaatsNaam(w.plaats) || club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
   return doel ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(doel) : '';
 }
 function plekHtml(w){
   if (!w) return '';
-  const veld = metVoorvoegsel(w.veld, 'Veld'), kleed = metVoorvoegsel(w.kleedkamer, 'Kleedkamer');
+  const veld = metVoorvoegsel(w.veld || w.slVeld, 'Veld'), kleed = metVoorvoegsel(w.kleedkamer || w.slKleedkamer, 'Kleedkamer');
   const naam = !w.thuis ? String(w.adres || w.locatie || '').trim() ? String(w.locatie || w.adres).trim() : '' : '';
   if (!naam && !veld && !kleed) return '';
   const url = !w.thuis ? routeUrl(w) : '';
   const pillen = [veld, kleed].filter(Boolean).map(x => `<span class="nu-plek-pil">${esc(x)}</span>`).join('');
   return `<div class="nu-plek${naam ? '' : ' alleen-pillen'}">
       <span class="nu-plek-ico">${ico('match-location', 20)}</span>
-      <span class="nu-plek-tekst">${naam ? `<span class="nu-plek-naam">${esc(naam)}</span>` : ''}${pillen ? `<span class="nu-plek-pillen">${pillen}</span>` : ''}</span>
+      <span class="nu-plek-tekst">${naam ? `<span class="nu-plek-naam">${esc(naam)}${w.plaats && !w.adres ? `<span class="nu-plek-plaats">${esc(plaatsNaam(w.plaats))}</span>` : ''}</span>` : ''}${pillen ? `<span class="nu-plek-pillen">${pillen}</span>` : ''}</span>
       ${url ? `<a class="nu-route" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Route naar ${esc(naam)} openen in je kaarten-app">Route<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"/><path d="M9 7h8v8"/></svg></a>` : ''}
     </div>`;
 }
@@ -362,14 +364,14 @@ export function koppelNu(v, ctx){
     const pt = ev.target.closest('[data-nu-pres-training]');
     if (pt){
       const datum = pt.dataset.nuPresTraining, rec = S.presentie.find(p => p.datum === datum) || null;
-      const m = await import('./teams-training.js?v=20261106q');
+      const m = await import('./teams-training.js?v=20261106r');
       m.modalPresentie(rec, rec ? {} : { datum });
       return;
     }
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106q'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106r'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

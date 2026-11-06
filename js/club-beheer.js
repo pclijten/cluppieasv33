@@ -12,13 +12,13 @@
    (modules.<sleutel>), zodat een onderdeel dat hier niet getoond wordt nooit
    per ongeluk wordt overschreven. Dit bestand importeert niets uit club.js
    (geen kringimport): club.js geeft een api-object mee. */
-import { db, doc, updateDoc } from './firebase.js?v=20261106q';
-import { S, esc, meld } from './state.js?v=20261106q';
-import { BOUWEN } from './config.js?v=20261106q';
-import { ico } from './icons.js?v=20261106q';
-import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261106q';
-import { verwijderCoach } from './trainco-beheer.js?v=20261106q';
-import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261106q';
+import { db, doc, updateDoc } from './firebase.js?v=20261106r';
+import { S, esc, meld } from './state.js?v=20261106r';
+import { BOUWEN } from './config.js?v=20261106r';
+import { ico } from './icons.js?v=20261106r';
+import { momentenVanTeam, htmlMomentenKaart, koppelMomentenKaart, DAGEN_KORT } from './trainingsmomenten.js?v=20261106r';
+import { verwijderCoach } from './trainco-beheer.js?v=20261106r';
+import { eigenBouwenVanTeam, bouwVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261106r';
 
 /* [sleutel, naam, kort, icoon, uitleg] — 'lijstjes' was eerder niet door de beheerder te regelen */
 export const MODULE_DEFS = [

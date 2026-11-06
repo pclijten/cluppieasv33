@@ -2,9 +2,9 @@ import {
   auth, db, GoogleAuthProvider, signInWithPopup, signOut,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
   collection, doc, addDoc, setDoc, getDocs, updateDoc, query, where, serverTimestamp, increment
-} from './firebase.js?v=20261106q';
-import { S, $, meld } from './state.js?v=20261106q';
-import { startTracker } from './tracker.js?v=20261106q';
+} from './firebase.js?v=20261106r';
+import { S, $, meld } from './state.js?v=20261106r';
+import { startTracker } from './tracker.js?v=20261106r';
 
 /* ====================================================================
    AANMELD-FLOW — Google of e-mail+wachtwoord.
