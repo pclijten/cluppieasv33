@@ -22,9 +22,9 @@
    hetzelfde document als via de oude flow. */
 import {
   db, storage, collection, addDoc, serverTimestamp, sRef, uploadBytes, getDownloadURL, deleteObject
-} from './firebase.js?v=20261106p';
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106p';
-import { telGebruik } from './tracker.js?v=20261106p';
+} from './firebase.js?v=20261106q';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106q';
+import { telGebruik } from './tracker.js?v=20261106q';
 
 /* [20261013c] AI-model per upload. Alleen een sleutel; de Cloud Function
    structureerTraining koppelt die aan een model (whitelist). */
@@ -223,7 +223,7 @@ const waarschuw = e => { e.preventDefault(); e.returnValue = ''; };
 const MAX_TEGELIJK = 3;
 let actief = 0;
 let aiBelofte = null;
-const aiModule = () => (aiBelofte ||= import('./training-ai.js?v=20261106p'));
+const aiModule = () => (aiBelofte ||= import('./training-ai.js?v=20261106q'));
 
 function volgende(){
   for (const job of jobs){

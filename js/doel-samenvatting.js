@@ -10,7 +10,7 @@
         (als de coach schrijfrechten heeft) op het document bewaard zodat
         andere coaches niet opnieuw hoeven te vragen.
    Faalt de AI, dan blijft de eerste doelregel staan: de kaart breekt nooit. */
-import { functions, httpsCallable, db, doc, updateDoc } from './firebase.js?v=20261106p';
+import { functions, httpsCallable, db, doc, updateDoc } from './firebase.js?v=20261106q';
 
 const MAX_TEKENS = 90;
 const geheugen = new Map();      // id+hash -> tekst (deze sessie)

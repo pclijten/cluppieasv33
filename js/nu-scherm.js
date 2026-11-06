@@ -12,14 +12,15 @@
      S.trainingen      oefenstof met plan{naam,blok,weken}, blokWeek, trainingNr, weekStart, doelen[]
    Acties gaan naar de bestaande schermen: het presentievenster van
    teams-training.js, de wedstrijdpresentie in de hub en de wedstrijd zelf.
-   Geen locatie/GPS: dat vraagt toestemming en hoort niet ongevraagd in de app. */
-import { S, esc } from './state.js?v=20261106p';
-import { ico } from './icons.js?v=20261106p';
-import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106p';
-import { bepaalNu, evenementen } from './nu-context.js?v=20261106p';
-import { momentenVanTeam } from './trainingsmomenten.js?v=20261106p';
-import { vastePrefill } from './vaste-afmeldingen.js?v=20261106p';
-import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106p';
+   Geen locatie/GPS: dat vraagt toestemming en hoort niet ongevraagd in de app.
+   Wel de wedstrijdplek: sportpark met routelink (uit), veld en kleedkamer. */
+import { S, esc } from './state.js?v=20261106q';
+import { ico } from './icons.js?v=20261106q';
+import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106q';
+import { bepaalNu, evenementen } from './nu-context.js?v=20261106q';
+import { momentenVanTeam } from './trainingsmomenten.js?v=20261106q';
+import { vastePrefill } from './vaste-afmeldingen.js?v=20261106q';
+import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106q';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -136,6 +137,27 @@ const titel = t => `<h2 class="nu-titel">${t}</h2>`;
 const acties = (...k) => `<div class="nu-acties">${k.filter(Boolean).join('')}</div>`;
 const knop = (tekst, icoon, attr, primair) =>
   `<button type="button" class="knop vol ${primair ? 'fluo' : 'licht'}" ${attr}>${icoon ? ico(icoon, 20) : ''}${esc(tekst)}</button>`;
+/* Waar speelt het team: sportpark met route (uit), plus veld en kleedkamer (thuis en uit).
+   Locatie komt uit Sportlink, adres, veld en kleedkamer vult de coach in bij Wijzig opzet. */
+const metVoorvoegsel = (v, woord) => { const t = String(v || '').trim(); return !t ? '' : /^\d+[a-z]?$/i.test(t) ? `${woord} ${t}` : t; };
+function routeUrl(w){
+  const club = String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim();
+  const doel = (w.adres || '').trim() || [w.locatie, club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+  return doel ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(doel) : '';
+}
+function plekHtml(w){
+  if (!w) return '';
+  const veld = metVoorvoegsel(w.veld, 'Veld'), kleed = metVoorvoegsel(w.kleedkamer, 'Kleedkamer');
+  const naam = !w.thuis ? String(w.adres || w.locatie || '').trim() ? String(w.locatie || w.adres).trim() : '' : '';
+  if (!naam && !veld && !kleed) return '';
+  const url = !w.thuis ? routeUrl(w) : '';
+  const pillen = [veld, kleed].filter(Boolean).map(x => `<span class="nu-plek-pil">${esc(x)}</span>`).join('');
+  return `<div class="nu-plek${naam ? '' : ' alleen-pillen'}">
+      <span class="nu-plek-ico">${ico('match-location', 20)}</span>
+      <span class="nu-plek-tekst">${naam ? `<span class="nu-plek-naam">${esc(naam)}</span>` : ''}${pillen ? `<span class="nu-plek-pillen">${pillen}</span>` : ''}</span>
+      ${url ? `<a class="nu-route" href="${esc(url)}" target="_blank" rel="noopener" aria-label="Route naar ${esc(naam)} openen in je kaarten-app">Route<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"/><path d="M9 7h8v8"/></svg></a>` : ''}
+    </div>`;
+}
 const bord = (links, rechts, a, b, klok) => `<div class="nu-bord">${klok || ''}
   <div class="nu-stand"><span class="nu-ploeg">${esc(links)}</span><b class="nu-score">${a}</b><b class="nu-score">${b}</b><span class="nu-ploeg">${esc(rechts)}</span></div></div>`;
 
@@ -219,6 +241,7 @@ function kaartHtml(c, nu){
     return `${kop(tag(label, 'warn'))}${titel(esc(w.tegenstander || 'Wedstrijd'))}
       ${meta(c.soort === 'dagervoor' ? `${esc(dagLabel(w.datum, nu))} ${esc(w.aftrap || '')}`.trim() : (w.aftrap ? `Aanvang ${esc(w.aftrap)}` : 'Vandaag'),
         w.thuis ? 'thuis' : 'uit', c.soort === 'wedstrijd' && w.aftrap ? `<b>${esc(over(tot))}</b>` : '')}
+      ${plekHtml(w)}
       ${feiten(rij('Opstelling', opst))}
       ${presKnopWedstrijd(w)}
       ${acties(knop(ok.klaar ? 'Opstelling bekijken' : 'Opstelling maken', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, true))}`;
@@ -249,6 +272,7 @@ function kaartHtml(c, nu){
     const v = e.w._w;
     return `${kop(tag('Geen activiteit nu', 'ok'))}${titel('Volgende: wedstrijd')}
       ${meta(`${esc(dagLabel(v.datum, nu))} ${esc(v.aftrap || '')}`.trim(), esc(v.tegenstander || ''), v.thuis ? 'thuis' : 'uit')}
+      ${plekHtml(v)}
       ${presKnopWedstrijd(v)}
       ${acties(knop('Wedstrijd voorbereiden', 'football-lineup', `data-nu-wedstrijd="${esc(v.id)}"`, true))}`;
   }
@@ -276,6 +300,7 @@ function daarnaItem(e, nu){
     wat = `Wedstrijd ${esc(w.tegenstander || '').replace(/-/g, '‑')}`;
     tel = `${p.ja}/${p.totaal}<span class="visually-hidden"> spelen mee</span>`;
     inhoud = `${meta(w.aftrap ? `Aanvang ${esc(w.aftrap)}` : '', w.thuis ? 'thuis' : 'uit')}
+      ${plekHtml(w)}
       ${feiten(rij('Opstelling', ok.klaar === ok.totaal ? 'Klaar' : `<span class="nu-let">${ok.klaar} van ${ok.totaal} periodes</span>`))}
       ${presKnopWedstrijd(w)}
       ${acties(knop(ok.klaar ? 'Opstelling bekijken' : 'Opstelling maken', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, false))}`;
@@ -337,14 +362,14 @@ export function koppelNu(v, ctx){
     const pt = ev.target.closest('[data-nu-pres-training]');
     if (pt){
       const datum = pt.dataset.nuPresTraining, rec = S.presentie.find(p => p.datum === datum) || null;
-      const m = await import('./teams-training.js?v=20261106p');
+      const m = await import('./teams-training.js?v=20261106q');
       m.modalPresentie(rec, rec ? {} : { datum });
       return;
     }
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106p'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106q'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

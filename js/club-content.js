@@ -6,10 +6,10 @@
    Firestore-rules staan schrijven alleen aan de hoofdbeheerder toe — dit
    tabblad is dus decoratief-veilig: zelfs een geknoei aan de UI kan niet
    ongeautoriseerd schrijven. */
-import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106p';
+import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106q';
 import {
   startContentAdminListener, opslaanContent, verwijderContent, seedContentNaarFirestore
-} from './content.js?v=20261106p';
+} from './content.js?v=20261106q';
 
 const CATEGORIE_LABEL = {
   leercurve: 'Leerlijn-thema',

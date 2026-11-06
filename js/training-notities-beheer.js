@@ -19,9 +19,9 @@
 import {
   db, collection, doc, query, where, getDocs, getDoc, setDoc, serverTimestamp,
   functions, httpsCallable
-} from './firebase.js?v=20261106p';
-import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106p';
-import { blokId } from './training-aantekeningen.js?v=20261106p';
+} from './firebase.js?v=20261106q';
+import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106q';
+import { blokId } from './training-aantekeningen.js?v=20261106q';
 
 let _overlay = null;
 
