@@ -6372,3 +6372,78 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .nu-route:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; transition: none; }
 @media (prefers-reduced-motion: reduce) { .nu-route { transition: none; } .nu-route:active { transform: none; } }
 .wo-hint { margin: var(--space-2xs) 0 0; font-size: var(--t-xs); color: var(--ink-2); }
+
+/* ==================== WEDSTRIJDVOORBEREIDING (v20261106t) ====================
+   Knoppenduo op de wedstrijdkaarten van het Nu-blok + het venster uit
+   wedstrijd-voorbereiding.js. Bouwt op de nu-* klassen en de thema-tokens,
+   zodat licht en donker vanzelf kloppen. */
+.nu-acties-duo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nu-acties-duo .knop { padding-left: var(--space-xs); padding-right: var(--space-xs); min-height: 44px; }
+
+.vb-wedkop { margin-bottom: var(--space-md); }
+.vb-wedkop .nu-titel { margin-top: var(--space-2xs); }
+.vb-tabs { position: sticky; top: calc(-1 * var(--space-md)); z-index: 2; margin: 0 0 var(--space-md); box-shadow: 0 0 0 var(--space-xs) var(--bg), 0 var(--space-xs) 0 var(--space-xs) var(--bg); }
+.vb-tabs button { min-height: 44px; }
+.vb-paneel { display: grid; gap: var(--space-sm); }
+.vb-kaart { margin: 0; }
+.vb-kop { margin: 0 0 var(--space-sm); font-size: var(--t-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.vb-leeg { margin: 0; color: var(--ink-2); }
+.vb-zacht { color: var(--ink-2); font-size: var(--t-sm); }
+.vb-ok { color: var(--ok); font-weight: 600; }
+.vb-bad { color: var(--warn); font-weight: 600; }
+.vb-bron { display: flex; align-items: center; gap: var(--space-2xs); margin: var(--space-xs) 0 0; font-size: var(--t-xs); color: var(--ink-2); }
+
+.vb-stand { display: grid; gap: var(--space-2xs); }
+.vb-stand-kop, .vb-stand-rij { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); text-align: center; font-variant-numeric: tabular-nums; }
+.vb-stand-kop { font-size: var(--t-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.vb-stand-rij b { font-family: var(--font-display); font-size: var(--t-4xl); font-weight: 700; line-height: 1.1; }
+
+.vb-vorm { display: flex; gap: var(--space-xs); margin: 0; padding: 0; list-style: none; }
+.vb-res { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-weight: 800; font-size: var(--t-md); border: 1.5px solid currentColor; }
+.vb-res-W { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.vb-res-G { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.vb-res-V { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.vb-uitslagen { margin: var(--space-sm) 0 var(--space-xs); padding: 0; list-style: none; border-bottom: 1px solid var(--line-d); }
+.vb-uitslagen li { display: flex; justify-content: space-between; gap: var(--space-sm); padding: var(--space-xs) 0; border-top: 1px solid var(--line-d); font-size: var(--t-sm); }
+.vb-uitslagen li span { min-width: 0; overflow-wrap: anywhere; color: var(--ink-2); }
+.vb-uitslagen li b { font-variant-numeric: tabular-nums; }
+.vb-balk { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); margin-top: var(--space-xs); font-size: var(--t-sm); }
+.vb-balk-l { color: var(--ink-2); }
+.vb-balk-spoor { height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.vb-balk-spoor span { display: block; height: 100%; border-radius: inherit; background: var(--ink-2); }
+.vb-balk-w { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.vb-vorige { display: flex; align-items: center; gap: var(--space-sm); }
+.vb-vorige > div { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.vb-score { font-family: var(--font-display); font-size: var(--t-4xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.vb-weer-kop { display: flex; align-items: center; gap: var(--space-md); }
+.vb-temp { font-family: var(--font-display); font-size: var(--t-6xl); font-weight: 700; line-height: 1; }
+.vb-weer-tekst { display: flex; flex-direction: column; min-width: 0; }
+.vb-weer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-md); }
+.vb-weer-grid div { display: flex; flex-direction: column; gap: var(--space-3xs); padding: var(--space-sm); border-radius: 12px; background: var(--surface-2); }
+.vb-weer-grid span { font-size: var(--t-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.vb-uren { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-xs); margin: var(--space-md) 0 0; padding: 0; list-style: none; text-align: center; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.vb-uren li { display: flex; flex-direction: column; align-items: center; gap: var(--space-2xs); }
+.vb-uren li > span:last-of-type { font-size: var(--t-2xs); color: var(--ink-2); }
+.vb-uren li.nu > span:first-child { font-weight: 700; color: var(--accent); }
+.vb-uur-spoor { display: flex; align-items: flex-end; width: 100%; height: 40px; }
+.vb-uur-spoor span { display: block; width: 100%; border-radius: 4px; background: color-mix(in srgb, var(--elf2) 75%, transparent); }
+.vb-advies { display: flex; gap: var(--space-sm); margin-top: var(--space-md); padding: var(--space-sm); border-radius: 12px; background: var(--surface-2); color: var(--warn); }
+.vb-advies ul { margin: 0; padding-left: var(--space-md); color: var(--ink); font-size: var(--t-md); }
+
+.vb-invoer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs); margin-top: var(--space-sm); }
+.vb-invoer .knop { min-height: 44px; }
+.vb-groot { margin: 0 0 var(--space-xs); color: var(--ink-2); }
+.vb-groot b { font-family: var(--font-display); font-size: var(--t-4xl); color: var(--ink); margin-right: var(--space-2xs); }
+.vb-spoor { display: block; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.vb-spoor span { display: block; height: 100%; background: var(--ok); }
+.vb-afwezig { margin: var(--space-sm) 0 0; color: var(--warn); font-weight: 600; font-size: var(--t-sm); }
+.vb-punten { display: grid; gap: var(--space-xs); margin: var(--space-sm) 0 0; padding: 0; list-style: none; }
+.vb-punten li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-sm); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm); border-radius: 12px; background: var(--surface-2); }
+.vb-nr { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent-vlak); color: var(--accent-ink); font-weight: 800; font-size: var(--t-sm); }
+.vb-punt { overflow-wrap: anywhere; }
+.vb-weg { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); cursor: pointer; }
+.vb-weg:hover { color: var(--ink); background: var(--surface); }
+.vb-weg:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.vb-na { resize: vertical; min-height: 88px; font-family: inherit; line-height: 1.45; }

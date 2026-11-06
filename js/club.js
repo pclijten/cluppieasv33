@@ -15,7 +15,7 @@ import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?
 import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261106r';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261106r';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261106r';
-import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261106r';
+import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261106t';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261106r';
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261106s'); }
+async function teamsModule(){ return await import('./teams.js?v=20261106t'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261106s').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261106t').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){

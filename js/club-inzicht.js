@@ -33,7 +33,7 @@ const SCHERM_LABELS = {
   'team:hub':'Team-hub', 'club:hub':'Club-hub', 'teams':'Teams-overzicht',
   'team:trainingen':'Trainingen', 'club:trainingen':'Club-trainingen',
   'team:presentietraining':'Aanwezigheid training', 'team:preswedstrijd':'Aanwezigheid wedstrijd',
-  'wedstrijd:opstelling':'Opstelling maken', 'team:wedstrijden':'Wedstrijdoverzicht',
+  'wedstrijd:opstelling':'Opstelling maken', 'wedstrijd:voorbereiding':'Wedstrijdvoorbereiding', 'team:wedstrijden':'Wedstrijdoverzicht',
   'team:poule':'Poule & programma', 'team:instellingen':'Teaminstellingen',
   'team:documenten':'Documenten', 'team:videos':'Video-uitleg', 'spelerprofiel':'Spelerprofiel',
   'team:spelers':'Spelerslijst', 'team:stats':'Statistieken', 'team:evaluatie':'Speler evalueren',

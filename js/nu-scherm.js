@@ -59,7 +59,7 @@ function stand(w){
   const voor = g.filter(x => x && x.type !== 'tegen').length, tegen = g.filter(x => x && x.type === 'tegen').length;
   return w.thuis ? [voor, tegen] : [tegen, voor];
 }
-function opstellingKlaar(w){
+export function opstellingKlaar(w){
   const nrs = periodeNrs(w);
   return { klaar: nrs.filter(n => Object.keys(w.kwarten?.[n]?.lineup || {}).length).length, totaal: nrs.length };
 }
@@ -92,7 +92,7 @@ function presentieTraining(datum){
   else { const pf = vastePrefill(S.team, datum, ids); afwezig = pf.afwezig; redenen = pf.redenen; laat = []; vast = afwezig.length > 0; }
   return { rec, afwezig, redenen, laat, vast, totaal: ids.length };
 }
-function presentieWedstrijd(w){
+export function presentieWedstrijd(w){
   const sel = selectieVan(w), redenen = w.afwezigRedenen || {};
   const afwezig = S.spelers.filter(p => !sel.has(p.id) && redenen[p.id]).map(p => p.id);
   const nietMeeIds = S.spelers.filter(p => !sel.has(p.id) && !redenen[p.id]).map(p => p.id);
@@ -102,7 +102,7 @@ function nietMeeTekst(p){
   const namen = (p.nietMeeIds || []).map(naamVan).filter(Boolean).map(esc);
   return namen.length ? `Niet in de selectie: ${namen.join(', ')}` : `${p.nietMee} niet in de selectie`;
 }
-function afwezigTekst(afwezig, redenen){
+export function afwezigTekst(afwezig, redenen){
   return afwezig.map(id => { const n = naamVan(id); if (!n) return null; const i = afwezigRedenInfo(redenen[id]);
     return esc(n) + (i ? ` (${esc(i.label.toLowerCase())})` : ''); }).filter(Boolean).join(', ');
 }
@@ -137,17 +137,22 @@ const titel = t => `<h2 class="nu-titel">${t}</h2>`;
 const acties = (...k) => `<div class="nu-acties">${k.filter(Boolean).join('')}</div>`;
 const knop = (tekst, icoon, attr, primair) =>
   `<button type="button" class="knop vol ${primair ? 'fluo' : 'licht'}" ${attr}>${icoon ? ico(icoon, 20) : ''}${esc(tekst)}</button>`;
+/* [20261106t] Wedstrijdkaarten: twee rustige knoppen naast elkaar, voorbereiding
+   (wedstrijd-voorbereiding.js) en opstelling (de wedstrijd zelf). */
+const wedKnoppen = w => `<div class="nu-acties nu-acties-duo">${
+  knop('Voorbereiding', 'match-opponent', `data-nu-voorbereiding="${esc(w.id)}"`, false)}${
+  knop('Opstelling', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, false)}</div>`;
 /* Waar speelt het team: sportpark met route (uit), plus veld en kleedkamer (thuis en uit).
    Locatie, plaats, veld (slVeld) en kleedkamer (slKleedkamer) komen uit Sportlink; wat de coach
    bij Wijzig opzet invult (adres, veld, kleedkamer) gaat voor. */
 const metVoorvoegsel = (v, woord) => { const t = String(v || '').trim().replace(/\s+/g, ' '); return !t ? '' : /^\d+\s?[a-z]?$/i.test(t) ? `${woord} ${t}` : t.charAt(0).toUpperCase() + t.slice(1); };
 const plaatsNaam = p => String(p || '').trim().toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
-function routeUrl(w){
+export function routeUrl(w){
   const club = String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim();
   const doel = (w.adres || '').trim() || [w.locatie, plaatsNaam(w.plaats) || club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
   return doel ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(doel) : '';
 }
-function plekHtml(w){
+export function plekHtml(w){
   if (!w) return '';
   const veld = metVoorvoegsel(w.veld || w.slVeld, 'Veld'), kleed = metVoorvoegsel(w.kleedkamer || w.slKleedkamer, 'Kleedkamer');
   const naam = !w.thuis ? String(w.adres || w.locatie || '').trim() ? String(w.locatie || w.adres).trim() : '' : '';
@@ -246,7 +251,7 @@ function kaartHtml(c, nu){
       ${plekHtml(w)}
       ${feiten(rij('Opstelling', opst))}
       ${presKnopWedstrijd(w)}
-      ${acties(knop(ok.klaar ? 'Opstelling bekijken' : 'Opstelling maken', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, true))}`;
+      ${wedKnoppen(w)}`;
   }
   if (c.soort === 'training'){
     const t = `${hhmm(e.start)} tot ${hhmm(e.eind)}`;
@@ -276,7 +281,7 @@ function kaartHtml(c, nu){
       ${meta(`${esc(dagLabel(v.datum, nu))} ${esc(v.aftrap || '')}`.trim(), esc(v.tegenstander || ''), v.thuis ? 'thuis' : 'uit')}
       ${plekHtml(v)}
       ${presKnopWedstrijd(v)}
-      ${acties(knop('Wedstrijd voorbereiden', 'football-lineup', `data-nu-wedstrijd="${esc(v.id)}"`, true))}`;
+      ${wedKnoppen(v)}`;
   }
   return `${kop(tag('Geen activiteit nu', 'ok'))}${titel('Volgende: training')}
     ${meta(`${esc(dagLabel(e.datum, nu))} ${hhmm(e.start)} tot ${hhmm(e.eind)}`)}
@@ -305,7 +310,7 @@ function daarnaItem(e, nu){
       ${plekHtml(w)}
       ${feiten(rij('Opstelling', ok.klaar === ok.totaal ? 'Klaar' : `<span class="nu-let">${ok.klaar} van ${ok.totaal} periodes</span>`))}
       ${presKnopWedstrijd(w)}
-      ${acties(knop(ok.klaar ? 'Opstelling bekijken' : 'Opstelling maken', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, false))}`;
+      ${wedKnoppen(w)}`;
   }
   return `<div class="nu-d-item${open ? ' open' : ''}">
     <button type="button" class="nu-rij-d" data-nu-daarna="${sleutel}" aria-expanded="${open}" aria-controls="nuD-${sleutel}">
@@ -370,8 +375,10 @@ export function koppelNu(v, ctx){
     }
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
+    const vb = ev.target.closest('[data-nu-voorbereiding]');
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261106t'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106s'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106t'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
