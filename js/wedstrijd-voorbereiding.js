@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, getDoc, functions, httpsCallable } from './
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106v';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106w';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -319,44 +319,81 @@ function laadScout(wid, opnieuw){
     .catch(e => { console.warn('[scouting] laden mislukt', e); _scout.set(wid, { fout: 'Het rapport kon niet worden geladen. Controleer je verbinding.' }); })
     .finally(() => { if (_wid === wid && S._vbTab === 'scouting') teken(); });
 }
-const bronRef = nrs => (nrs || []).map(n => `<a class="vb-bronref" href="#vbBron${n}" aria-label="Bron ${n}">[${n}]</a>`).join(' ');
+const bronRef = nrs => (nrs || []).map(n => n === 'cijfers'
+  ? '<span class="vb-bronref vb-bronref-c" title="Uit de cijfers van Sportlink en Cluppie">[cijfers]</span>'
+  : `<a class="vb-bronref" href="#vbBron${n}" aria-label="Bron ${n}">[${n}]</a>`).join(' ');
 function gemaaktTekst(d){
   if (!d?.gemaaktMs) return '';
   const t = new Date(d.gemaaktMs);
   return `${hoofd(DAG_LANG[t.getDay()].slice(0, 2))} ${t.getDate()} ${MAAND[t.getMonth()].slice(0, 3)}, ${p2(t.getHours())}:${p2(t.getMinutes())}`;
 }
+const RES_KLASSE = { W: 'vb-res-W', G: 'vb-res-G', V: 'vb-res-V' };
+function cijfersHtml(c){
+  if (!c) return '';
+  const regel = (l, x) => x && x.gespeeld ? rij(l, `<span class="vb-num">${x.w}W ${x.g}G ${x.v}V · ${x.voor}-${x.tegen}</span>`) : '';
+  const t = c.totaal || {};
+  const tegels = t.gespeeld ? `<div class="vb-tegels">
+      <div><b>${c.stand ? esc(String(c.stand.positie)) + 'e' : '–'}</b><span>Stand</span></div>
+      <div><b>${(t.voor / t.gespeeld).toFixed(1).replace('.', ',')}</b><span>Goals p/w</span></div>
+      <div><b>${(t.tegen / t.gespeeld).toFixed(1).replace('.', ',')}</b><span>Tegen p/w</span></div>
+      <div><b>${t.nul}</b><span>De nul</span></div></div>` : '';
+  const reeks = c.reeks ? rij('Reeks', `${c.reeks.aantal}x ${RES_LABEL[c.reeks.res]} op rij${c.reeks.ongeslagen > 1 ? `, ${c.reeks.ongeslagen} duels ongeslagen` : ''}`) : '';
+  const gem = (c.gemeenschappelijk || []).length ? `<h4 class="vb-subkop">Zelfde tegenstanders, zij en wij</h4>
+    <ul class="vb-uitslagen">${c.gemeenschappelijk.map(g => `<li><span>${esc(g.tegen)}</span><b><span class="${RES_KLASSE[g.zijRes] || ''}-t">${esc(g.zij)}</span> · <span class="${RES_KLASSE[g.wijRes] || ''}-t">wij ${esc(g.wij)}</span></b></li>`).join('')}</ul>` : '';
+  const hist = (c.historie || []).length ? `<h4 class="vb-subkop">Eerdere onderlinge duels</h4>
+    <ul class="vb-uitslagen">${c.historie.map(h => `<li><span>${esc(hoofd(datumLang(h.datum)))} · ${h.thuis ? 'thuis' : 'uit'}</span><b>${esc(h.score || 'onbekend')}</b></li>`).join('')}</ul>` : '';
+  return kaart('Cijfers (Sportlink en Cluppie)', `${tegels}
+    ${feiten(regel('Thuis', c.thuis), regel('Uit', c.uit), regel('Tegen bovenste helft', c.tegenTop), regel('Tegen onderste helft', c.tegenOnder), reeks,
+      c.grootsteWinst ? rij('Grootste winst', `${esc(c.grootsteWinst.score)} tegen ${esc(c.grootsteWinst.tegen)}`) : '',
+      c.grootsteVerlies ? rij('Grootste verlies', `${esc(c.grootsteVerlies.score)} tegen ${esc(c.grootsteVerlies.tegen)}`) : '')}
+    ${gem}${hist}`);
+}
+const itemLijst = arr => (arr || []).length ? `<ul class="vb-lijst">${arr.map(x => `<li>${esc(x.tekst)} ${bronRef(x.bronnen)}</li>`).join('')}</ul>` : '';
 function tabScouting(w){
   if (!_scout.has(w.id)) laadScout(w.id);
   const st = _scout.get(w.id) || {};
   const zoekKnop = (label) => `<button type="button" class="knop licht" data-vb-scout ${st.zoekt ? 'disabled' : ''}>${st.zoekt ? 'Zoeken…' : esc(label)}</button>`;
   if (st.laden) return kaart('Scouting', leeg('Rapport laden…'));
-  if (st.zoekt) return kaart('Scouting', `${leeg('Zoeken naar verslagen en nieuws over ' + esc(w.tegenstander) + '. Dit duurt ongeveer een minuut.')}`);
+  if (st.zoekt) return kaart('Scouting', leeg(`De scout leest nu verslagen en nieuws over ${esc(w.tegenstander)} en maakt een analyse. Dit duurt twee tot vijf minuten; je kunt het scherm gerust sluiten.`));
   const d = st.data;
-  const status = d ? `<div class="vb-scoutstatus">${ico(d.status === 'klaar' ? 'action-check' : 'action-info', 20)}
-      <div><b>Gezocht ${esc(gemaaktTekst(d))}</b><span class="vb-zacht">${d.bronnen?.length || 0} bronnen · automatisch elke donderdag</span></div>
-      ${zoekKnop('Opnieuw')}</div>` : '';
   const fout = st.fout ? `<p class="vb-afwezig" role="alert">${esc(st.fout)}</p>` : '';
   if (!d){
     return kaart('Scouting', `${leeg('Nog geen scoutingrapport voor deze wedstrijd. Het rapport wordt elke donderdagavond automatisch gemaakt voor de eerstvolgende wedstrijd.')}
       ${fout}<div class="nu-acties">${zoekKnop('Nu zoeken')}</div>`);
   }
-  if (d.status !== 'klaar'){
-    return `${status}${fout}${kaart('In het kort', leeg('Er is weinig openbare informatie gevonden over deze tegenstander.'))}`;
-  }
+  const oud = d.versie !== 2;
+  const status = `<div class="vb-scoutstatus">${ico(d.status === 'klaar' ? 'action-check' : 'action-info', 20)}
+      <div><b>Gezocht ${esc(gemaaktTekst(d))}</b><span class="vb-zacht">${d.bronnen?.length || 0} bronnen${d.gelezen ? `, ${d.gelezen} volledig gelezen` : ''} · elke donderdag automatisch</span></div>
+      ${zoekKnop('Opnieuw')}</div>
+      ${oud ? '<p class="vb-afwezig">Dit is een kort rapport van de eerste versie. Tik op Opnieuw voor de uitgebreide analyse.</p>' : ''}`;
+  if (d.status !== 'klaar') return `${status}${fout}${cijfersHtml(d.cijfers)}${kaart('In het kort', leeg('Er is weinig openbare informatie gevonden over deze tegenstander.'))}`;
   const blok = (kop, html) => html ? kaart(kop, html) : '';
-  const speelwijze = (d.speelwijze || []).length ? `<ul class="vb-lijst">${d.speelwijze.map(x => `<li>${esc(x.tekst)} ${bronRef(x.bronnen)}</li>`).join('')}</ul>` : '';
+  const b = d.betrouwbaarheid;
   const spelers = (d.spelers || []).length ? `<ul class="vb-spelers">${d.spelers.map(x => `<li><span class="vb-nr vb-nr-zacht">${x.rugnummer ?? '·'}</span>
       <div><b>${esc(x.naam)}</b><span class="vb-zacht">${esc([x.rol, x.tekst].filter(Boolean).join(', '))} ${bronRef(x.bronnen)}</span></div></li>`).join('')}</ul>
       <p class="vb-bron">Alleen wat in openbare wedstrijdverslagen staat. Geen sociale media.</p>` : '';
   const nieuws = (d.nieuws || []).length ? `<ul class="vb-nieuws">${d.nieuws.map(x => `<li>${x.datum ? `<span class="vb-zacht">${esc(datumLang(x.datum))}</span>` : ''}<span>${esc(x.tekst)} ${bronRef(x.bronnen)}</span></li>`).join('')}</ul>` : '';
-  const bronnen = `<ol class="vb-bronnen">${(d.bronnen || []).map(b => `<li id="vbBron${b.nr}"><a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer">${esc(b.titel)}</a> <span class="vb-zacht">· ${esc(b.site)}</span></li>`).join('')}</ol>`;
+  const plan = (d.plan || []).length ? `<ol class="vb-punten">${d.plan.map((x, i) => `<li><span class="vb-nr">${i + 1}</span><span class="vb-punt">${esc(x.tekst)}</span></li>`).join('')}</ol>
+      <p class="vb-bron">Afgeleid uit de analyse hierboven. Neem over in je Aandachtspunten onder Plan als je het eens bent.</p>` : '';
+  const bronnen = `<ol class="vb-bronnen">${(d.bronnen || []).map(x => `<li id="vbBron${x.nr}"><a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.titel)}</a> <span class="vb-zacht">· ${esc(x.site)}${x.datum ? ' · ' + esc(datumLang(x.datum)) : ''}</span></li>`).join('')}</ol>`;
   return `${status}${fout}
-    ${blok('In het kort', d.kort ? `<p class="vb-tekst">${esc(d.kort)} ${bronRef(d.kortBronnen)}</p>` : '')}
-    ${blok('Speelwijze volgens verslagen', speelwijze)}
+    ${blok('In het kort', d.kort ? `<p class="vb-tekst">${esc(d.kort)} ${bronRef(d.kortBronnen)}</p>
+      ${b?.niveau ? `<p class="vb-betrouw">Betrouwbaarheid: <b>${esc(b.niveau)}</b>${b.tekst ? '. ' + esc(b.tekst) : ''}</p>` : ''}` : '')}
+    ${blok('Wedstrijdplan', plan)}
+    ${cijfersHtml(d.cijfers)}
+    ${blok('Systeem en vaste spelers', d.systeem ? `<p class="vb-tekst">${esc(d.systeem.tekst)} ${bronRef(d.systeem.bronnen)}</p>` : '')}
+    ${blok('In balbezit', itemLijst(d.inBalbezit))}
+    ${blok('Tegen balbezit', itemLijst(d.tegenBalbezit))}
+    ${blok('Omschakelen', itemLijst(d.omschakelen))}
+    ${blok('Standaardsituaties', itemLijst(d.standaards))}
+    ${blok('Sterke punten', itemLijst(d.sterk))}
+    ${blok('Zwakke punten', itemLijst(d.zwak))}
+    ${blok('Patronen in wedstrijden', itemLijst(d.patronen))}
+    ${blok(oud ? 'Speelwijze volgens verslagen' : '', oud ? itemLijst(d.speelwijze) : '')}
     ${blok('Opvallende spelers in de verslagen', spelers)}
     ${blok('Nieuws rond de club', nieuws)}
     ${blok('Bronnen', bronnen)}
-    <p class="vb-bron">${ico('action-info', 16)}Samengesteld door AI uit openbare bronnen. Controleer bij twijfel de bron. Stand, vorm en eerdere duels staan onder Tegenstander.</p>`;
+    <p class="vb-bron">${ico('action-info', 16)}Samengesteld door AI uit openbare bronnen en de cijfers van Sportlink. Controleer bij twijfel de bron.</p>`;
 }
 async function startScout(w){
   const st = _scout.get(w.id) || {};
@@ -364,7 +401,7 @@ async function startScout(w){
   teken();
   telGebruik('scouting_zoeken');
   try {
-    const res = await httpsCallable(functions, 'scoutTegenstander')({ teamId: S.teamId, wedstrijdId: w.id });
+    const res = await httpsCallable(functions, 'scoutTegenstander', { timeout: 540000 })({ teamId: S.teamId, wedstrijdId: w.id });
     _scout.set(w.id, { data: { ...res.data, gemaaktMs: res.data?.gemaaktMs || Date.now() } });
   } catch (e){
     const m = String(e?.message || '');
@@ -457,7 +494,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261106v');
+      const m = await import('./wedstrijd.js?v=20261106w');
       m.openWedstrijd(id);
       return;
     }
