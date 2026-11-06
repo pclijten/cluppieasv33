@@ -19,6 +19,7 @@ import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106h';
 import { bepaalNu, evenementen } from './nu-context.js?v=20261106h';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261106h';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106h';
+import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106i';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -93,8 +94,12 @@ function presentieTraining(datum){
 function presentieWedstrijd(w){
   const sel = selectieVan(w), redenen = w.afwezigRedenen || {};
   const afwezig = S.spelers.filter(p => !sel.has(p.id) && redenen[p.id]).map(p => p.id);
-  const nietMee = S.spelers.filter(p => !sel.has(p.id) && !redenen[p.id]).length;
-  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja: sel.size, totaal: S.spelers.length, nietMee };
+  const nietMeeIds = S.spelers.filter(p => !sel.has(p.id) && !redenen[p.id]).map(p => p.id);
+  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja: sel.size, totaal: S.spelers.length, nietMee: nietMeeIds.length, nietMeeIds };
+}
+function nietMeeTekst(p){
+  const namen = (p.nietMeeIds || []).map(naamVan).filter(Boolean).map(esc);
+  return namen.length ? `Niet in de selectie: ${namen.join(', ')}` : `${p.nietMee} niet in de selectie`;
 }
 function afwezigTekst(afwezig, redenen){
   return afwezig.map(id => { const n = naamVan(id); if (!n) return null; const i = afwezigRedenInfo(redenen[id]);
@@ -140,7 +145,7 @@ function presKnopWedstrijd(w){
   const p = presentieWedstrijd(w);
   return `<button type="button" class="nu-pres" data-nu-pres-wedstrijd="${esc(w.id)}">
     <span class="nu-pres-getal"><b>${p.ja}</b> van ${p.totaal} spelen mee</span>
-    <span class="nu-pres-af">${p.afwezig.length ? 'Afwezig: ' + afwezigTekst(p.afwezig, p.redenen) : (p.nietMee ? `${p.nietMee} niet in de selectie` : 'Iedereen kan')}${
+    <span class="nu-pres-af">${p.afwezig.length ? 'Afwezig: ' + afwezigTekst(p.afwezig, p.redenen) : (p.nietMee ? nietMeeTekst(p) : 'Iedereen kan')}${
       p.laat.length ? `<span class="nu-pres-laat">Komt later: ${p.laat.map(naamVan).filter(Boolean).map(esc).join(', ')}</span>` : ''}</span>
     <span class="nu-pres-pijl">${ico('attendance-fill', 20)}</span></button>`;
 }
@@ -153,13 +158,31 @@ function oefenstofBlok(datum){
     Array.from({ length: wks }, (_, i) => `<span class="${i + 1 < wk ? 'af' : i + 1 === wk ? 'nu' : ''}"></span>`).join('')}</div>` : '';
   const kopTekst = pl.naam ? esc(pl.naam) : pl.blok ? `Blok ${esc(pl.blok)}` : 'Oefenstof';
   const sub = [wk && wks ? `week ${wk} van ${wks}` : '', t.trainingNr ? `training ${esc(t.trainingNr)}` : ''].filter(Boolean).join(', ');
-  const doel = Array.isArray(t.doelen) && t.doelen.length ? String(t.doelen[0]?.tekst || t.doelen[0]) : '';
+  const doelen = doelTeksten(t);
   return `<div class="nu-blok">
       <div class="nu-blok-kop"><span class="nu-blok-naam">${kopTekst}</span>${sub ? `<span class="nu-blok-wk">${sub}</span>` : ''}</div>
       ${segs}
     </div>
     ${feiten(rij('Training', `<b>${esc(t.titel || t.bestandsnaam || 'Oefenstof')}</b>`))}
-    ${doel ? `<p class="nu-doel">${ico('football-training', 18)}<span>${esc(doel)}</span></p>` : ''}`;
+    ${doelenHtml(t, doelen)}`;
+}
+/* Eén allesomvattend doel (AI) als regel; tik klapt de lijst met alle doelen van de training uit. */
+function doelenHtml(t, doelen){
+  if (!doelen.length) return '';
+  const icoon = ico('football-training', 18);
+  if (doelen.length === 1) return `<p class="nu-doel">${icoon}<span>${esc(doelen[0])}</span></p>`;
+  const sam = samenvattingNu(t);
+  if (!sam) haalSamenvatting(t).then(tekst => {
+    if (!tekst) return;
+    document.querySelectorAll(`[data-nu-sam="${t.id}"]`).forEach(el => { el.textContent = tekst; el.classList.remove('wacht'); });
+  });
+  const sleutel = 'd-' + t.id, open = (S._nuDoelOpen ||= new Set()).has(sleutel);
+  return `<div class="nu-doelblok${open ? ' open' : ''}">
+    <button type="button" class="nu-doel nu-doel-knop" data-nu-doel="${esc(sleutel)}" aria-expanded="${open}">
+      ${icoon}<span class="nu-doel-tekst${sam ? '' : ' wacht'}" data-nu-sam="${esc(t.id)}">${esc(sam || doelen[0])}</span>
+      <span class="nu-doel-pijl">${PIJL}</span></button>
+    <ul class="nu-doel-lijst"${open ? '' : ' hidden'} aria-label="Alle doelen van deze training">${doelen.map(d => `<li>${esc(d)}</li>`).join('')}</ul>
+  </div>`;
 }
 const afgelastOp = datum => { const a = S.team?.afgelast; return a && a.datum === datum ? a : null; };
 
@@ -283,6 +306,17 @@ export function koppelNu(v, ctx){
   const blok = v.querySelector('.nu-blokje');
   if (!blok) return;
   blok.addEventListener('click', async ev => {
+    const dk = ev.target.closest('[data-nu-doel]');
+    if (dk){
+      const sl = dk.dataset.nuDoel, open = !(S._nuDoelOpen ||= new Set()).has(sl);
+      open ? S._nuDoelOpen.add(sl) : S._nuDoelOpen.delete(sl);
+      blok.querySelectorAll('[data-nu-doel]').forEach(b => {
+        if (b.dataset.nuDoel !== sl) return;
+        b.setAttribute('aria-expanded', String(open));
+        const bl = b.closest('.nu-doelblok'); bl.classList.toggle('open', open); bl.querySelector('.nu-doel-lijst').hidden = !open;
+      });
+      return;
+    }
     const d = ev.target.closest('[data-nu-daarna]');
     if (d){
       const item = d.closest('.nu-d-item'), inhoud = item.querySelector('.nu-d-in'), paneel = item.querySelector('.nu-d-paneel');
@@ -304,7 +338,7 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261106h'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261106i'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const t = ev.target.closest('[data-nu-tab]');
     if (t){ ctx.zetTeamTab(t.dataset.nuTab); }
   });

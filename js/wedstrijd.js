@@ -20,7 +20,7 @@ import { ico } from './icons.js?v=20261106h';
 
 import { telGebruik, telNav } from './tracker.js?v=20261106h';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106h';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106h';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106i';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
   elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106h';
 
@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261106h').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261106i').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261106h').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261106i').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -1620,6 +1620,7 @@ function registreerGoal({type, pid = null, assist = null, sec = null}){
   if (g.assist) telGebruik('assist');
   if (navigator.vibrate) navigator.vibrate(type === 'voor' ? [90,60,90,60,200] : 120);
   meld(type === 'voor' ? `GOAL! ${pid ? spelerNaam(pid) : S.team.naam}${g.assist ? ', assist ' + spelerNaam(g.assist) : ''}` : `Tegendoelpunt, ${mmss(sec)}`);
+  S._sbPuls = true;
   bewaarWedstrijd(); renderWedstrijd();
 }
 
@@ -2618,7 +2619,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261106h').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261106i').then(m => m.renderTeam?.());
   });
 }
 
@@ -2887,6 +2888,7 @@ export function renderWedstrijd(){
   const teamEvalBestaand = (S.teamEvaluaties||[]).some(e => e.wedstrijdId === S.wedstrijdId);
 
   const v = $('#view-wedstrijd');
+  const sbPuls = !!S._sbPuls; S._sbPuls = false;
   v.innerHTML = `
     <div class="kop"><button class="terug" id="naarTeam">‹</button>
       <h1>${isToernooi(w)
@@ -2907,14 +2909,14 @@ export function renderWedstrijd(){
         : `<span class="u-t-lg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg></span><span><b>Wedstrijddoel kiezen</b>, tik hier om een doel voor vandaag te zetten <span class="u-c-accent u-fw-7">›</span></span>`}</div>
 ${confroHtml}
     <div class="scorebord v2">
-      <div class="sb-rij">
-        <button class="sb-goal" id="${sbLinks.knop}" title="Doelpunt ${esc(sbLinks.naam)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></button>
-        <span class="sb-cijfers">${sbLinks.n} – ${sbRechts.n}</span>
-        <button class="sb-goal" id="${sbRechts.knop}" title="Doelpunt ${esc(sbRechts.naam)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></button>
-      </div>
-      <div class="sb-namen">
-        <span class="sb-team" ${!w.thuis && isToernooi(w) ? 'id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : ''}>${esc(sbLinks.naam)}</span>
-        <span class="sb-team" ${w.thuis && isToernooi(w) ? 'id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : ''}>${esc(sbRechts.naam)}</span>
+      <div class="sb-rij"><span class="sb-cijfers${sbPuls ? ' sb-puls' : ''}" aria-live="polite" aria-label="Stand ${sbLinks.n} – ${sbRechts.n}">${sbLinks.n} – ${sbRechts.n}</span></div>
+      <div class="sb-kolommen">${[sbLinks, sbRechts].map(z => {
+        const eigen = z.knop === 'goalVoor';
+        const tegenId = isToernooi(w) && !eigen ? 'id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : '';
+        return `<div class="sb-kol">
+          <span class="sb-team" ${tegenId}>${esc(z.naam)}</span>
+          <button class="sb-goal ${eigen ? 'eigen' : 'tegen'}" id="${z.knop}" aria-label="${eigen ? 'Doelpunt voor' : 'Tegendoelpunt voor'} ${esc(z.naam)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>${eigen ? 'Doelpunt' : 'Tegendoelpunt'}</span></button>
+        </div>`; }).join('')}
       </div>
     </div>
 
@@ -2938,12 +2940,12 @@ ${confroHtml}
 
     <div class="klok">
       <div><div class="tijd klok-tijd-knop" id="klokTijd" title="Tik om de wedstrijdtijd handmatig in te stellen">${mmss(klokSec(k))}<span class="klok-pen">✎</span></div>
-        <div class="label">${esc(periodeOmschrijving(w))}<span class="sep" aria-hidden="true"></span>max ${String(w.kwartduur).replace('.',',')} min</div></div>
+        <div class="label">${esc(periodeOmschrijving(w))}<span class="sep" aria-hidden="true"></span>max ${String(w.kwartduur).replace('.',',')} min<span class="sep" aria-hidden="true"></span><span class="klok-status${k.klok.running ? ' loopt' : ''}">${k.klok.running ? 'klok loopt' : k.klok.base > 0 ? 'gepauzeerd' : 'nog niet gestart'}</span></div></div>
       <div class="acties">
         <button id="kaartKnop" title="Kaart of straf"><span class="kaartje geel" aria-hidden="true"></span></button>
         <button id="klokReset" title="Klok terugzetten">↺</button>
-        <button id="klokNaarEinde" title="Spring naar eindtijd"></button>
-        <button id="klokStart" class="primair" title="${k.klok.running?'Pauze':'Start'}">${k.klok.running?'❚❚':'▶'}</button>
+        <button id="klokNaarEinde" title="Spring naar eindtijd" aria-label="Spring naar eindtijd"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 5.5v13l8-6.5z" fill="currentColor"/><path d="M17.5 5v14"/></svg></button>
+        <button id="klokStart" class="primair${k.klok.running ? ' loopt' : ''}" title="${k.klok.running?'Pauze':'Start'}" aria-label="${k.klok.running?'Pauzeer de klok':'Start de klok'}">${k.klok.running ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>' : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>'}</button>
       </div>
     </div>
 
@@ -3152,7 +3154,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261106h').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261106i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3302,12 +3304,12 @@ function toonWijzigOpzet(sectie){
     <div class="veldgroep"><label>Aanvoerder</label>
       <span class="wo-opg" data-opg="aanvoerder"></span>
       <button type="button" class="wo-aanv-knop" id="woAanvoerderKnop">
-        <span class="wo-aanv-ico"><span class="aanvoerder-band">C</span></span>
+        <span class="wo-aanv-ico" aria-hidden="true">C</span>
         <span class="wo-aanv-tekst">
-          <span class="wo-aanv-titel">${(w.periodes||4) === 2 ? 'Aanvoerder per helft' : 'Aanvoerder per kwart'}</span>
           <span class="wo-aanv-sam" id="woAanvoerderSam"></span>
+          <span class="wo-aanv-titel">${(w.periodes||4) === 2 ? 'Tik om per helft een aanvoerder te kiezen' : 'Tik om per kwart een aanvoerder te kiezen'}</span>
         </span>
-        <span class="wo-aanv-pijl">${ico('navigation-forward',18)}</span>
+        <span class="wo-aanv-actie" id="woAanvoerderActie">Kies</span>
       </button></div>
 
     <div class="wo-sectiekop" id="woSecSpeelwijze"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></span><span>Speelwijze & formatie</span><div class="wo-lijn"></div></div>
@@ -3418,6 +3420,7 @@ function toonWijzigOpzet(sectie){
   // ── Basisgegevens: aanvoerder per periode (sheet) + tekstvelden (blur) ──
   const vulAanvoerderSam = () => {
     const el = $('#woAanvoerderSam'); if (!el) return;
+    const actie = $('#woAanvoerderActie');
     const n = w.periodes || 4;
     const delen = [];
     for (let i = 1; i <= n; i++){
@@ -3428,13 +3431,13 @@ function toonWijzigOpzet(sectie){
     const uniek = aanvoerdersInWedstrijd(w);
     if (uniek.length === 1 && delen.length === n){
       el.textContent = `Hele wedstrijd: ${spelerNaam(uniek[0])}`;
-      el.classList.remove('leeg');
+      el.classList.remove('leeg'); actie.textContent = 'Wijzig';
     } else if (delen.length){
       el.textContent = delen.join(', ');
-      el.classList.remove('leeg');
+      el.classList.remove('leeg'); actie.textContent = 'Wijzig';
     } else {
-      el.textContent = 'Nog niet ingesteld';
-      el.classList.add('leeg');
+      el.textContent = 'Nog geen aanvoerder gekozen';
+      el.classList.add('leeg'); actie.textContent = 'Kies';
     }
   };
   vulAanvoerderSam();

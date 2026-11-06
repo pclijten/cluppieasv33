@@ -372,19 +372,17 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 /* ── Aanvoerder-knop in Wijzig opzet (vervangt de oude dropdown) ── */
 .wo-aanv-knop{display:flex;align-items:center;gap:var(--space-sm);width:100%;text-align:left;
   background:var(--surface-2);border:1px solid var(--line-d);border-radius:11px;
-  padding:var(--space-sm) var(--space-sm);cursor:pointer}
-.wo-aanv-ico{position:relative;width:34px;height:34px;border-radius:9px;background:var(--accent);
-  flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.wo-aanv-ico .aanvoerder-band{position:static;width:auto;height:auto;border:none;box-shadow:none;
-  background:transparent;font-size:var(--t-lg)}
-.wo-aanv-tekst{flex:1;min-width:0}
+  padding:var(--space-sm);cursor:pointer;min-height:56px}
+.wo-aanv-ico{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-ink);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:var(--t-lg)}
+.wo-aanv-tekst{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}
+.wo-aanv-sam{display:block;font-weight:600;font-size:var(--t-md);color:var(--ink);line-height:1.3}
+.wo-aanv-sam.leeg{color:var(--accent)}
 .wo-aanv-titel{display:block;font-size:var(--t-2xs);color:var(--ink-2);
-  text-transform:none;letter-spacing:0;font-weight:700}
-.wo-aanv-sam{display:block;font-weight:600;font-size:var(--t-md);color:var(--ink);
-  margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.wo-aanv-sam.leeg{color:var(--ink-2);font-weight:500}
-.wo-aanv-pijl{color:var(--ink-2);flex-shrink:0;display:flex}
-.wo-aanv-pijl svg{width:18px;height:18px}
+  text-transform:none;letter-spacing:0;font-weight:500;line-height:1.3}
+.wo-aanv-actie{flex-shrink:0;padding:var(--space-xs) var(--space-sm);border-radius:999px;
+  background:var(--accent-vlak);color:var(--accent-ink);font-weight:700;font-size:var(--t-sm)}
 
 /* ── Aanvoerder-sheet (per periode) ── */
 .aanv-carr{display:grid;grid-template-columns:repeat(var(--aanv-cols,4),1fr);gap:var(--space-xs);margin-bottom:var(--space-sm)}
@@ -6166,3 +6164,32 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 @media (prefers-reduced-motion: reduce) {
   *:not(.keep-motion), *:not(.keep-motion)::before, *:not(.keep-motion)::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* ---------- 6 nov: Nu-kaart doelen-uitklap, scorebord- en klokknoppen ---------- */
+.nu-doelblok { margin-top: var(--space-sm); }
+.nu-doel-knop { width: 100%; margin-top: 0; padding: var(--space-xs) var(--space-sm); border: 0; border-radius: 10px; background: var(--surface-2); color: var(--ink); text-align: left; cursor: pointer; align-items: center; }
+.nu-doel-knop svg { margin-top: 0; }
+.nu-doel-tekst { flex: 1; min-width: 0; font-weight: 600; line-height: 1.35; }
+.nu-doel-tekst.wacht { opacity: .85; }
+.nu-doel-pijl { flex-shrink: 0; color: var(--ink-2); display: flex; transition: transform var(--dur-short) var(--ease-out); }
+.nu-doelblok.open .nu-doel-pijl { transform: rotate(180deg); }
+.nu-doel-lijst { list-style: none; margin: var(--space-xs) 0 0; padding: 0 var(--space-sm); }
+.nu-doel-lijst[hidden] { display: none; }
+.nu-doel-lijst li { position: relative; padding: var(--space-2xs) 0 var(--space-2xs) var(--space-md); line-height: 1.45; color: var(--ink-2); }
+.nu-doel-lijst li::before { content: ""; position: absolute; left: var(--space-3xs); top: .85em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+.scorebord.v2 .sb-kolommen { display: flex; width: 100%; gap: var(--space-sm); }
+.scorebord.v2 .sb-kol { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-xs); }
+.scorebord.v2 .sb-kol .sb-team { flex: none; font-size: var(--t-md); white-space: normal; line-height: 1.25; }
+.scorebord.v2 .sb-goal { width: auto; height: auto; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: var(--space-xs); padding: var(--space-xs) var(--space-sm); border-radius: 12px; font-family: var(--font-display); font-weight: 700; font-size: var(--t-md); letter-spacing: .3px; color: var(--wit); background: color-mix(in srgb, var(--wit) 12%, transparent); border: 1px solid color-mix(in srgb, var(--wit) 22%, transparent); }
+.scorebord.v2 .sb-goal.eigen { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.scorebord.v2 .sb-goal:active { transform: scale(.97); }
+.scorebord .sb-cijfers.sb-puls { animation: sbPuls .6s var(--ease-out); }
+@keyframes sbPuls { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+.klok .acties button { display: flex; align-items: center; justify-content: center; }
+.klok .acties button.primair { width: 52px; }
+.klok .acties button.primair.loopt { background: var(--warn); }
+.klok-status { color: color-mix(in srgb, var(--wit) 70%, transparent); }
+.klok-status.loopt { color: var(--fluo); }
