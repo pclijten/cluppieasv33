@@ -10,17 +10,17 @@
    Event-koppeling gebeurt in teams.js (koppelTeamTab) — dit bestand levert
    alleen HTML + de opslaghulpjes voor de wedstrijd-presentie. Het importeert
    bewust NIET terug uit teams.js (geen circulaire import). */
-import { db, doc, updateDoc } from './firebase.js?v=20261106n';
-import { S, esc, meld, datumNL, modAan } from './state.js?v=20261106n';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261106n';
-import { ico } from './icons.js?v=20261106n';
-import { analyseWedstrijd } from './analyse.js?v=20261106n';
-import { telGebruik } from './tracker.js?v=20261106n';
-import { ongelezenBerichten } from './berichten.js?v=20261106n';
-import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106n';
-import { htmlRondeBalk } from './evaluatierondes.js?v=20261106n';
-import { htmlNu } from './nu-scherm.js?v=20261106n';
-import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106n';
+import { db, doc, updateDoc } from './firebase.js?v=20261106p';
+import { S, esc, meld, datumNL, modAan } from './state.js?v=20261106p';
+import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261106p';
+import { ico } from './icons.js?v=20261106p';
+import { analyseWedstrijd } from './analyse.js?v=20261106p';
+import { telGebruik } from './tracker.js?v=20261106p';
+import { ongelezenBerichten } from './berichten.js?v=20261106p';
+import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106p';
+import { htmlRondeBalk } from './evaluatierondes.js?v=20261106p';
+import { htmlNu } from './nu-scherm.js?v=20261106p';
+import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106p';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */

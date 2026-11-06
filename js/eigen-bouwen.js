@@ -17,9 +17,9 @@
    kan zichzelf geen toegang geven.
    Getekend in Club → Bouwen (sinds 20260929a), onder de standaardbouwen.
 ======================================================== */
-import { S, esc, meld } from './state.js?v=20261106n';
-import { db, doc, updateDoc } from './firebase.js?v=20261106n';
-import { BOUWEN, bouwVanCategorie } from './config.js?v=20261106n';
+import { S, esc, meld } from './state.js?v=20261106p';
+import { db, doc, updateDoc } from './firebase.js?v=20261106p';
+import { BOUWEN, bouwVanCategorie } from './config.js?v=20261106p';
 
 const KLEUREN = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ef4444'];
 let concept = null;           // { id, naam, kleur, teams:[], coaches:{}, selectie:bool|null, nieuw:bool } — de bouw die open staat

@@ -1,11 +1,11 @@
 import {
   db, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp,
   functions, httpsCallable, query, where, getDocs
-} from './firebase.js?v=20261106n';
+} from './firebase.js?v=20261106p';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan, bewaarPositie
-} from './state.js?v=20261106n';
+} from './state.js?v=20261106p';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
@@ -13,16 +13,16 @@ import {
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo, slotPositieNaam
-} from './config.js?v=20261106n';
+} from './config.js?v=20261106p';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd,
-  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106n';
-import { ico } from './icons.js?v=20261106n';
+  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106p';
+import { ico } from './icons.js?v=20261106p';
 
-import { telGebruik, telNav } from './tracker.js?v=20261106n';
-import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106n';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106n';
+import { telGebruik, telNav } from './tracker.js?v=20261106p';
+import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106p';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106p';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
-  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106n';
+  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106p';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261106n').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261106p').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261106n').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261106p').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2621,7 +2621,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261106n').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261106p').then(m => m.renderTeam?.());
   });
 }
 
@@ -3053,6 +3053,41 @@ export function renderWedstrijd(){
       <button type="button" id="zlUndoKnop">Ongedaan maken</button></div>`;
   }
 
+  /* Zijlijnscherm: klok, kwarten en stand in één blok bovenaan. */
+  const zlTab = S._zlTab || (afgelopen ? 'na' : 'tijdlijn');
+  const zlVinkje = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+  const zlBovenHtml = !ZL ? '' : `<section class="zl-wblok" aria-label="Klok, kwarten en stand">
+      <div class="zl-klokrij">
+        <button type="button" class="zl-klok" id="zlKlokKnop" title="Tik om de wedstrijdtijd in te stellen">
+          <span class="zl-klok-tijd"><span id="klokTijd">${mmss(klokSec(k))}</span><svg class="zl-pen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span>
+          <span class="zl-klok-sub"><span class="zl-klok-status${k.klok.running ? ' loopt' : k.klok.base > 0 ? ' pauze' : ''}">${k.klok.running ? 'loopt' : k.klok.base > 0 ? 'gepauzeerd' : 'nog niet gestart'}</span>, max ${String(w.kwartduur).replace('.',',')} min</span>
+        </button>
+        <button type="button" id="klokReset" class="zl-kk" aria-label="Klok terugzetten" title="Klok terugzetten"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
+        <button type="button" id="klokNaarEinde" class="zl-kk" aria-label="Spring naar eindtijd" title="Spring naar eindtijd"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5v13l8-6.5z" fill="currentColor"/><path d="M17.5 5v14"/></svg></button>
+        <button type="button" id="klokStart" class="zl-kk start${k.klok.running ? ' loopt' : ''}" aria-label="${k.klok.running ? 'Pauzeer de klok' : 'Start de klok'}">${k.klok.running
+          ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>'
+          : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>'}</button>
+      </div>
+      <div class="zl-kwarten${periodeNrs(w).length > 5 ? ' veel' : ''}" role="group" aria-label="Periodes">${periodeNrs(w).map(nr => `<button type="button" data-kwart="${nr}" aria-pressed="${S.kwart === nr}" class="${S.kwart === nr ? 'aan' : ''}">${(w.kwarten[nr]?.klok?.base || 0) > 0 ? zlVinkje : ''}${periodeLabel(w, nr)}</button>`).join('')}</div>
+      <div class="zl-score">
+        <div class="zl-teams">${[sbLinks, sbRechts].map((z, i) => {
+          const tegenId = isToernooi(w) && z.knop !== 'goalVoor' ? ' id="sbTegenNaam" style="text-decoration:underline dotted;cursor:pointer"' : '';
+          const team = `<span class="zl-team"${tegenId}>${esc(z.naam)}</span>`;
+          return i === 0 ? team + `<span class="zl-scorestand${sbPuls ? ' zl-puls' : ''}" aria-live="polite" aria-label="Stand ${sbLinks.n} – ${sbRechts.n}">${sbLinks.n}–${sbRechts.n}</span>` : team;
+        }).join('')}</div>
+        <div class="zl-goals">${[sbLinks, sbRechts].map(z => {
+          const eigen = z.knop === 'goalVoor';
+          return `<button type="button" class="zl-goalknop ${eigen ? 'eigen' : 'tegen'}" id="${z.knop}" aria-label="${eigen ? 'Doelpunt voor' : 'Tegendoelpunt voor'} ${esc(z.naam)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>${eigen ? 'Doelpunt' : 'Tegendoelpunt'}</button>`;
+        }).join('')}</div>
+      </div>
+    </section>`;
+  const zlDoelIcoon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/></svg>';
+  const zlDoelHtml = !ZL ? '' : (w.doel
+    ? `<button type="button" class="zl-veld-doel" id="zlDoel" aria-label="Wedstrijddoel wijzigen">${zlDoelIcoon}<span><b>Doel</b> ${esc(w.doel)}</span></button>`
+    : `<button type="button" class="zl-veld-doel leeg" id="zlDoel">${zlDoelIcoon}<span>Wedstrijddoel kiezen</span></button>`);
+  const zlTabsHtml = `<div class="zl-tabs" role="tablist" aria-label="Overzicht">${[['tijdlijn','Tijdlijn'],['speeltijd','Speeltijd'],['na','Na afloop']].map(([id, naam]) =>
+    `<button type="button" role="tab" id="zlTab-${id}" aria-controls="zlPaneel-${id}" aria-selected="${zlTab === id}" class="${zlTab === id ? 'aan' : ''}" data-zl-tab="${id}">${naam}</button>`).join('')}</div>`;
+
   /* Instructie in wisselmodus: zegt per stap wat je moet tikken. */
   const zlWisselHtml = (() => {
     if (!ZL || !(S._zlWissel || S.geselecteerd)) return '';
@@ -3134,13 +3169,14 @@ export function renderWedstrijd(){
     ${ZL ? '' : `<button type="button" class="zl-probeer" id="zlProbeer">
       <span class="zl-probeer-tekst"><b>Probeer het nieuwe wedstrijdscherm</b><span>Rustiger langs de zijlijn. Terug kan altijd.</span></span>
       <span class="zl-probeer-pijl" aria-hidden="true">›</span></button>`}
-    <div class="kaart doelbanner" id="doelBanner" style="${w.doel
+    ${ZL ? '' : `<div class="kaart doelbanner" id="doelBanner" style="${w.doel
       ? 'background:rgba(226,52,47,.12);border-left:3px solid var(--accent)'
       : 'background:rgba(226,52,47,.10);border-left:3px dashed var(--accent)'};font-size:calc(13.5px * var(--fs));color:var(--ink);padding:10px 12px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">${w.doel
         ? `<span class="u-t-lg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg></span><span><b>Doel:</b> ${esc(w.doel)}</span>`
-        : `<span class="u-t-lg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg></span><span><b>Wedstrijddoel kiezen</b>, tik hier om een doel voor vandaag te zetten <span class="u-c-accent u-fw-7">›</span></span>`}</div>
+        : `<span class="u-t-lg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg></span><span><b>Wedstrijddoel kiezen</b>, tik hier om een doel voor vandaag te zetten <span class="u-c-accent u-fw-7">›</span></span>`}</div>`}
 ${confroHtml}
-    <div class="scorebord v2">
+    ${zlBovenHtml}
+    ${ZL ? '' : `<div class="scorebord v2">
       <div class="sb-rij"><span class="sb-cijfers${sbPuls ? ' sb-puls' : ''}" aria-live="polite" aria-label="Stand ${sbLinks.n} – ${sbRechts.n}">${sbLinks.n} – ${sbRechts.n}</span></div>
       <div class="sb-kolommen">${[sbLinks, sbRechts].map(z => {
         const eigen = z.knop === 'goalVoor';
@@ -3150,15 +3186,15 @@ ${confroHtml}
           <button class="sb-goal ${eigen ? 'eigen' : 'tegen'}" id="${z.knop}" aria-label="${eigen ? 'Doelpunt voor' : 'Tegendoelpunt voor'} ${esc(z.naam)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>${eigen ? 'Doelpunt' : 'Tegendoelpunt'}</span></button>
         </div>`; }).join('')}
       </div>
-    </div>
+    </div>`}
 
     ${veldMelding(w, k, opVeld.size, slots.length)}
     ${(w.selectie||[]).filter(pid => speler(pid)).length < slots.length ? `<div class="waarschuwing"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4.2 21 19.4H3z"/><path d="M12 10v4.2"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></svg></span><span>Selectie heeft maar ${(w.selectie||[]).filter(pid => speler(pid)).length} spelers, je hebt er ${slots.length} nodig voor ${w.format} tegen ${w.format}.</span></div>` : ''}
 
-    <div class="kwarten" style="${(w.periodes||4) > 5 ? 'flex-wrap:wrap' : ''}">${periodeNrs(w).map(nr => {
+    ${ZL ? '' : `<div class="kwarten" style="${(w.periodes||4) > 5 ? 'flex-wrap:wrap' : ''}">${periodeNrs(w).map(nr => {
       const kk = w.kwarten[nr];
       return `<button data-kwart="${nr}" style="${(w.periodes||4) > 5 ? 'font-size:calc(14px * var(--fs));flex:1 1 20%;padding:8px 0' : ''}" class="${S.kwart===nr?'actief':''}">${periodeLabel(w, nr)}${kwartGespeeld(kk)?' •':''}</button>`;
-    }).join('')}</div>
+    }).join('')}</div>`}
 
     ${(() => {
       /* Leeg kwart na een gespeeld kwart: expliciete overneem-keuze in plaats
@@ -3170,7 +3206,7 @@ ${confroHtml}
       return `<div class="kwart-leeg-actie"><span>${esc(periodeOmschrijving(w))} heeft nog geen opstelling.</span><button id="overneemVorigKwart">⧉ Eindopstelling ${esc(periodeLabel(w, String(nr-1)))} overnemen</button></div>`;
     })()}
 
-    <div class="klok">
+    ${ZL ? '' : `<div class="klok">
       <div><div class="tijd klok-tijd-knop" id="klokTijd" title="Tik om de wedstrijdtijd handmatig in te stellen">${mmss(klokSec(k))}<span class="klok-pen">✎</span></div>
         <div class="label">${esc(periodeOmschrijving(w))}<span class="sep" aria-hidden="true"></span>max ${String(w.kwartduur).replace('.',',')} min<span class="sep" aria-hidden="true"></span><span class="klok-status${k.klok.running ? ' loopt' : ''}">${k.klok.running ? 'klok loopt' : k.klok.base > 0 ? 'gepauzeerd' : 'nog niet gestart'}</span></div></div>
       <div class="acties">
@@ -3179,13 +3215,13 @@ ${confroHtml}
         <button id="klokNaarEinde" title="Spring naar eindtijd" aria-label="Spring naar eindtijd"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 5.5v13l8-6.5z" fill="currentColor"/><path d="M17.5 5v14"/></svg></button>
         <button id="klokStart" class="primair${k.klok.running ? ' loopt' : ''}" title="${k.klok.running?'Pauze':'Start'}" aria-label="${k.klok.running?'Pauzeer de klok':'Start de klok'}">${k.klok.running ? '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>' : '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>'}</button>
       </div>
-    </div>
+    </div>`}
 
     ${ZL ? `<div class="zl-acties">
-      <button type="button" class="zl-actie wissel${S._zlWissel || S.geselecteerd ? ' aan' : ''}" id="zlWissel" aria-pressed="${!!(S._zlWissel || S.geselecteerd)}">
+      <button type="button" class="zl-actie zl-actie-wissel${S._zlWissel || S.geselecteerd ? ' aan' : ''}" id="zlWissel" aria-pressed="${!!(S._zlWissel || S.geselecteerd)}">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v14"/><path d="M3.5 14.5L7 18l3.5-3.5"/><path d="M17 20V6"/><path d="M13.5 9.5L17 6l3.5 3.5"/></svg>
         <span>Wissel</span></button>
-      <button type="button" class="zl-actie kaart" id="zlKaart"><span class="kaartje geel" aria-hidden="true"></span><span>Kaart</span></button>
+      <button type="button" class="zl-actie zl-actie-kaart" id="zlKaart"><span class="kaartje geel" aria-hidden="true"></span><span>Kaart</span></button>
     </div>
     <div class="zl-instructie-plek">${zlWisselHtml}</div>` : ''}
 
@@ -3231,7 +3267,7 @@ ${confroHtml}
         <div class="slot ${s.id==='K'?'doel':''}" data-slot="${s.id}" style="left:${s.x}%;top:${s.y}%">
           ${lineup[s.id] ? chipHtml(lineup[s.id], 'veld', s.id) : `<div class="ring">${s.id}</div>`}
         </div>`).join('')}
-    </div></div>
+    </div>${zlDoelHtml}</div>
 
     <div class="bank" id="bank">
       <div class="bank-kop"><span class="t">Wissels</span>
@@ -3253,6 +3289,7 @@ ${confroHtml}
       </div>
     </div>
 
+    ${ZL ? `${zlTabsHtml}<div class="zl-paneel" id="zlPaneel-tijdlijn" role="tabpanel" aria-labelledby="zlTab-tijdlijn"${zlTab === 'tijdlijn' ? '' : ' hidden'}>` : ''}
     ${(() => {
       const items = [
         ...k.events.map((e,i) => ({soort:'wissel', ...e, i})),
@@ -3294,7 +3331,8 @@ ${confroHtml}
       </div>`;
     })()}
 
-    <details class="uitklap" id="speeltijdUitklap"${(() => { const o = S._speeltijdOpen; S._speeltijdOpen = false; return (o || (ZL && S._zlSpeeltijdOpen)) ? ' open' : ''; })()}><summary>Speeltijd deze wedstrijd</summary>
+    ${ZL ? `</div><div class="zl-paneel" id="zlPaneel-speeltijd" role="tabpanel" aria-labelledby="zlTab-speeltijd"${zlTab === 'speeltijd' ? '' : ' hidden'}>` : ''}
+    <details class="uitklap" id="speeltijdUitklap"${(() => { const o = S._speeltijdOpen; S._speeltijdOpen = false; return (o || ZL) ? ' open' : ''; })()}><summary>Speeltijd deze wedstrijd</summary>
       ${(() => {
         /* Alle periodes naast elkaar: per periode een kolom, plus het wedstrijdtotaal.
            Spelernaam en Totaal blijven bij horizontaal scrollen staan (sticky), zodat
@@ -3353,8 +3391,10 @@ ${confroHtml}
         </div>`;
       })()}
     </details>
+    ${ZL ? '</div>' : ''}
 
     ${ZL ? `
+    <div class="zl-paneel" id="zlPaneel-na" role="tabpanel" aria-labelledby="zlTab-na"${zlTab === 'na' ? '' : ' hidden'}>
     ${afgelopen ? `<section class="zl-blok zl-na" aria-labelledby="zlNaKop">
       <div class="zl-blok-kop"><h2 id="zlNaKop">Na de wedstrijd</h2></div>
       <div class="zl-na-knoppen">
@@ -3364,7 +3404,8 @@ ${confroHtml}
         <button type="button" class="knop secundair" id="bijwerkKnop">Achteraf bijwerken</button>
       </div>
       ${zlFeedbackHtml(w)}
-    </section>` : `<p class="zl-na-hint">Verslag, evaluatie en tactiekbord komen hier na het laatste fluitsignaal.</p>`}
+    </section>` : `<p class="zl-na-hint">Verslag, evaluatie, tactiekbord en je beoordeling komen hier na het laatste fluitsignaal. Nu al nodig? Ze staan ook onder Menu.</p>`}
+    </div>
     <button type="button" class="zl-menu-onder" id="zlMenuOnder" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Menu</span><small>Opzet, verslag, tactiekbord en meer</small></button>
     ${''}
     <button class="knop fluo vol u-mt-md" id="wedstrijdKlaar">${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
@@ -3384,8 +3425,8 @@ ${confroHtml}
   /* Acties die in het oude scherm onderaan staan en in het zijlijnscherm ook in het menu. */
   const acties = {
     verslag: modalVerslag,
-    evaluatie: () => import('./teams.js?v=20261106n').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
-    tactiek: () => import('./tactiekbord.js?v=20261106n').then(m => m.openTactiekLijst(w)),
+    evaluatie: () => import('./teams.js?v=20261106p').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
+    tactiek: () => import('./tactiekbord.js?v=20261106p').then(m => m.openTactiekLijst(w)),
     bijwerk: () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); },
     sjabloon: () => bewaarWedstrijdAlsSjabloon(w),
     verwijder: async () => {
@@ -3405,6 +3446,12 @@ ${confroHtml}
     };
     { const st = v.querySelector('#zlWisselStop'); if (st) st.onclick = () => { S._zlWissel = false; S.geselecteerd = null; renderWedstrijd(); }; }
     v.querySelector('#zlKaart').onclick = modalKaart;
+    v.querySelectorAll('[data-zl-tab]').forEach(b => b.onclick = () => {
+      const tab = b.dataset.zlTab; S._zlTab = tab;
+      v.querySelectorAll('[data-zl-tab]').forEach(x => { const aan = x === b; x.classList.toggle('aan', aan); x.setAttribute('aria-selected', String(aan)); });
+      v.querySelectorAll('.zl-paneel').forEach(p => { p.hidden = p.id !== 'zlPaneel-' + tab; });
+      if (tab === 'speeltijd') v.querySelector('#speeltijdUitklap')?.dispatchEvent(new Event('toggle'));
+    });
     { const sp = v.querySelector('#speeltijdUitklap'); if (sp) sp.addEventListener('toggle', () => { S._zlSpeeltijdOpen = sp.open; }); }
     const uk = v.querySelector('#zlUndoKnop');
     if (uk){
@@ -3422,8 +3469,8 @@ ${confroHtml}
   const bsj = v.querySelector('#bewaarSjabloon');
   if (bsj) bsj.onclick = () => bewaarWedstrijdAlsSjabloon(w);
   const tbk = v.querySelector('#tactiekbordKnop');
-  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106n').then(m => m.openTactiekLijst(w));
-  v.querySelector('#doelBanner').onclick = () => toonWijzigOpzet('doel');
+  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106p').then(m => m.openTactiekLijst(w));
+  { const db = v.querySelector('#doelBanner') || v.querySelector('#zlDoel'); if (db) db.onclick = () => toonWijzigOpzet('doel'); }
   v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonKwartFormatie(); };
   { const kfk = v.querySelector('#kwartFormatieKnop'); if (kfk) kfk.onclick = toonKwartFormatie; }
   v.querySelectorAll('[data-kwart]').forEach(b => b.onclick = () => {
@@ -3435,7 +3482,7 @@ ${confroHtml}
   });
   v.querySelector('#goalVoor').onclick = modalGoalVoor;
   v.querySelector('#goalTegen').onclick = () => registreerGoal({type:'tegen'});
-  v.querySelector('#kaartKnop').onclick = modalKaart;
+  { const kk = v.querySelector('#kaartKnop'); if (kk) kk.onclick = modalKaart; }
   v.querySelector('#wedstrijdKlaar').onclick = () => {
     // Directe (flush) save — het meeste is al automatisch bewaard, maar dit
     // geeft de coach het vertrouwde "opslaan"-gevoel en dekt de laatste wijziging.
@@ -3449,7 +3496,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261106n').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261106p').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3475,7 +3522,7 @@ ${confroHtml}
       sluitModal(); bewaarWedstrijd(); renderWedstrijd();
     };
   };
-  { const kt = v.querySelector('#klokTijd'); if (kt) kt.onclick = modalKlokInstellen; }
+  { const kt = v.querySelector(ZL ? '#zlKlokKnop' : '#klokTijd'); if (kt) kt.onclick = modalKlokInstellen; }
   v.querySelector('#klokStart').onclick = klokStartPauze;
   v.querySelector('#klokReset').onclick = () => {
     if (klokSec(k) < 1){ klokReset(); return; }

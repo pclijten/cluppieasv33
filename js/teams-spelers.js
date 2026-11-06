@@ -7,32 +7,32 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc,
   getDoc, getDocs, query, where, serverTimestamp, documentId, deleteField
-} from './firebase.js?v=20261106n';
+} from './firebase.js?v=20261106p';
 import {
   S, $, $$, esc, meld, datumNL, speler, uurMin, openModal, sluitModal, modAan, isBeheerder
-} from './state.js?v=20261106n';
+} from './state.js?v=20261106p';
 import {
   niveau, niveauKleur, NIVEAUS, SKILLS, skillDomein,
   LEERCURVE, leercurveRelevant, leercurveThema, snelTag, SNEL_TAGS,
   POSITIE_GROEPEN, SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo,
   wisselReden, isToernooi
-} from './config.js?v=20261106n';
-import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261106n';
-import { isBouwCoordinator } from './coordinatoren.js?v=20261106n';
-import { ico } from './icons.js?v=20261106n';
-import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261106n';
+} from './config.js?v=20261106p';
+import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261106p';
+import { isBouwCoordinator } from './coordinatoren.js?v=20261106p';
+import { ico } from './icons.js?v=20261106p';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261106p';
 
-import { toonThemaInfo } from './teams-leerlijn.js?v=20261106n';
-import { telGebruik } from './tracker.js?v=20261106n';
-import { opkomstVoor, teltMee } from './opkomst.js?v=20261106n';
-import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261106n';
+import { toonThemaInfo } from './teams-leerlijn.js?v=20261106p';
+import { telGebruik } from './tracker.js?v=20261106p';
+import { opkomstVoor, teltMee } from './opkomst.js?v=20261106p';
+import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261106p';
 
 /* Cross-module her-render: teams.js importeert functies van hieruit, dus
    deze module mag teams.js niet statisch terug-importeren (circulaire
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261106n');
+  const m = await import('./teams.js?v=20261106p');
   m.renderTeam();
 }
 

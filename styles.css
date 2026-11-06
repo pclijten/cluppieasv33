@@ -6222,7 +6222,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .zl-acties { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--space-sm); margin-bottom: var(--space-sm); }
 .zl-actie { display: flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 60px; border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line-d); color: var(--ink); font-family: var(--font-display); font-weight: 700; font-size: var(--t-lg); transition: background-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
 .zl-actie:active { transform: scale(.98); }
-.zl-actie.wissel.aan { background: var(--accent-vlak); border-color: var(--accent-vlak); color: var(--accent-ink); }
+.zl-actie.zl-actie-wissel.aan { background: var(--accent-vlak); border-color: var(--accent-vlak); color: var(--accent-ink); }
 .zl-actie .kaartje { display: inline-block; width: 14px; height: 19px; border-radius: 3px; background: var(--amber); }
 
 .zl-instructie-plek { position: sticky; top: var(--space-xs); z-index: 6; }
@@ -6308,3 +6308,52 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .zl-fb-rij p { margin: 4px 0 0; font-size: var(--t-sm); color: var(--ink); line-height: 1.45; }
 
 :is(.zl-menu-knop, .zl-menu-onder, .zl-probeer, .zl-actie, .zl-instructie button, .zl-knop, .zl-cijfer, .zl-link, .zl-undo button, .zl-menu-item):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; transition: none; }
+
+/* ==================== Zijlijnscherm variant A: klok, kwarten, stand in één blok ==================== */
+.zl-wblok { margin-bottom: var(--space-sm); padding: var(--space-sm); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line-d); }
+.zl-klokrij { display: flex; align-items: center; gap: var(--space-xs); }
+.zl-klok { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 2px 4px; text-align: left; background: none; border: 0; color: var(--ink); }
+.zl-klok-tijd { display: inline-flex; align-items: flex-start; gap: 6px; font-family: var(--font-display); font-weight: 700; font-size: 40px; line-height: 1; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.zl-pen { color: var(--ink-2); margin-top: 4px; }
+.zl-klok-sub { font-size: var(--t-xs); color: var(--ink-2); line-height: 1.3; }
+.zl-klok-status { font-weight: 600; }
+.zl-klok-status.loopt { color: var(--ok); }
+.zl-klok-status.pauze { color: var(--warn); }
+.zl-kk { flex-shrink: 0; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line-d); color: var(--ink); }
+.zl-kk.start { width: 58px; background: var(--accent-vlak); border-color: var(--accent-vlak); color: var(--accent-ink); }
+.zl-kk.start.loopt { background: var(--ok); border-color: var(--ok); }
+.zl-kk:active, .zl-goalknop:active, .zl-kwarten button:active, .zl-tabs button:active, .zl-veld-doel:active { transform: scale(.97); }
+
+.zl-kwarten { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin-top: var(--space-sm); padding: 4px; border-radius: 12px; background: var(--surface-2); }
+.zl-kwarten.veel { grid-auto-flow: row; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.zl-kwarten button { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border-radius: 9px; background: transparent; border: 0; color: var(--ink-2); font-family: var(--font-display); font-weight: 700; font-size: var(--t-lg); }
+.zl-kwarten button svg { color: var(--ok); }
+.zl-kwarten button.aan { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+.zl-score { margin-top: var(--space-sm); padding-top: var(--space-sm); border-top: 1px solid var(--line-d); }
+.zl-teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-xs); }
+.zl-team { font-family: var(--font-display); font-weight: 600; font-size: var(--t-md); color: var(--ink-2); text-align: center; overflow-wrap: anywhere; min-width: 0; }
+.zl-scorestand { font-family: var(--font-display); font-weight: 700; font-size: 46px; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; padding: 0 var(--space-xs); }
+.zl-scorestand.zl-puls { animation: zlPuls .6s var(--ease-out); }
+@keyframes zlPuls { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.zl-goals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-sm); }
+.zl-goalknop { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 50px; padding: 0 4px; border-radius: 12px; white-space: nowrap; font-family: var(--font-display); font-weight: 700; font-size: var(--t-lg); background: var(--surface-2); border: 1px solid var(--line-d); color: var(--ink); }
+.zl-goalknop.eigen { background: var(--accent-vlak); border-color: var(--accent-vlak); color: var(--accent-ink); }
+
+.zl-veld-doel { display: flex; align-items: flex-start; gap: var(--space-xs); width: 100%; padding: 10px var(--space-sm) var(--space-sm); text-align: left; background: var(--veld-2); border: 0; border-top: 2px solid var(--line); color: var(--wit); font-size: var(--t-sm); line-height: 1.35; }
+.zl-veld-doel svg { flex-shrink: 0; margin-top: 1px; opacity: .75; }
+.zl-veld-doel b { font-weight: 600; opacity: .7; margin-right: 4px; }
+.zl-veld-doel.leeg span { opacity: .8; text-decoration: underline; text-underline-offset: 3px; }
+
+.zl-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: var(--space-md); padding: 4px; border-radius: 12px; background: var(--surface-2); }
+.zl-tabs button { min-height: 40px; border-radius: 9px; background: transparent; border: 0; color: var(--ink-2); font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+.zl-tabs button.aan { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.zl-paneel { margin-top: var(--space-sm); }
+.zl-paneel[hidden] { display: none; }
+.zl-paneel > .zl-blok:first-child { margin-top: 0; }
+#zlPaneel-speeltijd > details > summary { display: none; }
+#zlPaneel-speeltijd > details { margin-top: 0; }
+#zlPaneel-na .zl-na-hint { margin-top: var(--space-sm); }
+
+:is(.zl-klok, .zl-kk, .zl-kwarten button, .zl-goalknop, .zl-veld-doel, .zl-tabs button):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; transition: none; }
+@media (prefers-reduced-motion: reduce) { .zl-scorestand.zl-puls { animation: none; } .zl-kk:active, .zl-goalknop:active, .zl-kwarten button:active, .zl-tabs button:active, .zl-veld-doel:active { transform: none; } }
