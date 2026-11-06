@@ -6,9 +6,9 @@
    `clubs/{id}.ledenInfo`; hier maakt de beheerder iemand daarna expliciet
    trainingscoördinator. Rechtenbron: `trainingscoordinatoren.<uid> = true`.
    Importeert niets uit club.js (geen kringimport). */
-import { db, doc, updateDoc, deleteField } from './firebase.js?v=20261106m';
-import { S, esc, meld } from './state.js?v=20261106m';
-import { ico } from './icons.js?v=20261106m';
+import { db, doc, updateDoc, deleteField } from './firebase.js?v=20261106n';
+import { S, esc, meld } from './state.js?v=20261106n';
+import { ico } from './icons.js?v=20261106n';
 
 const naamKort = n => String(n || 'Naamloos').split('@')[0];
 const twee = n => naamKort(n).split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();

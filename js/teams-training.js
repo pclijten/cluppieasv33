@@ -5,22 +5,22 @@
    (naam wijzigen, teamcode, uitnodigen — modalUitnodig komt uit club.js). */
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, setDoc, getDocs, query, where, serverTimestamp
-} from './firebase.js?v=20261106m';
+} from './firebase.js?v=20261106n';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon, isBeheerder
-} from './state.js?v=20261106m';
-import { telGebruik } from './tracker.js?v=20261106m';
-import { ico } from './icons.js?v=20261106m';
+} from './state.js?v=20261106n';
+import { telGebruik } from './tracker.js?v=20261106n';
+import { ico } from './icons.js?v=20261106n';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20261106m';
-import { htmlKompas } from './teams-leerlijn.js?v=20261106m';
-import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106m';
+} from './config.js?v=20261106n';
+import { htmlKompas } from './teams-leerlijn.js?v=20261106n';
+import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106n';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
-} from './vaste-afmeldingen.js?v=20261106m';
+} from './vaste-afmeldingen.js?v=20261106n';
 
 /* ---------- Afgelaste training (banner + WhatsApp-deeltekst) ----------
    Hierheen verplaatst (i.p.v. in de hub) omdat dit uitsluitend door de

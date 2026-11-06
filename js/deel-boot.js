@@ -12,10 +12,10 @@
    lijst. firestore.rules staat schrijven op presentie voor een
    trainingToegang-sessie dan ook niet meer toe. */
 import { auth, db, signInAnonymously, doc, getDoc, setDoc,
-         collection, getDocs, query, where } from './firebase.js?v=20261106m';
-import { esc } from './state.js?v=20261106m';
-import { afwezigRedenInfo } from './config.js?v=20261106m';
-import { oefHtml, bronHtml } from './training-weergave.js?v=20261106m';
+         collection, getDocs, query, where } from './firebase.js?v=20261106n';
+import { esc } from './state.js?v=20261106n';
+import { afwezigRedenInfo } from './config.js?v=20261106n';
+import { oefHtml, bronHtml } from './training-weergave.js?v=20261106n';
 
 function schermHtml(inhoud){
   return `<div style="max-width:var(--app-w,540px);margin:0 auto;min-height:100%;padding:20px 16px calc(40px + env(safe-area-inset-bottom));box-sizing:border-box">${inhoud}</div>`;

@@ -1,11 +1,11 @@
 import {
   db, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp,
   functions, httpsCallable, query, where, getDocs
-} from './firebase.js?v=20261106m';
+} from './firebase.js?v=20261106n';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
   openModal, sluitModal, toon, stopUnsubs, modAan, bewaarPositie
-} from './state.js?v=20261106m';
+} from './state.js?v=20261106n';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
   parseFormatie, formatieBestaat, formatieNamen, aantalVeldspelers,
@@ -13,16 +13,16 @@ import {
   periodeNaam, periodeNrs, periodeLabel, toernooiWnr, periodeOmschrijving,
   CLUB_FORMATIE_11, doelSuggesties, isoWeek, SEIZOEN_FALLBACK,
   WISSEL_REDENEN, wisselReden, AFWEZIG_REDENEN, afwezigRedenInfo, slotPositieNaam
-} from './config.js?v=20261106m';
+} from './config.js?v=20261106n';
 import { kwartGespeeld, effectieveLineup, analyseKwart, analyseWedstrijd, speeltijdReserve, disciplinaireTijd,
-  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106m';
-import { ico } from './icons.js?v=20261106m';
+  analyseKwartVerwacht, analyseWedstrijdVerwacht, WISSEL_BEURT } from './analyse.js?v=20261106n';
+import { ico } from './icons.js?v=20261106n';
 
-import { telGebruik, telNav } from './tracker.js?v=20261106m';
-import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106m';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106m';
+import { telGebruik, telNav } from './tracker.js?v=20261106n';
+import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106n';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106n';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
-  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106m';
+  elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106n';
 
 /* ==================== AANMAKEN ==================== */
 function leegKwart(){ return {lineup:{}, events:[], plan:[], correcties:{}, klok:{base:0, running:false, start:0}}; }
@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261106m').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261106n').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261106m').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261106n').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2621,7 +2621,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261106m').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261106n').then(m => m.renderTeam?.());
   });
 }
 
@@ -3121,7 +3121,7 @@ export function renderWedstrijd(){
         ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.4 4h7.2v3.6a3.6 3.6 0 0 1-7.2 0z"/><path d="M8.4 5.4H5.8a2.4 2.4 0 0 0 2.6 3.2"/><path d="M15.6 5.4h2.6a2.4 2.4 0 0 1-2.6 3.2"/><path d="M12 11.2v3"/><path d="M9.2 19.8h5.6l-.7-3.6h-4.2z"/></svg> '+esc(w.tegenstander)
         : (w.thuis ? esc(S.team.naam)+' – '+esc(w.tegenstander) : esc(w.tegenstander)+' – '+esc(S.team.naam))}
       <span class="sub">${datumNL(w.datum)}<span class="sep" aria-hidden="true"></span>${isToernooi(w) ? w.toernooi.wedstrijden+' wedstrijden<span class="sep" aria-hidden="true"></span>' : ''}<span id="subFormatieKlik" class="u-klikbaar" style="text-decoration:underline dotted">${esc(kFormatie)}</span></span></h1>
-      ${ZL ? `<button class="terug opzet-knop zl-menu-knop" id="zlMenuKnop" aria-haspopup="dialog">
+      ${ZL ? `<button class="terug opzet-knop zl-menu-knop" id="zlMenuKnop" aria-haspopup="dialog" aria-label="Menu: opzet, verslag, tactiekbord en meer">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <span>Menu</span>
       </button>` : `<button class="terug opzet-knop" id="wInstellingen" title="Wedstrijd aanpassen">
@@ -3364,7 +3364,9 @@ ${confroHtml}
         <button type="button" class="knop secundair" id="bijwerkKnop">Achteraf bijwerken</button>
       </div>
       ${zlFeedbackHtml(w)}
-    </section>` : `<p class="zl-na-hint">Verslag, evaluatie en tactiekbord komen hier na het laatste fluitsignaal. Tijdens de wedstrijd staan ze onder Menu.</p>`}
+    </section>` : `<p class="zl-na-hint">Verslag, evaluatie en tactiekbord komen hier na het laatste fluitsignaal.</p>`}
+    <button type="button" class="zl-menu-onder" id="zlMenuOnder" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Menu</span><small>Opzet, verslag, tactiekbord en meer</small></button>
+    ${''}
     <button class="knop fluo vol u-mt-md" id="wedstrijdKlaar">${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
     ${zlUndoHtml}` : `
     <button class="knop fluo vol u-mt-md" id="wedstrijdKlaar" >${ico('admin-save',16)} Opslaan &amp; terug naar team</button>
@@ -3382,8 +3384,8 @@ ${confroHtml}
   /* Acties die in het oude scherm onderaan staan en in het zijlijnscherm ook in het menu. */
   const acties = {
     verslag: modalVerslag,
-    evaluatie: () => import('./teams.js?v=20261106m').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
-    tactiek: () => import('./tactiekbord.js?v=20261106m').then(m => m.openTactiekLijst(w)),
+    evaluatie: () => import('./teams.js?v=20261106n').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
+    tactiek: () => import('./tactiekbord.js?v=20261106n').then(m => m.openTactiekLijst(w)),
     bijwerk: () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); },
     sjabloon: () => bewaarWedstrijdAlsSjabloon(w),
     verwijder: async () => {
@@ -3394,6 +3396,7 @@ ${confroHtml}
   };
   if (ZL){
     v.querySelector('#zlMenuKnop').onclick = () => zlMenu(acties);
+    { const mo = v.querySelector('#zlMenuOnder'); if (mo) mo.onclick = () => zlMenu(acties); }
     v.querySelector('#zlWissel').onclick = () => {
       const aan = S._zlWissel || S.geselecteerd;
       S._zlWissel = !aan; S.geselecteerd = null;
@@ -3419,7 +3422,7 @@ ${confroHtml}
   const bsj = v.querySelector('#bewaarSjabloon');
   if (bsj) bsj.onclick = () => bewaarWedstrijdAlsSjabloon(w);
   const tbk = v.querySelector('#tactiekbordKnop');
-  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106m').then(m => m.openTactiekLijst(w));
+  if (tbk) tbk.onclick = () => import('./tactiekbord.js?v=20261106n').then(m => m.openTactiekLijst(w));
   v.querySelector('#doelBanner').onclick = () => toonWijzigOpzet('doel');
   v.querySelector('#subFormatieKlik').onclick = (e) => { e.stopPropagation(); toonKwartFormatie(); };
   { const kfk = v.querySelector('#kwartFormatieKnop'); if (kfk) kfk.onclick = toonKwartFormatie; }
@@ -3446,7 +3449,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261106m').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261106n').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));

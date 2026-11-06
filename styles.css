@@ -6209,7 +6209,13 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .zl-probeer-tekst b { font-size: var(--t-sm); }
 .zl-probeer-tekst span { font-size: var(--t-xs); color: var(--ink-2); }
 .zl-probeer-pijl { font-size: var(--t-xl); color: var(--accent); }
-.zl-menu-knop svg { width: 18px; height: 18px; }
+.terug.zl-menu-knop { height: 44px; padding: 0 var(--space-md); background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; font-size: var(--t-md); }
+.terug.zl-menu-knop svg { width: 20px; height: 20px; }
+.terug.zl-menu-knop:active { transform: scale(.97); }
+.zl-menu-onder { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--space-sm); width: 100%; min-height: 56px; margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); border-radius: var(--r-m); background: var(--surface); border: 1px solid var(--line-d); color: var(--ink); text-align: left; }
+.zl-menu-onder svg { grid-row: span 2; }
+.zl-menu-onder span { font-weight: 700; font-size: var(--t-md); }
+.zl-menu-onder small { font-size: var(--t-xs); color: var(--ink-2); }
 
 #view-wedstrijd.zijlijn .klok #kaartKnop { display: none; }
 
@@ -6301,4 +6307,4 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .zl-fb-wie .zl-fb-cijfer { margin-left: auto; font-family: var(--font-display); font-size: var(--t-lg); color: var(--ink); }
 .zl-fb-rij p { margin: 4px 0 0; font-size: var(--t-sm); color: var(--ink); line-height: 1.45; }
 
-:is(.zl-probeer, .zl-actie, .zl-instructie button, .zl-knop, .zl-cijfer, .zl-link, .zl-undo button, .zl-menu-item):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; transition: none; }
+:is(.zl-menu-knop, .zl-menu-onder, .zl-probeer, .zl-actie, .zl-instructie button, .zl-knop, .zl-cijfer, .zl-link, .zl-undo button, .zl-menu-item):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; transition: none; }

@@ -9,8 +9,8 @@
    AVG: teamniveau overal; de coach-namenlijst alleen voor beheerders.
    ====================================================================== */
 
-import { esc, isBeheerder } from './state.js?v=20261106m';
-import { ico } from './icons.js?v=20261106m';
+import { esc, isBeheerder } from './state.js?v=20261106n';
+import { ico } from './icons.js?v=20261106n';
 
 /* ---------- kleine formatteerhelpers ---------- */
 const DAG_NAMEN = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];

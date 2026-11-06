@@ -14,7 +14,7 @@
 // dan tonen we een neutraal 'ster'-icoon.
 // ================================================================
 
-import { ico } from './icons.js?v=20261106m';
+import { ico } from './icons.js?v=20261106n';
 
 /* Elke release: { maand, tag?, items:[ [icoon, titel, categorie, nieuw, tekst], ... ] }
    - icoon:     naam uit icons.js (bv. 'wedstrijd', 'training', 'grafiek')
