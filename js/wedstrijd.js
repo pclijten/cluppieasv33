@@ -20,7 +20,7 @@ import { ico } from './icons.js?v=20261106h';
 
 import { telGebruik, telNav } from './tracker.js?v=20261106h';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106h';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106i';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261106j';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
   elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261106h';
 
@@ -540,7 +540,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261106i').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261106j').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -586,7 +586,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261106i').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261106j').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2619,7 +2619,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261106i').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261106j').then(m => m.renderTeam?.());
   });
 }
 
@@ -3154,7 +3154,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261106i').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261106j').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3859,6 +3859,11 @@ function koppelSleep(v){
       const bron = chip.dataset.bron;
       if (S.geselecteerd && S.geselecteerd.pid !== pid){
         const k = huidigKwart(), l = effectieveLineup(k);
+        // Eerst de veldspeler, dan de bankspeler: de bankspeler neemt de plek van de veldspeler over.
+        if (S.geselecteerd.bron === 'veld' && bron === 'bank'){
+          const veldSlot = Object.keys(l).find(s => l[s] === S.geselecteerd.pid);
+          if (veldSlot){ plaats(pid, veldSlot); return; }
+        }
         // Als er al een speler geselecteerd is en de tik landt (deels) op een
         // LEEG veldvak dat onder het brede naam-label van deze chip uitsteekt,
         // dan bedoelt de coach dat lege vak — niet deze chip. Plaats daar.
