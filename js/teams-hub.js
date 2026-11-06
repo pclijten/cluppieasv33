@@ -10,17 +10,17 @@
    Event-koppeling gebeurt in teams.js (koppelTeamTab) — dit bestand levert
    alleen HTML + de opslaghulpjes voor de wedstrijd-presentie. Het importeert
    bewust NIET terug uit teams.js (geen circulaire import). */
-import { db, doc, updateDoc } from './firebase.js?v=20261106h';
-import { S, esc, meld, datumNL, modAan } from './state.js?v=20261106h';
-import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261106h';
-import { ico } from './icons.js?v=20261106h';
-import { analyseWedstrijd } from './analyse.js?v=20261106h';
-import { telGebruik } from './tracker.js?v=20261106h';
-import { ongelezenBerichten } from './berichten.js?v=20261106h';
-import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106h';
-import { htmlRondeBalk } from './evaluatierondes.js?v=20261106h';
-import { htmlNu } from './nu-scherm.js?v=20261106j';
-import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
+import { db, doc, updateDoc } from './firebase.js?v=20261106k';
+import { S, esc, meld, datumNL, modAan } from './state.js?v=20261106k';
+import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261106k';
+import { ico } from './icons.js?v=20261106k';
+import { analyseWedstrijd } from './analyse.js?v=20261106k';
+import { telGebruik } from './tracker.js?v=20261106k';
+import { ongelezenBerichten } from './berichten.js?v=20261106k';
+import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261106k';
+import { htmlRondeBalk } from './evaluatierondes.js?v=20261106k';
+import { htmlNu } from './nu-scherm.js?v=20261106k';
+import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261106k';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
@@ -60,6 +60,9 @@ function tegel(tab, naam, icoNaam, badge){
              : badge ? `<span class="hub-badge">${badge}</span>` : '';
   return `<button class="hub-tegel" data-hub-open="${tab}">${mark}${ico(icoNaam, 40)}<span class="hub-tnaam">${esc(naam)}</span></button>`;
 }
+
+/* Tekst van de knop die alle tegels openklapt (tussenstap startscherm, 6 nov). */
+const HUB_ALLES_LABEL = 'Alles';
 
 export function htmlHub(updInfo){
   const upd = updInfo || { ongelezen:0, nieuwsteTitel:'' };
@@ -123,6 +126,12 @@ export function htmlHub(updInfo){
     ]],
   ];
 
+  /* Tussenstap (6 nov): de tegels staan achter één knop. Het getal op die knop telt
+     de onderdelen waar iets nieuws of openstaands is; open/dicht blijft bewaard. */
+  const nieuwIn = [oefenstofOngelezen, documentenOngelezen, evalOpen, ongelezenBerichten(),
+    modAan('lijstjes') ? lijstjesOpenTotaal() : 0].filter(n => n > 0).length;
+  const allesOpen = (() => { try { return localStorage.getItem('cluppieHubAlles') === '1'; } catch(e){ return false; } })();
+
   /* Update-melding: alleen de onder-link met teller. De banner bovenaan de hub is
      bewust weg (6 nov): het startscherm blijft rustig. */
   const updLink = upd.ongelezen > 0 ? `
@@ -145,11 +154,17 @@ export function htmlHub(updInfo){
     ${htmlNu({ evaluatie: modAan('evaluaties') })}
     ${modAan('evaluaties') ? htmlRondeBalk(S._clubRondes, S.teamId, S.spelers, S.beoordelingen) : ''}
     ${htmlSelectieDashboard()}
+    <button type="button" class="hub-alles-knop" id="hubAllesKnop" aria-expanded="${allesOpen}" aria-controls="hubAlles">
+      ${ico('navigation-dashboard', 22)}<span class="hub-alles-naam">${HUB_ALLES_LABEL}</span>${nieuwIn ? `<span class="hub-alles-tel" aria-label="${nieuwIn} met iets nieuws">${nieuwIn}</span>` : ''}
+      <svg class="hub-alles-pijl" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="hub-alles" id="hubAlles"${allesOpen ? '' : ' hidden'}>
     ${secties.map(([kop, tegels]) => `
       <section class="hub-sectie">
         <div class="hub-sectie-kop">${esc(kop)}</div>
         <div class="hub-grid">${tegels.join('')}</div>
       </section>`).join('')}
+    </div>
     ${updLink}`;
 }
 

@@ -6193,3 +6193,12 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .klok .acties button.primair.loopt { background: var(--warn); }
 .klok-status { color: color-mix(in srgb, var(--wit) 70%, transparent); }
 .klok-status.loopt { color: var(--fluo); }
+
+/* ══ Tussenstap startscherm (6 nov): tegels achter "Alles" ══ */
+.hub-alles-knop { display: flex; align-items: center; gap: var(--space-sm); width: 100%; min-height: 56px; margin: var(--space-lg) 0 var(--space-md); padding: 0 var(--space-md); border: 1px solid var(--line-d); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-weight: 600; font-size: var(--t-lg); text-align: left; cursor: pointer; scroll-margin-top: var(--space-md); transition: background-color var(--dur-short) var(--ease-out); }
+.hub-alles-knop:hover { background: var(--surface-2); }
+.hub-alles-knop > svg:first-child { color: var(--ink-2); }
+.hub-alles-naam { flex: 1; }
+.hub-alles-tel { display: grid; place-items: center; min-width: 24px; height: 24px; padding: 0 var(--space-xs); border-radius: 999px; background: var(--accent-vlak); color: var(--accent-ink); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.hub-alles-pijl { color: var(--ink-2); transition: transform var(--dur-short) var(--ease-out); }
+.hub-alles-knop[aria-expanded="true"] .hub-alles-pijl { transform: rotate(180deg); }

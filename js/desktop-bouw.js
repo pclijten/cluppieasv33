@@ -8,15 +8,15 @@
    eigen teams opent desktop.js in de gewone teamschermen.
    Tekent in een eigen view (#view-dkbouw) binnen #app.
 =============================================================== */
-import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20261106h';
-import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261106h';
-import { ico } from './icons.js?v=20261106h';
-import { analyseWedstrijd } from './analyse.js?v=20261106h';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261106j';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106j';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261106j';
-import { rondeStatusTeam } from './evaluatierondes.js?v=20261106h';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261106j';
+import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20261106k';
+import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261106k';
+import { ico } from './icons.js?v=20261106k';
+import { analyseWedstrijd } from './analyse.js?v=20261106k';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261106k';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261106k';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261106k';
+import { rondeStatusTeam } from './evaluatierondes.js?v=20261106k';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261106k';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties

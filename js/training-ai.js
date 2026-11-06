@@ -16,8 +16,8 @@
 import {
   storage, sRef, uploadBytes, getDownloadURL,
   functions, httpsCallable
-} from './firebase.js?v=20261106h';
-import { laadPdfJs } from './pdf-viewer.js?v=20261106h';
+} from './firebase.js?v=20261106k';
+import { laadPdfJs } from './pdf-viewer.js?v=20261106k';
 
 /* ---------- PDF → tekst per pagina + diagram-PNG's ---------- */
 

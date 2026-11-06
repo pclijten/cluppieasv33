@@ -1,28 +1,28 @@
 import {
   db, collection, doc, addDoc, deleteDoc, updateDoc, deleteField,
   setDoc, getDocs, query, where, onSnapshot, serverTimestamp
-} from './firebase.js?v=20261106h';
+} from './firebase.js?v=20261106k';
 import {
   S, $, $$, esc, meld, datumNL, teamCode, clubAfkorting, speler, isBeheerder,
   openModal, sluitModal, toon, stopUnsubs, bewaakTerug, modAan,
   bewaarPositie, leesPositie, wisPositie
-} from './state.js?v=20261106h';
+} from './state.js?v=20261106k';
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, bouwVanCategorie, BOUWEN,
   KNVB_SEIZOEN, SEIZOEN_FALLBACK, knvbKalenderVoorTeam,
   kompasIndexVoorWeek, afwezigRedenInfo
-} from './config.js?v=20261106h';
-import { kompasTips, startContentListener } from './content.js?v=20261106h';
-import { ico } from './icons.js?v=20261106h';
+} from './config.js?v=20261106k';
+import { kompasTips, startContentListener } from './content.js?v=20261106k';
+import { ico } from './icons.js?v=20261106k';
 
-import { analyseWedstrijd } from './analyse.js?v=20261106h';
-import { telGebruik, telNav } from './tracker.js?v=20261106h';
-import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20261106h';
-import { tekenPwaBanner } from './pwa.js?v=20261106h';
+import { analyseWedstrijd } from './analyse.js?v=20261106k';
+import { telGebruik, telNav } from './tracker.js?v=20261106k';
+import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=20261106k';
+import { tekenPwaBanner } from './pwa.js?v=20261106k';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20261106j';
-import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261106j';
+} from './wedstrijd.js?v=20261106k';
+import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261106k';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
    teams.js is de dunne hub: navigatie, dispatch (renderTeam/koppelTeamTab)
@@ -34,7 +34,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20261106j')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20261106k')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlProfiel,
@@ -42,31 +42,31 @@ import {
   modalLeerpunt, toggleLeerpunt, verwijderLeerpunt, modalSpeler,
   modalUitlenen, trekUitleningIn, modalLeenOverlay, definitiefOverzetten, herberekenDossier,
   modalGast, verwijderGast, modalKoppelGast, modalNotitie, startRondeFlow,
-} from './teams-spelers.js?v=20261106j';
-import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20261106h';
-import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261106j';
+} from './teams-spelers.js?v=20261106k';
+import { htmlKompas, toonThemaInfo, toonKompasInfo, kompasItems, kompasStartIndex } from './teams-leerlijn.js?v=20261106k';
+import { modalTeamEvaluatie, htmlStatsTab, htmlTeamEvaluatieDashboard, htmlSeizoenFilter } from './teams-evaluatie.js?v=20261106k';
 import {
   htmlTeamTrainingen, htmlPresentieTraining, htmlTeamVideos, htmlInstellingen,
   modalWijzigCode, modalMijnNaam, modalPresentie, modalLaterAfgemeld, modalVasteAfmelding, stopVasteAfmelding, modalEigenDag, modalPlanDag,
   afgelastDatumTekst, afgelastWhatsappTekst, afgelastGeldig,
-} from './teams-training.js?v=20261106h';
-import { htmlTeamDocumenten } from './teams-documenten.js?v=20261106h';
+} from './teams-training.js?v=20261106k';
+import { htmlTeamDocumenten } from './teams-documenten.js?v=20261106k';
 import {
   htmlHub, htmlPresWedstrijd, presWedstrijdKeuzeHtml, presWedstrijdBewaar,
   htmlEvaluatieLijst, htmlLeerlijnOverzicht, htmlHistorieLijst,
-} from './teams-hub.js?v=20261106j';
-import { koppelNu } from './nu-scherm.js?v=20261106j';
-import { htmlHandleiding } from './teams-handleiding.js?v=20261106j';
-import { koppelElftalFilter, modalElftalToewijzen, elftalPillWedstrijd } from './elftallen.js?v=20261106h';
+} from './teams-hub.js?v=20261106k';
+import { koppelNu } from './nu-scherm.js?v=20261106k';
+import { htmlHandleiding } from './teams-handleiding.js?v=20261106k';
+import { koppelElftalFilter, modalElftalToewijzen, elftalPillWedstrijd } from './elftallen.js?v=20261106k';
 import {
   htmlLijstjes, htmlLijst, lijstTitel, koppelLijstjes, luisterLijsten, lijstPlanningItems, openLijst,
-} from './teams-lijsten.js?v=20261106h';
-import { koppelOnboardingHerstart } from './onboarding.js?v=20261106j';
-import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20261106h';
-import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20261106h';
+} from './teams-lijsten.js?v=20261106k';
+import { koppelOnboardingHerstart } from './onboarding.js?v=20261106k';
+import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBerichten } from './berichten.js?v=20261106k';
+import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20261106k';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20261106j' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20261106k' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -178,7 +178,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20261106j').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20261106k').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -190,7 +190,7 @@ export function startTeams(){
        eigen, alleen-lezen scherm i.p.v. de lege coach-app. */
     if (!snap.size && !S._traincoGeprobeerd){
       S._traincoGeprobeerd = true;
-      import('./trainco.js?v=20261106h').then(m => m.probeerTrainco()).catch(() => {});
+      import('./trainco.js?v=20261106k').then(m => m.probeerTrainco()).catch(() => {});
     }
   }, meldFout('teams'));
   const q2 = query(collection(db,'clubs'), where('admins.'+S.user.uid, '==', true));
@@ -205,7 +205,7 @@ export function startTeams(){
     S.traincoClubs = snap.docs.map(d => ({id:d.id, ...d.data()}));
     /* Net geaccepteerd en geen eigen team: direct naar het coördinatorscherm. */
     if (S._teamsGeladen && !S.teams.length && S.traincoClubs.length)
-      import('./trainco.js?v=20261106h').then(m => m.probeerTrainco()).catch(() => {});
+      import('./trainco.js?v=20261106k').then(m => m.probeerTrainco()).catch(() => {});
     if (S.team && S.teamTab === 'meer' && !S.wedstrijdId) renderTeam();
   }, () => { S.traincoClubs = []; });
   const q3 = query(collection(db,'gebruikers',S.user.uid,'gelezen'));
@@ -645,14 +645,14 @@ export function renderTeams(){
 
   v.querySelector('#uitloggen').onclick = () => { stopAlleListeners(); doSignOut(); };
   v.querySelectorAll('[data-open-team]').forEach(b => b.onclick = () => openTeam(b.dataset.openTeam));
-  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261106j').then(m => m.openClub(b.dataset.openClub)));
+  v.querySelectorAll('[data-open-club]').forEach(b => b.onclick = () => import('./club.js?v=20261106k').then(m => m.openClub(b.dataset.openClub)));
   v.querySelectorAll('[data-open-bouw]').forEach(b => b.onclick = () => {
     const [clubId, bouw] = b.dataset.openBouw.split('|');
-    import('./bouw-hub.js?v=20261106j').then(m => m.openBouwHub(clubId, bouw));
+    import('./bouw-hub.js?v=20261106k').then(m => m.openBouwHub(clubId, bouw));
   });
   const nt = v.querySelector('#nieuwTeam'); if (nt) nt.onclick = () => modalNieuwTeam();
   v.querySelector('#joinTeam').onclick = modalJoinTeam;
-  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261106j').then(m => m.modalNieuwClub());
+  const nc = v.querySelector('#nieuwClub'); if (nc) nc.onclick = () => import('./club.js?v=20261106k').then(m => m.modalNieuwClub());
 
   // Overzichtsblokjes. Bij één team openen ze direct; bij meerdere teams
   // laten ze eerst een teamkeuze zien, zodat een coach met meerdere teams niet
@@ -756,7 +756,7 @@ export function modalNieuwTeam(clubId = null){
     const ref = await addDoc(collection(db,'teams'), data);
     if (clubT) await updateDoc(doc(db,'clubs',clubT.id), {['teams.'+ref.id]: true});
     sluitModal();
-    if (clubT) import('./club.js?v=20261106j').then(m => m.openClub(clubT.id));
+    if (clubT) import('./club.js?v=20261106k').then(m => m.openClub(clubT.id));
     else openTeam(ref.id);
   };
 }
@@ -2076,6 +2076,18 @@ function koppelTeamTab(v, tab){
   if (tab === 'hub'){
     // Nu-blok bovenaan: kaart, Daarna-lijst en knoppen naar de bestaande schermen
     koppelNu(v, { zetTeamTab, openTraining: openTrainingDoc, evaluatie: modAan('evaluaties') });
+    // "Alles": de tegels open- en dichtklappen; de stand blijft bewaard
+    const allesKnop = v.querySelector('#hubAllesKnop');
+    if (allesKnop) allesKnop.onclick = () => {
+      const lijst = v.querySelector('#hubAlles'), open = lijst.hidden;
+      lijst.hidden = !open;
+      allesKnop.setAttribute('aria-expanded', String(open));
+      try { localStorage.setItem('cluppieHubAlles', open ? '1' : '0'); } catch(e){}
+      if (open){
+        const rustig = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        allesKnop.scrollIntoView({ block: 'start', behavior: rustig ? 'auto' : 'smooth' });
+      }
+    };
     // tegels → tabbladen (zetTeamTab regelt de vaste beginstand per tab)
     v.querySelectorAll('[data-hub-open]').forEach(b => b.onclick = () => {
       S._beoordeelProfiel = null;
@@ -2083,10 +2095,10 @@ function koppelTeamTab(v, tab){
     });
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20261106j').then(m => m.openChatbot());
+      import('./chatbot.js?v=20261106k').then(m => m.openChatbot());
     const tactiekKnop = v.querySelector('[data-open-tactiek]');
     if (tactiekKnop) tactiekKnop.onclick = () =>
-      import('./tactiekbord.js?v=20261106h').then(m => m.openTactiekBibliotheek());
+      import('./tactiekbord.js?v=20261106k').then(m => m.openTactiekBibliotheek());
     /* [20260928e] Selectie-dashboard (alleen teams met een 1e + 2e elftal):
        elftalfilter, spelersrij → profiel, en de toewijs-modal. */
     koppelElftalFilter(v, renderTeam);
@@ -2222,17 +2234,17 @@ function koppelTeamTab(v, tab){
       zetTeamTab(b.dataset.meerOpen);
     });
     const tcKnop = v.querySelector('[data-open-trainco]');
-    if (tcKnop) tcKnop.onclick = () => import('./trainco.js?v=20261106h').then(m => m.openVanuitApp());
+    if (tcKnop) tcKnop.onclick = () => import('./trainco.js?v=20261106k').then(m => m.openVanuitApp());
     const chatKnop = v.querySelector('[data-open-hulpchat]');
     if (chatKnop) chatKnop.onclick = () =>
-      import('./chatbot.js?v=20261106j').then(m => m.openChatbot());
+      import('./chatbot.js?v=20261106k').then(m => m.openChatbot());
     return;
   }
   if (tab === 'documenten'){
     v.querySelectorAll('[data-open-document]').forEach(r => r.onclick = async () => {
       const id = r.dataset.openDocument;
       const d = S.documenten.find(x => x.id === id);
-      const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106h');
+      const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106k');
       openPdfViewer({
         url: r.dataset.url,
         titel: d?.titel || d?.bestandsnaam || 'Document',
@@ -2491,7 +2503,7 @@ function koppelTeamTab(v, tab){
       try { await navigator.clipboard.writeText(S.team.code); meld('Code gekopieerd'); }
       catch { meld('Code: ' + S.team.code); }
     };
-    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261106j').then(m => m.modalUitnodig(S.team));
+    v.querySelector('#deelLink').onclick = () => import('./club.js?v=20261106k').then(m => m.modalUitnodig(S.team));
     const wcKnop = v.querySelector('#wijzigCode'); if (wcKnop) wcKnop.onclick = () => modalWijzigCode();
     v.querySelector('#wijzigMijnNaam').onclick = () => modalMijnNaam();
     const naamOk = v.querySelector('#iNaamOk');
@@ -2633,13 +2645,13 @@ export async function openTrainingDoc(id){
 
   const openOrigineel = async () => {
     telGebruik('document_open');
-    const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106h');
+    const { openPdfViewer } = await import('./pdf-viewer.js?v=20261106k');
     openPdfViewer({ url: t.url, titel, meta });
   };
 
   // AI-gestructureerde training → scrolbare weergave; anders de PDF-viewer.
   if (Array.isArray(t?.oefeningen) && t.oefeningen.length){
-    const { openTrainingWeergave } = await import('./training-weergave.js?v=20261106h');
+    const { openTrainingWeergave } = await import('./training-weergave.js?v=20261106k');
     openTrainingWeergave({
       titel, meta,
       oefeningen: t.oefeningen,
