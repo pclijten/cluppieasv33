@@ -8,15 +8,15 @@ import {
 } from './firebase.js?v=20261106r';
 import {
   S, $, $$, esc, meld, datumNL, speler, initialen, openModal, sluitModal, toon, isBeheerder
-} from './state.js?v=20261106r';
-import { telGebruik } from './tracker.js?v=20261106r';
+} from './state.js?v=20261107e';
+import { telGebruik } from './tracker.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
 
 import {
   CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, youtubeId, youtubeThumb, youtubeWatch,
   SEIZOEN_FALLBACK, AFWEZIG_REDENEN, afwezigRedenInfo, isoWeek
-} from './config.js?v=20261106r';
-import { htmlKompas } from './teams-leerlijn.js?v=20261106r';
+} from './config.js?v=20261107e';
+import { htmlKompas } from './teams-leerlijn.js?v=20261107e';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106r';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel

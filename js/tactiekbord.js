@@ -25,9 +25,9 @@
 
 import { db, collection, doc, addDoc, updateDoc, deleteDoc, setDoc,
          onSnapshot, serverTimestamp } from './firebase.js?v=20261106r';
-import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106r';
-import { bouwSlots } from './config.js?v=20261106r';
-import { telNav } from './tracker.js?v=20261106r';
+import { S, esc, meld, spelerNaam, spelerNr, modAan, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261107e';
+import { bouwSlots } from './config.js?v=20261107e';
+import { telNav } from './tracker.js?v=20261107e';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -209,13 +209,14 @@ export function openTactiekLijst(w){
   document.body.appendChild(host);
 
   const sluit = () => { if (unsubLijst){ unsubLijst(); unsubLijst = null; } host.remove(); };
+  terugLaag('tb-sheet-lijst', { z:1250, open: () => host.isConnected, sluit });
   host.querySelector('.tb-sluit').onclick = sluit;
   host.onclick = e => { if (e.target === host) sluit(); };
 
   if (toonLeerplein){
     host.querySelector('#tbLeerplein').onclick = () => {
       sluit();
-      import('./leerplein.js?v=20261106r').then(m => m.openLeerplein(w));
+      import('./leerplein.js?v=20261107e').then(m => m.openLeerplein(w));
     };
   }
 
@@ -304,6 +305,7 @@ function kiesPeriodeEnOpen(w){
     </div>`;
   document.body.appendChild(host);
   const sluit = () => host.remove();
+  terugLaag('tb-sheet-periode', { z:1250, open: () => host.isConnected, sluit });
   host.querySelector('.tb-sluit').onclick = sluit;
   host.onclick = e => { if (e.target === host) sluit(); };
   host.querySelectorAll('.tb-periode').forEach(b => {
@@ -722,6 +724,7 @@ export function openTactiekBibliotheek(){
   document.body.appendChild(host);
 
   const sluit = () => { if (unsubLijst){ unsubLijst(); unsubLijst = null; } host.remove(); };
+  terugLaag('tb-sheet-bibliotheek', { z:1250, open: () => host.isConnected, sluit });
   host.querySelector('.tb-sluit').onclick = sluit;
   host.onclick = e => { if (e.target === host) sluit(); };
 

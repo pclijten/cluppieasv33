@@ -20,8 +20,8 @@ import {
   db, collection, doc, query, where, getDocs, getDoc, setDoc, serverTimestamp,
   functions, httpsCallable
 } from './firebase.js?v=20261106r';
-import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106r';
-import { blokId } from './training-aantekeningen.js?v=20261106r';
+import { S, esc, isBeheerder, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261107e';
+import { blokId } from './training-aantekeningen.js?v=20261107e';
 
 let _overlay = null;
 
@@ -44,6 +44,8 @@ function bouwOverlay(){
     <div class="tnb-stage"></div>`;
   document.body.appendChild(el);
   el.querySelector('.tnb-terug').onclick = () => sluitBeheerNotities();
+  /* Hardware-terug sluit het notities-overzicht (z-index 65). */
+  terugLaag('tnb', { z:65, vast:true, open: () => el.classList.contains('open'), sluit: sluitBeheerNotities });
   el.querySelectorAll('.tnb-schakel button').forEach(b => {
     b.onclick = () => {
       el.querySelectorAll('.tnb-schakel button').forEach(x => x.classList.remove('actief'));

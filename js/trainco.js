@@ -21,12 +21,12 @@
    Rechten staan in firestore.rules (zie TRAININGSCOORDINATOR-RULES.md); dit
    bestand levert alleen de weergave. */
 import { auth, db, signOut, collection, query, where, onSnapshot, getDocs } from './firebase.js?v=20261106r';
-import { S, esc, bewaakTerug } from './state.js?v=20261106r';
-import { BOUWEN, isoWeek, youtubeId, youtubeThumb, youtubeWatch } from './config.js?v=20261106r';
-import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261106r';
-import { oefHtml, bronHtml, diagramVoorOefening, openLightbox } from './training-weergave.js?v=20261106r';
+import { S, esc, bewaakTerug, doeTerug } from './state.js?v=20261107e';
+import { BOUWEN, isoWeek, youtubeId, youtubeThumb, youtubeWatch } from './config.js?v=20261107e';
+import { bouwVanTeam, eigenBouwenVanTeam, ALLEEN_EIGEN } from './bouw-indeling.js?v=20261107e';
+import { oefHtml, bronHtml, diagramVoorOefening, openLightbox } from './training-weergave.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261106r';
+import { momentenVanTeam, DAGEN_LANG, DAGEN_KORT } from './trainingsmomenten.js?v=20261107e';
 
 const T = {
   club: null, teams: [], trainingen: [], videos: [], laden: { teams: true, trainingen: true }, fout: '',
@@ -519,7 +519,7 @@ function klik(e){
   else if (d.tcZoom){ openLightbox(d.tcZoom, d.tcZoomtitel); }
   // Zelfde weg als de terugknop van de telefoon (vangnet in state.js), zodat
   // beide altijd precies één stap teruggaan.
-  else if (b.hasAttribute('data-tc-terug')){ history.back(); }
+  else if (b.hasAttribute('data-tc-terug')){ doeTerug(); }
   else if (b.hasAttribute('data-tc-naarapp')){ sluitTrainco(); }
   else if (b.hasAttribute('data-tc-uitloggen')){
     T.unsub.forEach(u => { try { u(); } catch(err){} }); T.unsub = [];

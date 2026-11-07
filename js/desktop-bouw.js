@@ -8,15 +8,15 @@
    eigen teams opent desktop.js in de gewone teamschermen.
    Tekent in een eigen view (#view-dkbouw) binnen #app.
 =============================================================== */
-import { S, $, esc, meld, isBeheerder, toon } from './state.js?v=20261106r';
-import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261106r';
+import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=20261107e';
+import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { analyseWedstrijd } from './analyse.js?v=20261106r';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261107d';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261107d';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261107d';
-import { rondeStatusTeam } from './evaluatierondes.js?v=20261106r';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261107d';
+import { analyseWedstrijd } from './analyse.js?v=20261107e';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261107e';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261107e';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261107e';
+import { rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261107e';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -79,6 +79,17 @@ function kop(titel, acties = ''){
   return `<div class="dk-kop"><div class="dk-kruim">${esc(huidig ? clubNaamVan(huidig.clubId) + ' / ' + bouwNaamVan(huidig.bouw) : '')} / <b>${esc(titel)}</b></div><div class="dk-acties">${acties}</div></div>`;
 }
 const knop = (label, dk, extra = '', icoon = '', attr = '') => `<button class="dk-knop ${extra}" data-bk="${dk}" ${attr}>${icoon ? ico(icoon, 18) : ''}${esc(label)}</button>`;
+
+/* Hardware-terug in de bouw-omgeving (brede schermen): vanuit een teamscherm of
+   uitleningen terug naar het dashboard, vanaf het dashboard terug naar de teams. */
+terugView('dkbouw', () => {
+  if (huidig && huidig.scherm !== 'dash'){
+    huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
+    teken(); window.scrollTo(0, 0); return true;
+  }
+  import('./teams.js?v=20261107e').then(m => { m.renderTeams(); toon('teams'); });
+  return true;
+});
 
 function teken(){
   if (!huidig) return;

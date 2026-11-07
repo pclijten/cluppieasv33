@@ -17,10 +17,10 @@
    Afgestemd op JO12/JO13-niveau.
    ========================================================================== */
 
-import { esc, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106r';
-import { LEERCURVE, bouwSlots } from './config.js?v=20261106r';
+import { esc, spelerNr, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261107e';
+import { LEERCURVE, bouwSlots } from './config.js?v=20261107e';
 import { LEERINHOUD } from './leerinhoud.js?v=20261106r';
-import { telNav } from './tracker.js?v=20261106r';
+import { telNav } from './tracker.js?v=20261107e';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -241,6 +241,8 @@ function openOpstellingKiezer(){
     </div>`;
   document.body.appendChild(sheet);
   const dicht = () => sheet.remove();
+  /* Hardware-terug sluit eerst dit keuzevenster (z-index 1260). */
+  terugLaag('lp-sheet', { z:1260, open: () => sheet.isConnected, sluit: dicht });
   sheet.querySelector('.lp-sluit').onclick = dicht;
   sheet.onclick = e => { if (e.target === sheet) dicht(); };
   sheet.querySelectorAll('.lp-opst').forEach(b => {
@@ -296,5 +298,5 @@ function overnemenOpKladbord(){
   telNav('leerplein:overnemen', 'tegel');
   const w = _w;
   sluitLeerplein();
-  import('./tactiekbord.js?v=20261106r').then(m => m.openBordMet(w, objecten, tekeningen, naam));
+  import('./tactiekbord.js?v=20261107e').then(m => m.openBordMet(w, objecten, tekeningen, naam));
 }

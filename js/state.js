@@ -135,7 +135,6 @@ export function openModal(html, opties){
   bewaakTerug();
 }
 export function sluitModal(){
-  const wasOpen = $('#modalAchter').classList.contains('open');
   $('#modalAchter').classList.remove('open');
   // Inhoud leegmaken zodat een eventueel <video>/<audio>-element wordt
   // verwijderd en het geluid direct stopt — ook bij klik op de achtergrond of
@@ -145,7 +144,6 @@ export function sluitModal(){
     inhoud.querySelectorAll('video, audio').forEach(m => { try { m.pause(); } catch {} });
     inhoud.innerHTML = '';
   }
-  vangnetStilTerugAlsNodig(wasOpen);
 }
 
 /* ---------- Laatst bekeken positie (herstel na refresh) ----------
@@ -218,16 +216,36 @@ export function initGlobaleFoutafhandeling(){
 }
 
 /* ==================== TERUGKNOP / GESCHIEDENIS ====================
-   Doel: de hardware-terugknop van de telefoon sluit niet meteen de hele app,
-   maar gaat één stap terug binnen de app.
+   Doel: de hardware-terugknop van Android (en de veeg-terug) sluit niet
+   meteen de hele app, maar gaat precies één stap terug binnen de app.
 
-   Model (robuust en simpel): zodra de app "ergens binnen" zit (niet op het
-   teamsoverzicht én geen modal open), houden we precies één extra
-   history-entry vast — een "vangnet". Drukt de gebruiker op terug, dan vangt
-   onze popstate-listener dat op en voert hij één terug-stap uit volgens de
-   prioriteit hieronder. Daarna zetten we het vangnet opnieuw als er nóg iets
-   terug te gaan valt. Zo hoeven openModal/sluitModal en de losse views zich
-   nergens om history te bekommeren — alles loopt via bewaakTerug(). */
+   Model: zodra een gebruiker is ingelogd én de pagina minstens één keer is
+   aangeraakt, ligt er altijd één extra history-entry bovenop de basis: het
+   "vangnet". Drukt de gebruiker op terug, dan vangt onze popstate-listener
+   dat op en voert hij één terug-stap uit (zie stapTerug). Daarna leggen we
+   het vangnet meteen opnieuw. Zo hoeft geen enkel scherm zich om history te
+   bekommeren: een scherm hoeft alleen te zeggen hoe je er één stap uit gaat.
+
+   Waarom ALTIJD een vangnet (ook op het hoofdscherm)? Zonder vangnet sluit de
+   eerste terugtik op het hoofdscherm de app meteen, en de melding "Tik nog een
+   keer op terug om af te sluiten" kwam nooit in beeld. Nu vangt het vangnet de
+   eerste tik op; pas een tweede tik binnen 2 seconden sluit de app.
+
+   Waarom pas na een aanraking? Chrome op Android slaat history-entries over
+   die zonder gebruikersinteractie zijn toegevoegd ("history manipulation
+   intervention"). Bij een herstart met automatisch geopend team zou het
+   vangnet dus onzichtbaar zijn en sloot de app bij de eerste terugtik. Daarom
+   leggen we het vangnet pas zodra de pagina is aangeraakt.
+
+   Drie manieren om een scherm aan te sluiten:
+   1. terugLaag(sleutel, {z, open, sluit}) voor overlays, sheets en panelen.
+      De bovenste open laag (hoogste z, bij gelijke z de laatst geopende)
+      wordt als eerste gesloten. Een laag die niet meer open is ruimt zichzelf
+      op, dus vergeten uitschrijven is niet erg. z = het z-index uit styles.css.
+   2. terugView(viewId, fn) voor een heel scherm met eigen niveaus. fn doet
+      één stap omhoog en geeft true terug als dat gelukt is.
+   3. doeTerug() voor een zichtbare terugknop in de UI. Gebruik dit i.p.v.
+      history.back(): het werkt ook als het vangnet er (nog) niet ligt. */
 
 function actieveView(){
   const v = document.querySelector('.view.actief');
@@ -261,81 +279,118 @@ function leerpleinOpen(){
   return !!document.querySelector('.lp-scherm');
 }
 
-/* Zit de app op dit moment "ergens binnen", d.w.z. valt er iets terug te gaan? */
-function kanTerug(){
-  if (!S.user) return false;
-  if (tactiekbordOpen()) return true;
-  if (leerpleinOpen()) return true;
-  if (lightboxOpen()) return true;
-  if (pdfViewerOpen()) return true;
-  if (modalOpen()) return true;
-  /* [20261103] Trainingscoördinator-scherm (trainco.js) legt zijn eigen
-     terug-stappen hier neer; zo hoeft state.js trainco.js niet te importeren. */
-  if (S._traincoTerug) return S._traincoTerug.kan();
-  const view = actieveView();
-  if (view !== 'teams') return true;          // team / wedstrijd / club
-  return false;                                // op het hoofdscherm
-}
-
 let _vangnetActief = false;   // ligt het vangnet op de history-stack?
 let _afsluitGewapend = false; // eerste terugtik op hoofdscherm gehad?
-let _stilTerug = false;       // history.back() zonder navigatiestap (modal-knop)
 let _terugBezig = false;      // voorkomt herentry tijdens afhandeling
+let _terugWacht = false;      // doeTerug() wacht op de popstate van zijn history.back()
 
-/* Herbruikbare 'stille terug' voor overlays die net als de modal het vangnet
-   mogen verbruiken zonder een zichtbare navigatiestap te veroorzaken.
-   wasOpen = stond de overlay nog open vlak vóór het sluiten?
-   Bij sluiten via de eigen kruisknop (niet via de terugknop): als er nu géén
-   dieper niveau meer is dat het vangnet rechtvaardigt, halen we het vangnet
-   weg zodat de eerstvolgende terugtik niet een extra niveau "opeet".
-   Bij sluiten via de terugknop is het vangnet al verbruikt en is dit een
-   no-op (_terugBezig voorkomt dubbel werk). */
-export function vangnetStilTerugAlsNodig(wasOpen){
-  if (wasOpen && _vangnetActief && !_terugBezig){
-    _stilTerug = true;
-    history.back();
+/* ---------- Lagen die state.js zelf kent (via DOM, i.v.m. circulaire imports) ---------- */
+const STATISCHE_LAGEN = [
+  { z:1200, open: tactiekbordOpen, sluit: () => { import('./tactiekbord.js?v=20261107e').then(m => m.sluitTactiekbord()); } },
+  /* Leerplein heeft twee niveaus (themakeuze → voorbeeld): de ‹-knop weet welke stap hoort. */
+  { z:1180, open: leerpleinOpen,   sluit: () => {
+      const knop = document.querySelector('.lp-scherm #lpTerug');
+      if (knop) knop.click(); else import('./leerplein.js?v=20261107e').then(m => m.sluitLeerplein());
+  } },
+  { z:65,   open: lightboxOpen,    sluit: () => { import('./training-weergave.js?v=20261107e').then(m => m.sluitLightbox()); } },
+  { z:60,   open: pdfViewerOpen,   sluit: () => { import('./pdf-viewer.js?v=20261107e').then(m => m.sluitPdfViewer()); } },
+  { z:50,   open: modalOpen,       sluit: () => sluitModal() },
+];
+
+/* ---------- Lagen die modules zelf aanmelden ---------- */
+const _lagen = new Map();     // sleutel -> { z, open, sluit }  (oudste eerst)
+
+/* Meld een overlay/sheet/paneel aan. Aanroepen op het moment van openen.
+   Dezelfde sleutel nogmaals aanmelden vervangt de oude en zet hem bovenaan.
+   vast:true = een overlay die één keer in de DOM wordt gezet en daarna alleen
+   getoond/verborgen wordt: aanmelden bij het aanmaken volstaat, hij wordt dan
+   niet opgeruimd als open() even false geeft. */
+export function terugLaag(sleutel, { z = 50, open, sluit, vast = false }){
+  _lagen.delete(sleutel);
+  _lagen.set(sleutel, { sleutel, z, open, sluit, vast });
+  bewaakTerug();
+}
+/* Optioneel afmelden bij sluiten; een laag waarvan open() false geeft wordt
+   sowieso vanzelf opgeruimd. */
+export function terugLaagWeg(sleutel){ _lagen.delete(sleutel); }
+
+function bovensteLaag(){
+  let beste = null;
+  for (const [sleutel, l] of _lagen){
+    let open = true;
+    try { open = l.open ? !!l.open() : true; } catch(e){ open = false; }
+    if (!open){ if (!l.vast) _lagen.delete(sleutel); continue; }
+    if (!beste || l.z >= beste.z) beste = l;
   }
+  for (const l of STATISCHE_LAGEN){
+    let open = false;
+    try { open = !!l.open(); } catch(e){}
+    if (open && (!beste || l.z > beste.z)) beste = l;
+  }
+  return beste;
 }
 
-/* Zorg dat het vangnet de juiste status heeft voor de huidige UI-stand.
-   Aanroepen na elke navigatie/render/modalwissel. */
+/* ---------- Schermen met eigen niveaus ---------- */
+const _viewTerug = {};        // viewId -> () => boolean
+export function terugView(viewId, fn){ _viewTerug[viewId] = fn; }
+
+/* ---------- Het vangnet ---------- */
+/* Chrome (Android) slaat history-entries over die zijn toegevoegd zonder dat
+   de pagina ooit is aangeraakt. Browsers zonder userActivation-API: nemen we
+   gewoon aan dat het goed is. */
+function isAangeraakt(){
+  try { const ua = navigator.userActivation; return !ua || ua.hasBeenActive; }
+  catch(e){ return true; }
+}
+let _wachtOpAanraking = false;
+function wachtOpAanraking(){
+  if (_wachtOpAanraking) return;
+  _wachtOpAanraking = true;
+  const evs = ['pointerup', 'touchend', 'click', 'keydown'];
+  const fn = () => {
+    evs.forEach(e => window.removeEventListener(e, fn, true));
+    _wachtOpAanraking = false;
+    bewaakTerug();                 // legt het vangnet; of wacht opnieuw als dit nog niet telde
+  };
+  evs.forEach(e => window.addEventListener(e, fn, true));
+}
+
+/* Zorgt dat het vangnet er ligt. Aanroepen na elke navigatie/render/modalwissel
+   (toon() en openModal() doen dat al). Goedkoop en veilig om vaker aan te roepen. */
 export function bewaakTerug(){
-  if (!S.user) return;
-  if (kanTerug() && !_vangnetActief){
-    _vangnetActief = true;
-    history.pushState({ cluppie:true, vangnet:true }, '');
-  }
-  /* Als er niets meer terug te gaan valt laten we het vangnet liggen tot de
-     gebruiker daadwerkelijk terug drukt; opruimen hoeft niet en voorkomt
-     races met gelijktijdige navigatie. */
+  if (!S.user || _vangnetActief) return;
+  if (!isAangeraakt()){ wachtOpAanraking(); return; }
+  _vangnetActief = true;
+  history.pushState({ cluppie:true, vangnet:true }, '');
 }
+
+/* Bleef in gebruik bij de overlays die dit al aanriepen. Het vangnet blijft nu
+   altijd liggen, dus er valt niets meer weg te halen; de functie bestaat alleen
+   nog zodat bestaande aanroepen blijven werken. */
+export function vangnetStilTerugAlsNodig(/* wasOpen */){}
 
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20261106r').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20261107e').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */
 function stapTerug(){
-  if (tactiekbordOpen()){
-    import('./tactiekbord.js?v=20261106r').then(m => m.sluitTactiekbord());
+  /* 1. Bovenste overlay/sheet/modal. */
+  const laag = bovensteLaag();
+  if (laag){
+    try { laag.sluit(); }
+    catch(e){
+      console.error('[Cluppie] Terug: laag sluiten mislukte', e);
+      if (laag.sleutel) _lagen.delete(laag.sleutel);   // een kapotte laag mag de terugknop niet blokkeren
+    }
     return true;
   }
-  if (leerpleinOpen()){
-    import('./leerplein.js?v=20261106r').then(m => m.sluitLeerplein());
-    return true;
-  }
-  if (lightboxOpen()){
-    import('./training-weergave.js?v=20261106r').then(m => m.sluitLightbox());
-    return true;
-  }
-  if (pdfViewerOpen()){
-    import('./pdf-viewer.js?v=20261106r').then(m => m.sluitPdfViewer());
-    return true;
-  }
-  if (modalOpen()){ sluitModal(); return true; }
+  /* 2. [20261103] Trainingscoördinator-scherm (trainco.js) legt zijn eigen
+     terug-stappen hier neer; zo hoeft state.js trainco.js niet te importeren. */
   if (S._traincoTerug) return S._traincoTerug.stap();
+  /* 3. Een heel scherm, van binnen naar buiten. */
   const view = actieveView();
   if (view === 'team' && (S._beoordeelProfiel || S._leenProfiel)){
     S._beoordeelProfiel = null; S._leenProfiel = null; S._profielTab = 'overzicht';
@@ -361,7 +416,29 @@ function stapTerug(){
     S._navVerlaatTeam?.();
     return true;
   }
+  /* 4. Schermen die zichzelf aanmelden (bouw-omgeving e.d.). */
+  const vh = _viewTerug[view];
+  if (vh){
+    try { if (vh()) return true; }
+    catch(e){ console.error('[Cluppie] Terug: scherm-stap mislukte', e); return true; }
+  }
   return false; // hoofdscherm: niets meer
+}
+
+/* Voor zichtbare terugknoppen in de UI: doet hetzelfde als de hardware-knop,
+   ook als het vangnet er (nog) niet ligt. Dubbeltikken wordt genegeerd. */
+export function doeTerug(){
+  if (_terugWacht) return;
+  if (_vangnetActief){
+    _terugWacht = true;
+    setTimeout(() => { _terugWacht = false; }, 600);
+    history.back();                    // popstate doet de eigenlijke stap
+    return;
+  }
+  _terugBezig = true;
+  let afgehandeld = false;
+  try { afgehandeld = stapTerug(); } finally { _terugBezig = false; }
+  if (afgehandeld){ _afsluitGewapend = false; bewaakTerug(); }
 }
 
 /* Eén keer registreren (vanuit main.js). */
@@ -369,30 +446,27 @@ export function initTerugknop(){
   history.replaceState({ cluppie:true, basis:true }, '');
   window.addEventListener('popstate', () => {
     _vangnetActief = false;            // het vangnet is zojuist verbruikt
-    /* Stille terughaal na modal-knop: geen navigatiestap, alleen vangnet
-       opnieuw afstemmen op de huidige (ondiepere) stand. */
-    if (_stilTerug){
-      _stilTerug = false;
-      bewaakTerug();
-      return;
-    }
+    _terugWacht = false;
+    if (!S.user) return;               // niet ingelogd: de browser doet zijn gewone ding
     _terugBezig = true;
-    const afgehandeld = stapTerug();
+    let afgehandeld = false;
+    try { afgehandeld = stapTerug(); }
+    catch(e){ console.error('[Cluppie] Terug-stap mislukte', e); afgehandeld = true; }
     _terugBezig = false;
     if (afgehandeld){
       _afsluitGewapend = false;
-      bewaakTerug();                   // leg een nieuw vangnet als er nog dieper-zit
+      bewaakTerug();                   // nieuw vangnet voor de volgende tik
       return;
     }
-    // Hoofdscherm. 1A: dubbeltik om af te sluiten.
-    if (_afsluitGewapend){
-      history.back();                  // tweede tik: verlaat de pagina echt
-    } else {
-      _afsluitGewapend = true;
-      meld('Tik nog een keer op terug om af te sluiten');
-      history.pushState({ cluppie:true, basis:true }, '');
-      setTimeout(() => { _afsluitGewapend = false; }, 2000);
-    }
+    /* Hoofdscherm: dubbeltik om af te sluiten. De eerste tik toont alleen een
+       melding. We leggen het vangnet bewust NIET meteen terug: de tweede tik
+       valt dan op de basis-entry en sluit de app zoals Android dat gewend is.
+       Pas na 2 seconden (of zodra de coach ergens heen navigeert) ligt het
+       vangnet er weer. */
+    if (_afsluitGewapend) return;
+    _afsluitGewapend = true;
+    meld('Tik nog een keer op terug om af te sluiten');
+    setTimeout(() => { _afsluitGewapend = false; bewaakTerug(); }, 2000);
   });
 }
 
