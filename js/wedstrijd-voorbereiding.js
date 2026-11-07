@@ -18,11 +18,11 @@
    AVG: naar de weerdienst gaat alleen een plaatsnaam en coördinaten, geen
    spelers- of teamgegevens. Spelersnamen staan alleen op het scherm van de
    coach en nooit in de deeltekst. */
-import { db, doc, setDoc, updateDoc, getDoc, functions, httpsCallable } from './firebase.js?v=20261106r';
+import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase.js?v=20261106r';
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107a';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107b';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -315,16 +315,18 @@ function laadScout(wid, opnieuw){
   if (st && !opnieuw) return;
   /* Bij herladen het vorige rapport en een eventuele foutmelding laten staan (geen flikkering). */
   _scout.set(wid, { laden: !st?.data, data: st?.data, fout: st?.fout });
-  getDoc(doc(db, 'teams', S.teamId, 'wedstrijden', wid, 'scouting', 'laatste'))
-    .then(d => {
-      const data = d.exists() ? d.data() : null;
+  /* Via de functie lezen (Firestore-regels geven de client geen leesrecht op de
+     subcollectie scouting; de functie controleert de toegang zelf). */
+  httpsCallable(functions, 'scoutTegenstander', { timeout: 30000 })({ teamId: S.teamId, wedstrijdId: wid, lezen: true })
+    .then(res => {
+      const data = res.data || null;
       _scout.set(wid, { data, fout: _scout.get(wid)?.fout });
       /* Loopt er een zoektocht (ook als het scherm tussendoor dicht was)? Elke
          20 s opnieuw kijken tot het rapport er is. Max. 20 minuten. */
       if (data?.bezig && Date.now() - (data.bezigSinds || 0) < 20 * 60e3)
         setTimeout(() => { if (_wid === wid && S._vbTab === 'scouting' && !_scout.get(wid)?.zoekt) laadScout(wid, true); }, 20000);
     })
-    .catch(e => { console.warn('[scouting] laden mislukt', e); _scout.set(wid, { fout: 'Het rapport kon niet worden geladen. Controleer je verbinding.' }); })
+    .catch(e => { console.warn('[scouting] laden mislukt', e?.code, e?.message); _scout.set(wid, { fout: `Het rapport kon niet worden geladen (${String(e?.code || 'onbekend').replace(/^functions\//, '')}). Controleer je verbinding.` }); })
     .finally(() => { if (_wid === wid && S._vbTab === 'scouting') teken(); });
 }
 const bronRef = nrs => (nrs || []).map(n => n === 'cijfers'
@@ -517,7 +519,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261107a');
+      const m = await import('./wedstrijd.js?v=20261107b');
       m.openWedstrijd(id);
       return;
     }
