@@ -6475,3 +6475,17 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .vb-res-W-t { color: var(--ok); } .vb-res-G-t { color: var(--warn); } .vb-res-V-t { color: var(--accent); }
 .vb-bronref-c { color: var(--ink-2); font-weight: 500; }
 .vb-betrouw { margin: var(--space-xs) 0 0; font-size: var(--t-xs); color: var(--ink-2); }
+
+/* ==================== SCOUTING: FEITEN, DISCLAIMER, BRONNEN, ANALYSE (v20261107c) ==================== */
+.vb-deelkop { margin: var(--space-sm) 0 0; font-family: var(--font-display); font-size: var(--t-lg); font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--ink); }
+.vb-disclaimer { padding: var(--space-md); border-radius: 16px; border: 1.5px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, var(--card)); }
+.vb-disc-kop { display: flex; align-items: center; gap: var(--space-xs); color: var(--warn); }
+.vb-disc-kop h3 { margin: 0; font-size: var(--t-md); font-weight: 700; color: var(--ink); }
+.vb-disclaimer p { margin: var(--space-xs) 0 0; font-size: var(--t-sm); line-height: 1.45; color: var(--ink); }
+.vb-disc-niveau { color: var(--ink-2) !important; }
+.vb-bronnen-datum { list-style: none; padding-left: 0; }
+.vb-bronnen-datum li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-2xs) 0; border-bottom: 1px solid var(--line-d); }
+.vb-bronnen-datum li:last-child { border-bottom: 0; }
+.vb-bron-nr { color: var(--elf2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.vb-bron-tekst { display: flex; flex-direction: column; min-width: 0; }
+.vb-bron-datum { font-size: var(--t-xs); font-weight: 700; color: var(--ink-2); }
