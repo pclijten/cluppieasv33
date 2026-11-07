@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, getDoc, functions, httpsCallable } from './
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261106w';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107a';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -313,9 +313,17 @@ const _scout = new Map();   // wid → { laden, data, fout, zoekt }
 function laadScout(wid, opnieuw){
   const st = _scout.get(wid);
   if (st && !opnieuw) return;
-  _scout.set(wid, { laden: true });
+  /* Bij herladen het vorige rapport en een eventuele foutmelding laten staan (geen flikkering). */
+  _scout.set(wid, { laden: !st?.data, data: st?.data, fout: st?.fout });
   getDoc(doc(db, 'teams', S.teamId, 'wedstrijden', wid, 'scouting', 'laatste'))
-    .then(d => _scout.set(wid, { data: d.exists() ? d.data() : null }))
+    .then(d => {
+      const data = d.exists() ? d.data() : null;
+      _scout.set(wid, { data, fout: _scout.get(wid)?.fout });
+      /* Loopt er een zoektocht (ook als het scherm tussendoor dicht was)? Elke
+         20 s opnieuw kijken tot het rapport er is. Max. 20 minuten. */
+      if (data?.bezig && Date.now() - (data.bezigSinds || 0) < 20 * 60e3)
+        setTimeout(() => { if (_wid === wid && S._vbTab === 'scouting' && !_scout.get(wid)?.zoekt) laadScout(wid, true); }, 20000);
+    })
     .catch(e => { console.warn('[scouting] laden mislukt', e); _scout.set(wid, { fout: 'Het rapport kon niet worden geladen. Controleer je verbinding.' }); })
     .finally(() => { if (_wid === wid && S._vbTab === 'scouting') teken(); });
 }
@@ -362,10 +370,12 @@ function tabScouting(w){
   const st = _scout.get(w.id) || {};
   const zoekKnop = (label) => `<button type="button" class="knop licht" data-vb-scout ${st.zoekt ? 'disabled' : ''}>${st.zoekt ? 'Zoeken…' : esc(label)}</button>`;
   if (st.laden) return kaart('Scouting', leeg('Rapport laden…'));
-  if (st.zoekt) return kaart('Scouting', leeg(`De scout leest nu verslagen en nieuws over ${esc(w.tegenstander)} en maakt een analyse. Dit duurt twee tot vijf minuten; je kunt het scherm gerust sluiten.`));
   const d = st.data;
-  const fout = st.fout ? `<p class="vb-afwezig" role="alert">${esc(st.fout)}</p>` : '';
-  if (!d){
+  const bezigOpServer = d?.bezig && Date.now() - (d.bezigSinds || 0) < 20 * 60e3;
+  if (st.zoekt || bezigOpServer) return kaart('Scouting', leeg(`De scout leest nu verslagen en nieuws over ${esc(w.tegenstander)} en maakt een analyse. Dit duurt drie tot vijf minuten; je kunt het scherm gerust sluiten en later terugkomen.`));
+  const foutTekst = st.fout || d?.laatsteFout || '';
+  const fout = foutTekst ? `<p class="vb-afwezig" role="alert">${esc(foutTekst)}</p>` : '';
+  if (!d || !d.status){
     return kaart('Scouting', `${leeg('Nog geen scoutingrapport voor deze wedstrijd. Het rapport wordt elke donderdagavond automatisch gemaakt voor de eerstvolgende wedstrijd.')}
       ${fout}<div class="nu-acties">${zoekKnop('Nu zoeken')}</div>`);
   }
@@ -409,11 +419,16 @@ async function startScout(w){
   teken();
   telGebruik('scouting_zoeken');
   try {
-    const res = await httpsCallable(functions, 'scoutTegenstander', { timeout: 540000 })({ teamId: S.teamId, wedstrijdId: w.id });
+    const res = await httpsCallable(functions, 'scoutTegenstander', { timeout: 3600000 })({ teamId: S.teamId, wedstrijdId: w.id });
     _scout.set(w.id, { data: { ...res.data, gemaaktMs: res.data?.gemaaktMs || Date.now() } });
   } catch (e){
-    const m = String(e?.message || '');
-    _scout.set(w.id, { ...st, zoekt: false, fout: m && !/internal/i.test(m) ? m : 'Zoeken mislukt. Probeer het later opnieuw.' });
+    /* Toon de melding van de server; alleen bij een kale technische code een eigen tekst (met code, voor het log). */
+    const m = String(e?.message || '').trim(), code = String(e?.code || '').replace(/^functions\//, '');
+    const kaal = !m || /^(internal|deadline-exceeded|unavailable|unknown)$/i.test(m);
+    _scout.set(w.id, { ...st, zoekt: false, fout: kaal
+      ? `Zoeken mislukt (${code || 'onbekend'}). Kijk over een paar minuten of het rapport er toch is, of probeer het opnieuw.`
+      : m });
+    laadScout(w.id, true);   // misschien is het rapport op de server wel gelukt
   }
   if (_wid === w.id && S._vbTab === 'scouting') teken();
 }
@@ -502,7 +517,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261106w');
+      const m = await import('./wedstrijd.js?v=20261107a');
       m.openWedstrijd(id);
       return;
     }
