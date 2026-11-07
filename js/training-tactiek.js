@@ -69,7 +69,7 @@ function tekenPerOefening(){
 
 function openBord(oefIdx, oefTitel){
   const bord = _ctx.borden[oefIdx] || null;
-  import('./tactiekbord.js?v=20261106r').then(m => {
+  import('./tactiekbord.js?v=20261107e').then(m => {
     m.openOefeningBord({
       trainingId: _ctx.trainingId,
       oefIdx,

@@ -22,7 +22,7 @@
 import {
   db, collection, doc, addDoc, deleteDoc, query, where, getDocs, serverTimestamp
 } from './firebase.js?v=20261106r';
-import { S, esc, meld } from './state.js?v=20261106r';
+import { S, esc, meld, terugLaag } from './state.js?v=20261107e';
 
 /* Interne toestand voor de op dit moment geopende training. */
 let _actief = null;   // { teamId, trainingId, stage, laagAan, notities:[], actiefItem, veldRefs }
@@ -264,6 +264,8 @@ function openMenu(item){
   // plaats menu na de <li> of <p>
   const na = item.closest('li') || item;
   na.after(menu);
+  /* Hardware-terug sluit eerst dit regelmenu. */
+  terugLaag('regelmenu', { z:46, open: () => menu.isConnected, sluit: sluitMenu });
   menu.querySelectorAll('button').forEach(b => {
     b.onclick = (e) => { e.stopPropagation(); menuActie(b.dataset.a, item); };
   });
@@ -327,6 +329,8 @@ function openInvoer(type, item){
   const inv = overlay.querySelector('.trw-vel-in');
   setTimeout(() => inv.focus(), 100);
   const sluit = () => overlay.remove();
+  /* Hardware-terug sluit het invoer-vel (z-index 70). */
+  terugLaag('vel', { z:70, open: () => overlay.isConnected, sluit });
   overlay.querySelector('.trw-vel-annuleer').onclick = sluit;
   overlay.addEventListener('click', e => { if (e.target === overlay) sluit(); });
   overlay.querySelector('.trw-vel-opslaan').onclick = async () => {

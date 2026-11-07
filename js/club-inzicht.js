@@ -9,7 +9,7 @@
    AVG: teamniveau overal; de coach-namenlijst alleen voor beheerders.
    ====================================================================== */
 
-import { esc, isBeheerder } from './state.js?v=20261106r';
+import { esc, isBeheerder, terugLaag } from './state.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
 
 /* ---------- kleine formatteerhelpers ---------- */
@@ -280,6 +280,8 @@ function bouwRapportOverlay(){
     <iframe class="rapport-frame" title="Rapport"></iframe>`;
   document.body.appendChild(el);
   el.querySelector('.rapport-sluit').onclick = () => sluitRapport();
+  /* Hardware-terug sluit het rapport (z-index 9000). */
+  terugLaag('rapport', { z:9000, vast:true, open: () => el.classList.contains('open'), sluit: sluitRapport });
   _rapportOverlay = el;
   return el;
 }

@@ -29,7 +29,7 @@
    onderaan). */
 
 import { db, doc, getDoc, setDoc } from './firebase.js?v=20261106r';
-import { S, $, $$, esc, meld, modAan, toon } from './state.js?v=20261106r';
+import { S, $, $$, esc, meld, modAan, toon, terugLaag } from './state.js?v=20261107e';
 
 /* ---------- Rollen ----------
    Iedere rol krijgt alleen hoofdstukken waarvan de 'rollen'-set de rol bevat.
@@ -86,7 +86,7 @@ function naarTab(tab){
       // Onderbalk niet in beeld (bv. wedstrijdscherm of teamsoverzicht):
       // zet de tab direct, render en toon de team-view expliciet.
       S.teamTab = tab;
-      import('./teams.js?v=20261107d').then(m => { m.renderTeam?.(); toon('team'); });
+      import('./teams.js?v=20261107e').then(m => { m.renderTeam?.(); toon('team'); });
     }
     const t0 = performance.now();
     (function wacht(){
@@ -159,7 +159,7 @@ async function zorgWedstrijdOpen(){
   const eersteId = (S.wedstrijden[0]||{}).id;
   if (!eersteId) return false;
   let m;
-  try { m = await import('./wedstrijd.js?v=20261107d'); }
+  try { m = await import('./wedstrijd.js?v=20261107e'); }
   catch(e){ console.warn('[ob] kon wedstrijd.js niet laden', e); return false; }
   m.openWedstrijd?.(eersteId);
   await wachtOpElement(() => document.querySelector('#view-wedstrijd.actief'), 2000);
@@ -171,7 +171,7 @@ async function zorgWedstrijdOpen(){
 async function verlaatWedstrijd(){
   if (!wedstrijdOpen()) return;
   try {
-    const m = await import('./wedstrijd.js?v=20261107d');
+    const m = await import('./wedstrijd.js?v=20261107e');
     m.sluitWedstrijd?.('wedstrijden');
   } catch(e){
     console.warn('[ob] sluitWedstrijd faalde, val terug op terugknop', e);
@@ -203,7 +203,7 @@ export const ONBOARDING_STAPPEN = [
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        try { const t = await import('./teams.js?v=20261107d'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
+        try { const t = await import('./teams.js?v=20261107e'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
@@ -459,7 +459,7 @@ export const ONBOARDING_STAPPEN = [
     hfd:'instellingen', hfdNaam:'Uitnodigen', emoji:'📲', rollen:['coach'],
     titel:'Coaches uitnodigen',
     tekst:'Hier vind je de <b>teamcode</b> en een <b>uitnodigingslink</b>. Deel die via WhatsApp en collega-coaches sluiten met één tik aan.',
-    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261107d'); m.renderTeam?.();
+    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261107e'); m.renderTeam?.();
       await wachtOpElement(() => document.querySelector('#view-team #deelLink, #view-team #deelCode')); },
     doel:() => document.querySelector('#view-team #deelLink, #view-team #deelCode'),
     optioneelAls:() => !document.querySelector('#view-team #deelLink, #view-team #deelCode'),
@@ -854,6 +854,9 @@ function toonIntro(bekendeRol){
     <button class="ob-intro-skip" id="obSkip">Overslaan, ik red me wel</button>`;
   document.body.appendChild(intro);
   requestAnimationFrame(() => intro.classList.add('aan'));
+  /* Hardware-terug op het introscherm = "later": weg zonder te onthouden dat de rondleiding is overgeslagen. */
+  terugLaag('ob-intro', { z:4006, open: () => intro.isConnected && intro.classList.contains('aan'),
+    sluit: () => { intro.classList.remove('aan'); setTimeout(() => intro.remove(), 400); } });
 
   document.getElementById('obStart').onclick = () => {
     intro.classList.remove('aan');
@@ -929,6 +932,8 @@ function voltooien(){
     <button class="ob-intro-start" id="obKlaarOk">Aan de slag <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4"/><path d="M12 4.6v14.8"/><circle cx="12" cy="12" r="2.8"/></svg></button>`;
   document.body.appendChild(scherm);
   requestAnimationFrame(() => scherm.classList.add('aan'));
+  terugLaag('ob-klaar', { z:4008, open: () => scherm.isConnected && scherm.classList.contains('aan'),
+    sluit: () => document.getElementById('obKlaarOk')?.click() });
   confetti();
   document.getElementById('obKlaarOk').onclick = () => {
     scherm.classList.remove('aan'); setTimeout(() => scherm.remove(), 400);
@@ -1023,6 +1028,7 @@ function openCoach(){
     });
   }
   requestAnimationFrame(() => achter.classList.add('open'));
+  terugLaag('ob-coach', { z:4010, open: () => achter.classList.contains('open'), sluit: sluitCoach });
 }
 function sluitCoach(){ document.getElementById('obCoachAchter')?.classList.remove('open'); }
 function coachMsg(html, wie){

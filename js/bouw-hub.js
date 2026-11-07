@@ -20,17 +20,17 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20261106r';
+import { S, esc, meld, openModal, sluitModal, isBeheerder, terugLaag } from './state.js?v=20261107e';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
-import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261106r';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261107d';
-import { telGebruik } from './tracker.js?v=20261106r';
-import { analyseWedstrijd } from './analyse.js?v=20261106r';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261107e';
+import { telGebruik } from './tracker.js?v=20261107e';
+import { analyseWedstrijd } from './analyse.js?v=20261107e';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
-import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261106r';
+import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
 
 /* [20260929a] Voortgang van de "verplichte" evaluatie per team: de lopende
    evaluatieronde van de club als die er is, anders (zoals voorheen) de
@@ -71,6 +71,10 @@ function bouwLaag(){
     </div>`;
   document.body.appendChild(el);
   laag = el;
+  /* Hardware-terug doet hetzelfde als de ‹-knop van het huidige niveau
+     (zetKop zet daar per niveau de juiste actie op). */
+  terugLaag('bouwhub', { z:45, vast:true, open: () => el.style.display !== 'none',
+    sluit: () => { const k = el.querySelector('#bouwhubTerugStap'); if (k) k.click(); else sluitBouwHub(); } });
   return el;
 }
 export function sluitBouwHub(){ if (laag) laag.style.display = 'none'; }
@@ -202,7 +206,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261107d'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261107e'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -847,7 +851,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261107d');
+      const m = await import('./teams.js?v=20261107e');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });

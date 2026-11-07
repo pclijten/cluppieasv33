@@ -13,7 +13,7 @@
    Zelfde overlay-aanpak en terug-bewaking als de andere fullscreen-weergaven. */
 
 import { db, doc, updateDoc } from './firebase.js?v=20261106r';
-import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld } from './state.js?v=20261106r';
+import { bewaakTerug, vangnetStilTerugAlsNodig, esc, meld, terugLaag } from './state.js?v=20261107e';
 
 let _overlay = null;
 let _ctx = null;   // { trainingId, oefeningen, origPerPagina }
@@ -36,6 +36,8 @@ function bouwOverlay(){
   el.querySelector('.trb-terug').onclick = () => sluitTrainingBewerken();
   el.querySelectorAll('.trb-modus button').forEach(b =>
     b.onclick = () => zetModus(b.dataset.modus));
+  /* Hardware-terug sluit de bewerk-weergave (z-index 62). */
+  terugLaag('trb', { z:62, vast:true, open: () => el.classList.contains('open'), sluit: sluitTrainingBewerken });
   _overlay = el;
   return el;
 }

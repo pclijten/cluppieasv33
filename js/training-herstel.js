@@ -103,7 +103,7 @@ export function koppelDiagramHerstel(v, trainingen, api){
     const toon = tekst => { if (uit) uit.textContent = tekst; };
 
     let ai;
-    try { ai = await import('./training-ai.js?v=20261106r'); }
+    try { ai = await import('./training-ai.js?v=20261107e'); }
     catch(e){
       console.error('[herstel] training-ai laden mislukt', e);
       toon('Laden mislukt. Ververs de pagina en probeer het opnieuw.');

@@ -19,9 +19,9 @@
    ============================================================================ */
 
 import { functions, httpsCallable } from './firebase.js?v=20261106r';
-import { S, esc } from './state.js?v=20261106r';
-import { telGebruik } from './tracker.js?v=20261106r';
-import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261107d';
+import { S, esc, terugLaag, terugLaagWeg } from './state.js?v=20261107e';
+import { telGebruik } from './tracker.js?v=20261107e';
+import { startOnboarding, startOnboardingHoofdstuk, heeftOnboardingHoofdstuk } from './onboarding.js?v=20261107e';
 
 /* Sessiegeschiedenis — leeft alleen zolang de app open is. */
 let berichten = [];   // [{role:'user'|'assistant', content:'...'}]
@@ -94,9 +94,11 @@ function openChat(){
     toonChips(START_CHIPS);
   }
   achter.classList.add('open');
+  /* Hardware-terug sluit de hulpchat (z-index 5000, boven alles). */
+  terugLaag('chat', { z:5000, open: () => achter.classList.contains('open'), sluit: sluitChat });
   setTimeout(() => document.getElementById('cbInput')?.focus(), 300);
 }
-function sluitChat(){ document.getElementById('cbAchter')?.classList.remove('open'); }
+function sluitChat(){ document.getElementById('cbAchter')?.classList.remove('open'); terugLaagWeg('chat'); }
 
 function toonChips(lijst){
   const c = document.getElementById('cbChips');

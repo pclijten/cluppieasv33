@@ -14,11 +14,11 @@
    teams-training.js, de wedstrijdpresentie in de hub en de wedstrijd zelf.
    Geen locatie/GPS: dat vraagt toestemming en hoort niet ongevraagd in de app.
    Wel de wedstrijdplek: sportpark met routelink (uit), veld en kleedkamer. */
-import { S, esc } from './state.js?v=20261106r';
+import { S, esc } from './state.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { afwezigRedenInfo, isoWeek } from './config.js?v=20261106r';
+import { afwezigRedenInfo, isoWeek } from './config.js?v=20261107e';
 import { bepaalNu, evenementen } from './nu-context.js?v=20261106r';
-import { momentenVanTeam } from './trainingsmomenten.js?v=20261106r';
+import { momentenVanTeam } from './trainingsmomenten.js?v=20261107e';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
 import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106r';
 
@@ -371,16 +371,16 @@ export function koppelNu(v, ctx){
     const pt = ev.target.closest('[data-nu-pres-training]');
     if (pt){
       const datum = pt.dataset.nuPresTraining, rec = S.presentie.find(p => p.datum === datum) || null;
-      const m = await import('./teams-training.js?v=20261106r');
+      const m = await import('./teams-training.js?v=20261107e');
       m.modalPresentie(rec, rec ? {} : { datum });
       return;
     }
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261107d'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261107e'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261107d'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261107e'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

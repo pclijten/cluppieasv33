@@ -21,7 +21,7 @@
    naar een export. */
 
 import { db, doc, updateDoc, storage, sRef, uploadBytes, getDownloadURL, deleteObject } from './firebase.js?v=20261106r';
-import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261106r';
+import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261107e';
 
 const MAX_BYTES = 100 * 1024 * 1024;   // 100 MB
 const TOEGESTAAN = ['video/mp4', 'video/quicktime', 'video/webm'];   // mp4, mov, webm
@@ -291,6 +291,8 @@ function bouwPopup(){
   document.body.appendChild(el);
   el.querySelector('.trw-vpop-sluit').onclick = () => sluitPopup();
   el.addEventListener('click', e => { if (e.target === el) sluitPopup(); });
+  /* Hardware-terug sluit de video-popup (z-index 80). */
+  terugLaag('vpop', { z:80, vast:true, open: () => el.classList.contains('open'), sluit: sluitPopup });
   _pop = el;
   return el;
 }

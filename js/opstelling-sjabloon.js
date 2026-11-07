@@ -23,13 +23,13 @@
 import { db, collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot, serverTimestamp } from './firebase.js?v=20261106r';
 import {
   S, esc, meld, speler, spelerNaam, spelerNr,
-  bewaakTerug, vangnetStilTerugAlsNodig
-} from './state.js?v=20261106r';
+  bewaakTerug, vangnetStilTerugAlsNodig, terugLaag
+} from './state.js?v=20261107e';
 import {
   FORMATIES, bouwSlots, LIJN_NAAM, parseFormatie,
   formatieBestaat, formatieNamen
-} from './config.js?v=20261106r';
-import { telGebruik, telNav } from './tracker.js?v=20261106r';
+} from './config.js?v=20261107e';
+import { telGebruik, telNav } from './tracker.js?v=20261107e';
 
 /* ---------- helpers ---------- */
 
@@ -106,6 +106,8 @@ function bouwOverlay(){
     <div class="sj-stage"></div>`;
   document.body.appendChild(el);
   el.querySelector('.sj-terug').onclick = () => sluitOverlay();
+  /* Hardware-terug sluit het sjabloonscherm (z-index 60). */
+  terugLaag('sj', { z:60, vast:true, open: () => el.classList.contains('open'), sluit: sluitOverlay });
   _ov = el;
   return el;
 }
@@ -500,6 +502,8 @@ function bouwSheet(){
   document.body.appendChild(el);
   el.querySelector('.sj-sheet-sluit').onclick = () => sluitSheet();
   el.addEventListener('click', e => { if (e.target === el) sluitSheet(); });
+  /* Hardware-terug sluit de keuzelijst eerst (z-index 70, boven het sjabloonscherm). */
+  terugLaag('sj-sheet', { z:70, vast:true, open: () => el.classList.contains('open'), sluit: sluitSheet });
   _sheet = el;
   return el;
 }
@@ -605,7 +609,7 @@ function bevestigToepassen(sj, wid){
     // sluit het sjabloonscherm zodat de coach de bijgewerkte wedstrijd ziet
     sluitOverlay();
     // open de wedstrijd zodat het resultaat direct zichtbaar is
-    import('./wedstrijd.js?v=20261107d').then(m => m.openWedstrijd(wid)).catch(() => {});
+    import('./wedstrijd.js?v=20261107e').then(m => m.openWedstrijd(wid)).catch(() => {});
   }).catch(e => meld('Opslaan mislukt: ' + (e.code || e.message)));
 }
 
