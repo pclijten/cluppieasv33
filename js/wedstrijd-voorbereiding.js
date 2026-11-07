@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107b';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107c';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -386,7 +386,7 @@ function tabScouting(w){
       <div><b>Gezocht ${esc(gemaaktTekst(d))}</b><span class="vb-zacht">${d.bronnen?.length || 0} bronnen${d.gelezen ? `, ${d.gelezen} volledig gelezen` : ''} · elke donderdag automatisch</span></div>
       ${zoekKnop('Opnieuw')}</div>
       ${oud ? '<p class="vb-afwezig">Dit is een kort rapport van de eerste versie. Tik op Opnieuw voor de uitgebreide analyse.</p>' : ''}`;
-  if (d.status !== 'klaar') return `${status}${fout}${cijfersHtml(d.cijfers)}${kaart('In het kort', leeg('Er is weinig openbare informatie gevonden over deze tegenstander.'))}`;
+  if (d.status !== 'klaar') return `${status}${fout}<h3 class="vb-deelkop">Feiten uit Sportlink en Cluppie</h3>${cijfersHtml(d.cijfers)}<h3 class="vb-deelkop">AI-analyse</h3>${kaart('In het kort', leeg('Er is weinig openbare informatie gevonden over deze tegenstander.'))}`;
   const blok = (kop, html) => html ? kaart(kop, html) : '';
   const b = d.betrouwbaarheid;
   const spelers = (d.spelers || []).length ? `<ul class="vb-spelers">${d.spelers.map(x => `<li><span class="vb-nr vb-nr-zacht">${x.rugnummer ?? '·'}</span>
@@ -395,12 +395,30 @@ function tabScouting(w){
   const nieuws = (d.nieuws || []).length ? `<ul class="vb-nieuws">${d.nieuws.map(x => `<li>${x.datum ? `<span class="vb-zacht">${esc(datumLang(x.datum))}</span>` : ''}<span>${esc(x.tekst)} ${bronRef(x.bronnen)}</span></li>`).join('')}</ul>` : '';
   const plan = (d.plan || []).length ? `<ol class="vb-punten">${d.plan.map((x, i) => `<li><span class="vb-nr">${i + 1}</span><span class="vb-punt">${esc(x.tekst)}</span></li>`).join('')}</ol>
       <p class="vb-bron">Afgeleid uit de analyse hierboven. Neem over in je Aandachtspunten onder Plan als je het eens bent.</p>` : '';
-  const bronnen = `<ol class="vb-bronnen">${(d.bronnen || []).map(x => `<li id="vbBron${x.nr}"><a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.titel)}</a> <span class="vb-zacht">· ${esc(x.site)}${x.datum ? ' · ' + esc(datumLang(x.datum)) : ''}</span></li>`).join('')}</ol>`;
+  /* Bronnen met datum vooraan, zodat de coach direct ziet hoe actueel de analyse is. */
+  const datumKort = iso => { const t = new Date(iso + 'T12:00'); return `${t.getDate()} ${MAAND[t.getMonth()].slice(0, 3)} ${t.getFullYear()}`; };
+  const bronnen = (d.bronnen || []).length ? `<ol class="vb-bronnen vb-bronnen-datum">${d.bronnen.map(x => `<li id="vbBron${x.nr}">
+      <span class="vb-bron-nr">[${x.nr}]</span>
+      <span class="vb-bron-tekst"><span class="vb-bron-datum">${x.datum ? esc(datumKort(x.datum)) : 'datum onbekend'}</span>
+        <a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.titel)}</a>
+        <span class="vb-zacht">${esc(x.site)}</span></span></li>`).join('')}</ol>` : leeg('Geen bevestigde bronnen gevonden.');
+  /* [20261107c] Volgorde op verzoek: eerst de feiten (Sportlink en Cluppie),
+     dan een duidelijke disclaimer, dan de gebruikte bronnen met datum, en pas
+     daaronder de AI-analyse. */
+  const niveauTekst = { hoog: 'hoog', middel: 'middel', laag: 'laag' }[b?.niveau] || 'onbekend';
+  const disclaimer = `<section class="vb-disclaimer" role="note" aria-labelledby="vbDiscKop">
+      <div class="vb-disc-kop">${ico('action-info', 20)}<h3 id="vbDiscKop">Vanaf hier: AI-analyse, niet gecontroleerd</h3></div>
+      <p>Dit deel is automatisch gemaakt door AI uit openbare wedstrijdverslagen en nieuws. Het kan fouten bevatten, verouderd zijn of informatie over een ander team of seizoen door elkaar halen. Gebruik het als startpunt, niet als feit, en controleer belangrijke punten via de bronnen hieronder.</p>
+      <p class="vb-disc-niveau">Betrouwbaarheid volgens de scout: <b>${esc(niveauTekst)}</b>${b?.tekst ? `. ${esc(b.tekst)}` : ''}</p>
+    </section>`;
   return `${status}${fout}
-    ${blok('In het kort', d.kort ? `<p class="vb-tekst">${esc(d.kort)} ${bronRef(d.kortBronnen)}</p>
-      ${b?.niveau ? `<p class="vb-betrouw">Betrouwbaarheid: <b>${esc(b.niveau)}</b>${b.tekst ? '. ' + esc(b.tekst) : ''}</p>` : ''}` : '')}
-    ${blok('Wedstrijdplan', plan)}
+    <h3 class="vb-deelkop">Feiten uit Sportlink en Cluppie</h3>
     ${cijfersHtml(d.cijfers)}
+    ${disclaimer}
+    <h3 class="vb-deelkop">AI-analyse</h3>
+    ${kaart('Gebruikte bronnen', bronnen)}
+    ${blok('In het kort', d.kort ? `<p class="vb-tekst">${esc(d.kort)} ${bronRef(d.kortBronnen)}</p>` : '')}
+    ${blok('Wedstrijdplan', plan)}
     ${blok('Systeem en vaste spelers', d.systeem ? `<p class="vb-tekst">${esc(d.systeem.tekst)} ${bronRef(d.systeem.bronnen)}</p>` : '')}
     ${blok('In balbezit', itemLijst(d.inBalbezit))}
     ${blok('Tegen balbezit', itemLijst(d.tegenBalbezit))}
@@ -411,10 +429,9 @@ function tabScouting(w){
     ${blok('Patronen in wedstrijden', itemLijst(d.patronen))}
     ${blok(oud ? 'Speelwijze volgens verslagen' : '', oud ? itemLijst(d.speelwijze) : '')}
     ${blok('Opvallende spelers in de verslagen', spelers)}
-    ${blok('Nieuws rond de club', nieuws)}
-    ${blok('Bronnen', bronnen)}
-    <p class="vb-bron">${ico('action-info', 16)}Samengesteld door AI uit openbare bronnen en de cijfers van Sportlink. Controleer bij twijfel de bron.</p>`;
+    ${blok('Nieuws rond de club', nieuws)}`;
 }
+
 async function startScout(w){
   const st = _scout.get(w.id) || {};
   _scout.set(w.id, { ...st, zoekt: true, fout: null });
@@ -519,7 +536,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261107b');
+      const m = await import('./wedstrijd.js?v=20261107c');
       m.openWedstrijd(id);
       return;
     }
