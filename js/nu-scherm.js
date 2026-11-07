@@ -232,14 +232,16 @@ function kaartHtml(c, nu){
     const klok = `<p class="nu-klok"><span class="nu-klok-sub">${st.bezigNr ? `Periode ${st.bezigNr} loopt` : st.gestart ? 'Klok staat stil' : 'Nog niet gestart'}</span></p>`;
     return `${kop(tag('Live', 'live'))}${titel(esc(w.tegenstander || 'Wedstrijd'))}
       ${bord(links, rechts, a, b, klok)}
-      ${acties(knop('Open de wedstrijd', 'football-substitution', `data-nu-wedstrijd="${esc(w.id)}"`, true))}`;
+      ${acties(knop('Open de wedstrijd', 'football-substitution', `data-nu-wedstrijd="${esc(w.id)}"`, true),
+        knop('Voorbereiding', 'match-opponent', `data-nu-voorbereiding="${esc(w.id)}"`, false))}`;
   }
   if (c.soort === 'na'){
     const [a, b] = stand(w);
     return `${kop(tag('Wedstrijd afgelopen', 'ok'))}${titel('Eindstand')}
       ${bord(w.thuis ? S.team.naam : w.tegenstander, w.thuis ? w.tegenstander : S.team.naam, a, b)}
       ${acties(c.evaluatie ? knop('Evaluatie invullen', 'attendance-evaluatie', 'data-nu-tab="evaluatie"', true) : '',
-        knop('Open de wedstrijd', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, !c.evaluatie))}`;
+        knop('Open de wedstrijd', 'football-lineup', `data-nu-wedstrijd="${esc(w.id)}"`, !c.evaluatie),
+        knop('Voorbereiding', 'match-opponent', `data-nu-voorbereiding="${esc(w.id)}"`, false))}`;
   }
   if (c.soort === 'wedstrijd' || c.soort === 'dagervoor'){
     const ok = opstellingKlaar(w);
@@ -376,9 +378,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261107c'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261107d'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261107c'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261107d'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

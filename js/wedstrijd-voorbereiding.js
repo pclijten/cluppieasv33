@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261106r';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261106r';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107c';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261107d';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -154,7 +154,10 @@ function tabTegenstander(w){
   }
 
   const bron = S.pouleStand?.bijgewerkt || S.pouleProgramma?.bijgewerkt;
-  return `${kaart('Stand in de poule', standHtml)}
+  /* [20261107d] Teams zonder Scouting-tab krijgen hier de volledige Sportlink-
+     analyse (zonder AI), opgehaald via de functie scoutTegenstander. */
+  const slAnalyse = isEersteElftal(S.team) ? '' : sportlinkAnalyseHtml(w);
+  return `${slAnalyse}${kaart('Stand in de poule', standHtml)}
     ${kaart('Vorm, laatste 5 (oud naar nieuw)', vormHtml)}
     ${kaart('Vorige ontmoeting', vorigeHtml)}
     <p class="vb-bron">${ico('action-info', 16)}Stand en uitslagen uit Sportlink${bron ? '' : ', ververst met de nachtelijke sync'}.</p>`;
@@ -432,6 +435,22 @@ function tabScouting(w){
     ${blok('Nieuws rond de club', nieuws)}`;
 }
 
+const _cijfers = new Map();   // wid → { laden, data, fout }
+function sportlinkAnalyseHtml(w){
+  if (!_cijfers.has(w.id)){
+    _cijfers.set(w.id, { laden: true });
+    httpsCallable(functions, 'scoutTegenstander', { timeout: 60000 })({ teamId: S.teamId, wedstrijdId: w.id, cijfers: true })
+      .then(res => _cijfers.set(w.id, { data: res.data || null }))
+      .catch(e => { console.warn('[sportlink-analyse]', e?.code, e?.message); _cijfers.set(w.id, { fout: true }); })
+      .finally(() => { if (_wid === w.id && (S._vbTab || 'tegenstander') === 'tegenstander') teken(); });
+  }
+  const st = _cijfers.get(w.id);
+  if (st.laden) return kaart('Sportlink-analyse', leeg('Cijfers ophalen…'));
+  if (st.fout) return kaart('Sportlink-analyse', leeg('De Sportlink-analyse kon niet worden opgehaald. Probeer het later opnieuw.'));
+  if (!st.data || !st.data.totaal?.gespeeld) return '';
+  return cijfersHtml(st.data);
+}
+
 async function startScout(w){
   const st = _scout.get(w.id) || {};
   _scout.set(w.id, { ...st, zoekt: true, fout: null });
@@ -536,7 +555,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261107c');
+      const m = await import('./wedstrijd.js?v=20261107d');
       m.openWedstrijd(id);
       return;
     }
