@@ -12,11 +12,11 @@ import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=2026
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
 import { analyseWedstrijd } from './analyse.js?v=20261107e';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261109a';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109a';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261109a';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261109b';
+import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109b';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261109b';
 import { rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261109a';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261109b';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -87,7 +87,7 @@ terugView('dkbouw', () => {
     huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
     teken(); window.scrollTo(0, 0); return true;
   }
-  import('./teams.js?v=20261109a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261109b').then(m => { m.renderTeams(); toon('teams'); });
   return true;
 });
 

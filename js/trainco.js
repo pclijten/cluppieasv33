@@ -71,8 +71,9 @@ export async function bootVoorbeeld(user){
 /* ---------- boot ---------- */
 /* Trainer die óók trainingscoördinator is: opent het scherm vanuit de
    coach-app (menu-item), met een knop terug naar zijn team. */
-export function openVanuitApp(){
-  const club = (S.traincoClubs || [])[0];
+export function openVanuitApp(clubId){
+  const lijst = S.traincoClubs || [];
+  const club = (clubId && lijst.find(c => c.id === clubId)) || lijst[0];
   if (club) bootTrainco(club, false, true);
 }
 export function bootTrainco(club, voorbeeld, vanuitApp = false){

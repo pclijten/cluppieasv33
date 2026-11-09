@@ -19,7 +19,7 @@ import { telGebruik } from './tracker.js?v=20261107e';
 import { ongelezenBerichten } from './berichten.js?v=20261107e';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261107e';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261107e';
-import { htmlNu } from './nu-scherm.js?v=20261109a';
+import { htmlNu } from './nu-scherm.js?v=20261109b';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261107e';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
