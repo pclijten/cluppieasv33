@@ -26,9 +26,9 @@ import {
 } from './firebase.js?v=20261106r';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109b';
+import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109d';
 import { telGebruik } from './tracker.js?v=20261107e';
-import { analyseWedstrijd } from './analyse.js?v=20261107e';
+import { analyseWedstrijd } from './analyse.js?v=20261109d';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
 import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
 
@@ -206,7 +206,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261109b'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261109d'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -851,7 +851,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261109b');
+      const m = await import('./teams.js?v=20261109d');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
