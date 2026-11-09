@@ -5808,11 +5808,10 @@ html.desk .uq-label{bottom:24px;right:24px}
 .tc-h1{margin:var(--space-3xs) 0 0;font-size:var(--t-5xl);font-weight:700;line-height:1.05;text-transform:uppercase;color:var(--ink)}
 .tc-h2{margin:var(--space-3xs) 0 var(--space-xs);font-size:var(--t-2xl);font-weight:700;line-height:1.1;text-transform:uppercase;color:var(--ink)}
 @media (min-width:1000px){ .tc-h1{font-size:var(--t-6xl)} }
-.tc-filters{display:flex;gap:var(--space-xs);overflow-x:auto;padding:var(--space-2xs);margin-bottom:var(--space-sm);background:var(--surface-2);border-radius:11px;scrollbar-width:none}
-.tc-filters::-webkit-scrollbar{display:none}
-.tc-filter{flex:0 0 auto;display:inline-flex;align-items:center;gap:var(--space-xs);padding:var(--space-xs) var(--space-sm);border:0;border-radius:9px;background:transparent;color:var(--ink-2);font-weight:600;font-size:var(--t-md);white-space:nowrap}
-.tc-filter span{font-size:12px;opacity:.75}
-.tc-filter.actief{background:var(--accent-vlak);color:var(--accent-ink)}
+.tc-filters{display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)}
+.tc-filters label{font-size:var(--t-sm);font-weight:600;color:var(--ink-2)}
+.tc-select{width:auto;min-width:240px;max-width:100%;font-weight:600}
+@media (max-width:560px){.tc-filters{flex-direction:column;align-items:stretch;gap:var(--space-2xs)}.tc-select{width:100%}}
 .tc-weeknav{display:flex;align-items:center;gap:var(--space-xs);margin-bottom:var(--space-md)}
 .tc-weektitel{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center}
 .tc-weektitel b{font-size:var(--t-3xl);font-weight:700;text-transform:uppercase;color:var(--ink);line-height:1.05}
@@ -5910,7 +5909,9 @@ html.desk .uq-label{bottom:24px;right:24px}
 .tc-trtitel{margin:0;font-size:var(--t-3xl);letter-spacing:.3px}
 .tc-hoofdteams{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2xs) 0;margin-top:calc(var(--space-2xs) * -1);font-size:var(--t-sm);font-weight:600;color:var(--ink-2)}
 .tc-hoofdteams span + span::before{content:'·';margin:0 var(--space-xs);color:var(--accent);font-weight:700}
-.tc-teamlijst{flex:1;font-size:var(--t-xs);color:var(--ink-2);line-height:1.45}
+.tc-dagregels{flex:1;display:grid;grid-template-columns:auto 1fr;align-content:start;gap:var(--space-2xs) var(--space-sm);font-size:var(--t-xs);line-height:1.45}
+.tc-dagregels b{font-weight:700;color:var(--ink)}
+.tc-dagregels span{color:var(--ink-2)}
 .tc-teamchips span{font-size:var(--t-sm);padding:var(--space-3xs) var(--space-xs)}
 /* video's */
 .tc-videos{display:grid;grid-template-columns:1fr;gap:var(--space-sm)}

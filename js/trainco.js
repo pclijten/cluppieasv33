@@ -105,6 +105,11 @@ export function bootTrainco(club, voorbeeld, vanuitApp = false){
   document.body.appendChild(el);
   T.el = el;
   el.addEventListener('click', klik);
+  el.addEventListener('change', e => {
+    const sel = e.target.closest('[data-tc-groep-kies]'); if (!sel) return;
+    T.groep = sel.value; try { localStorage.setItem('cluppie_trainco_groep', T.groep); } catch(err){}
+    teken();
+  });
 
   const fout = naam => err => {
     console.error(`[Cluppie] trainingscoördinator: "${naam}" niet leesbaar:`, err.code, err.message);
@@ -230,8 +235,9 @@ function kop(meta, titel, extra = ''){
 function filterBalk(teams){
   const opties = filterOpties(teams);
   if (!opties.some(o => o.id === T.groep)) T.groep = 'alle';
-  return `<div class="tc-filters" role="tablist" aria-label="Kies teams">${opties.map(o =>
-    `<button class="tc-filter${T.groep === o.id ? ' actief' : ''}" data-tc-groep="${esc(o.id)}" role="tab" aria-selected="${T.groep === o.id}">${esc(o.naam)}<span>${o.n}</span></button>`).join('')}</div>`;
+  return `<div class="tc-filters"><label for="tcGroep">Teams</label>
+    <select id="tcGroep" class="invoer tc-select" data-tc-groep-kies>${opties.map(o =>
+      `<option value="${esc(o.id)}"${T.groep === o.id ? ' selected' : ''}>${o.id === 'alle' ? 'Alle teams' : esc(o.naam)} (${o.n})</option>`).join('')}</select></div>`;
 }
 function weekNav(){
   const ma = maandagNu(T.weekOffset), zo = plusDagen(ma, 6);
@@ -281,6 +287,22 @@ function trainingNr(tr){
   return m ? Number(m[1]) : null;
 }
 const hoofdteams = teams => [...new Set(teams.map(groepVan))].sort(vergelijkGroep);
+/* Per dag de teams die deze training die dag krijgen: "Maandag  O8-1, O9-1".
+   De dag komt uit het trainingsmoment van het team (of de trainingsdag van de
+   training zelf); teams zonder dag staan onderaan onder "Geen dag". */
+function dagRegels(g){
+  const perDag = new Map();
+  for (const r of g.regels){
+    const dag = r.moment?.dag || 0;
+    if (!perDag.has(dag)) perDag.set(dag, new Map());
+    perDag.get(dag).set(r.team.id, r.team);
+  }
+  const dagen = [...perDag.keys()].sort((a, b) => (a === 0) - (b === 0) || a - b);
+  return dagen.map(d => {
+    const namen = sorteerTeams([...perDag.get(d).values()]).map(t => t.naam).join(', ');
+    return `<b>${d ? DAGEN_LANG[d - 1] : 'Geen dag'}</b><span>${esc(namen)}</span>`;
+  }).join('');
+}
 function htmlTrainingKaart(g){
   const vormen = oefenvormen(g.tr).slice(0, 4);
   const teams = sorteerTeams([...new Map(g.regels.map(r => [r.team.id, r.team])).values()]);
@@ -289,7 +311,7 @@ function htmlTrainingKaart(g){
     <div class="tc-hoofdteams">${hoofdteams(teams).map(h => `<span>${esc(h)}</span>`).join('')}</div>
     ${vormen.length ? `<button class="tc-mini" data-tc-open="${esc(g.tr.id)}" aria-label="Bekijk ${esc(trTitel(g.tr))}">${vormen.map(v => `<img src="${esc(v.url)}" alt="" loading="lazy">`).join('')}</button>` : ''}
     <div class="tc-labels">${vormen.length ? `<span class="tc-label">${oefenvormen(g.tr).length} oefenvorm${oefenvormen(g.tr).length === 1 ? '' : 'en'}</span>` : ''}${g.tr.url ? '<span class="tc-label">PDF</span>' : ''}<span class="tc-label">${teams.length} team${teams.length === 1 ? '' : 's'}</span>${vanafLabel(g.tr)}</div>
-    <div class="tc-teamlijst" title="${esc(teams.map(t => t.naam).join(', '))}">${esc(teams.map(t => t.naam).join(', '))}</div>
+    <div class="tc-dagregels">${dagRegels(g)}</div>
     <button class="knop tc-knop-vol" data-tc-open="${esc(g.tr.id)}">Bekijk training</button>
   </article>`;
 }
@@ -509,8 +531,7 @@ function klik(e){
   if (fig && T.el.contains(fig)){ openLightbox(fig.dataset.zoom, fig.dataset.zoomtitel); return; }
   const b = e.target.closest('button,a'); if (!b || !T.el.contains(b)) return;
   const d = b.dataset;
-  if (d.tcGroep){ T.groep = d.tcGroep; try { localStorage.setItem('cluppie_trainco_groep', T.groep); } catch(err){} teken(); }
-  else if (d.tcSchema){ T.schema = d.tcSchema; teken(); }
+  if (d.tcSchema){ T.schema = d.tcSchema; teken(); }
   else if (b.hasAttribute('data-tc-mist')){ T.alleenMist = !T.alleenMist; teken(); }
   else if (d.tcPagina){ if (d.tcPagina === T.pagina && !T.detail) return; bewaar(); T.pagina = d.tcPagina; T.detail = null; teken(); naarBoven(); }
   else if (d.tcWeek !== undefined){ T.weekOffset = d.tcWeek === '0' ? 0 : T.weekOffset + Number(d.tcWeek); teken(); }
