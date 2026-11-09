@@ -9,7 +9,7 @@ import {
 } from './state.js?v=20261107e';
 import { CATEGORIEEN, CATEGORIEEN_MEIDEN, catInfo, BOUWEN, bouwVanCategorie, bouwNaam, youtubeId, youtubeThumb, youtubeWatch, SEIZOEN_FALLBACK, GEBRUIK_CATEGORIEEN, gebruikEventLabel } from './config.js?v=20261107e';
 import { teltMee } from './opkomst.js?v=20261106r';
-import { analyseWedstrijd } from './analyse.js?v=20261107e';
+import { analyseWedstrijd } from './analyse.js?v=20261109d';
 import { htmlEigenBouwenBeheer, koppelEigenBouwenBeheer } from './eigen-bouwen.js?v=20261107e';
 import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?v=20261107e';
 import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261107e';
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261109b'); }
+async function teamsModule(){ return await import('./teams.js?v=20261109d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261109b').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261109d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){

@@ -28,9 +28,18 @@ function klokSecRaw(k){
    Voorheen gold de klokstand zodra die boven 5 sec lag, waardoor een klok die
    halverwege gepauzeerd werd en niet hervat de hele periode inkortte — alle
    spelers verloren dan tijd en de invaller kwam op 0:00 uit. */
+/* Een LOPENDE klok telt nooit verder dan de ingestelde duur. De klok stopt
+   zichzelf alleen zolang het wedstrijdscherm open is (tikKlok); sluit de coach
+   de app of wisselt hij van scherm vóór het einde van de periode, dan blijft
+   running:true opgeslagen en groeide de periode bij elke berekening mee met
+   Date.now(). Wie op dat moment in het veld stond kreeg zo uren speeltijd, wie
+   op de bank zat uren reservetijd — de percentages in Stats klopten dan niet.
+   Blessuretijd blijft mogelijk via een GEPAUZEERDE klok die op een tijd boven
+   de periodeduur is gezet (Wedstrijdtijd instellen). */
 function kwartDuurSec(w, k){
-  const e = klokSecRaw(k);
   const ingesteld = Math.round((w.kwartduur || 0) * 60);
+  let e = klokSecRaw(k);
+  if (k.klok.running && ingesteld > 0) e = Math.min(e, ingesteld);
   return Math.max(ingesteld, e > 5 ? Math.round(e) : 0);
 }
 

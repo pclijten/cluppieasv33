@@ -14,13 +14,13 @@ import { db, doc, updateDoc } from './firebase.js?v=20261106r';
 import { S, esc, meld, datumNL, modAan } from './state.js?v=20261107e';
 import { AFWEZIG_REDENEN, afwezigRedenInfo } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { analyseWedstrijd } from './analyse.js?v=20261107e';
+import { analyseWedstrijd } from './analyse.js?v=20261109d';
 import { telGebruik } from './tracker.js?v=20261107e';
 import { ongelezenBerichten } from './berichten.js?v=20261107e';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261107e';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261107e';
-import { htmlNu } from './nu-scherm.js?v=20261109b';
-import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261107e';
+import { htmlNu } from './nu-scherm.js?v=20261109d';
+import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261109d';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
    wissel met "wie aan de beurt is" i.p.v. een concrete speler. */
