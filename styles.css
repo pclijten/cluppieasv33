@@ -2611,6 +2611,35 @@ body::before{
 .stat-tabel .stats-spark{display:inline-flex;align-items:center;gap:var(--space-2xs);vertical-align:middle;margin-left:var(--space-2xs)}
 .stat-tabel .stats-spark .pijl{font-size:var(--t-2xs);font-weight:700;line-height:1}
 
+/* Spelers-blad op een telefoon: met 8+ kolommen werd de tabel breder dan het
+   scherm en vielen de laatste kolommen (C, K, kaarten) eraf. Op smalle schermen
+   daarom compactere cellen en een smallere naamkolom, zodat alles past. Alleen
+   voor brede tabellen (≥6 kolommen): de opkomst- en clubtabel blijven zoals ze
+   zijn, en de periodetabel (.st-periodes) heeft al een eigen scrollvlak. */
+@media (max-width:520px){
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) th,
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) td{
+    padding:var(--space-xs) var(--space-3xs);font-size:var(--t-xs)}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) th:first-child,
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) td:first-child{
+    padding-left:var(--space-sm);padding-right:var(--space-2xs);
+    min-width:84px;max-width:112px}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) .stats-naam{font-size:var(--t-xs);min-height:28px}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) .stats-naam::after{font-size:var(--t-sm)}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) .pct-bar{max-width:38px}
+}
+/* Kleinste telefoons met álle kolommen (kaarten + uitleen): nog iets krapper. */
+@media (max-width:360px){
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) th:first-child,
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) td:first-child{
+    min-width:54px;padding-left:var(--space-xs)}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) th,
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) td{padding-left:2px;padding-right:2px}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) .stats-naam::after{display:none}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) th{font-size:var(--t-2xs)}
+  .stat-tabel:not(.st-periodes):has(thead th:nth-child(6)) .pct-bar{max-width:30px}
+}
+
 /* ==================== STATS: team-overzicht + aandacht-blad ==================== */
 /* teller-badge op de Aandacht-blad-knop */
 .segment.stats-blad button .stats-blad-badge{display:inline-block;min-width:16px;height:16px;line-height:16px;
