@@ -6560,8 +6560,41 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .ul-samenvat{ display:flex; flex-direction:column; gap:2px; padding:var(--space-sm); border-radius:11px; background:var(--op-vlak); font-size:var(--t-sm); color:var(--ink-2); line-height:1.45; }
 .ul-samenvat b{ color:var(--ink); }
 .ul-fout{ margin:0; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
-.ul-ok{ margin-top:var(--space-xs); }
-.ul-ok:disabled{ opacity:.5; cursor:not-allowed; }
+/* Knoppen onderaan blijven in beeld tijdens scrollen (telefoon én paneel) */
+.ul-voet{ position:sticky; bottom:calc(-20px - env(safe-area-inset-bottom)); z-index:2; display:flex; flex-direction:column; gap:var(--space-xs);
+  margin:var(--space-xs) calc(var(--space-md) * -1) calc(-20px - env(safe-area-inset-bottom)); padding:var(--space-sm) var(--space-md) calc(var(--space-sm) + env(safe-area-inset-bottom));
+  background:var(--card); border-top:1px solid var(--hair); }
+.ul-voetknoppen{ display:grid; grid-template-columns:auto minmax(0,1fr); gap:var(--space-xs); }
+.ul-voetknoppen .knop{ min-height:48px; }
+.ul-ok:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* [20261111b] Desktop/tablet: het uitleenformulier als paneel dat van rechts
+   over het scherm schuift. Het scherm erachter blijft zichtbaar (gedimd);
+   klik ernaast of Esc sluit het. Op de telefoon blijft het volledig scherm. */
+@media (min-width:900px) and (min-height:520px){
+  .modal-achter[data-vorm="paneel"]{ background:color-mix(in srgb, var(--zwart) 55%, transparent); justify-content:flex-end; align-items:stretch; }
+  .modal-achter[data-vorm="paneel"].open{ animation:ulAchterIn var(--dur-short) ease-out; }
+  .modal-achter[data-vorm="paneel"] .modal{ width:min(600px, 100vw); max-width:600px; height:100vh; height:100dvh; max-height:100dvh;
+    background:var(--bg); border-left:1px solid var(--hair); box-shadow:-24px 0 64px color-mix(in srgb, var(--zwart) 45%, transparent);
+    animation:ulPaneelIn var(--dur-long) var(--ease-out); }
+  .modal-achter[data-vorm="paneel"] .modal-kop{ padding:var(--space-lg) var(--space-lg) var(--space-md); }
+  .modal-achter[data-vorm="paneel"] .modal-body{ padding:var(--space-lg) var(--space-lg) 20px; }
+  .modal-achter[data-vorm="paneel"] .ul-voet{ margin-left:calc(var(--space-lg) * -1); margin-right:calc(var(--space-lg) * -1); padding-left:var(--space-lg); padding-right:var(--space-lg); }
+  .modal-achter[data-vorm="paneel"] .ul-form{ gap:var(--space-md); }
+  .modal-achter[data-vorm="paneel"] .ul-kop{ margin-top:var(--space-sm); }
+  /* periode-keuzes naast elkaar: rustiger en korter paneel */
+  .modal-achter[data-vorm="paneel"] .ul-opties{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-xs); }
+  .modal-achter[data-vorm="paneel"] .ul-optie{ min-height:52px; }
+  .modal-achter[data-vorm="paneel"] .ul-optie.aan:has(input[type=date], input[type=number]){ grid-column:1 / -1; }
+  .modal-achter[data-vorm="paneel"] .ul-dag{ grid-template-columns:44px minmax(0,1fr) auto; }
+  .modal-achter[data-vorm="paneel"] .ul-wrij:hover, .modal-achter[data-vorm="paneel"] .ul-optie:hover{ border-color:color-mix(in srgb, var(--ink-2) 35%, transparent); }
+  .modal-achter[data-vorm="paneel"] .ul-wrij.aan:hover, .modal-achter[data-vorm="paneel"] .ul-optie.aan:hover{ border-color:color-mix(in srgb, var(--accent) 60%, transparent); }
+}
+@keyframes ulPaneelIn{ from{ transform:translateX(48px); opacity:0; } to{ transform:none; opacity:1; } }
+@keyframes ulAchterIn{ from{ background:transparent; } }
+@media (prefers-reduced-motion:reduce){
+  .modal-achter[data-vorm="paneel"].open, .modal-achter[data-vorm="paneel"] .modal{ animation:none; }
+}
 
 /* Status in de overzichten */
 .ul-chip{ display:inline-flex; align-items:center; flex-shrink:0; padding:3px var(--space-xs); border-radius:99px; font-size:11px; font-weight:700; white-space:nowrap; background:var(--op-vlak-2); color:var(--ink-2); }
@@ -6596,7 +6629,4 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .dk-at.dk-at-elders{ cursor:default; border-style:dashed; }
 .dk-at.dk-at-elders:hover{ border-color:var(--line-d); }
 
-/* Desktop: het uitleenformulier is een gecentreerde, iets bredere kolom */
-@media (min-width:1100px) and (min-height:520px){
-  .ul-wd{ flex-basis:92px; }
-}
+
