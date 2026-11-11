@@ -26,8 +26,8 @@ import {
 } from './firebase.js?v=20261106r';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111b';
-import { openUitleenForm } from './uitleen-form.js?v=20261111b';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111c';
+import { openUitleenForm } from './uitleen-form.js?v=20261111c';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111a';
 import { telGebruik } from './tracker.js?v=20261107e';
 import { analyseWedstrijd } from './analyse.js?v=20261109d';
@@ -208,7 +208,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261111b'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261111c'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -876,7 +876,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261111b');
+      const m = await import('./teams.js?v=20261111c');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1078,6 +1078,8 @@ export async function modalNieuweUitleningVanuitBouw(verversScherm){
   openUitleenForm({
     clubId: ctx.clubId,
     spelersVan: ctx.teams,
+    bouw: ctx.bouw,                                   // [20261111c] doelteams: eerst deze bouw
+    bouwTeamIds: ctx.teams.map(t => t.id),
     spelersVoorTeam: async teamId => {
       const d = ctx.data.get(teamId);
       return d ? d.spelers : (await getDocs(collection(db,'teams',teamId,'spelers'))).docs.map(x => ({id:x.id, ...x.data()}));
