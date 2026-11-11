@@ -513,9 +513,17 @@ function modalSjabloon(){
     modalNieuw();
   });
 }
-function kolLijstHtml(kols, metWeg){
+function kolLijstHtml(kols, metWeg, metBewerk = false){
+  const kt = k => `<span class="lj-kt">${TYPE_NAAM[k.type] || k.type}${k.opties ? '<span class="sep" aria-hidden="true"></span>' + k.opties.length : ''}${k.alleenUit ? '<span class="sep" aria-hidden="true"></span>uit' : ''}</span>`;
+  /* [20261111z] Beheren: naam is tikbaar (wijzigen), ↑/↓ voor de volgorde.
+     Optionele kolommen (opmerking) blijven altijd achteraan en schuiven niet. */
+  const kanOp = i => i > 0 && !kols[i].optioneel && !kols[i - 1].optioneel;
+  const kanNeer = i => i < kols.length - 1 && !kols[i].optioneel && !kols[i + 1].optioneel;
   return kols.length
-    ? kols.map((k, i) => `<div class="lj-kol"><span class="lj-kol-n">${esc(k.naam)}</span><span class="lj-kt">${TYPE_NAAM[k.type] || k.type}${k.opties ? '<span class="sep" aria-hidden="true"></span>' + k.opties.length : ''}${k.alleenUit ? '<span class="sep" aria-hidden="true"></span>uit' : ''}</span>${metWeg ? `<button data-lj-kolweg="${i}" title="Weghalen">✕</button>` : ''}</div>`).join('')
+    ? kols.map((k, i) => `<div class="lj-kol${metBewerk ? ' lj-kol-bew' : ''}">${metBewerk
+        ? `<button class="lj-kol-open" data-lj-kolbew="${i}" title="Wijzigen"><span class="lj-kol-n">${esc(k.naam)}</span>${kt(k)}<span class="lj-kol-pijl" aria-hidden="true">›</span></button>
+           <button class="lj-kol-schuif" data-lj-kolop="${i}" title="Omhoog" ${kanOp(i) ? '' : 'disabled'}>↑</button><button class="lj-kol-schuif" data-lj-kolneer="${i}" title="Omlaag" ${kanNeer(i) ? '' : 'disabled'}>↓</button>`
+        : `<span class="lj-kol-n">${esc(k.naam)}</span>${kt(k)}`}${metWeg ? `<button data-lj-kolweg="${i}" title="Weghalen">✕</button>` : ''}</div>`).join('')
     : '<div class="lj-kol leeg">Nog geen kolommen</div>';
 }
 function modalNieuw(){
@@ -692,9 +700,17 @@ function modalNaam(l){
 }
 function modalKolommen(l){
   const kols = kolommenVan(l);
-  openModal(`<h2>Kolommen</h2><p class="lj-msub">Weghalen wist ook wat er in die kolom is ingevuld.</p>
-    <div class="lj-kollijst">${kolLijstHtml(kols, true)}</div>
+  openModal(`<h2>Kolommen</h2><p class="lj-msub">Tik op een kolom om hem te wijzigen. Weghalen wist ook wat er in die kolom is ingevuld.</p>
+    <div class="lj-kollijst">${kolLijstHtml(kols, true, true)}</div>
     <button class="knop klein" id="ljKolPlus">+ Kolom</button>`);
+  $$('#modalInhoud [data-lj-kolbew]').forEach(b => b.onclick = () => modalKolomWijzig(l, Number(b.dataset.ljKolbew)));
+  const schuif = async (i, j) => {
+    if (!kols[i] || !kols[j]) return;
+    const kolommen = [...kols]; [kolommen[i], kolommen[j]] = [kolommen[j], kolommen[i]];
+    if (await schrijf(l.id, { kolommen })){ l.kolommen = kolommen; modalKolommen(l); API.renderTeam(); }
+  };
+  $$('#modalInhoud [data-lj-kolop]').forEach(b => b.onclick = () => { const i = Number(b.dataset.ljKolop); schuif(i, i - 1); });
+  $$('#modalInhoud [data-lj-kolneer]').forEach(b => b.onclick = () => { const i = Number(b.dataset.ljKolneer); schuif(i, i + 1); });
   $$('#modalInhoud [data-lj-kolweg]').forEach(b => b.onclick = async () => {
     const k = kols[Number(b.dataset.ljKolweg)]; if (!k) return;
     if (!confirm(`Kolom "${k.naam}" weghalen? Wat er is ingevuld gaat verloren.`)) return;
@@ -707,6 +723,77 @@ function modalKolommen(l){
     const kolommen = metNieuweKolom(kolommenVan(l), kol);
     if (await schrijf(l.id, { kolommen })){ l.kolommen = kolommen; sluitModal(); API.renderTeam(); meld('Kolom toegevoegd'); }
   }, () => modalKolommen(l));
+}
+
+/* ---------- Kolom wijzigen ----------
+   [20261111z] Naam, opties (bij Keuze) en type. Hernoemde opties nemen de al
+   ingevulde waarden mee; een weggehaalde optie laat ingevulde waarden staan
+   (die blijven zichtbaar, net als een "+ Eigen…"-waarde). Het type kan alleen
+   veranderen zolang er nog niets in de kolom is ingevuld, zodat er nooit
+   ongemerkt gegevens verdwijnen. */
+function kolomHeeftWaarden(l, kolId){
+  return Object.values(l.waarden || {}).some(r => r && r[kolId] !== undefined && r[kolId] !== '' && r[kolId] !== null);
+}
+function modalKolomWijzig(l, idx){
+  const k = kolommenVan(l)[idx]; if (!k) return modalKolommen(l);
+  const typeVast = kolomHeeftWaarden(l, k.id);
+  const d = { naam:k.naam, type:k.type, opties:(k.opties || []).map(o => ({ oud:o, nieuw:o })) };
+  const leesOpties = () => $$('#modalInhoud [data-lj-opt]').forEach(inp => { const o = d.opties[Number(inp.dataset.ljOpt)]; if (o) o.nieuw = inp.value; });
+  const teken = () => {
+    const gevoelig = GEVOELIG.test(d.naam);
+    if (d.type === 'keuze' && !d.opties.length) d.opties.push({ oud:null, nieuw:'' });
+    openModal(`<h2>Kolom wijzigen</h2>
+      <div class="veldgroep"><label>Naam</label><input class="invoer" id="ljWNaam" value="${esc(d.naam)}" autocomplete="off" maxlength="30"></div>
+      <div class="veldgroep"><label>Type</label>${typeVast
+        ? `<div class="lj-kol"><span class="lj-kol-n">${TYPE_NAAM[d.type] || d.type}</span></div><p class="lj-msub u-mt-xs">Er is al iets ingevuld, daarom ligt het type vast. Ander type nodig? Haal de kolom weg en maak een nieuwe.</p>`
+        : `<div class="segment">${['check', 'keuze', 'tekst', 'datum'].map(t => `<button type="button" class="${d.type === t ? 'actief' : ''}" data-lj-wtype="${t}">${TYPE_NAAM[t]}</button>`).join('')}</div>`}</div>
+      ${d.type === 'keuze' ? `<div class="veldgroep"><label>Opties</label><div class="lj-kollijst">${d.opties.map((o, i) => `<div class="lj-kol lj-naamrij"><input class="lj-naaminv" value="${esc(o.nieuw)}" data-lj-opt="${i}" maxlength="20" placeholder="Nieuwe optie" autocomplete="off"><button data-lj-optweg="${i}" title="Weghalen">✕</button></div>`).join('')}</div>
+        <button class="knop klein" id="ljWOptPlus">+ Optie</button></div>` : ''}
+      <div class="avg-balk ${gevoelig ? 'lj-sterk' : ''}" id="ljWAvg"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span><span>${gevoelig ? AVG_STERK : AVG_HINT}</span></div>
+      <button class="knop fluo vol" id="ljWOk">Opslaan</button>
+      <button class="knop vol u-mt-xs" id="ljWTerug">Annuleren</button>`);
+    const naam = $('#ljWNaam');
+    naam.oninput = () => { d.naam = naam.value; const g = GEVOELIG.test(d.naam); const a = $('#ljWAvg');
+      a.classList.toggle('lj-sterk', g); a.lastElementChild.innerHTML = g ? AVG_STERK : AVG_HINT; };
+    $$('#modalInhoud [data-lj-wtype]').forEach(b => b.onclick = () => { d.naam = naam.value; leesOpties(); d.type = b.dataset.ljWtype; teken(); });
+    $$('#modalInhoud [data-lj-optweg]').forEach(b => b.onclick = () => { d.naam = naam.value; leesOpties(); d.opties.splice(Number(b.dataset.ljOptweg), 1); teken(); });
+    if ($('#ljWOptPlus')) $('#ljWOptPlus').onclick = () => {
+      d.naam = naam.value; leesOpties(); d.opties.push({ oud:null, nieuw:'' }); teken();
+      const inps = $$('#modalInhoud [data-lj-opt]'); inps[inps.length - 1]?.focus();
+    };
+    $('#ljWTerug').onclick = () => modalKolommen(l);
+    $('#ljWOk').onclick = async () => {
+      d.naam = naam.value.trim(); leesOpties();
+      if (!d.naam) return meld('Geef de kolom een naam');
+      const kols = kolommenVan(l);
+      const i = kols.findIndex(x => x.id === k.id); if (i < 0) return modalKolommen(l);
+      const nieuw = { ...kols[i], naam:d.naam.slice(0, 30), type:d.type };
+      const velden = {};
+      if (d.type === 'keuze'){
+        const opts = [];
+        d.opties.forEach(o => { const x = String(o.nieuw || '').trim().slice(0, 20); if (x && !opts.includes(x)) opts.push(x); });
+        if (!opts.length) return meld('Geef minstens één optie');
+        nieuw.opties = opts;
+        /* Hernoemde opties: ingevulde waarden meeverhuizen (per cel, veldpad). */
+        const hernoemd = {};
+        d.opties.forEach(o => { const x = String(o.nieuw || '').trim().slice(0, 20); if (o.oud && x && x !== o.oud) hernoemd[o.oud] = x; });
+        for (const [rij, r] of Object.entries(l.waarden || {})){
+          const v = r?.[k.id];
+          if (typeof v === 'string' && hernoemd[v] !== undefined) velden[`waarden.${rij}.${k.id}`] = hernoemd[v];
+        }
+      } else delete nieuw.opties;
+      const kolommen = kols.map((x, j) => j === i ? nieuw : x);
+      if (await schrijf(l.id, { kolommen, ...velden })){
+        l.kolommen = kolommen;
+        for (const [pad, v] of Object.entries(velden)){
+          const [, rij] = pad.split('.');
+          if (l.waarden?.[rij]) l.waarden[rij][k.id] = v;
+        }
+        modalKolommen(l); API.renderTeam(); meld('Kolom bijgewerkt');
+      }
+    };
+  };
+  teken();
 }
 
 /* ---------- Delen via WhatsApp ---------- */
