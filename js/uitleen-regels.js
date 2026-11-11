@@ -13,6 +13,16 @@
    spelerId/vanTeam/vanTeamNaam/naarTeam/naarTeamNaam/overlay/snapshot/door/gemaakt:
 
      soort:  ontbreekt  → oud record: geldt overal, geen einddatum (gedrag van vóór 20261111)
+             'periode' + versie:2 → [20261111d] HUIDIGE VORM, twee losse delen:
+                 wed:   null | { keuze:'een'|'kies'|'aantal'|'datum'|'open',
+                                 vanaf, tot|null, aantal|null,
+                                 wedstrijden:[{id,datum,aftrap,tegenstander}] | null }
+                 train: null | { vanaf, tot|null, trainNaar:[1..7], trainVan:[1..7],
+                                 trainVanNiet:[1..7] }
+                 vanaf/tot bovenaan = vroegste start / laatste einde van de delen
+                 (tot null zodra één deel geen einddatum heeft); leenActief en de
+                 overzichten gebruiken die.
+             Oudere vormen van vandaag (20261111a-c) blijven leesbaar via leenDelen():
              'wedstrijd' → één wedstrijd:  wedstrijd:{id,datum,aftrap,tegenstander}
              'periode'   → uitgebreid:
                  wat:        'w' wedstrijden | 't' meetrainen | 'b' allebei
@@ -52,6 +62,42 @@ export function plusDagen(iso, n){
 const isOud = u => !u || !u.soort;
 const vanafVan = u => u?.soort === 'wedstrijd' ? (u.wedstrijd?.datum || null) : (u?.vanaf || null);
 
+/* [20261111d] Eén uitlening = een wedstrijddeel en/of een trainingsdeel, elk
+   met een eigen periode. Werkt voor de huidige vorm (versie 2) én voor de
+   vormen die eerder vandaag zijn opgeslagen. Niet voor oude records zonder
+   soort: die gelden overal (zie isOud). */
+export function leenDelen(u){
+  if (!u || isOud(u)) return { wed: null, train: null };
+  if (u.versie === 2) return { wed: u.wed || null, train: u.train || null };
+  if (u.soort === 'wedstrijd'){
+    const w = u.wedstrijd;
+    return { wed: w ? { keuze: 'een', vanaf: w.datum || null, tot: w.datum || null, aantal: null, wedstrijden: [w] } : null, train: null };
+  }
+  const lijst = Array.isArray(u.wedstrijden) ? u.wedstrijden : null;
+  const wed = u.wat === 't' ? null
+    : { keuze: lijst ? 'kies' : (u.tot ? 'datum' : 'open'), vanaf: u.vanaf || null, tot: u.tot || null, aantal: null, wedstrijden: lijst };
+  const train = u.wat === 'w' ? null
+    : { vanaf: u.vanaf || null, tot: u.tot || null, trainNaar: u.trainNaar || [],
+        trainVan: Array.isArray(u.trainVan) ? u.trainVan : null, trainVanNiet: u.trainVanNiet || [] };
+  return { wed, train };
+}
+/* Valt de datum binnen de periode van één deel? */
+function inDeel(d, datum){
+  if (!d) return false;
+  if (!datum) return true;
+  if (d.vanaf && datum < d.vanaf) return false;
+  if (d.tot && datum > d.tot) return false;
+  return true;
+}
+/* Vanaf/tot bovenaan het record, uit de twee delen. */
+export function leenGrenzen(wed, train){
+  const delen = [wed, train].filter(Boolean);
+  const vanafs = delen.map(d => d.vanaf).filter(Boolean).sort();
+  const open = delen.some(d => !d.tot);
+  const tots = delen.map(d => d.tot).filter(Boolean).sort();
+  return { vanaf: vanafs[0] || null, tot: open || !tots.length ? null : tots[tots.length - 1] };
+}
+
 /* Loopt (of komt) de uitlening nog? Alleen een verstreken `tot` maakt hem voorbij. */
 export function leenActief(u, vandaag = vandaagLokaal()){
   if (!u) return false;
@@ -74,37 +120,36 @@ export function geldtVoorWedstrijdBijNaar(u, w){
   if (isOud(u)) return true;
   if (!w) return false;
   if (conflictKeuze(u, w.datum) === 'van') return false;
-  if (u.soort === 'wedstrijd') return !!u.wedstrijd && u.wedstrijd.id === w.id;
-  if (u.wat === 't') return false;
-  if (!inPeriode(u, w.datum)) return false;
-  if (Array.isArray(u.wedstrijden)) return u.wedstrijden.some(x => x.id === w.id);
-  return true;
+  const { wed } = leenDelen(u);
+  if (!wed) return false;
+  if (Array.isArray(wed.wedstrijden)) return wed.wedstrijden.some(x => x.id === w.id);
+  return inDeel(wed, w.datum);
 }
 export function geldtVoorTrainingBijNaar(u, datum){
   if (isOud(u)) return true;
-  if (u.soort === 'wedstrijd') return false;
-  if (u.wat === 'w') return false;
-  if (!inPeriode(u, datum)) return false;
-  return (u.trainNaar || []).includes(dagVan(datum));
+  const { train } = leenDelen(u);
+  if (!train || !inDeel(train, datum)) return false;
+  return (train.trainNaar || []).includes(dagVan(datum));
 }
 
 /* ---------- Eigen team (uitgaand) ---------- */
 export function blijftBijEigenWedstrijd(u, w){
   if (isOud(u) || !w) return true;
-  if (!inPeriode(u, w.datum)) return true;
+  const { wed } = leenDelen(u);
+  if (!wed || !inDeel(wed, w.datum)) return true;
   return conflictKeuze(u, w.datum) !== 'naar';
 }
 export function blijftBijEigenTraining(u, datum){
-  if (isOud(u) || u.soort === 'wedstrijd') return true;
-  if (u.wat === 'w') return true;
-  if (!inPeriode(u, datum)) return true;
-  if (!Array.isArray(u.trainVan)) return true;
+  if (isOud(u)) return true;
+  const { train } = leenDelen(u);
+  if (!train || !inDeel(train, datum)) return true;
+  if (!Array.isArray(train.trainVan)) return true;
   const dag = dagVan(datum);
-  if (u.trainVan.includes(dag)) return true;
+  if (train.trainVan.includes(dag)) return true;
   /* Alleen weg bij het eigen team op een dag waarop hij bij het andere team
      traint, of op een eigen trainingsdag die de coördinator op Niet zette.
      Op andere dagen (bv. een extra training) blijft hij gewoon bij zijn team. */
-  return !((u.trainNaar || []).includes(dag) || (u.trainVanNiet || []).includes(dag));
+  return !((train.trainNaar || []).includes(dag) || (train.trainVanNiet || []).includes(dag));
 }
 
 /* ---------- Spelerslijsten per activiteit ----------
@@ -174,23 +219,37 @@ export { kortDatum as leenDatum };
 
 export function leenSoortLabel(u){
   if (isOud(u)) return 'Doorlopend';
-  if (u.soort === 'wedstrijd') return 'Eén wedstrijd';
-  return { w: 'Wedstrijden', t: 'Meetrainen', b: 'Wedstrijden + training' }[u.wat] || 'Uitgebreid';
+  const { wed, train } = leenDelen(u);
+  if (wed && train) return 'Wedstrijden + meetrainen';
+  if (wed) return wed.keuze === 'een' ? 'Eén wedstrijd' : 'Wedstrijden';
+  if (train) return 'Meetrainen';
+  return 'Uitgebreid';
+}
+const periodeTekst = d => {
+  const vanaf = d.vanaf && d.vanaf > vandaagLokaal() ? `vanaf ${kortDatum(d.vanaf)}` : '';
+  if (d.tot) return (vanaf ? vanaf + ' ' : '') + `t/m ${kortDatum(d.tot)}`;
+  return vanaf ? vanaf + ', geen einddatum' : 'geen einddatum';
+};
+export function wedDeelTekst(wed){
+  if (!wed) return '';
+  const lijst = Array.isArray(wed.wedstrijden) ? wed.wedstrijden : null;
+  if (wed.keuze === 'een' && lijst?.[0]){
+    const w = lijst[0];
+    return `${kortDatum(w.datum)}${w.aftrap ? ' ' + w.aftrap : ''}${w.tegenstander ? ' · ' + w.tegenstander : ''}`;
+  }
+  if (lijst) return `${lijst.length} wedstrijd${lijst.length === 1 ? '' : 'en'}${lijst.length ? ` (${lijst.map(x => kortDatum(x.datum).replace(/^\S+\s/, '')).join(', ')})` : ''}`;
+  return `wedstrijden ${periodeTekst(wed)}`;
+}
+export function trainDeelTekst(train, naarTeamNaam){
+  if (!train) return '';
+  const dagen = (train.trainNaar || []).map(d => DAG_NAMEN[d]).join(' + ');
+  return `traint ${dagen || 'geen dag'} bij ${naarTeamNaam || 'ander team'}, ${periodeTekst(train)}`;
 }
 /* Eén regel: wanneer en wat. */
 export function leenOmschrijving(u){
   if (isOud(u)) return 'Geen einddatum, tot iemand hem terugzet';
-  if (u.soort === 'wedstrijd'){
-    const w = u.wedstrijd || {};
-    return `${kortDatum(w.datum)}${w.aftrap ? ' ' + w.aftrap : ''}${w.tegenstander ? ' · ' + w.tegenstander : ''}`;
-  }
-  const delen = [];
-  const vanaf = u.vanaf && u.vanaf > vandaagLokaal() ? `vanaf ${kortDatum(u.vanaf)}` : '';
-  if (u.tot) delen.push((vanaf ? vanaf + ' ' : '') + `t/m ${kortDatum(u.tot)}`);
-  else delen.push(vanaf || 'geen einddatum');
-  if (u.wat !== 't' && Array.isArray(u.wedstrijden)) delen.push(`${u.wedstrijden.length} wedstrijd${u.wedstrijden.length === 1 ? '' : 'en'}`);
-  if (u.wat !== 'w' && (u.trainNaar || []).length) delen.push(`traint ${u.trainNaar.map(d => DAG_NAMEN[d]).join(' + ')} bij ${u.naarTeamNaam || 'ander team'}`);
-  return delen.join(' · ');
+  const { wed, train } = leenDelen(u);
+  return [wedDeelTekst(wed), trainDeelTekst(train, u.naarTeamNaam)].filter(Boolean).join(' · ') || 'Niets ingesteld';
 }
 /* Status-chip: {tekst, toon:'ok'|'warn'|'' , voorbij, voortgang 0..1|null} */
 export function leenStatus(u, vandaag = vandaagLokaal()){
@@ -199,9 +258,10 @@ export function leenStatus(u, vandaag = vandaagLokaal()){
   const v = vanafVan(u);
   if (v && v > vandaag) return { tekst: `Start ${kortDatum(v)}`, toon: 'ok', voorbij: false, voortgang: 0 };
   let voortgang = null;
-  if (u.soort === 'periode' && u.wat !== 't' && Array.isArray(u.wedstrijden) && u.wedstrijden.length){
-    const gespeeld = u.wedstrijden.filter(x => x.datum && x.datum < vandaag).length;
-    voortgang = gespeeld / u.wedstrijden.length;
+  const { wed } = leenDelen(u);
+  if (u.soort === 'periode' && Array.isArray(wed?.wedstrijden) && wed.wedstrijden.length){
+    const gespeeld = wed.wedstrijden.filter(x => x.datum && x.datum < vandaag).length;
+    voortgang = gespeeld / wed.wedstrijden.length;
   } else if (u.tot && v && u.tot > v){
     const dag = 86400000, a = new Date(v + 'T12:00'), b = new Date(u.tot + 'T12:00'), n = new Date(vandaag + 'T12:00');
     voortgang = Math.max(0, Math.min(1, (n - a) / (b - a || dag)));
