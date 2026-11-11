@@ -16,7 +16,7 @@ import {
   db, collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
 import { momentenVanTeam, tijdTekst } from './trainingsmomenten.js?v=20261107e';
-import { bouwLeenSnapshot } from './teams-spelers.js?v=20261111a';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20261111b';
 import { telGebruik } from './tracker.js?v=20261107e';
 import {
   vandaagLokaal, plusDagen, DAG_NAMEN, leenOmschrijving, leenDatum
@@ -85,6 +85,18 @@ export async function openUitleenForm(opties){
   if (b){ st.naar = { id: b.naarTeam, naam: b.naarTeamNaam }; }
 
   openModal(`<h2>${b ? 'Uitlening wijzigen' : 'Speler uitlenen'}</h2><div id="ulForm" class="ul-form"></div>`);
+  /* [20261111b] Op desktop schuift het formulier als paneel van rechts over
+     het scherm, in plaats van het hele scherm te vervangen. Op de telefoon
+     blijft het een volledig scherm (CSS: .modal-achter[data-vorm="paneel"]).
+     openModal zet data-vorm bij elke volgende modal opnieuw. */
+  const achter = document.getElementById('modalAchter');
+  achter?.setAttribute('data-vorm', 'paneel');
+  const opEsc = e => { if (e.key === 'Escape' && achter?.classList.contains('open') && achter.dataset.vorm === 'paneel') sluitModal(); };
+  document.addEventListener('keydown', opEsc);
+  const opruimen = new MutationObserver(() => {
+    if (!achter?.classList.contains('open') || achter.dataset.vorm !== 'paneel'){ document.removeEventListener('keydown', opEsc); opruimen.disconnect(); }
+  });
+  if (achter) opruimen.observe(achter, { attributes: true, attributeFilter: ['class', 'data-vorm'] });
   const root = document.getElementById('ulForm');
 
   /* ---------- afgeleiden ---------- */
@@ -232,9 +244,13 @@ export async function openUitleenForm(opties){
         ${seg('tab', [['snel', 'Eén wedstrijd'], ['uitg', 'Uitgebreid']], st.tab)}
         ${st.laden ? '<p class="ul-noot">Wedstrijden en trainingsdagen laden…</p>' : (st.tab === 'snel' ? htmlSnel() : htmlUitg()) + htmlConflicten()}
         ${st.laden ? '' : samenvatting()}` : ''}
-      ${f && st.naar && !st.laden ? `<p class="ul-fout" role="status">${esc(f)}</p>` : ''}
-      <button class="knop vol ul-ok" id="ulOk" ${f || st.bezig ? 'disabled' : ''}>${st.bezig ? 'Bezig…' : b ? 'Wijziging bewaren' : (st.tab === 'snel' ? 'Uitlenen voor deze wedstrijd' : 'Uitlening vastleggen')}</button>
-      <button class="knop licht vol" id="ulAnnuleer">Annuleren</button>`;
+      <div class="ul-voet">
+        ${f && st.naar && !st.laden ? `<p class="ul-fout" role="status">${esc(f)}</p>` : ''}
+        <div class="ul-voetknoppen">
+          <button class="knop licht" id="ulAnnuleer">Annuleren</button>
+          <button class="knop fluo ul-ok" id="ulOk" ${f || st.bezig ? 'disabled' : ''}>${st.bezig ? 'Bezig…' : b ? 'Wijziging bewaren' : (st.tab === 'snel' ? 'Uitlenen voor deze wedstrijd' : 'Uitlening vastleggen')}</button>
+        </div>
+      </div>`;
   }
 
   async function laadNaar(){
