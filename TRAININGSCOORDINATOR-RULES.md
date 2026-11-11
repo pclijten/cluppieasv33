@@ -1,31 +1,16 @@
 # Firestore-rules voor de trainingscoördinator
 
-**Niet getest en niet gedeployd.** De Firestore-rules staan niet in deze repo. Voeg onderstaande toe aan jullie bestaande rules (Firebase Console → Firestore → Rules) en test ze in de Rules Playground vóór je publiceert. Pas de bestaande functies/namen aan waar nodig.
+De volledige, aangepaste ruleset staat in `firestore.rules` (gebaseerd op jullie huidige rules). **Niet getest en niet gedeployd**: plak hem in Firebase Console → Firestore → Rules, probeer hem eerst in de Rules Playground en publiceer dan.
 
-De coördinator mag lezen:
-- `clubs/{clubId}` waar `trainingscoordinatoren.<uid> == true`
-- `teams/{teamId}` van die club (alleen het teamdocument, **niet** de subcollectie `spelers`)
-- `trainingen/{id}` van die club
+Wat er verandert ten opzichte van de huidige rules:
 
-Schrijven mag hij nergens. Alleen een clubbeheerder zet `trainingscoordinatoren`.
+1. **Commentaarblok** bij de hulpfuncties: legt de rol uit.
+2. **`teams` update**: een club-admin mag ook de teams van zijn club bijwerken (nodig om trainingsmomenten in te stellen als hij zelf geen coach van dat team is).
 
-```
-function isTraincoVanClub(clubId) {
-  return request.auth != null
-    && get(/databases/$(database)/documents/clubs/$(clubId)).data.get('trainingscoordinatoren', {}).get(request.auth.uid, false) == true;
-}
+Wat bewust **niet** verandert:
 
-match /clubs/{clubId} {
-  allow read: if (resource.data.get('trainingscoordinatoren', {}).get(request.auth.uid, false) == true) || <bestaande leesregel>;
-}
-match /teams/{teamId} {
-  allow read: if isTraincoVanClub(resource.data.club) || <bestaande leesregel>;
-  // spelers-subcollectie: GEEN coördinator-regel toevoegen
-}
-match /trainingen/{id} {
-  allow read: if isTraincoVanClub(resource.data.club) || <bestaande leesregel>;
-}
-```
+- De coördinator leest `clubs`, `teams` en `trainingen` al via de bestaande regel `isEchteGebruiker()`. Daar is geen extra regel voor nodig.
+- De `spelers`-subcollectie vereist `isTeamMember`, dus de coördinator kan geen spelersnamen lezen. Het aantal komt uit `teams.spelersAantal`.
+- Alleen een club-admin kan `trainingscoordinatoren` op het clubdocument zetten (de zelf-aanmeld-regel staat alleen `leden`/`ledenInfo` toe). Een coördinator kan nergens schrijven.
 
-Let op: de queries in de app filteren op `club == <clubId>`; de rules moeten daarom op `resource.data.club` controleren (zoals hierboven).
-Het veld `clubs.admins` beschermt het schrijven van `trainingscoordinatoren`; controleer dat jullie updateregel voor clubdocumenten dat alleen aan beheerders geeft.
+Let op: de bestaande leesregel op `teams` en `clubs` geldt voor elke echte gebruiker in jullie Firebase-project. Dat is niet nieuw, maar de coördinator-weergave leunt erop.
