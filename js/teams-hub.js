@@ -19,7 +19,7 @@ import { telGebruik } from './tracker.js?v=20261107e';
 import { ongelezenBerichten } from './berichten.js?v=20261107e';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261107e';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261107e';
-import { htmlNu } from './nu-scherm.js?v=20261111b';
+import { htmlNu } from './nu-scherm.js?v=20261111c';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111a';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261109d';
 

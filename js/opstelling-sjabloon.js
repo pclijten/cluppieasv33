@@ -609,7 +609,7 @@ function bevestigToepassen(sj, wid){
     // sluit het sjabloonscherm zodat de coach de bijgewerkte wedstrijd ziet
     sluitOverlay();
     // open de wedstrijd zodat het resultaat direct zichtbaar is
-    import('./wedstrijd.js?v=20261111b').then(m => m.openWedstrijd(wid)).catch(() => {});
+    import('./wedstrijd.js?v=20261111c').then(m => m.openWedstrijd(wid)).catch(() => {});
   }).catch(e => meld('Opslaan mislukt: ' + (e.code || e.message)));
 }
 

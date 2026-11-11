@@ -16,7 +16,7 @@ import {
   db, collection, doc, getDoc, getDocs, addDoc, updateDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
 import { momentenVanTeam, tijdTekst } from './trainingsmomenten.js?v=20261107e';
-import { bouwLeenSnapshot } from './teams-spelers.js?v=20261111b';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20261111c';
 import { telGebruik } from './tracker.js?v=20261107e';
 import {
   vandaagLokaal, plusDagen, DAG_NAMEN, leenOmschrijving, leenDatum
@@ -27,14 +27,66 @@ export { magUitlenen } from './uitleen-rechten.js?v=20261111a';
 /* ---------- Data ophalen ---------- */
 async function clubTeams(clubId, behalve){
   const csnap = await getDoc(doc(db, 'clubs', clubId));
-  const ids = (csnap.exists() ? Object.keys(csnap.data().teams || {}) : []).filter(id => id !== behalve);
+  const club = csnap.exists() ? csnap.data() : {};
+  const ids = Object.keys(club.teams || {}).filter(id => id !== behalve);
   const uit = [];
   for (let i = 0; i < ids.length; i += 30){
     const chunk = ids.slice(i, i + 30);
     const tsnap = await getDocs(query(collection(db, 'teams'), where(documentId(), 'in', chunk)));
     tsnap.docs.forEach(d => uit.push({ id: d.id, ...d.data() }));
   }
-  return uit.sort((a, b) => (a.naam || '').localeCompare(b.naam || ''));
+  return { teams: uit, eigenBouwen: Array.isArray(club.eigenBouwen) ? club.eigenBouwen : [] };
+}
+
+/* ---------- Volgorde van de doelteams ----------
+   [20261111c] Meestal gaat een speler naar een HOGER team (ouder, of zelfde
+   leeftijd met een lager teamnummer). De keuzelijst toont daarom:
+     1. de eigen bouw: eerst de hogere teams (dichtstbijzijnde bovenaan, met ↑),
+        daarna de overige teams van de bouw;
+     2. daarna de andere bouwen, de bouw boven de eigen eerst, met per bouw
+        ook weer de hogere teams bovenaan.
+   Niveau: leeftijd uit categorie of naam (JO13, MO17, O19), senioren = 40;
+   binnen een leeftijd is -1 hoger dan -2. */
+export function teamNiveau(t){
+  const bron = `${t?.categorie || ''} ${t?.naam || ''}`.toUpperCase();
+  const m = bron.match(/(?:^|[^A-Z0-9])[JM]?O\s?(\d{1,2})(?!\d)/);
+  const leeftijd = m ? Number(m[1]) : 40;
+  const n = String(t?.naam || '').match(/[-\s](\d{1,2})\s*$/);
+  const nr = n ? Number(n[1]) : 1;
+  return leeftijd * 100 - Math.min(nr, 99);
+}
+const BOUW_VOLGORDE = ['onder', 'midden', 'boven'];
+export function groepeerDoelTeams({ teams, vanTeam, bouw, bouwNaam, bouwTeamIds }){
+  const vanNiveau = teamNiveau(vanTeam);
+  const hoger = t => teamNiveau(t) > vanNiveau;
+  const ordenen = lijst => [
+    ...lijst.filter(hoger).sort((a, b) => teamNiveau(a) - teamNiveau(b)),
+    ...lijst.filter(t => !hoger(t)).sort((a, b) => teamNiveau(b) - teamNiveau(a)),
+  ];
+  const inBouw = new Set(bouwTeamIds || []);
+  const eigen = teams.filter(t => inBouw.has(t.id) || (!bouwTeamIds && bouw && t.bouw === bouw));
+  const rest = teams.filter(t => !eigen.includes(t));
+  const groepen = [];
+  const eigenHoger = ordenen(eigen).filter(hoger), eigenRest = ordenen(eigen).filter(t => !hoger(t));
+  const naamBouw = bouwNaam || 'Eigen bouw';
+  if (eigenHoger.length) groepen.push({ label: `${naamBouw} · hoger`, teams: eigenHoger });
+  if (eigenRest.length) groepen.push({ label: eigenHoger.length ? `${naamBouw} · overige` : naamBouw, teams: eigenRest });
+  /* andere bouwen: standaardbouw van elk team; volgorde = eerst de bouwen
+     boven die van het eigen team, oplopend, daarna die eronder, aflopend */
+  const vanIdx = Math.max(0, BOUW_VOLGORDE.indexOf(vanTeam?.bouw || (vanNiveau >= 1600 ? 'boven' : vanNiveau >= 1200 ? 'midden' : 'onder')));
+  const perBouw = new Map();
+  for (const t of rest){
+    const b = BOUW_VOLGORDE.includes(t.bouw) ? t.bouw : 'boven';
+    if (!perBouw.has(b)) perBouw.set(b, []);
+    perBouw.get(b).push(t);
+  }
+  const volgorde = [...BOUW_VOLGORDE.slice(vanIdx), ...BOUW_VOLGORDE.slice(0, vanIdx).reverse()];
+  const NAMEN = { onder: 'Onderbouw', midden: 'Middenbouw', boven: 'Bovenbouw' };
+  for (const b of volgorde){
+    const lijst = perBouw.get(b); if (!lijst?.length) continue;
+    groepen.push({ label: NAMEN[b], teams: ordenen(lijst) });
+  }
+  return groepen.map(g => ({ ...g, teams: g.teams.map(t => ({ id: t.id, naam: t.naam || '?', hoger: hoger(t) })) }));
 }
 async function teamDoc(id){
   try { const s = await getDoc(doc(db, 'teams', id)); return s.exists() ? { id: s.id, ...s.data() } : null; }
@@ -66,7 +118,7 @@ export async function openUitleenForm(opties){
   const st = {
     vanTeam: opties.vanTeam || null, speler: opties.speler || null,
     teamsKeuze: opties.spelersVan || null, spelersVanTeam: [],
-    naarTeams: [], naar: null,
+    naarTeams: [], naarGroepen: [], naar: null,
     naarDoc: null, vanDoc: null, naarW: null, vanW: [],
     laden: false,
     tab: b?.soort === 'wedstrijd' ? 'snel' : (b ? 'uitg' : 'snel'),
@@ -239,7 +291,8 @@ export async function openUitleenForm(opties){
       ${htmlKeuzeSpeler()}
       ${veld('Naar team', b
         ? `<input class="invoer" value="${esc(st.naar?.naam || '')}" disabled>`
-        : `<select class="invoer" id="ulNaar" ${st.naarTeams.length ? '' : 'disabled'}><option value="">${st.naarTeams.length ? 'Kies een team…' : 'Teams laden…'}</option>${st.naarTeams.map(t => `<option value="${esc(t.id)}" ${st.naar?.id === t.id ? 'selected' : ''}>${esc(t.naam)}</option>`).join('')}</select>`)}
+        : `<select class="invoer" id="ulNaar" ${st.naarTeams.length ? '' : 'disabled'}><option value="">${st.naarTeams.length ? 'Kies een team…' : 'Teams laden…'}</option>${st.naarGroepen.map(g => `<optgroup label="${esc(g.label)}">${g.teams.map(t => `<option value="${esc(t.id)}" ${st.naar?.id === t.id ? 'selected' : ''}>${t.hoger ? '↑ ' : ''}${esc(t.naam)}</option>`).join('')}</optgroup>`).join('')}</select>`)}
+      ${!b && !st.naar && st.naarTeams.length ? `<p class="ul-noot">Eerst de teams van ${esc(st.naarGroepen[0]?.label.split(' · ')[0] || 'de eigen bouw')}, daarna de andere bouwen. <b>↑</b> = hoger team dan ${esc(st.vanTeam?.naam || 'het eigen team')}, het dichtstbijzijnde bovenaan.</p>` : ''}
       ${st.naar ? `
         ${seg('tab', [['snel', 'Eén wedstrijd'], ['uitg', 'Uitgebreid']], st.tab)}
         ${st.laden ? '<p class="ul-noot">Wedstrijden en trainingsdagen laden…</p>' : (st.tab === 'snel' ? htmlSnel() : htmlUitg()) + htmlConflicten()}
@@ -270,7 +323,20 @@ export async function openUitleenForm(opties){
   }
   async function laadNaarTeams(){
     if (b || !st.vanTeam) return;
-    try { st.naarTeams = (await clubTeams(clubId, st.vanTeam.id)).map(t => ({ id: t.id, naam: t.naam || '?' })); }
+    try {
+      const { teams, eigenBouwen } = await clubTeams(clubId, st.vanTeam.id);
+      /* Welke bouw is "de eigen bouw"? Vanuit de bouw-hub de geopende bouw
+         (ook een eigen bouw zoals Meidenbouw), anders de bouw van het team. */
+      const bouwId = opties.bouw || st.vanTeam.bouw || null;
+      const eb = eigenBouwen.find(x => x.id === bouwId);
+      const NAMEN = { onder: 'Onderbouw', midden: 'Middenbouw', boven: 'Bovenbouw' };
+      st.naarGroepen = groepeerDoelTeams({
+        teams, vanTeam: st.vanTeam, bouw: bouwId,
+        bouwNaam: eb?.naam || NAMEN[bouwId] || 'Eigen bouw',
+        bouwTeamIds: eb ? (eb.teams || []) : (opties.bouwTeamIds || null),
+      });
+      st.naarTeams = st.naarGroepen.flatMap(g => g.teams);
+    }
     catch(e){ meld('Teams ophalen mislukt: ' + (e.code || e.message)); }
     teken();
   }
