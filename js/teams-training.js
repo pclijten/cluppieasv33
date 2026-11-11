@@ -1160,10 +1160,27 @@ export async function stopVasteAfmelding(id){
   } catch(e){ meld('Stoppen mislukt: ' + (e.code || e.message)); }
 }
 
+/* ---------- Planning: formulier als paneel ----------
+   [20261111e] Op desktop/tablet schuift het formulier als paneel van rechts
+   over de planning (zelfde vorm als het uitleenformulier), in plaats van het
+   hele scherm te vervangen door de telefoonweergave. Op de telefoon blijft het
+   een volledig scherm (CSS: .modal-achter[data-vorm="paneel"]). */
+function openPlanPaneel(html){
+  openModal(html);
+  const achter = document.getElementById('modalAchter');
+  achter?.setAttribute('data-vorm', 'paneel');
+  const opEsc = e => { if (e.key === 'Escape' && achter?.classList.contains('open') && achter.dataset.vorm === 'paneel') sluitModal(); };
+  document.addEventListener('keydown', opEsc);
+  const opruimen = new MutationObserver(() => {
+    if (!achter?.classList.contains('open') || achter.dataset.vorm !== 'paneel'){ document.removeEventListener('keydown', opEsc); opruimen.disconnect(); }
+  });
+  if (achter) opruimen.observe(achter, { attributes: true, attributeFilter: ['class', 'data-vorm'] });
+}
+
 /* ---------- Planning: eigen dag toevoegen ---------- */
 export function modalEigenDag(){
   const vandaag = new Date().toISOString().slice(0,10);
-  openModal(`
+  openPlanPaneel(`
     <h2>Eigen dag toevoegen</h2>
     <p class="u-t-md u-zacht u-mb-sm">Voeg een eigen datum toe aan de planning, bijvoorbeeld een toernooi, teamuitje of trainingskamp.</p>
     <div class="veldgroep"><label>Datum</label>
@@ -1171,7 +1188,7 @@ export function modalEigenDag(){
     <div class="veldgroep"><label>Omschrijving</label>
       <input class="invoer" id="mEdLabel" placeholder="Bijv. Teamfoto, toernooi, vrij" autocomplete="off"></div>
     <div class="veldgroep"><label>Notitie (optioneel)</label>
-      <input class="invoer" id="mEdOpm" placeholder="Extra info" autocomplete="off"></div>
+      <textarea class="invoer plan-notitie" id="mEdOpm" rows="6" placeholder="Extra info, bijvoorbeeld adres, tijden, wat mee te nemen"></textarea></div>
     <button class="knop vol" id="mEdOk">Toevoegen</button>`);
   $('#mEdOk').onclick = async () => {
     const datum = $('#mEdDatum').value;
@@ -1196,7 +1213,7 @@ export function modalEigenDag(){
 export function modalPlanDag(it){
   const isEigen = it.bron === 'eigen';
   const typeOpties = [['wd','Wedstrijddag'],['beker','Beker'],['inhaal','Inhaal'],['vrij','Vrij'],['eigen','Eigen dag']];
-  openModal(`
+  openPlanPaneel(`
     <h2>${datumNL(it.datum)}</h2>
     <p class="u-t-sm u-zacht u-mb-sm">${isEigen ? 'Eigen dag bewerken of verwijderen.' : 'KNVB-speeldag aanpassen of verbergen voor dit team. De originele kalender blijft bewaard.'}</p>
     <div class="veldgroep"><label>Type</label>
@@ -1204,7 +1221,7 @@ export function modalPlanDag(it){
     <div class="veldgroep"><label>Omschrijving</label>
       <input class="invoer" id="mPdLabel" value="${esc(it.label||'')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Notitie (optioneel)</label>
-      <input class="invoer" id="mPdOpm" value="${esc(it.opmerking||'')}" autocomplete="off"></div>
+      <textarea class="invoer plan-notitie" id="mPdOpm" rows="6">${esc(it.opmerking||'')}</textarea></div>
     <button class="knop vol" id="mPdOk">Opslaan</button>
     <div class="rij u-mt-xs">
       ${it.aangepast && !isEigen ? `<button class="knop licht u-flex-1" id="mPdReset" >Herstel KNVB</button>` : ''}

@@ -1411,6 +1411,12 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .plan-mark{font-size:var(--t-2xs);font-weight:600;color:var(--ink-2)}
 .plan-sub{font-size:var(--t-xs);color:var(--ink-2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plan-sub.eigen{color:var(--grass)}
+/* [20261111e] notitie bij een plandag: ruim veld voor langere teksten (telefoon) */
+textarea.plan-notitie{min-height:150px}
+@media (min-width:900px) and (min-height:520px){
+  /* in het desktop-paneel nog ruimer */
+  .modal-achter[data-vorm="paneel"] textarea.plan-notitie{min-height:240px}
+}
 
 .plan-badge{flex:0 0 auto;font-family:var(--font-display);font-weight:700;font-size:var(--t-2xs);letter-spacing:.5px;padding:var(--space-2xs) var(--space-xs);border-radius:7px;color:var(--wit)}
 .plan-badge.wd{background:var(--veld)}
