@@ -286,14 +286,14 @@ let _terugWacht = false;      // doeTerug() wacht op de popstate van zijn histor
 
 /* ---------- Lagen die state.js zelf kent (via DOM, i.v.m. circulaire imports) ---------- */
 const STATISCHE_LAGEN = [
-  { z:1200, open: tactiekbordOpen, sluit: () => { import('./tactiekbord.js?v=20261107e').then(m => m.sluitTactiekbord()); } },
+  { z:1200, open: tactiekbordOpen, sluit: () => { import('./tactiekbord.js?v=20261111g').then(m => m.sluitTactiekbord()); } },
   /* Leerplein heeft twee niveaus (themakeuze → voorbeeld): de ‹-knop weet welke stap hoort. */
   { z:1180, open: leerpleinOpen,   sluit: () => {
       const knop = document.querySelector('.lp-scherm #lpTerug');
-      if (knop) knop.click(); else import('./leerplein.js?v=20261107e').then(m => m.sluitLeerplein());
+      if (knop) knop.click(); else import('./leerplein.js?v=20261111g').then(m => m.sluitLeerplein());
   } },
-  { z:65,   open: lightboxOpen,    sluit: () => { import('./training-weergave.js?v=20261107e').then(m => m.sluitLightbox()); } },
-  { z:60,   open: pdfViewerOpen,   sluit: () => { import('./pdf-viewer.js?v=20261107e').then(m => m.sluitPdfViewer()); } },
+  { z:65,   open: lightboxOpen,    sluit: () => { import('./training-weergave.js?v=20261111g').then(m => m.sluitLightbox()); } },
+  { z:60,   open: pdfViewerOpen,   sluit: () => { import('./pdf-viewer.js?v=20261111g').then(m => m.sluitPdfViewer()); } },
   { z:50,   open: modalOpen,       sluit: () => sluitModal() },
 ];
 
@@ -372,7 +372,7 @@ export function vangnetStilTerugAlsNodig(/* wasOpen */){}
 /* Circulair-veilig navpad loggen vanuit state.js (tracker importeert state.js,
    dus geen top-level import terug — zelfde patroon als pdf-viewer hierboven). */
 function _navTerug(scherm){
-  import('./tracker.js?v=20261107e').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
+  import('./tracker.js?v=20261111g').then(m => m.telNav?.(scherm, 'terug')).catch(()=>{});
 }
 
 /* Eén terug-stap volgens prioriteit. true = afgehandeld (app blijft open). */

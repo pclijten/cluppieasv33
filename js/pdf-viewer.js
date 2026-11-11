@@ -12,7 +12,7 @@
    club-evaluaties.js) — de rest van de app heeft deze library nooit
    nodig, dus pas ophalen op het moment dat een trainer echt een
    training opent. */
-import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261107e';
+import { meld, bewaakTerug, vangnetStilTerugAlsNodig } from './state.js?v=20261111g';
 
 const PDFJS_VERSIE = '3.11.174';
 const PDFJS_BASE = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIE}/`;
@@ -71,6 +71,63 @@ async function downloadPdf(bytes, titel){
   setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
 }
 
+/* Printen. Een PDF in een verborgen iframe printen werkt op Android-Chrome en
+   iOS niet (geen ingebouwde PDF-weergave in een iframe), dus renderen we elke
+   pagina opnieuw met pdf.js op printkwaliteit, zetten die als afbeeldingen in
+   een print-container en roepen window.print() aan. De @media print-regels in
+   styles.css verbergen dan de rest van de app, zodat alleen de pagina's op
+   papier komen. Werkt zo gelijk op telefoon, desktop, donker en licht. */
+const PRINT_SCHAAL = 2.5; // ±180 dpi op A4: scherp genoeg, niet te zwaar
+let _printBezig = false;
+
+function ruimPrintOp(){
+  document.querySelectorAll('.pdfv-print-vel').forEach(v => {
+    v.querySelectorAll('img').forEach(img => { if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src); });
+    v.remove();
+  });
+  document.documentElement.classList.remove('pdfv-printen');
+}
+
+async function printPdf(pdfDoc, knop){
+  if (_printBezig) return;
+  _printBezig = true;
+  knop.disabled = true;
+  ruimPrintOp();
+  const vel = document.createElement('div');
+  vel.className = 'pdfv-print-vel';
+  try {
+    for (let n = 1; n <= pdfDoc.numPages; n++){
+      const page = await pdfDoc.getPage(n);
+      const viewport = page.getViewport({ scale: PRINT_SCHAAL });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+      const img = document.createElement('img');
+      img.alt = 'Pagina ' + n;
+      img.src = blob ? URL.createObjectURL(blob) : canvas.toDataURL('image/jpeg', 0.92);
+      vel.appendChild(img);
+    }
+    document.body.appendChild(vel);
+    await Promise.all([...vel.querySelectorAll('img')].map(img =>
+      img.decode ? img.decode().catch(() => {}) : Promise.resolve()));
+    document.documentElement.classList.add('pdfv-printen');
+    window.addEventListener('afterprint', ruimPrintOp, { once: true });
+    window.print();
+  } catch (err){
+    ruimPrintOp();
+    meld('Printen lukt niet, probeer downloaden');
+    console.error('PDF printen fout:', err);
+  } finally {
+    _printBezig = false;
+    knop.disabled = false;
+  }
+}
+
 let _overlay = null;
 let _viewportOrigineel = null;
 
@@ -98,7 +155,8 @@ function bouwOverlay(){
         <div class="pdfv-meta"></div>
       </div>
       <div class="pdfv-teller"></div>
-      <button class="pdfv-download" aria-label="Downloaden" disabled></button>
+      <button class="pdfv-print" aria-label="Printen" title="Printen" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 8.5V4h10v4.5"/><rect x="3.5" y="8.5" width="17" height="8" rx="2"/><path d="M7 14h10v6H7z"/><circle cx="17" cy="11.5" r="0.6" fill="currentColor" stroke="none"/></svg></button>
+      <button class="pdfv-download" aria-label="Downloaden" title="Downloaden" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4.5 16.5v2.2c0 .7.6 1.3 1.3 1.3h12.4c.7 0 1.3-.6 1.3-1.3v-2.2"/></svg></button>
     </div>
     <div class="pdfv-stage"></div>
     <div class="pdfv-footer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.3 15.3 20 20"/></svg> dubbeltik of pinch om in te zoomen<span class="sep" aria-hidden="true"></span>scroll omlaag voor volgende pagina</div>`;
@@ -124,8 +182,11 @@ export async function openPdfViewer({ url, titel, meta }){
   const teller = el.querySelector('.pdfv-teller');
   const stage = el.querySelector('.pdfv-stage');
   const dlBtn = el.querySelector('.pdfv-download');
+  const prBtn = el.querySelector('.pdfv-print');
   dlBtn.disabled = true;
   dlBtn.onclick = null;
+  prBtn.disabled = true;
+  prBtn.onclick = null;
   teller.textContent = '';
   stage.innerHTML = `<div class="pdfv-laad"><div class="pdfv-spinner"></div>Oefenstof laden…</div>`;
   el.classList.add('open');
@@ -145,6 +206,8 @@ export async function openPdfViewer({ url, titel, meta }){
     dlBtn.disabled = false;
     dlBtn.onclick = () => downloadPdf(bytesVoorDownload, titel);
     const pdfDoc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+    prBtn.disabled = false;
+    prBtn.onclick = () => printPdf(pdfDoc, prBtn);
 
     teller.textContent = '1 / ' + pdfDoc.numPages;
     stage.innerHTML = '';
