@@ -20,7 +20,7 @@ import {
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261109d';
 import { isBouwCoordinator } from './coordinatoren.js?v=20261107e';
 import { magUitlenen } from './uitleen-rechten.js?v=20261111a';
-import { leenOmschrijving, leenActief } from './uitleen-regels.js?v=20261111a';
+import { leenOmschrijving, leenActief } from './uitleen-regels.js?v=20261111d';
 import { ico } from './icons.js?v=20261106r';
 import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261107e';
 
@@ -34,7 +34,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261111c');
+  const m = await import('./teams.js?v=20261111d');
   m.renderTeam();
 }
 
@@ -1311,7 +1311,7 @@ export async function modalUitlenen(spelerId){
      Uitgebreid) en mag alleen door coördinatoren en de clubadmin. */
   const team = { ...S.team, id: S.teamId };
   if (!magUitlenen(team)) return meld('Uitlenen regelt de coördinator van de bouw');
-  const m = await import('./uitleen-form.js?v=20261111c');
+  const m = await import('./uitleen-form.js?v=20261111d');
   m.openUitleenForm({ clubId, vanTeam: team, speler: p });
 }
 
@@ -1319,7 +1319,7 @@ export async function modalUitlenen(spelerId){
 export async function wijzigUitlening(u, clubIdOverride, naOpslaan){
   const clubId = clubIdOverride || S.team?.club;
   if (!clubId || !u) return meld('Uitlening niet gevonden');
-  const m = await import('./uitleen-form.js?v=20261111c');
+  const m = await import('./uitleen-form.js?v=20261111d');
   m.openUitleenForm({ clubId, vanTeam: { id: u.vanTeam, naam: u.vanTeamNaam }, speler: { id: u.spelerId, naam: u.snapshot?.naam || 'Speler' }, bestaand: u, naOpslaan });
 }
 

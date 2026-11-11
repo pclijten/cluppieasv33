@@ -18,7 +18,7 @@ import {
 } from './config.js?v=20261107e';
 import { htmlKompas } from './teams-leerlijn.js?v=20261107e';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106r';
-import { spelersOpTraining } from './uitleen-regels.js?v=20261111a';
+import { spelersOpTraining } from './uitleen-regels.js?v=20261111d';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
 } from './vaste-afmeldingen.js?v=20261106r';

@@ -6560,6 +6560,19 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .ul-samenvat{ display:flex; flex-direction:column; gap:2px; padding:var(--space-sm); border-radius:11px; background:var(--op-vlak); font-size:var(--t-sm); color:var(--ink-2); line-height:1.45; }
 .ul-samenvat b{ color:var(--ink); }
 .ul-fout{ margin:0; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
+/* [20261111d] Tabbladen Wedstrijden / Meetrainen, elk met eigen status */
+.ul-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2xs); background:var(--surface-2); border-radius:13px; padding:var(--space-2xs); }
+.ul-tab{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; padding:var(--space-xs) var(--space-sm); border-radius:10px; text-align:left; color:var(--ink-2); }
+.ul-tab b{ font-size:var(--t-md); font-weight:700; }
+.ul-tab small{ display:flex; align-items:center; gap:6px; max-width:100%; font-size:var(--t-2xs); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ul-tab small::before{ content:""; flex-shrink:0; width:7px; height:7px; border-radius:99px; background:currentColor; opacity:.45; }
+.ul-tab.ingesteld small::before{ background:var(--ok); opacity:1; }
+.ul-tab.actief{ background:var(--card); color:var(--ink); box-shadow:inset 0 -2px 0 var(--accent); }
+.ul-tabinhoud{ display:flex; flex-direction:column; gap:inherit; }
+.ul-doet{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-sm); padding:var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm); border-radius:11px; background:var(--surface-2); font-size:var(--t-sm); font-weight:600; }
+.ul-linkknop{ align-self:flex-start; padding:var(--space-2xs) 0; font-size:var(--t-xs); font-weight:700; color:var(--accent); }
+.ul-regel{ display:flex; gap:var(--space-xs); }
+.ul-regel i{ flex:0 0 92px; font-style:normal; color:var(--ink); }
 /* Knoppen onderaan blijven in beeld tijdens scrollen (telefoon én paneel) */
 .ul-voet{ position:sticky; bottom:calc(-20px - env(safe-area-inset-bottom)); z-index:2; display:flex; flex-direction:column; gap:var(--space-xs);
   margin:var(--space-xs) calc(var(--space-md) * -1) calc(-20px - env(safe-area-inset-bottom)); padding:var(--space-sm) var(--space-md) calc(var(--space-sm) + env(safe-area-inset-bottom));

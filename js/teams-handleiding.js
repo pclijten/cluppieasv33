@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20261111c';
+import { onboardingHerstartBlok } from './onboarding.js?v=20261111d';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -280,12 +280,14 @@ export function htmlHandleiding(){
     </section>
 
 
-    <section class="hl-sec" data-zoek="⇄ spelers uitlenen een speler laten meespelen of meetrainen bij een ander team van de club regelt de coördinator van de bouw. kies een wedstrijd voor één keer, of uitgebreid: wedstrijden, meetrainen of allebei, vanaf en tot een datum, een aantal wedstrijden of zelf aangevinkte wedstrijden, en per trainingsdag bij welk team. twee wedstrijden op één dag: de coördinator kiest allebei of één team. na de einddatum is de uitlening vanzelf voorbij. presentie: op dagen bij het eigen team vult de eigen trainer de presentie in, op dagen bij het andere team staat de speler grijs en telt hij niet mee. een uitgeleende speler staat meteen in de selectie van de wedstrijd. wijzigen, verlengen en beëindigen via bouw uitleningen.">
+    <section class="hl-sec" data-zoek="⇄ spelers uitlenen een speler laten meespelen of meetrainen bij een ander team van de club regelt de coördinator van de bouw. twee tabbladen: wedstrijden (één wedstrijd, aangevinkte wedstrijden, een aantal, tot een datum of geen einddatum) en meetrainen (eigen periode, per trainingsdag bij welk team). beide op ja is allebei. twee wedstrijden op één dag: de coördinator kiest allebei of één team. na de einddatum is de uitlening vanzelf voorbij. presentie: op dagen bij het eigen team vult de eigen trainer de presentie in, op dagen bij het andere team staat de speler grijs en telt hij niet mee. een uitgeleende speler staat meteen in de selectie van de wedstrijd. wijzigen, verlengen en beëindigen via bouw uitleningen.">
     <h3>⇄ Spelers uitlenen</h3>
     <p>Een speler laten meespelen of meetrainen bij een ander team van de club regelt de <b>coördinator van de bouw</b>, via Bouw › Uitleningen of het spelersprofiel.</p>
     <ul>
-      <li><b>Eén wedstrijd</b>: kies de wedstrijd. Daarna is de uitlening vanzelf voorbij, terugzetten is niet nodig.</li>
-      <li><b>Uitgebreid</b>: wedstrijden, meetrainen of allebei. Kies een einddatum, een aantal wedstrijden of vink de wedstrijden aan, en per trainingsdag bij welk team de speler traint.</li>
+      <li>Het formulier heeft twee tabbladen, elk met een eigen <b>Ja/Nee</b> en een eigen periode. Zet je beide op Ja, dan speelt en traint de speler mee.</li>
+      <li><b>Wedstrijden</b>: één wedstrijd, wedstrijden aanvinken, een aantal wedstrijden, tot en met een datum of geen einddatum.</li>
+      <li><b>Meetrainen</b>: vanaf en tot een datum (los van de wedstrijden) en per trainingsdag bij welk team de speler traint.</li>
+      <li>Na de laatste wedstrijd of einddatum is de uitlening vanzelf voorbij, terugzetten is niet nodig.</li>
       <li>Spelen beide teams op dezelfde dag (bijv. 9:00 en 15:00)? Dan kiest de coördinator: allebei of één van de twee.</li>
       <li><b>Presentie</b>: op dagen bij het eigen team vult de eigen trainer de presentie gewoon in. Op dagen bij het andere team staat de speler grijs met dat team erbij en telt hij niet mee in de opkomst.</li>
       <li>Een uitgeleende speler staat meteen in de selectie van de wedstrijd, ook op het startscherm.</li>
