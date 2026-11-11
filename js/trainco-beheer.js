@@ -7,7 +7,7 @@
    trainingscoördinator. Rechtenbron: `trainingscoordinatoren.<uid> = true`.
    Importeert niets uit club.js (geen kringimport). */
 import { db, doc, updateDoc, deleteField } from './firebase.js?v=20261106r';
-import { S, esc, meld } from './state.js?v=20261107e';
+import { S, esc, meld } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 
 const naamKort = n => String(n || 'Naamloos').split('@')[0];

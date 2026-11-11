@@ -8,15 +8,15 @@
    eigen teams opent desktop.js in de gewone teamschermen.
    Tekent in een eigen view (#view-dkbouw) binnen #app.
 =============================================================== */
-import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=20261107e';
-import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261107e';
+import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=20261111g';
+import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
-import { analyseWedstrijd } from './analyse.js?v=20261109d';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261111f';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111f';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261111f';
-import { rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261111f';
+import { analyseWedstrijd } from './analyse.js?v=20261111g';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261111g';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111g';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261111g';
+import { rondeStatusTeam } from './evaluatierondes.js?v=20261111g';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261111g';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -87,7 +87,7 @@ terugView('dkbouw', () => {
     huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
     teken(); window.scrollTo(0, 0); return true;
   }
-  import('./teams.js?v=20261111f').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261111g').then(m => { m.renderTeams(); toon('teams'); });
   return true;
 });
 

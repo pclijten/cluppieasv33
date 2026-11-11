@@ -30,8 +30,8 @@
    toevoegen. Mobiel toont lijsten met ≤3 korte kolommen (✓/✗, keuze, datum)
    compact: naam en waarden op één regel, opmerking achter een potloodje. */
 import { db, doc, collection, addDoc, updateDoc, deleteDoc, deleteField, onSnapshot } from './firebase.js?v=20261106r';
-import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261107e';
-import { SEIZOEN_FALLBACK } from './config.js?v=20261107e';
+import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
+import { SEIZOEN_FALLBACK } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 
 /* ---------- Sjablonen ---------- */

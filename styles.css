@@ -781,6 +781,20 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:6
 .pdfv-teller{font-size:var(--t-xs);color:var(--wit);background:var(--pitch-ink);padding:var(--space-2xs) var(--space-xs);border-radius:8px;flex-shrink:0}
 .pdfv-download{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:var(--wit);border:none;display:flex;align-items:center;justify-content:center;font-size:var(--t-lg);flex-shrink:0}
 .pdfv-download:disabled{opacity:.35;cursor:not-allowed}
+.pdfv-print{width:36px;height:36px;border-radius:10px;background:var(--pitch-ink);color:var(--wit);border:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.pdfv-print:disabled{opacity:.35;cursor:not-allowed}
+.pdfv-download{cursor:pointer}
+.pdfv-print svg,.pdfv-download svg{display:block}
+/* Print-container van de pdf-viewer: op scherm onzichtbaar, bij printen het enige wat zichtbaar is. */
+.pdfv-print-vel{display:none}
+@media print{
+  @page{margin:8mm}
+  html.pdfv-printen,html.pdfv-printen body{background:#fff!important;height:auto!important;overflow:visible!important}
+  html.pdfv-printen body > *:not(.pdfv-print-vel){display:none!important}
+  html.pdfv-printen .pdfv-print-vel{display:block!important}
+  .pdfv-print-vel img{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain;break-after:page;page-break-after:always}
+  .pdfv-print-vel img:last-child{break-after:auto;page-break-after:auto}
+}
 .pdfv-stage{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--bg);display:flex;flex-direction:column;align-items:center;padding:var(--space-sm) 0 32px;touch-action:pan-x pan-y pinch-zoom}
 .pdfv-pagina{display:flex;justify-content:center;padding:var(--space-xs) var(--space-sm);width:100%}
 .pdfv-pagina canvas{max-width:100%;height:auto;border-radius:6px;box-shadow:0 4px 20px color-mix(in srgb, var(--zwart) 50%, transparent);background:var(--wit)}

@@ -21,7 +21,7 @@
    naar een export. */
 
 import { db, doc, updateDoc, storage, sRef, uploadBytes, getDownloadURL, deleteObject } from './firebase.js?v=20261106r';
-import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261107e';
+import { S, esc, meld, bewaakTerug, vangnetStilTerugAlsNodig, terugLaag } from './state.js?v=20261111g';
 
 const MAX_BYTES = 100 * 1024 * 1024;   // 100 MB
 const TOEGESTAAN = ['video/mp4', 'video/quicktime', 'video/webm'];   // mp4, mov, webm

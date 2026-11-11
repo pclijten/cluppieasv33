@@ -20,19 +20,19 @@
    Alle data (spelers, wedstrijden, presentie, poulestand, beoordelingen)
    wordt ÉÉN keer per team opgehaald bij het openen en daarna door alle
    schermen hergebruikt (huidigeContext.data) — geen dubbele reads. */
-import { S, esc, meld, openModal, sluitModal, isBeheerder, terugLaag } from './state.js?v=20261107e';
+import { S, esc, meld, openModal, sluitModal, isBeheerder, terugLaag } from './state.js?v=20261111g';
 import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
-import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261107e';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111f';
-import { openUitleenForm } from './uitleen-form.js?v=20261111f';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111g';
+import { openUitleenForm } from './uitleen-form.js?v=20261111g';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111d';
-import { telGebruik } from './tracker.js?v=20261107e';
-import { analyseWedstrijd } from './analyse.js?v=20261109d';
+import { telGebruik } from './tracker.js?v=20261111g';
+import { analyseWedstrijd } from './analyse.js?v=20261111g';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
-import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
+import { rondesVan, rondeStatusTeam } from './evaluatierondes.js?v=20261111g';
 
 /* [20260929a] Voortgang van de "verplichte" evaluatie per team: de lopende
    evaluatieronde van de club als die er is, anders (zoals voorheen) de
@@ -208,7 +208,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261111f'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261111g'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -876,7 +876,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261111f');
+      const m = await import('./teams.js?v=20261111g');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
