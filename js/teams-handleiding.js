@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20261109d';
+import { onboardingHerstartBlok } from './onboarding.js?v=20261111a';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -280,13 +280,16 @@ export function htmlHandleiding(){
     </section>
 
 
-    <section class="hl-sec" data-zoek="⇄ spelers uitlenen speelt een speler een keer mee met een ander team binnen de club? open zijn profiel (tab spelers → tik op de speler) en kies ⇄ uitlenen aan ander team . je kiest het ontvangende team en de wedstrijddag. de andere coach ziet de speler automatisch vanaf 3 dagen vóór tot 3 dagen ná die dag, onder het kopje "geleend", daarna verdwijnt hij vanzelf. de ontvangende coach ziet alleen voornaam + voorletter (bijv. "tim b."), de voorkeurspositie, de statistieken en het ontwikkelprofiel. alles read-only. je kunt een uitlening op elk moment intrekken vanaf het spelerprofiel.">
+    <section class="hl-sec" data-zoek="⇄ spelers uitlenen een speler laten meespelen of meetrainen bij een ander team van de club regelt de coördinator van de bouw. kies een wedstrijd voor één keer, of uitgebreid: wedstrijden, meetrainen of allebei, vanaf en tot een datum, een aantal wedstrijden of zelf aangevinkte wedstrijden, en per trainingsdag bij welk team. twee wedstrijden op één dag: de coördinator kiest allebei of één team. na de einddatum is de uitlening vanzelf voorbij. presentie: op dagen bij het eigen team vult de eigen trainer de presentie in, op dagen bij het andere team staat de speler grijs en telt hij niet mee. een uitgeleende speler staat meteen in de selectie van de wedstrijd. wijzigen, verlengen en beëindigen via bouw uitleningen.">
     <h3>⇄ Spelers uitlenen</h3>
-    <p>Speelt een speler een keer mee met een ander team binnen de club? Open zijn profiel (tab Spelers → tik op de speler) en kies <b>⇄ Uitlenen aan ander team</b>. Je kiest het ontvangende team en de wedstrijddag.</p>
+    <p>Een speler laten meespelen of meetrainen bij een ander team van de club regelt de <b>coördinator van de bouw</b>, via Bouw › Uitleningen of het spelersprofiel.</p>
     <ul>
-      <li>De andere coach ziet de speler automatisch vanaf <b>3 dagen vóór</b> tot <b>3 dagen ná</b> die dag, onder het kopje "Geleend", daarna verdwijnt hij vanzelf.</li>
-      <li>De ontvangende coach ziet alleen <b>voornaam + voorletter</b> (bijv. "Tim B."), de voorkeurspositie, de statistieken en het ontwikkelprofiel. Alles read-only.</li>
-      <li>Je kunt een uitlening op elk moment <b>intrekken</b> vanaf het spelerprofiel.</li>
+      <li><b>Eén wedstrijd</b>: kies de wedstrijd. Daarna is de uitlening vanzelf voorbij, terugzetten is niet nodig.</li>
+      <li><b>Uitgebreid</b>: wedstrijden, meetrainen of allebei. Kies een einddatum, een aantal wedstrijden of vink de wedstrijden aan, en per trainingsdag bij welk team de speler traint.</li>
+      <li>Spelen beide teams op dezelfde dag (bijv. 9:00 en 15:00)? Dan kiest de coördinator: allebei of één van de twee.</li>
+      <li><b>Presentie</b>: op dagen bij het eigen team vult de eigen trainer de presentie gewoon in. Op dagen bij het andere team staat de speler grijs met dat team erbij en telt hij niet mee in de opkomst.</li>
+      <li>Een uitgeleende speler staat meteen in de selectie van de wedstrijd, ook op het startscherm.</li>
+      <li>De ontvangende coach ziet alleen <b>voornaam + voorletter</b>, de voorkeurspositie en de open leerpunten.</li>
     </ul>
     </section>
 

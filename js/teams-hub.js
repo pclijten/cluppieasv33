@@ -19,7 +19,8 @@ import { telGebruik } from './tracker.js?v=20261107e';
 import { ongelezenBerichten } from './berichten.js?v=20261107e';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261107e';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261107e';
-import { htmlNu } from './nu-scherm.js?v=20261109d';
+import { htmlNu } from './nu-scherm.js?v=20261111a';
+import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111a';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261109d';
 
 /* Zelfde sentinel als in wedstrijd.js (daar niet geëxporteerd): geplande
@@ -172,13 +173,17 @@ export function htmlHub(updInfo){
 /* [20260928e] Standaardselectie als de wedstrijd er (nog) geen heeft: iedereen,
    of bij een team met 1e + 2e elftal de spelers van het elftal van die wedstrijd.
    Zelfde regel als normaliseerWedstrijd in wedstrijd.js. */
+/* [20261111] Uitleningen: alleen wie bij deze wedstrijd hoort (wedstrijdSpelers),
+   en een net ingeleende speler staat meteen in de selectie (effectieveSelectie). */
+const wedstrijdSpelers = w => spelersOpWedstrijd(S.spelers, w).lijst;
 function standaardSelectie(w){
-  if (Array.isArray(w.selectie) && w.selectie.length) return w.selectie;
+  if (Array.isArray(w.selectie) && w.selectie.length) return effectieveSelectie(w, S.spelers);
+  const basis = wedstrijdSpelers(w);
   if (heeftElftallen() && w.type !== 'toernooi'){
-    const e = spelersVoorElftal(S.spelers, elftalWedstrijd(w)).eigen;
+    const e = spelersVoorElftal(basis, elftalWedstrijd(w)).eigen;
     if (e.length) return e.map(p => p.id);
   }
-  return S.spelers.map(p => p.id);
+  return basis.map(p => p.id);
 }
 /* De wedstrijd waarvoor presentie getoond wordt: gekozen door de coach, of
    standaard de eerstvolgende (vandaag of later); zonder komende wedstrijden
@@ -210,7 +215,9 @@ export function htmlPresWedstrijd(){
   const laat = new Set(w.telaat || []);          // erbij, maar komt later
   const vanaf = w.telaatVanaf || {};             // wedstrijdminuut van aankomst
   const maxMin = Math.round((w.periodes || 4) * (w.kwartduur || 0)) || 90;
-  const aanwezigN = S.spelers.filter(p => sel.has(p.id)).length;
+  const basis = wedstrijdSpelers(w);
+  const elders = spelersOpWedstrijd(S.spelers, w).elders;
+  const aanwezigN = basis.filter(p => sel.has(p.id)).length;
 
   const kiezer = `
     <button class="pw-kiezer" id="pwKiezer">
@@ -223,7 +230,7 @@ export function htmlPresWedstrijd(){
   /* Team met 1e + 2e elftal: eerst het elftal van deze wedstrijd, dan de
      rest van de selectie ("niet mee" zonder redenkeuze). */
   const tweeElftallen = heeftElftallen() && w.type !== 'toernooi';
-  const groepen = tweeElftallen ? spelersVoorElftal(S.spelers, elftalWedstrijd(w)) : { eigen: S.spelers, rest: [] };
+  const groepen = tweeElftallen ? spelersVoorElftal(basis, elftalWedstrijd(w)) : { eigen: basis, rest: [] };
   const rij = (p, rest) => {
     const aanwezig = sel.has(p.id);
     const isLaat = aanwezig && laat.has(p.id);
@@ -249,11 +256,14 @@ export function htmlPresWedstrijd(){
   };
   const rijen = (tweeElftallen ? `<div class="elf-groep">${elftalNaam(elftalWedstrijd(w))}</div>` : '')
     + groepen.eigen.map(p => rij(p, false)).join('')
-    + (groepen.rest.length ? `<div class="elf-groep">Rest van de selectie</div>` + groepen.rest.map(p => rij(p, true)).join('') : '');
+    + (groepen.rest.length ? `<div class="elf-groep">Rest van de selectie</div>` + groepen.rest.map(p => rij(p, true)).join('') : '')
+    + elders.map(({ p, team }) => `<div class="pres-speler pres-elders"><div class="pres-speler-kop" aria-disabled="true">
+        <span class="pres-shirt">${esc(p.nummer ?? '·')}</span><span class="pres-naam">${esc(p.naam)}<small>Speelt deze dag alleen bij ${esc(team)}</small></span>
+        <span class="pres-status">⇄ ${esc(team)}</span></div></div>`).join('');
 
   return `
     ${kiezer}
-    <div class="pw-tel">${aanwezigN} van ${S.spelers.length} spelen mee${laat.size ? ` (${[...laat].filter(id => sel.has(id)).length} later)` : ''}<span class="sep" aria-hidden="true"></span>wijzigingen worden direct bewaard</div>
+    <div class="pw-tel">${aanwezigN} van ${basis.length} spelen mee${laat.size ? ` (${[...laat].filter(id => sel.has(id)).length} later)` : ''}<span class="sep" aria-hidden="true"></span>wijzigingen worden direct bewaard</div>
     <div class="pw-tel" style="margin-top:-4px">Komt iemand later? Tik hem op afwezig, kies <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Komt later</b> en vul eventueel de wedstrijdminuut in. De tijd daarvóór telt niet mee in zijn speeltijd-%.</div>
     ${S.spelers.length ? rijen : `<div class="kaart leeg">Nog geen spelers in dit team.</div>`}
     <button class="knop vol u-mt-md" id="pwKlaar" >Klaar</button>`;
@@ -300,7 +310,7 @@ export async function presWedstrijdBewaar(wijzig){
   const vanaf = {...(w.telaatVanaf || {})};
   wijzig(sel, redenen, laat, vanaf);
 
-  const update = { selectie: [...sel] };
+  const update = { selectie: [...sel], leenErbij: leenErbijNa(w, S.spelers) };   /* [20261111] weggehaalde leners blijven weg */
   const schoon = {};
   for (const [pid, r] of Object.entries(redenen)) if (!sel.has(pid)) schoon[pid] = r;
   update.afwezigRedenen = schoon;

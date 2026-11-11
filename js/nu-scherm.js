@@ -20,6 +20,7 @@ import { afwezigRedenInfo, isoWeek } from './config.js?v=20261107e';
 import { bepaalNu, evenementen } from './nu-context.js?v=20261106r';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261107e';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
+import { effectieveSelectie, spelersOpWedstrijd, spelersOpTraining } from './uitleen-regels.js?v=20261111a';
 import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106r';
 
 const p2 = n => String(n).padStart(2, '0');
@@ -63,9 +64,12 @@ export function opstellingKlaar(w){
   const nrs = periodeNrs(w);
   return { klaar: nrs.filter(n => Object.keys(w.kwarten?.[n]?.lineup || {}).length).length, totaal: nrs.length };
 }
+/* [20261111] Opgeslagen selectie + net ingeleende spelers die nog niet zijn
+   aangevuld (anders stonden die tot het openen van de wedstrijd als "niet in
+   de selectie"). Zonder opgeslagen selectie: iedereen die bij deze wedstrijd hoort. */
 function selectieVan(w){
-  if (Array.isArray(w.selectie) && w.selectie.length) return new Set(w.selectie);
-  return new Set(S.spelers.map(p => p.id));
+  if (Array.isArray(w.selectie) && w.selectie.length) return new Set(effectieveSelectie(w, S.spelers));
+  return new Set(spelersOpWedstrijd(S.spelers, w).lijst.map(p => p.id));
 }
 function naarContext(w, vandaag, nu){
   const st = klokStaat(w);
@@ -86,7 +90,7 @@ function naarContext(w, vandaag, nu){
 /* ---------- presentie: training (record of vaste afmeldingen) en wedstrijd ---------- */
 function presentieTraining(datum){
   const rec = S.presentie.find(p => p.datum === datum) || null;
-  const ids = S.spelers.map(p => p.id);
+  const ids = spelersOpTraining(S.spelers, datum).lijst.map(p => p.id);
   let afwezig, redenen, laat, vast = false;
   if (rec){ afwezig = rec.afwezig || []; redenen = rec.afwezigRedenen || {}; laat = rec.telaat || []; }
   else { const pf = vastePrefill(S.team, datum, ids); afwezig = pf.afwezig; redenen = pf.redenen; laat = []; vast = afwezig.length > 0; }
@@ -94,9 +98,10 @@ function presentieTraining(datum){
 }
 export function presentieWedstrijd(w){
   const sel = selectieVan(w), redenen = w.afwezigRedenen || {};
-  const afwezig = S.spelers.filter(p => !sel.has(p.id) && redenen[p.id]).map(p => p.id);
-  const nietMeeIds = S.spelers.filter(p => !sel.has(p.id) && !redenen[p.id]).map(p => p.id);
-  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja: sel.size, totaal: S.spelers.length, nietMee: nietMeeIds.length, nietMeeIds };
+  const basis = spelersOpWedstrijd(S.spelers, w).lijst;
+  const afwezig = basis.filter(p => !sel.has(p.id) && redenen[p.id]).map(p => p.id);
+  const nietMeeIds = basis.filter(p => !sel.has(p.id) && !redenen[p.id]).map(p => p.id);
+  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja: sel.size, totaal: basis.length, nietMee: nietMeeIds.length, nietMeeIds };
 }
 function nietMeeTekst(p){
   const namen = (p.nietMeeIds || []).map(naamVan).filter(Boolean).map(esc);
@@ -371,16 +376,16 @@ export function koppelNu(v, ctx){
     const pt = ev.target.closest('[data-nu-pres-training]');
     if (pt){
       const datum = pt.dataset.nuPresTraining, rec = S.presentie.find(p => p.datum === datum) || null;
-      const m = await import('./teams-training.js?v=20261107e');
+      const m = await import('./teams-training.js?v=20261111a');
       m.modalPresentie(rec, rec ? {} : { datum });
       return;
     }
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261109d'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261111a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261109d'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261111a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

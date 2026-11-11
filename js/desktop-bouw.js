@@ -12,11 +12,11 @@ import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=2026
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
 import { analyseWedstrijd } from './analyse.js?v=20261109d';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw } from './bouw-hub.js?v=20261109d';
-import { trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109d';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261109d';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261111a';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111a';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261111a';
 import { rondeStatusTeam } from './evaluatierondes.js?v=20261107e';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261109d';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261111a';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -87,7 +87,7 @@ terugView('dkbouw', () => {
     huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
     teken(); window.scrollTo(0, 0); return true;
   }
-  import('./teams.js?v=20261109d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261111a').then(m => { m.renderTeams(); toon('teams'); });
   return true;
 });
 
@@ -204,18 +204,23 @@ export function richting(u, ctx){
   return `<span class="dk-pill dkb-in">\u2199 ingeleend uit ${esc(bouwVanTeamNaam(u.vanTeamNaam))}</span>`;
 }
 function htmlUitleningen(ctx){
-  const lijst = ctx.uitleningen;
+  /* [20261111] Soort, periode en status per uitlening; voorbije 14 dagen apart. */
+  const lijst = ctx.uitleningen, voorbij = ctx.uitleningenVoorbij || [];
+  const rij = (u, isVoorbij) => { const def = !isVoorbij && magTeam(u.vanTeam, ctx) && magTeam(u.naarTeam, ctx);
+    const i = leenKaartInfo(u), pct = i.status.voortgang;
+    return `<tr class="${isVoorbij ? 'ul-voorbij' : ''}"><td><b>${esc(u.snapshot?.naam || 'Speler')}</b></td><td>${esc(u.vanTeamNaam || '?')} \u2192 ${esc(u.naarTeamNaam || '?')}<div class="ul-dkrich">${richting(u, ctx)}</div></td>
+      <td><b class="ul-dksoort">${esc(i.soort)}</b><div class="ul-dkwanneer">${esc(i.wanneer)}</div></td>
+      <td><span class="ul-chip ${esc(i.status.toon)}">${esc(isVoorbij ? 'Voorbij' : i.status.tekst)}</span>${!isVoorbij && pct != null ? `<div class="ul-balk" aria-hidden="true"><i style="width:${Math.round(pct * 100)}%"></i></div>` : ''}</td>
+      <td class="n">${isVoorbij ? '' : `<span class="dkb-tabknoppen">${knop(u.tot ? 'Wijzigen / verlengen' : 'Wijzigen', 'wijzig', '', '', `data-id="${esc(u.id)}"`)}${knop('Beëindigen', 'terug', '', '', `data-id="${esc(u.id)}"`)}${def ? knop('Definitief', 'definitief', 'dk-gevaar', '', `data-id="${esc(u.id)}"`) : ''}</span>`}</td></tr>`; };
   return `<div class="dk-scherm">
     ${kop('Uitleningen', knop('Nieuwe uitlening', 'nieuwleen', 'rood', 'action-add'))}
     <div class="dkb-body dkb-uitbody">
       <h1 class="dk-groot">Uitleningen <span class="dk-omlijnd" style="display:inline">${esc(bouwNaamVan(ctx.bouw))}</span></h1>
-      <div class="dk-blok dk-tabelblok"><table class="dk-tabel"><thead><tr><th>Speler</th><th>Van</th><th>Naar</th><th>Richting</th><th></th></tr></thead><tbody>
-        ${lijst.map(u => { const def = magTeam(u.vanTeam, ctx) && magTeam(u.naarTeam, ctx);
-          return `<tr><td><b>${esc(u.snapshot?.naam || 'Speler')}</b></td><td>${esc(u.vanTeamNaam || '?')}</td><td>${esc(u.naarTeamNaam || '?')}</td><td>${richting(u, ctx)}</td>
-          <td class="n"><span class="dkb-tabknoppen">${knop('Terugzetten', 'terug', '', '', `data-id="${esc(u.id)}"`)}${def ? knop('Definitief', 'definitief', 'dk-gevaar', '', `data-id="${esc(u.id)}"`) : ''}</span></td></tr>`; }).join('')
-          || '<tr><td colspan="5" class="dk-leeg">Geen actieve uitleningen in deze bouw.</td></tr>'}
+      <div class="dk-blok dk-tabelblok"><table class="dk-tabel ul-dktabel"><thead><tr><th>Speler</th><th>Van \u2192 naar</th><th>Afspraak</th><th>Status</th><th></th></tr></thead><tbody>
+        ${lijst.map(u => rij(u, false)).join('') || '<tr><td colspan="5" class="dk-leeg">Geen lopende uitleningen in deze bouw.</td></tr>'}
+        ${voorbij.length ? `<tr class="ul-dktussen"><td colspan="5">Net voorbij (${voorbij.length})</td></tr>${voorbij.map(u => rij(u, true)).join('')}` : ''}
       </tbody></table></div>
-      <p class="dk-leeg">Terugzetten beëindigt de uitlening. Definitief zet de speler over naar het andere team (alleen als je op beide teams rechten hebt).</p>
+      <p class="dk-leeg">Na de einddatum is een uitlening vanzelf voorbij. Beëindigen stopt hem nu. Definitief zet de speler over naar het andere team (alleen als je op beide teams rechten hebt). Voorbije uitleningen blijven 14 dagen zichtbaar.</p>
     </div></div>`;
 }
 
@@ -233,6 +238,12 @@ async function klik(e){
   if (a === 'team'){
     if ((S.teams || []).some(t => t.id === id)){ herteken('eigen', id); return; }
     huidig.scherm = 'sel'; huidig.teamId = id; huidig.keuze = {}; teken(); return; }
+  if (a === 'wijzig'){ const u = ctx.uitleningen.find(x => x.id === id); if (!u) return;
+    wijzigUitlening(u, huidig.clubId, nieuw => {
+      Object.assign(ctx, splitsUitleningen([...ctx.uitleningen.filter(x => x.id !== nieuw.id), nieuw, ...(ctx.uitleningenVoorbij || [])]));
+      teken();
+    });
+    return; }
   if (a === 'terug'){ const u = ctx.uitleningen.find(x => x.id === id); if (!u) return;
     if (await trekUitleningIn(u, huidig.clubId)){ ctx.uitleningen = ctx.uitleningen.filter(x => x.id !== id); teken(); } return; }
   if (a === 'definitief'){ const u = ctx.uitleningen.find(x => x.id === id); if (!u) return;

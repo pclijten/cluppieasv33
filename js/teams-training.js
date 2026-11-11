@@ -18,6 +18,7 @@ import {
 } from './config.js?v=20261107e';
 import { htmlKompas } from './teams-leerlijn.js?v=20261107e';
 import { coachMagKiezen, eigenVoorkeur, huidigeLettergrootte } from './thema.js?v=20261106r';
+import { spelersOpTraining } from './uitleen-regels.js?v=20261111a';
 import {
   MAX_WEKEN, weekdagVan, plusDagen, eersteOpDag, regelDatums, actieveRegels, vastOp, vastePrefill, redenVanRegel
 } from './vaste-afmeldingen.js?v=20261106r';
@@ -241,7 +242,7 @@ export function htmlPresentieTraining(){
   const rijHtml = (p, chip = '') => {
     const afw = (p.afwezig || []);
     const laat = (p.telaat || []);
-    const aanwezig = Math.max(0, S.spelers.length - afw.length);
+    const aanwezig = Math.max(0, (Array.isArray(p.selectie) ? p.selectie.length : S.spelers.length) - afw.length);
     const dat = new Date(p.datum+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
     const datMooi = dat.charAt(0).toUpperCase()+dat.slice(1);
     const afwNamen = afw.length
@@ -685,10 +686,11 @@ export function modalPresentie(bestaande = null, opties = {}){
   let redenen = bestaande ? JSON.parse(JSON.stringify(bestaande.afwezigRedenen || {})) : {};
   const kanDatumWijzigen = !bestaande;
   const startAnder = kanDatumWijzigen && !!opties.startAnder;
+  const opDatum = () => spelersOpTraining(S.spelers, datum);
   // [20261012] Nog geen record voor deze datum? Dan staan spelers met een
   // vaste afmelding alvast op afwezig (zie js/vaste-afmeldingen.js).
   const vulVastIn = () => {
-    const pf = vastePrefill(S.team, datum, S.spelers.map(p => p.id));
+    const pf = vastePrefill(S.team, datum, opDatum().lijst.map(p => p.id));
     afwezig = new Set(pf.afwezig); telaat = new Set(); redenen = pf.redenen;
   };
   if (!bestaande && !S.presentie.find(p => p.datum === datum)) vulVastIn();
@@ -698,7 +700,18 @@ export function modalPresentie(bestaande = null, opties = {}){
     return s.charAt(0).toUpperCase()+s.slice(1);
   };
 
-  const rijenHtml = () => S.spelers.map(p => {
+  /* [20261111] Wie hoort bij de training op déze datum? Een ingeleende speler
+     alleen op zijn afgesproken trainingsdag(en); een eigen speler die die dag
+     bij het lenende team traint staat grijs onderaan en telt niet mee. */
+  const eldersHtml = () => opDatum().elders.map(({ p, team }) => `
+    <div class="pres-speler pres-elders">
+      <div class="pres-speler-kop" aria-disabled="true">
+        <span class="pres-shirt">${esc(p.nummer ?? '·')}</span>
+        <span class="pres-naam">${esc(p.naam)}<small>Traint deze dag bij ${esc(team)}</small></span>
+        <span class="pres-status">⇄ ${esc(team)}</span>
+      </div>
+    </div>`).join('');
+  const rijenHtml = () => opDatum().lijst.map(p => {
     const isAfw = afwezig.has(p.id);
     const isLaat = telaat.has(p.id);
     const klasse = isAfw ? 'afwezig' : (isLaat ? 'telaat' : 'aanwezig');
@@ -723,7 +736,7 @@ export function modalPresentie(bestaande = null, opties = {}){
       <div class="pres-telaat-rij"><button type="button" class="pres-reden-chip telaat-chip actief" data-telaat="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.4 2.2"/></svg> Te laat: tik om te wissen</button></div>
       ` : ''}
     </div>`;
-  }).join('');
+  }).join('') + eldersHtml();
 
   openModal(`
     <h2>Presentie training</h2>
@@ -802,10 +815,10 @@ export function modalPresentie(bestaande = null, opties = {}){
          "niet afwezig" als aanwezig, en krijgt een speler die later
          instroomt met terugwerkende kracht 100% over trainingen waar hij
          nog niet bij het team was. Zie js/opkomst.js. */
-      selectie: S.spelers.map(p => p.id),
-      aantalAanwezig: S.spelers.length - afwezig.size,
+      selectie: opDatum().lijst.map(p => p.id),
+      aantalAanwezig: opDatum().lijst.length - afwezig.size,
       aantalTeLaat: telaat.size,
-      aantalSpelers: S.spelers.length,
+      aantalSpelers: opDatum().lijst.length,
       door: S.user.displayName || S.user.email || '',
       gewijzigd: serverTimestamp(),
     };
