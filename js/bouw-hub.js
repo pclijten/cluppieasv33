@@ -26,7 +26,9 @@ import {
 } from './firebase.js?v=20261106r';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261107e';
 import { ico } from './icons.js?v=20261106r';
-import { bouwLeenSnapshot, trekUitleningIn, definitiefOverzetten } from './teams-spelers.js?v=20261109d';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261111a';
+import { openUitleenForm } from './uitleen-form.js?v=20261111a';
+import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111a';
 import { telGebruik } from './tracker.js?v=20261107e';
 import { analyseWedstrijd } from './analyse.js?v=20261109d';
 import { opkomstVoor, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
@@ -206,7 +208,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261109d'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261111a'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -253,12 +255,13 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
   try {
     // Teamdata van alle teams ÉN de club-uitleningen tegelijk ophalen i.p.v.
     // de uitleningen pas na afloop van alle teamdata op te halen.
-    const [dataLijst, uitleningen] = await Promise.all([
+    const [dataLijst, alleUitl] = await Promise.all([
       Promise.all(teams.map(t => haalTeamData(t, seizoen))),
       haalUitleningenVoorTeams(clubId, teams.map(t => t.id)),
     ]);
+    const { uitleningen, uitleningenVoorbij } = splitsUitleningen(alleUitl);
     const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
-    huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, rondes: rondesClub};
+    huidigeContext = {clubId, bouw, teams, data, uitleningen, uitleningenVoorbij, seizoen, rondes: rondesClub};
   } catch(e){
     console.error('[Cluppie] bouw-hub: dashboard-data ophalen mislukt:', e.code, e.message);
     inhoud.innerHTML = `<p class="u-t-sm u-c-warn u-tc" style="padding:32px 0">Gegevens ophalen mislukt: ${esc(e.code||e.message)}</p>`;
@@ -282,13 +285,14 @@ export async function laadBouwData(clubId, bouw){
   const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
   const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id)).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
   const seizoen = clubSnap.exists() ? (clubSnap.data().huidigSeizoen || SEIZOEN_FALLBACK) : SEIZOEN_FALLBACK;
-  const [dataLijst, uitleningen] = await Promise.all([
+  const [dataLijst, alleUitl] = await Promise.all([
     Promise.all(teams.map(t => haalTeamData(t, seizoen))),
     haalUitleningenVoorTeams(clubId, teams.map(t => t.id)),
   ]);
+  const { uitleningen, uitleningenVoorbij } = splitsUitleningen(alleUitl);
   const data = new Map(teams.map((t,i) => [t.id, dataLijst[i]]));
   /* [20260928f] eigenBouw mee in de context: selectie-bouw.js leest daaruit of dit een selectie (1e + 2e) is */
-  huidigeContext = {clubId, bouw, teams, data, uitleningen, seizoen, eigenBouw: eigen || null, rondes: rondesVan(clubSnap.exists() ? clubSnap.data() : null)};
+  huidigeContext = {clubId, bouw, teams, data, uitleningen, uitleningenVoorbij, seizoen, eigenBouw: eigen || null, rondes: rondesVan(clubSnap.exists() ? clubSnap.data() : null)};
   return huidigeContext;
 }
 export function zetBouwContext(ctx){ huidigeContext = ctx; }
@@ -311,6 +315,27 @@ async function haalUitleningenVoorTeams(clubId, teamIds){
     snap.docs.forEach(d => map.set(d.id, {id:d.id, ...d.data()}));
   }
   return [...map.values()];
+}
+/* [20261111] Lopende uitleningen (ook die nog moeten beginnen) apart van
+   voorbije. Voorbije blijven 14 dagen zichtbaar in het overzicht; daarna
+   alleen nog als historie in Firestore. */
+export function splitsUitleningen(lijst){
+  const vandaag = vandaagLokaal(), grens = plusDagen(vandaag, -14);
+  const uitleningen = [], uitleningenVoorbij = [];
+  for (const u of (lijst || [])){
+    if (leenActief(u, vandaag)) uitleningen.push(u);
+    else if (!u.beeindigd && u.tot && u.tot >= grens) uitleningenVoorbij.push(u);
+  }
+  const sleutel = u => (u.soort === 'wedstrijd' ? u.wedstrijd?.datum : u.vanaf) || '';
+  uitleningen.sort((a, b) => (a.tot || '9999').localeCompare(b.tot || '9999') || sleutel(a).localeCompare(sleutel(b)));
+  uitleningenVoorbij.sort((a, b) => (b.tot || '').localeCompare(a.tot || ''));
+  return { uitleningen, uitleningenVoorbij };
+}
+/* Eén kaart in het overzicht Uitleningen (mobiel). Desktop en de mobiele
+   bouwomgeving gebruiken leenKaartInfo() voor dezelfde teksten. */
+export function leenKaartInfo(u){
+  const st = leenStatus(u);
+  return { soort: leenSoortLabel(u), wanneer: leenOmschrijving(u), status: st };
 }
 function naamVanBouw(bouw){
   return BOUWEN.find(b => b.id === bouw)?.naam
@@ -851,7 +876,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261109d');
+      const m = await import('./teams.js?v=20261111a');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -965,11 +990,12 @@ function tekenSpelersLijst(filterTeamId){
 function renderUitleningenScherm(){
   zetKop('Uitleningen', renderDashboard);
   const inhoud = laag.querySelector('#bouwhubInhoud');
-  const { clubId, teams, uitleningen } = huidigeContext;
+  const { clubId, teams } = huidigeContext;
   const teamIds = new Set(teams.map(t => t.id));
   const bouwPerTeam = Object.fromEntries(teams.map(t => [t.id, t.bouw]));
 
   const render = async () => {
+    const uitleningen = huidigeContext.uitleningen;
     const onbekend = [...new Set(uitleningen.flatMap(u => [u.vanTeam, u.naarTeam]))].filter(id => id && !(id in bouwPerTeam));
     for (let i=0; i<onbekend.length; i+=30){
       const chunk = onbekend.slice(i, i+30);
@@ -982,26 +1008,46 @@ function renderUitleningenScherm(){
     const coordBouwen = new Set((S.coordinatorBouwen||[]).map(b => b.bouw));
     const magTeam = (teamId) => isBeheerder() || eigenTeamIds.has(teamId) || coordBouwen.has(bouwPerTeam[teamId]);
 
-    inhoud.innerHTML = `
-      <button class="knop vol u-mt-3xs" id="bhNieuweUitlening" >+ Speler uitlenen</button>
-      <div class="sectie-kop">Actief<span class="sep" aria-hidden="true"></span>${uitleningen.length}</div>
-      ${uitleningen.length ? uitleningen.map(u => {
-        const magDefinitief = magTeam(u.vanTeam) && magTeam(u.naarTeam);
-        return `
-        <div class="lijst-item" style="cursor:default;flex-wrap:wrap">
+    const voorbij = huidigeContext.uitleningenVoorbij || [];
+    const kaart = (u, isVoorbij) => {
+      const info = leenKaartInfo(u);
+      const magDefinitief = magTeam(u.vanTeam) && magTeam(u.naarTeam);
+      const pct = info.status.voortgang;
+      return `
+        <div class="lijst-item ul-bkaart${isVoorbij ? ' voorbij' : ''}" style="cursor:default;flex-wrap:wrap">
           <div class="team-shirt">${ico('football-substitution',20) || '⇄'}</div>
           <div class="li-tekst">
             <div class="titel">${esc(u.snapshot?.naam || 'Speler')}</div>
             <div class="meta">${esc(u.vanTeamNaam||'?')} → ${esc(u.naarTeamNaam||'?')}</div>
           </div>
-          <div class="u-w-100 u-mt-xs" style="display:flex;gap:var(--space-xs)">
-            <button class="knop licht klein" data-bh-terug="${u.id}" style="flex:1">Terugzetten</button>
-            ${magDefinitief ? `<button class="knop gevaar klein" data-bh-definitief="${u.id}" style="flex:1">Definitief</button>`
-              : `<button class="knop licht klein u-flex-1" disabled title="Vereist rechten op beide teams" style="opacity:.5">Definitief</button>`}
-          </div>
+          <span class="ul-chip ${esc(info.status.toon)}">${esc(isVoorbij ? 'Voorbij' : info.status.tekst)}</span>
+          <div class="ul-bregel"><b>${esc(info.soort)}</b><span>${esc(info.wanneer)}</span></div>
+          ${!isVoorbij && pct != null ? `<div class="ul-balk" aria-hidden="true"><i style="width:${Math.round(pct*100)}%"></i></div>` : ''}
+          ${isVoorbij ? '' : `<div class="u-w-100 u-mt-xs ul-bknoppen">
+            <button class="knop licht klein" data-bh-wijzig="${u.id}">${u.tot ? 'Wijzigen / verlengen' : 'Wijzigen'}</button>
+            <button class="knop licht klein" data-bh-terug="${u.id}">Beëindigen</button>
+            ${magDefinitief ? `<button class="knop gevaar klein" data-bh-definitief="${u.id}">Definitief</button>` : ''}
+          </div>`}
         </div>`;
-      }).join('') : `<div class="kaart leeg">Geen actieve uitleningen in deze bouw.</div>`}`;
+    };
+    inhoud.innerHTML = `
+      <button class="knop vol u-mt-3xs" id="bhNieuweUitlening" >+ Speler uitlenen</button>
+      <div class="sectie-kop">Lopend<span class="sep" aria-hidden="true"></span>${uitleningen.length}</div>
+      ${uitleningen.length ? uitleningen.map(u => kaart(u, false)).join('') : `<div class="kaart leeg">Geen lopende uitleningen in deze bouw.</div>`}
+      ${voorbij.length ? `<div class="sectie-kop">Net voorbij<span class="sep" aria-hidden="true"></span>${voorbij.length}</div>${voorbij.map(u => kaart(u, true)).join('')}
+        <p class="u-t-xs u-zacht u-mt-xs">Voorbije uitleningen blijven 14 dagen zichtbaar. De historie blijft bewaard.</p>` : ''}`;
 
+    inhoud.querySelectorAll('[data-bh-wijzig]').forEach(b => {
+      b.onclick = () => {
+        const u = uitleningen.find(x => x.id === b.dataset.bhWijzig);
+        wijzigUitlening(u, clubId, nieuw => {
+          const i = huidigeContext.uitleningen.findIndex(x => x.id === nieuw.id);
+          if (i >= 0) huidigeContext.uitleningen[i] = nieuw;
+          Object.assign(huidigeContext, splitsUitleningen([...huidigeContext.uitleningen, ...(huidigeContext.uitleningenVoorbij || [])]));
+          renderUitleningenScherm();
+        });
+      };
+    });
     inhoud.querySelectorAll('[data-bh-terug]').forEach(b => {
       b.onclick = async () => {
         const u = uitleningen.find(x => x.id === b.dataset.bhTerug);
@@ -1026,96 +1072,21 @@ function renderUitleningenScherm(){
 }
 
 export async function modalNieuweUitleningVanuitBouw(verversScherm){
-  const { clubId, teams } = huidigeContext;
-
-  openModal(`
-    <h2>Speler uitlenen</h2>
-    <div class="veldgroep"><label>Stap 1: vanuit welk team (in deze bouw)?</label>
-      <select class="invoer" id="bhUlVanTeam"><option value="">Kies een team…</option>
-        ${teams.map(t => `<option value="${t.id}">${esc(t.naam)}</option>`).join('')}
-      </select></div>
-    <div class="veldgroep"><label>Stap 2: welke speler?</label>
-      <select class="invoer" id="bhUlSpeler" disabled><option value="">Kies eerst een team…</option></select></div>
-    <div class="veldgroep"><label>Stap 3: naar welk team wordt hij uitgeleend?</label>
-      <select class="invoer" id="bhUlNaarTeam" disabled><option value="">Kies eerst een speler…</option></select></div>
-    <div class="avg-balk">${ico('action-info',17) || ''}<span>De speler doet vanaf nu volwaardig mee bij het gekozen team. Bij het bronteam blijft hij ook gewoon bruikbaar. Geen einddatum: een van beide coaches (of jij) zet hem later terug.</span></div>
-    <button class="knop vol" id="bhUlOk" disabled>Uitlenen bevestigen</button>
-    <button class="knop licht vol u-mt-xs" id="bhUlAnnuleer" >Annuleren</button>`);
-
-  const $ = sel => document.getElementById(sel);
-  $('bhUlAnnuleer').onclick = () => sluitModal();
-  const check = () => { $('bhUlOk').disabled = !($('bhUlVanTeam').value && $('bhUlSpeler').value && $('bhUlNaarTeam').value); };
-
-  $('bhUlVanTeam').onchange = async () => {
-    const vanTeam = $('bhUlVanTeam').value;
-    const spelerSel = $('bhUlSpeler'), naarSel = $('bhUlNaarTeam');
-    spelerSel.disabled = true; naarSel.disabled = true; naarSel.innerHTML = '<option value="">Kies eerst een speler…</option>';
-    spelerSel.innerHTML = '<option value="">Spelers laden…</option>';
-    if (!vanTeam){ spelerSel.innerHTML = '<option value="">Kies eerst een team…</option>'; check(); return; }
-    try {
-      // Team binnen deze bouw? Spelers zijn al gecached — anders alsnog ophalen.
-      const d = huidigeContext.data.get(vanTeam);
-      const spelers = d ? d.spelers : (await getDocs(collection(db,'teams',vanTeam,'spelers'))).docs.map(x => ({id:x.id, ...x.data()})).filter(p=>!p.gast&&!p._ingeleend&&!p.gearchiveerd);
-      const gesorteerd = [...spelers].sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
-      spelerSel.innerHTML = gesorteerd.length
-        ? '<option value="">Kies een speler…</option>' + gesorteerd.map(p => `<option value="${p.id}">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?'<span class="sep" aria-hidden="true"></span>#'+esc(p.nummer):''}</option>`).join('')
-        : '<option value="">Geen spelers gevonden</option>';
-      spelerSel.disabled = !gesorteerd.length;
-    } catch(e){ spelerSel.innerHTML = '<option value="">Ophalen mislukt</option>'; }
-    check();
-  };
-
-  $('bhUlSpeler').onchange = async () => {
-    const naarSel = $('bhUlNaarTeam');
-    naarSel.disabled = true; naarSel.innerHTML = '<option value="">Teams laden…</option>';
-    if (!$('bhUlSpeler').value){ naarSel.innerHTML = '<option value="">Kies eerst een speler…</option>'; check(); return; }
-    try {
-      const csnap = await getDoc(doc(db,'clubs',clubId));
-      const ids = (csnap.exists() ? Object.keys(csnap.data().teams || {}) : []).filter(id => id !== $('bhUlVanTeam').value);
-      let doelTeams = [];
-      for (let i=0;i<ids.length;i+=30){
-        const chunk = ids.slice(i,i+30);
-        if (!chunk.length) break;
-        const tsnap = await getDocs(query(collection(db,'teams'), where(documentId(),'in',chunk)));
-        tsnap.docs.forEach(d => doelTeams.push({id:d.id, naam:d.data().naam||'?', bouw:d.data().bouw||null}));
-      }
-      doelTeams.sort((a,b) => a.naam.localeCompare(b.naam));
-      const eigenBouw = huidigeContext.bouw;
-      naarSel.innerHTML = doelTeams.length
-        ? '<option value="">Kies een team…</option>' + doelTeams.map(t => `<option value="${t.id}|${esc(t.naam)}">${esc(t.naam)}${t.bouw && t.bouw!==eigenBouw ? ' ('+esc(bouwNaam(t.bouw))+')' : ''}</option>`).join('')
-        : '<option value="">Geen andere teams gevonden</option>';
-      naarSel.disabled = !doelTeams.length;
-    } catch(e){ naarSel.innerHTML = '<option value="">Ophalen mislukt</option>'; }
-    check();
-  };
-  $('bhUlNaarTeam').onchange = check;
-
-  $('bhUlOk').onclick = async () => {
-    const vanTeam = $('bhUlVanTeam').value;
-    const vanTeamNaam = $('bhUlVanTeam').selectedOptions[0].textContent;
-    const spelerId = $('bhUlSpeler').value;
-    const [naarTeam, naarTeamNaam] = $('bhUlNaarTeam').value.split('|');
-    const okBtn = $('bhUlOk');
-    okBtn.disabled = true; okBtn.textContent = 'Bezig…';
-    try {
-      const psnap = await getDoc(doc(db,'teams',vanTeam,'spelers',spelerId));
-      if (!psnap.exists()) throw new Error('Speler niet gevonden');
-      const p = {id:psnap.id, ...psnap.data()};
-      telGebruik('uitlenen');
-      const nieuweRef = await addDoc(collection(db,'clubs',clubId,'uitleningen'), {
-        spelerId: p.id, vanTeam, vanTeamNaam, naarTeam, naarTeamNaam,
-        overlay: {}, snapshot: bouwLeenSnapshot(p),
-        door: S.user?.uid || null, gemaakt: serverTimestamp(),
-      });
-      huidigeContext.uitleningen.push({id:nieuweRef.id, spelerId:p.id, vanTeam, vanTeamNaam, naarTeam, naarTeamNaam, snapshot:bouwLeenSnapshot(p)});
-      sluitModal();
-      meld(`${p.naam} uitgeleend aan ${naarTeamNaam}`);
+  /* [20261111] Het nieuwe uitleenformulier (Eén wedstrijd / Uitgebreid):
+     eerst team + speler uit deze bouw, dan naar welk team en hoe. */
+  const ctx = huidigeContext;
+  openUitleenForm({
+    clubId: ctx.clubId,
+    spelersVan: ctx.teams,
+    spelersVoorTeam: async teamId => {
+      const d = ctx.data.get(teamId);
+      return d ? d.spelers : (await getDocs(collection(db,'teams',teamId,'spelers'))).docs.map(x => ({id:x.id, ...x.data()}));
+    },
+    naOpslaan: nieuw => {
+      Object.assign(ctx, splitsUitleningen([...(ctx.uitleningen || []), nieuw, ...(ctx.uitleningenVoorbij || [])]));
       if (verversScherm) verversScherm();
-    } catch(e){
-      okBtn.disabled = false; okBtn.textContent = 'Uitlenen bevestigen';
-      meld('Uitlenen mislukt: ' + (e.code||e.message));
-    }
-  };
+    },
+  });
 }
 
 /* ==================== NIVEAU 1 → 2 — Evaluaties ==================== */

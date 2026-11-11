@@ -6519,3 +6519,84 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .vb-bron-nr { color: var(--elf2); font-weight: 600; font-variant-numeric: tabular-nums; }
 .vb-bron-tekst { display: flex; flex-direction: column; min-width: 0; }
 .vb-bron-datum { font-size: var(--t-xs); font-weight: 700; color: var(--ink-2); }
+
+/* ==================== UITLENEN 2.0 (v20261111a) ====================
+   Uitleenformulier (modal, telefoon én desktop), status in de bouw-overzichten
+   en "elders"-rijen in presentie. Alleen tokens: werkt in donker en licht. */
+.ul-form{ display:flex; flex-direction:column; gap:var(--space-sm); }
+.ul-sub{ margin:0; font-size:var(--t-sm); color:var(--ink-2); }
+.ul-veld{ display:flex; align-items:center; justify-content:space-between; gap:var(--space-sm); background:var(--surface-2); border-radius:11px; padding:var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-sm); }
+.ul-veld > span{ flex-shrink:0; font-size:var(--t-sm); font-weight:600; color:var(--ink-2); }
+.ul-veld .invoer{ width:auto; flex:1 1 auto; min-width:0; max-width:62%; background:var(--surface); border-color:transparent; padding:var(--space-xs) var(--space-sm); font-size:var(--t-md); text-align:right; }
+.ul-veld select.invoer{ text-align:left; }
+.ul-kop{ margin-top:var(--space-xs); font-size:var(--t-2xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-2); }
+.ul-seg button[aria-pressed="true"]{ color:var(--ink); }
+.ul-noot{ margin:0; font-size:var(--t-xs); line-height:1.45; color:var(--ink-2); border-left:2px solid var(--hair); padding-left:var(--space-xs); }
+.ul-lijst{ display:flex; flex-direction:column; gap:var(--space-2xs); }
+.ul-wrij{ display:flex; align-items:center; gap:var(--space-sm); min-height:44px; padding:var(--space-xs) var(--space-sm); border-radius:10px; background:var(--surface-2); border:1.5px solid transparent; font-size:var(--t-sm); cursor:pointer; }
+.ul-wrij.aan{ border-color:color-mix(in srgb,var(--accent) 60%,transparent); background:color-mix(in srgb,var(--accent) 9%,var(--surface-2)); }
+.ul-wrij input{ accent-color:var(--accent); flex-shrink:0; width:18px; height:18px; margin:0; }
+.ul-wd{ flex:0 0 78px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ul-wt{ flex:1 1 auto; min-width:0; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ul-tijd{ flex-shrink:0; font-size:var(--t-xs); font-weight:600; color:var(--ink-2); background:var(--op-vlak-2); border-radius:99px; padding:2px var(--space-xs); font-variant-numeric:tabular-nums; }
+.ul-opties{ display:flex; flex-direction:column; gap:var(--space-2xs); }
+.ul-optie{ display:flex; align-items:center; gap:var(--space-sm); min-height:48px; padding:var(--space-2xs) var(--space-2xs) var(--space-2xs) var(--space-sm); border-radius:11px; background:var(--surface-2); border:1.5px solid transparent; font-size:var(--t-md); font-weight:600; cursor:pointer; }
+.ul-optie.aan{ border-color:color-mix(in srgb,var(--accent) 60%,transparent); background:color-mix(in srgb,var(--accent) 9%,var(--surface-2)); }
+.ul-optie > input[type=radio]{ accent-color:var(--accent); width:18px; height:18px; margin:0; flex-shrink:0; }
+.ul-optie > span{ flex:1 1 auto; min-width:0; }
+.ul-optie .ul-klein{ width:auto; flex:0 0 auto; padding:var(--space-xs) var(--space-xs); font-size:var(--t-sm); background:var(--surface); border-color:transparent; }
+.ul-optie .ul-getal{ width:68px; text-align:center; }
+.ul-dagen{ display:flex; flex-direction:column; gap:var(--space-2xs); }
+.ul-dag{ display:grid; grid-template-columns:36px minmax(0,1fr) auto; align-items:center; gap:var(--space-sm); padding:var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm); border-radius:10px; background:var(--surface-2); }
+.ul-dag > b{ font-family:var(--font-display); font-size:var(--t-xl); text-transform:uppercase; }
+.ul-dag > span{ min-width:0; font-weight:600; font-size:var(--t-sm); }
+.ul-dag small{ display:block; font-weight:500; font-size:var(--t-xs); color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ul-mini{ padding:2px; gap:2px; }
+.ul-mini button{ flex:0 0 auto; padding:var(--space-2xs) var(--space-sm); font-size:var(--t-xs); min-height:34px; }
+.ul-conflict{ display:flex; flex-direction:column; gap:var(--space-xs); padding:var(--space-sm); border-radius:12px; border:1px solid color-mix(in srgb,var(--warn) 45%,transparent); background:color-mix(in srgb,var(--warn) 8%,var(--surface-2)); }
+.ul-conflict p{ margin:0; font-size:var(--t-sm); line-height:1.45; }
+.ul-conflict .ul-mini{ flex-wrap:wrap; }
+.ul-conflict .ul-mini button{ flex:1 1 auto; }
+.ul-samenvat{ display:flex; flex-direction:column; gap:2px; padding:var(--space-sm); border-radius:11px; background:var(--op-vlak); font-size:var(--t-sm); color:var(--ink-2); line-height:1.45; }
+.ul-samenvat b{ color:var(--ink); }
+.ul-fout{ margin:0; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
+.ul-ok{ margin-top:var(--space-xs); }
+.ul-ok:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* Status in de overzichten */
+.ul-chip{ display:inline-flex; align-items:center; flex-shrink:0; padding:3px var(--space-xs); border-radius:99px; font-size:11px; font-weight:700; white-space:nowrap; background:var(--op-vlak-2); color:var(--ink-2); }
+.ul-chip.ok{ background:color-mix(in srgb,var(--ok) 16%,transparent); color:var(--ok); }
+.ul-chip.warn{ background:color-mix(in srgb,var(--warn) 18%,transparent); color:var(--warn); }
+.ul-bregel{ display:flex; flex-wrap:wrap; gap:2px var(--space-xs); width:100%; margin-top:var(--space-2xs); font-size:var(--t-xs); color:var(--ink-2); line-height:1.4; }
+.ul-bregel b{ color:var(--ink); font-weight:600; }
+.ul-balk{ width:100%; height:5px; border-radius:3px; background:var(--op-vlak-2); overflow:hidden; margin-top:var(--space-xs); }
+.ul-balk i{ display:block; height:100%; border-radius:3px; background:var(--accent); }
+.ul-bknoppen{ display:flex; flex-wrap:wrap; gap:var(--space-xs); }
+.lijst-item.ul-bkaart .ul-chip{ margin-left:auto; align-self:flex-start; }
+.ul-bknoppen .knop{ flex:1 1 auto; }
+.ul-bkaart.voorbij, .mb-kaart.ul-voorbij, .ul-dktabel tr.ul-voorbij td{ opacity:.6; }
+.mb-leenkop .ul-chip{ margin-left:auto; }
+.mb-leenvoet .ul-bknoppen{ margin-left:auto; gap:var(--space-2xs); }
+.mb-leenvoet .ul-bknoppen button{ margin-left:0; }
+.mb-lbl.ul-voorbijkop{ margin:var(--space-sm) 0 var(--space-xs); }
+.ul-dktabel td{ vertical-align:top; }
+.ul-dktabel .ul-dksoort{ font-size:13px; }
+.ul-dkwanneer{ font-size:12px; color:var(--ink-2); max-width:34ch; }
+.ul-dkrich{ margin-top:var(--space-2xs); }
+.ul-dktabel .ul-balk{ max-width:120px; }
+.ul-dktabel tr.ul-dktussen td{ font-size:12px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:.06em; padding-top:var(--space-md); cursor:default; background:none; }
+.dk-leen small{ display:block; font-size:12px; font-weight:500; color:var(--ink-2); margin-top:2px; }
+
+/* Presentie: eigen speler die deze dag bij het lenende team is */
+.pres-speler.pres-elders{ background:var(--op-vlak); border-color:transparent; opacity:.7; }
+.pres-speler.pres-elders .pres-speler-kop{ cursor:default; }
+.pres-speler.pres-elders .pres-shirt{ background:var(--ink-2); }
+.pres-speler.pres-elders .pres-naam small{ display:block; font-weight:500; font-size:var(--t-xs); color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pres-speler.pres-elders .pres-status{ color:var(--warn); }
+.dk-at.dk-at-elders{ cursor:default; border-style:dashed; }
+.dk-at.dk-at-elders:hover{ border-color:var(--line-d); }
+
+/* Desktop: het uitleenformulier is een gecentreerde, iets bredere kolom */
+@media (min-width:1100px) and (min-height:520px){
+  .ul-wd{ flex-basis:92px; }
+}

@@ -19,6 +19,8 @@ import {
 } from './config.js?v=20261107e';
 import { analyseWedstrijd, speeltijdReserve, disciplinaireTijd, telaatTijd, persoonlijkeNoemer } from './analyse.js?v=20261109d';
 import { isBouwCoordinator } from './coordinatoren.js?v=20261107e';
+import { magUitlenen } from './uitleen-rechten.js?v=20261111a';
+import { leenOmschrijving, leenActief } from './uitleen-regels.js?v=20261111a';
 import { ico } from './icons.js?v=20261106r';
 import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261107e';
 
@@ -32,7 +34,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261109d');
+  const m = await import('./teams.js?v=20261111a');
   m.renderTeam();
 }
 
@@ -76,8 +78,8 @@ export function htmlSpelers(){
         // opstelbaar bij ons — het label maakt alleen zichtbaar dat hij ook
         // elders speelt, zodat je dat zelf tegen de klok kan houden.
         const subDelen = [];
-        if (ingeleend) subDelen.push(p._gast ? `gast, gekoppeld aan uitleen van ${esc(p._bronTeamNaam||'ander team')}` : `ingeleend van ${esc(p._bronTeamNaam||'ander team')}`);
-        if (p._uitgeleendAan) subDelen.push(`⇄ ook bij ${esc(p._uitgeleendAan)}`);
+        if (ingeleend) subDelen.push((p._gast ? `gast, gekoppeld aan uitleen van ${esc(p._bronTeamNaam||'ander team')}` : `ingeleend van ${esc(p._bronTeamNaam||'ander team')}`) + (p._leen?.soort ? ` · ${esc(leenOmschrijving(p._leen))}` : ''));
+        if (p._uitgeleendAan) subDelen.push(`⇄ ook bij ${esc(p._uitgeleendAan)}` + (p._leningenUit?.[0]?.soort ? ` · ${esc(leenOmschrijving(p._leningenUit[0]))}` : ''));
         if (pos) subDelen.push(esc(pos));
         const sub = subDelen.length
           ? `<div class="speler-sub">${subDelen.join(', ')}</div>` : '';
@@ -507,7 +509,7 @@ export function htmlProfiel(){
         const gastNoot = p._gast ? ' Gekoppeld aan je gastspeler: je opstellingen bleven behouden.' : ' Doet volwaardig mee bij jou.';
         return `<div class="leen-strook in">
           <span class="ic">⇄</span>
-          <span class="tx">Ingeleend van <b>${esc(p._bronTeamNaam||'ander team')}</b>.${gastNoot}</span>
+          <span class="tx">Ingeleend van <b>${esc(p._bronTeamNaam||'ander team')}</b>.${gastNoot}${p._leen?.soort ? `<br><small>${esc(leenOmschrijving(p._leen))}</small>` : ''}</span>
           <button data-uitleen-terug="${p._leenId}">Terugzetten</button>
         </div>
         ${(isBeheerder() || isBouwCoordinator(S.team.bouw)) ? `<button class="knop vol" style="margin-bottom:var(--space-sm)" data-uitleen-definitief="${p._leenId}">Definitief toevoegen aan ${esc(S.team.naam)}</button>` : ''}`;
@@ -516,7 +518,7 @@ export function htmlProfiel(){
       if (!u) return '';
       return `<div class="leen-strook">
         <span class="ic">⇄</span>
-        <span class="tx">Uitgeleend aan <b>${esc(u.naarTeamNaam)}</b></span>
+        <span class="tx">Uitgeleend aan <b>${esc(u.naarTeamNaam)}</b>${u.soort ? `<br><small>${esc(leenOmschrijving(u))}</small>` : ''}</span>
         <button data-uitleen-terug="${u.id}">Terughalen</button>
       </div>`;
     })()}
@@ -604,7 +606,7 @@ export function htmlProfiel(){
           : `<button class="knop licht klein" data-bewerk-speler="${p.id}">${ico('admin-edit', 16)} Speler bewerken</button>
              <button class="knop gevaar klein" data-weg-speler="${p.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg> Verwijderen</button>`}
       </div>
-      ${(!p._ingeleend && S.team?.club) ? `<button class="knop klein" style="margin-top:var(--space-2xs);width:100%" data-uitleen-speler="${p.id}">⇄ Uitlenen aan ander team</button>` : ''}
+      ${(!p._ingeleend && S.team?.club && magUitlenen({ ...S.team, id: S.teamId })) ? `<button class="knop klein" style="margin-top:var(--space-2xs);width:100%" data-uitleen-speler="${p.id}">⇄ Uitlenen aan ander team</button>` : ''}
     ` : ''}
 
     ${tab === 'leerlijn' ? htmlLeerlijn(p) : ''}
@@ -1264,7 +1266,7 @@ export function modalNotitie(spelerId){
 
 // Actieve UITGAANDE uitlening voor een speler van het eigen team (of null).
 function actieveUitleningVoor(spelerId){
-  return (S.uitleningenUit||[]).find(u => u.spelerId === spelerId) || null;
+  return (S.uitleningenUit||[]).find(u => u.spelerId === spelerId && leenActief(u)) || null;
 }
 
 // Open (niet-afgeronde) leerpunten, ontdaan van interne velden — dit is wat
@@ -1305,68 +1307,20 @@ export async function modalUitlenen(spelerId){
   if (p._ingeleend) return meld('Een ingeleende speler kun je niet doorlenen');
   const clubId = S.team?.club;
   if (!clubId) return meld('Dit team hoort niet bij een club');
+  /* [20261111] Uitlenen gaat via het nieuwe formulier (Eén wedstrijd /
+     Uitgebreid) en mag alleen door coördinatoren en de clubadmin. */
+  const team = { ...S.team, id: S.teamId };
+  if (!magUitlenen(team)) return meld('Uitlenen regelt de coördinator van de bouw');
+  const m = await import('./uitleen-form.js?v=20261111a');
+  m.openUitleenForm({ clubId, vanTeam: team, speler: p });
+}
 
-  openModal(`
-    <h2>${esc(p.naam)} uitlenen</h2>
-    <div class="veldgroep"><label>Aan welk team?</label>
-      <select class="invoer" id="mUlTeam"><option value="">Teams laden…</option></select></div>
-    <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span>
-      <span>De speler doet vanaf nu volwaardig mee bij het gekozen team: opstelling, presentie en evaluatie. Bij jou blijft hij ook gewoon bruikbaar, handig als hij dezelfde dag voor beide teams speelt. Er zit geen einddatum op, jij of de andere coach zet hem terug.</span></div>
-    <button class="knop vol" id="mUlOk" disabled>Uitlenen bevestigen</button>`);
-
-  // Doelteams ophalen: alle teams van de club behalve het eigen team.
-  let doelTeams = [];
-  try {
-    const csnap = await getDoc(doc(db,'clubs',clubId));
-    const ids = csnap.exists() ? Object.keys(csnap.data().teams || {}) : [];
-    const andere = ids.filter(id => id !== S.teamId);
-    for (let i=0;i<andere.length;i+=30){
-      const chunk = andere.slice(i,i+30);
-      if (!chunk.length) break;
-      const tsnap = await getDocs(query(collection(db,'teams'), where(documentId(),'in',chunk)));
-      tsnap.docs.forEach(d => doelTeams.push({id:d.id, naam:d.data().naam || '?'}));
-    }
-    doelTeams.sort((a,b)=> a.naam.localeCompare(b.naam));
-  } catch(e){
-    meld('Teams ophalen mislukt: ' + (e.code||e.message));
-  }
-
-  const sel = $('#mUlTeam');
-  if (!doelTeams.length){
-    sel.innerHTML = '<option value="">Geen andere teams gevonden</option>';
-  } else {
-    sel.innerHTML = '<option value="">Kies een team…</option>' +
-      doelTeams.map(t => `<option value="${t.id}|${esc(t.naam)}">${esc(t.naam)}</option>`).join('');
-  }
-
-  const okBtn = $('#mUlOk');
-  const check = () => { okBtn.disabled = !sel.value; };
-  sel.onchange = check;
-
-  okBtn.onclick = async () => {
-    const [naarTeam, naarTeamNaam] = sel.value.split('|');
-    if (!naarTeam) return;
-    okBtn.disabled = true; okBtn.textContent = 'Bezig…';
-    try {
-      telGebruik('uitlenen');
-      await addDoc(collection(db,'clubs',clubId,'uitleningen'), {
-        spelerId: p.id,
-        vanTeam: S.teamId,
-        vanTeamNaam: S.team.naam,
-        naarTeam,
-        naarTeamNaam,
-        overlay: {},
-        snapshot: bouwLeenSnapshot(p),
-        door: S.user?.uid || null,
-        gemaakt: serverTimestamp(),
-      });
-      sluitModal();
-      meld(`${p.naam} uitgeleend aan ${naarTeamNaam}`);
-    } catch(e){
-      okBtn.disabled = false; okBtn.textContent = 'Uitlenen bevestigen';
-      meld('Uitlenen mislukt: ' + (e.code||e.message));
-    }
-  };
+/* [20261111] Een lopende uitlening wijzigen of verlengen (coördinator). */
+export async function wijzigUitlening(u, clubIdOverride, naOpslaan){
+  const clubId = clubIdOverride || S.team?.club;
+  if (!clubId || !u) return meld('Uitlening niet gevonden');
+  const m = await import('./uitleen-form.js?v=20261111a');
+  m.openUitleenForm({ clubId, vanTeam: { id: u.vanTeam, naam: u.vanTeamNaam }, speler: { id: u.spelerId, naam: u.snapshot?.naam || 'Speler' }, bestaand: u, naOpslaan });
 }
 
 /* Terugzetten naar het eigen team. Mag door coach A (vanTeam) én coach B
