@@ -6717,3 +6717,5 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .tg-balk .s3,.tg-s3{background:color-mix(in srgb,var(--warn) 35%,transparent)}
 .tg-balk .s4,.tg-s4{background:color-mix(in srgb,var(--accent) 25%,transparent)}
 .tg-voet{margin-top:var(--space-xs)}
+.tg-aanvul .knop{margin-top:var(--space-2xs)}
+.tg-aanvul-status{margin:var(--space-xs) 0 0;color:var(--accent)}

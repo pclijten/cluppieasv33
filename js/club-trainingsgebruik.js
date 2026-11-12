@@ -15,7 +15,7 @@
    AVG: alleen teamniveau. Geen spelers- of coachnamen in dit scherm.
    ====================================================================== */
 
-import { db, collection, getDocs, query, where } from './firebase.js?v=20261106r';
+import { db, collection, getDocs, query, where, functions, httpsCallable } from './firebase.js?v=20261106r';
 import { S, esc } from './state.js?v=20261111g';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261111g';
 import { bouwGroepen } from './bouw-indeling.js?v=20261111g';
@@ -314,11 +314,26 @@ function htmlVerdeling(data){
     </div>`;
 }
 
+/* Eenmalig: eerdere openingen aanvullen uit de gelezen-markeringen per coach
+   (Cloud Function trainingOpeningenAanvullen). Alleen voor clubadmins, en
+   alleen zolang het nog niet gedaan is. */
+const magAanvullen = () => S.club?.admins?.[S.user?.uid] === true && !S.club?.trainingOpeningenAangevuld;
+function htmlAanvullen(){
+  if (!magAanvullen()) return '';
+  return `<div class="kaart tg-aanvul">
+    <div class="sectie-kop">Eerdere openingen aanvullen</div>
+    <div class="inz-sub">Openingen worden per team bijgehouden sinds 12 november 2026. Van daarvoor weet Cluppie per coach alleen wanneer hij een training voor het eerst opende. Vul die eenmalig aan, dan zie je ook de afgelopen weken. Herhaald openen is van daarvoor niet bekend.</div>
+    <button class="knop" id="tgAanvul">Openingen aanvullen</button>
+    <div class="inz-sub tg-aanvul-status" id="tgAanvulStatus" hidden></div>
+  </div>`;
+}
+
 function htmlTab(data, groepen){
   const legenda = staat.modus === 'pres'
     ? [['vol','alles ingevuld'],['deel','deels'],['nul','niets ingevuld'],['geen','geen training']]
     : [['vol','alle oefenstof geopend'],['deel','deels'],['nul','niets geopend'],['geen','geen oefenstof']];
   return `
+    ${htmlAanvullen()}
     ${htmlFilters(groepen)}
     ${htmlKpis(data)}
     <div class="kaart">
@@ -360,6 +375,29 @@ export async function vulTrainingsgebruik(bak, alleTeams){
     bak.querySelectorAll('[data-tgweken]').forEach(b => b.onclick = () => { staat.weken = +b.dataset.tgweken; staat.gekozen = null; teken(); });
     bak.querySelectorAll('[data-tgbouw]').forEach(b => b.onclick = () => { staat.bouw = b.dataset.tgbouw; staat.gekozen = null; teken(); });
     bak.querySelectorAll('[data-tgmodus]').forEach(b => b.onclick = () => { staat.modus = b.dataset.tgmodus; teken(); });
+    const aanvul = bak.querySelector('#tgAanvul');
+    if (aanvul) aanvul.onclick = async () => {
+      const status = bak.querySelector('#tgAanvulStatus');
+      aanvul.disabled = true; aanvul.textContent = 'Bezig met aanvullen…';
+      try {
+        const res = await httpsCallable(functions, 'trainingOpeningenAanvullen')({ clubId: S.clubId });
+        const r = res?.data || {};
+        cache = null;
+        ruw = await ophalen(teams);
+        if (S.club) S.club.trainingOpeningenAangevuld = true;
+        teken();
+        const melding = bak.querySelector('.tg-voet');
+        if (melding) melding.textContent = `Aangevuld: ${r.trainingen || 0} trainingen bij ${r.teams || 0} teams. Alleen teamniveau, zonder namen; afgelaste dagen tellen niet mee.`;
+      } catch (e) {
+        aanvul.disabled = false; aanvul.textContent = 'Openingen aanvullen';
+        const code = e?.code || '';
+        status.hidden = false;
+        status.textContent = code.includes('not-found') || code.includes('internal') || code.includes('unavailable')
+          ? 'Aanvullen lukt nog niet: de functie trainingOpeningenAanvullen staat nog niet online (zie functions-voorstel in de repo).'
+          : code.includes('permission-denied') ? 'Alleen een clubbeheerder kan dit starten.'
+          : `Aanvullen mislukt: ${e?.message || code || 'onbekende fout'}`;
+      }
+    };
     bak.querySelectorAll('[data-tgcel]').forEach(b => b.onclick = () => {
       const [ri, wi] = b.dataset.tgcel.split('|').map(Number);
       const id = data.rijen[ri]?.team.id;
