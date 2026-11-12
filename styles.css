@@ -2590,6 +2590,8 @@ body::before{
 /* Leeg kwart: expliciete overneem-keuze */
 .kwart-leeg-actie{display:flex;align-items:center;gap:var(--space-sm);background:var(--surface-2);border:1px dashed var(--line-d);border-radius:var(--radius);padding:var(--space-sm) var(--space-sm);margin-bottom:var(--space-sm);font-size:var(--t-sm);color:var(--ink-2);line-height:1.4}
 .kwart-leeg-actie button{margin-left:auto;flex-shrink:0;background:var(--pitch-ink);color:var(--wit);font-weight:600;font-size:var(--t-sm);padding:var(--space-xs) var(--space-sm);border-radius:9px;min-height:40px}
+.kwart-over-stil{display:flex;justify-content:flex-end;margin:calc(var(--space-xs) * -1) 0 var(--space-sm)}
+.kwart-over-stil button{background:transparent;color:var(--ink-2);border:1px solid var(--line-d);border-radius:9px;font-weight:600;font-size:var(--t-sm);padding:var(--space-xs) var(--space-sm);min-height:40px}
 
 /* Knoppenhiërarchie */
 .knop.secundair{background:var(--surface-2);color:var(--ink);box-shadow:none;border:1px solid var(--line-d)}
