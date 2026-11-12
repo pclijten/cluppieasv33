@@ -6719,3 +6719,6 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .tg-voet{margin-top:var(--space-xs)}
 .tg-aanvul .knop{margin-top:var(--space-2xs)}
 .tg-aanvul-status{margin:var(--space-xs) 0 0;color:var(--accent)}
+.tg-deel{display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-sm)}
+.tg-deel .inz-sub{margin:0 auto 0 0}
+.tg-deel .knop{padding:var(--space-xs) var(--space-md);font-size:var(--t-sm);box-shadow:none}
