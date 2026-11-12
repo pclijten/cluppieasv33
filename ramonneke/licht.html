@@ -217,6 +217,26 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .moment-vergrendeld span:first-child{color:var(--ink-2);flex-shrink:0;display:flex}
 .moment-caption{font-size:11px;color:var(--ink-2);line-height:1.45;margin-top:6px}
 .moment-preview-knop{font-size:10.5px;color:var(--ink-2);text-decoration:underline;margin-top:6px;display:block}
+
+/* ── Niveau-ladder: per domein een beschrijving per niveau (Dave · Bloom · Krathwohl) ── */
+.niv-anker{font-size:11.5px;color:var(--ink-2);line-height:1.4;margin-top:6px;display:none}
+.niv-anker.toon{display:block;animation:omhoog .15s ease-out}
+.niv-anker b{font-weight:700}
+.legenda-info{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:-8px 0 16px;font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.legenda-info .info-knop{width:15px;height:15px;font-size:9.5px}
+.ladder-kop{font-size:10.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px}
+.ladder-kop span{font-weight:400;text-transform:none;letter-spacing:0;opacity:.85}
+.ladder-rij{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--hair)}
+.ladder-rij:first-of-type{border-top:none}
+.ladder-rij .chip{flex-shrink:0;width:76px;text-align:center;font-size:10px;font-weight:700;padding:4px 0;border-radius:6px;color:#fff;text-transform:uppercase;letter-spacing:.2px}
+.ladder-rij .chip.kn3,.ladder-rij .chip.kn4{color:#1D1E1E}
+.ladder-rij .tx{flex:1;font-size:12.5px;color:var(--ink);line-height:1.45}
+.ladder-rij .tx small{display:block;font-size:10.5px;color:var(--ink-2);margin-top:1px}
+.fase-kaart{background:var(--surface);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:9px 12px;font-size:12.5px;color:var(--ink);line-height:1.5;margin-top:12px}
+.fase-kaart b{display:block;font-size:10.5px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.ladder-tabs{display:flex;gap:6px;margin:4px 0 6px}
+.ladder-tabs button{flex:1;padding:7px 4px;border-radius:9px;background:var(--surface);font-size:11.5px;font-weight:600;color:var(--ink-2);border:1.5px solid transparent}
+.ladder-tabs button.aan{border-color:var(--accent);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -285,6 +305,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
     <div class="legenda">
       <span>AAND</span><span>OP WEG</span><span>PRIMA</span><span>STERK</span><span>UITBL</span>
     </div>
+    <button class="legenda-info" id="legendaInfo"><span class="info-knop">i</span>Wat betekent elk niveau?</button>
 
     <div id="kaarten"></div>
 
@@ -473,6 +494,54 @@ const DOMEINEN = [
 ];
 const NIVEAUS = [1,2,3,4,5];
 
+// ── Niveau-ladder per domein. Bron: overleg beoordelen (nov 2026).
+// TE/FY = Dave (motorisch leren), TA = Bloom (denken/inzicht), ME/GE = Krathwohl
+// (houding). Zelfde 5 niveaus en kleuren als nu — alleen een vaste betekenis per
+// niveau, zodat coaches eenduidiger scoren. Datamodel blijft 1..5. ──
+const NIV_LABEL = [null,'Aandacht','Op weg','Prima','Sterk','Uitblinker'];
+const LADDERS = {
+  dave: { naam:'Beheersing', model:'Dave · motorisch leren', domeinen:['TE','FY'],
+    treden:[null,
+      {trede:'Nadoen',        tekst:'Doet het na als er een voorbeeld bij is.'},
+      {trede:'Op instructie', tekst:'Voert het uit op aanwijzing, zolang er geen druk is.'},
+      {trede:'Zuiver',        tekst:'Voert het zuiver uit, ook in tempo.'},
+      {trede:'Onder druk',    tekst:'Combineert en past het aan onder weerstand van een tegenstander.'},
+      {trede:'Vanzelf',       tekst:'Gaat automatisch, ook creatief en onder hoge druk.'},
+    ]},
+  bloom: { naam:'Inzicht', model:'Bloom · denken en keuzes maken', domeinen:['TA'],
+    treden:[null,
+      {trede:'Herkent nog niet', tekst:'Ziet de situatie nog niet; heeft uitleg en sturing nodig.'},
+      {trede:'Begrijpt',         tekst:'Snapt de uitleg en past het toe met hulp van de coach.'},
+      {trede:'Past toe',         tekst:'Past het zelfstandig toe in de wedstrijd.'},
+      {trede:'Kiest bewust',     tekst:'Ziet wat er gebeurt en kiest bewust de beste oplossing.'},
+      {trede:'Bedenkt & coacht', tekst:'Bedenkt eigen oplossingen en stuurt medespelers aan.'},
+    ]},
+  krathwohl: { naam:'Houding', model:'Krathwohl · houding en gedrag', domeinen:['ME','GE'],
+    treden:[null,
+      {trede:'Luistert',        tekst:'Hoort het aan, maar het komt nog niet van zichzelf.'},
+      {trede:'Doet mee',        tekst:'Laat het zien als erom gevraagd wordt.'},
+      {trede:'Wil het zelf',    tekst:'Laat het uit zichzelf zien, ook zonder aansporing.'},
+      {trede:'Houdt vol',       tekst:'Stelt eigen doelen en houdt dat vol, ook als het tegenzit.'},
+      {trede:'Is een voorbeeld',tekst:'Is hierin een voorbeeld voor anderen in het team.'},
+    ]},
+};
+function ladderVan(domId){ return Object.values(LADDERS).find(l => l.domeinen.includes(domId)); }
+
+// Fase van het team (JEKA-opleidingsmodel / Meulensteen) + de stap op de ladder die erbij past.
+const FASES = [
+  {tot:9,  naam:'Basisfase',      leeft:'O6–O9',   nadruk:'Techniek', stap:'Aanleren: nadoen en begrijpen. Lage scores op TA en ME zijn hier normaal.'},
+  {tot:12, naam:'Herhalingsfase', leeft:'O10–O12', nadruk:'Tactiek',  stap:'Toepassen: technieken tactisch inzetten en zelf keuzes leren maken.'},
+  {tot:15, naam:'Competitiefase', leeft:'O13–O15', nadruk:'Fysiek',   stap:'Analyseren: bewust kiezen wanneer wat, met rendement als doel.'},
+  {tot:99, naam:'Winfase',        leeft:'O16–O19', nadruk:'Mentaal',  stap:'Evalueren en creëren: eigen oplossingen, elkaar coachen.'},
+];
+function faseVan(lft){ return FASES.find(f => lft <= f.tot); }
+
+function ladderHtml(l){
+  return l.treden.slice(1).map((t, i) => `
+    <div class="ladder-rij"><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span>
+      <span class="tx">${t.tekst}<small>${t.trede}</small></span></div>`).join('');
+}
+
 function beleidTekst(c){
   if (!c.beleid) return null;
   return c.vanaf ? `${c.beleid} — vanaf O${c.vanaf}` : c.beleid;
@@ -499,6 +568,7 @@ DOMEINEN.forEach(dom => {
         <div class="mini-schaal" data-crit="${dom.id}-${i}">
           ${NIVEAUS.map(n => `<button data-niv="${n}" class="kn${n}"></button>`).join('')}
         </div>
+        <div class="niv-anker" data-anker="${dom.id}"></div>
       </div>
     `).join('')}
     <textarea class="invoer" rows="2" placeholder="Toelichting ${dom.naam.toLowerCase()}..."></textarea>
@@ -509,8 +579,16 @@ DOMEINEN.forEach(dom => {
 document.querySelectorAll('.mini-schaal').forEach(sch => {
   sch.querySelectorAll('[data-niv]').forEach(b => b.onclick = () => {
     sch.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', x===b));
+    toonAnker(sch, Number(b.dataset.niv));
   });
 });
+
+function toonAnker(sch, n){
+  const anker = sch.parentElement.querySelector('.niv-anker');
+  const t = ladderVan(anker.dataset.anker).treden[n];
+  anker.innerHTML = `<b style="color:var(--n${n})">${NIV_LABEL[n]}</b> · ${t.tekst}`;
+  anker.classList.add('toon');
+}
 
 // ── Leeftijdsfilter: zelfde principe als leercurveRelevant() in config.js.
 // Geen handmatige keuze meer — de leeftijd komt automatisch uit het team
@@ -603,6 +681,7 @@ function renderSpeler(i){
   // Nieuwe speler = nog geen scores/toelichting voor dít moment: formulier leegmaken.
   document.querySelectorAll('.mini-schaal [data-niv].gekozen').forEach(b => b.classList.remove('gekozen'));
   document.querySelectorAll('#kaarten textarea').forEach(t => t.value = '');
+  document.querySelectorAll('.niv-anker').forEach(a => { a.classList.remove('toon'); a.innerHTML = ''; });
 }
 
 function toonSpelerLijst(){
@@ -699,9 +778,19 @@ function toonDomeinPopup(domId){
     <div class="popup-let" style="margin:14px 0 8px">Letterlijk uit het jeugdbeleidsplan</div>
     ${citaten.map(c => `<div class="citaat-kaart">&ldquo;${c.tekst}&rdquo;<span class="citaat-bron">${c.bron}</span></div>`).join('')}` : '';
 
+  const l = ladderVan(domId), f = faseVan(TEAM_LEEFTIJD);
+  const ladderBlok = `
+    <div class="ladder-kop">Wat betekent elk niveau <span>— ${l.model}</span></div>
+    ${ladderHtml(l)}
+    <div class="fase-kaart"><b>Dit team: ${f.naam} (${f.leeft}) · nadruk ${f.nadruk}</b>${f.stap}</div>`;
+
   if (!themas.length){
-    document.getElementById('popTekst').innerHTML =
-      `${dom.omschrijving}<div class="popup-let">${dom.naam} heeft geen §3.3-thema's — dit domein staat niet als aparte leercurve in het plan.</div>${citatenHtml}`;
+    document.getElementById('popTekst').innerHTML = `
+      ${dom.omschrijving}
+      <div class="popup-scroll" style="margin-top:4px">
+        ${ladderBlok}
+        <div class="popup-let">${dom.naam} heeft geen §3.3-thema's — dit domein staat niet als aparte leercurve in het plan.</div>${citatenHtml}
+      </div>`;
     return;
   }
   const kaarten = themas.map(([naam,t]) => `
@@ -711,8 +800,9 @@ function toonDomeinPopup(domId){
     </div>`).join('');
   document.getElementById('popTekst').innerHTML = `
     ${dom.omschrijving}
-    <div class="popup-scroll" style="margin-top:12px">
-      <div class="popup-let">§3.3 Leercurve — vanaf welke leeftijd dit thema meetelt (p.10)</div>
+    <div class="popup-scroll" style="margin-top:4px">
+      ${ladderBlok}
+      <div class="popup-let" style="margin-top:16px">§3.3 Leercurve — vanaf welke leeftijd dit thema meetelt (p.10)</div>
       ${matrixHeader()}
       ${kaarten}
       ${citatenHtml}
@@ -731,7 +821,9 @@ document.getElementById('kaarten').addEventListener('click', e => {
     document.getElementById('popDom').textContent = dom.id + ' · ' + dom.naam;
     const c = dom.criteria[btn.dataset.idx];
     document.getElementById('popTitel').textContent = c.naam;
-    document.getElementById('popTekst').textContent = c.uitleg;
+    const lc = ladderVan(dom.id);
+    document.getElementById('popTekst').innerHTML = `${c.uitleg}
+      <div class="ladder-kop">Zo scoor je dit <span>— ${lc.naam.toLowerCase()}</span></div>${ladderHtml(lc)}`;
     const beleid = document.getElementById('popBeleid');
     const bt = beleidTekst(c);
     if (bt){
@@ -757,6 +849,29 @@ document.getElementById('samenvatting').addEventListener('click', e => {
   toonDomeinPopup(mini.dataset.domKlik);
   popup.classList.add('toon');
 });
+function toonLadderOverzicht(sleutel){
+  const f = faseVan(TEAM_LEEFTIJD);
+  document.getElementById('popDom').textContent = 'De 5 niveaus';
+  document.getElementById('popTitel').textContent = 'Wat betekent elk niveau?';
+  document.getElementById('popBeleid').style.display = 'none';
+  document.getElementById('popSkill4').style.display = 'none';
+  const l = LADDERS[sleutel];
+  document.getElementById('popTekst').innerHTML = `
+    Elk niveau heeft een vaste betekenis. Die verschilt per soort vaardigheid: een techniek beheers je, inzicht ontwikkel je, een houding laat je zien.
+    <div class="ladder-tabs">${Object.entries(LADDERS).map(([k,v]) =>
+      `<button data-ladder="${k}" class="${k===sleutel?'aan':''}">${v.naam}<br><small style="font-weight:500;opacity:.8">${v.domeinen.join(' · ')}</small></button>`).join('')}</div>
+    <div class="popup-scroll">
+      <div class="ladder-kop" style="margin-top:6px">${l.naam} <span>— ${l.model}</span></div>
+      ${ladderHtml(l)}
+      <div class="fase-kaart"><b>Dit team: ${f.naam} (${f.leeft}) · nadruk ${f.nadruk}</b>${f.stap}</div>
+    </div>`;
+  popup.classList.add('toon');
+}
+document.getElementById('legendaInfo').onclick = () => toonLadderOverzicht('dave');
+document.getElementById('popTekst').addEventListener('click', e => {
+  const t = e.target.closest('[data-ladder]');
+  if (t) toonLadderOverzicht(t.dataset.ladder);
+});
 document.getElementById('popSluit').onclick = () => popup.classList.remove('toon');
 popup.onclick = e => { if (e.target === popup) popup.classList.remove('toon'); };
 
@@ -775,7 +890,7 @@ const OB_STAPPEN = [
     tekst:'Elk domein (Technisch, Tactisch, Fysiek, Mentaal, Gedrag & beleving) heeft eigen criteria. Tik op de <b>ⓘ</b> naast de domeinnaam voor de volledige uitleg uit het jeugdbeleidsplan, met bronvermelding.',
     doelExtra:() => document.querySelector('#kaarten .kaart[data-dom="TE"] .info-knop[data-type="domein"]') },
   { icoon:'tag-duel', titel:'Score geven', doel:() => document.querySelector('#kaarten .kaart[data-dom="TE"] .mini-schaal[data-crit="TE-0"]'),
-    tekst:'Elk criterium scoor je apart, van Aandacht tot Uitblinker. Alles wordt automatisch opgeslagen, je hoeft dus nooit tussentijds op te slaan.',
+    tekst:'Elk criterium scoor je apart, van Aandacht tot Uitblinker. Onder de schaal zie je meteen wat dat niveau betekent, zodat iedere coach hetzelfde bedoelt. Alles wordt automatisch opgeslagen.',
     opdracht:'Tik op een niveau voor Balbehandeling / -controle', wacht: klaar => eenmaligeKlik('#kaarten .kaart[data-dom="TE"] .mini-schaal[data-crit="TE-0"] [data-niv]', klaar) },
   { icoon:'communication-chat', titel:'Toelichting', doel:() => document.querySelector('#kaarten .kaart[data-dom="TE"] textarea'),
     tekst:'Per domein is er ruimte voor een korte toelichting — handig voor het gesprek met speler of ouders.' },
