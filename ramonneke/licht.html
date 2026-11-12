@@ -237,6 +237,41 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .ladder-tabs{display:flex;gap:6px;margin:4px 0 6px}
 .ladder-tabs button{flex:1;padding:7px 4px;border-radius:9px;background:var(--surface);font-size:11.5px;font-weight:600;color:var(--ink-2);border:1.5px solid transparent}
 .ladder-tabs button.aan{border-color:var(--accent);color:var(--ink)}
+
+/* ── Naslag "Zo beoordelen we" — volledig scherm, alleen op verzoek ── */
+.naslag-link{display:flex;align-items:center;gap:9px;width:100%;margin-top:14px;padding:11px 13px;border-radius:11px;background:var(--surface);border:1px solid var(--hair);text-align:left}
+.naslag-link .ic{color:var(--accent);display:flex;flex-shrink:0}
+.naslag-link .tx{flex:1;font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
+.naslag-link .tx small{display:block;font-size:11px;font-weight:400;color:var(--ink-2)}
+.naslag-link .pijl{color:var(--ink-2);font-size:16px}
+.ladder-bron{font-size:10.5px;color:var(--ink-2);line-height:1.45;margin-top:10px}
+.ladder-bron b{color:var(--ink);font-weight:600}
+.naslag{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;overflow-y:auto}
+.naslag.toon{display:block;animation:omhoog .18s ease-out}
+.naslag-in{max-width:540px;margin:0 auto;padding:0 18px 40px}
+.naslag-kop{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 0 12px;border-bottom:1px solid var(--hair);z-index:1}
+.naslag-kop h2{flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.3px}
+.naslag-kop button{width:40px;height:40px;border-radius:11px;background:var(--surface-2);font-size:18px}
+.naslag-inhoud{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.naslag-inhoud a{font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--surface);padding:5px 10px;border-radius:20px;text-decoration:none}
+.naslag h3{font-family:'Barlow Condensed';font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:.2px;margin:24px 0 8px;scroll-margin-top:72px}
+.naslag p{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:10px}
+.naslag p.zacht{color:var(--ink-2);font-size:13px}
+.naslag ul{margin:0 0 10px 18px}
+.naslag li{font-size:14px;color:var(--ink);line-height:1.55;margin-bottom:5px}
+.persoon{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 14px;margin-bottom:12px}
+.persoon .p-kop{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.persoon .p-naam{font-family:'Barlow Condensed';font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.2px}
+.persoon .p-dom{font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb, var(--accent) 14%, transparent);padding:2px 8px;border-radius:20px}
+.persoon .p-jaar{font-size:11.5px;color:var(--ink-2);margin-bottom:8px}
+.persoon p{font-size:13px;margin-bottom:8px}
+.persoon .voorbeeld{font-size:12.5px;color:var(--ink-2);background:var(--surface);border-radius:8px;padding:8px 10px;line-height:1.5;margin-top:8px}
+.persoon .voorbeeld b{color:var(--ink)}
+.vraag-rij{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--hair);font-size:13.5px;line-height:1.45}
+.vraag-rij:first-of-type{border-top:none}
+.vraag-rij .chip{flex-shrink:0;width:76px;text-align:center;font-size:10px;font-weight:700;padding:4px 0;border-radius:6px;color:#fff;text-transform:uppercase}
+.vraag-rij .chip.kn3,.vraag-rij .chip.kn4{color:#1D1E1E}
+.bronnen li{font-size:12px;color:var(--ink-2)}
 </style>
 </head>
 <body>
@@ -311,6 +346,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 
     <button class="knop fluo" style="margin-top:6px">Beoordeling opslaan</button>
     <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad Leerlijn van de speler — die lopen door over meerdere beoordelingen.</p>
+    <button class="naslag-link" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl">›</span></button>
 
   </div>
 </div>
@@ -348,11 +384,18 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 <div class="ob-klaar" id="obKlaar">
   <div class="ob-klaar-emoji" id="icKlaar"></div>
   <h1>Helemaal klaar!</h1>
-  <p>Je kent nu alle onderdelen van Volledige beoordeling. Via het 🎓-icoontje bovenin kun je deze rondleiding altijd opnieuw bekijken.</p>
+  <p>Je kent nu alle onderdelen van Volledige beoordeling. Via het 🎓-icoontje bovenin kun je deze rondleiding altijd opnieuw bekijken. Onderaan het scherm vind je ‘Zo beoordelen we’ met de achtergrond bij de niveaus.</p>
   <button class="ob-intro-start" id="obKlaarOk">Aan de slag ⚽</button>
 </div>
 
-<div class="autosave-toast" id="autosaveToast"><span id="icAutosave"></span><span>Automatisch opgeslagen</span></div>
+<div class="naslag" id="naslag">
+  <div class="naslag-in">
+    <div class="naslag-kop"><h2>Zo beoordelen we</h2><button id="naslagSluit" title="Sluiten">✕</button></div>
+    <div id="naslagTekst"></div>
+  </div>
+</div>
+
+<div class="autosave-toast\" id="autosaveToast"><span id="icAutosave"></span><span>Automatisch opgeslagen</span></div>
 
 <script>
 // ── Cluppie iconensysteem: 1-op-1 uit icons.js overgenomen (zelfde paths, zelfde ico()-functie) ──
@@ -500,7 +543,7 @@ const NIVEAUS = [1,2,3,4,5];
 // niveau, zodat coaches eenduidiger scoren. Datamodel blijft 1..5. ──
 const NIV_LABEL = [null,'Aandacht','Op weg','Prima','Sterk','Uitblinker'];
 const LADDERS = {
-  dave: { naam:'Beheersing', model:'Dave · motorisch leren', domeinen:['TE','FY'],
+  dave: { naam:'Beheersing', model:'Dave · motorisch leren', bron:'Ravindra Dave (1970), ladder voor motorisch leren', domeinen:['TE','FY'],
     treden:[null,
       {trede:'Nadoen',        tekst:'Doet het na als er een voorbeeld bij is.'},
       {trede:'Op instructie', tekst:'Voert het uit op aanwijzing, zolang er geen druk is.'},
@@ -508,7 +551,7 @@ const LADDERS = {
       {trede:'Onder druk',    tekst:'Combineert en past het aan onder weerstand van een tegenstander.'},
       {trede:'Vanzelf',       tekst:'Gaat automatisch, ook creatief en onder hoge druk.'},
     ]},
-  bloom: { naam:'Inzicht', model:'Bloom · denken en keuzes maken', domeinen:['TA'],
+  bloom: { naam:'Inzicht', model:'Bloom · denken en keuzes maken', bron:'Benjamin Bloom (1956, herzien 2001), taxonomie van Bloom', domeinen:['TA'],
     treden:[null,
       {trede:'Herkent nog niet', tekst:'Ziet de situatie nog niet; heeft uitleg en sturing nodig.'},
       {trede:'Begrijpt',         tekst:'Snapt de uitleg en past het toe met hulp van de coach.'},
@@ -516,7 +559,7 @@ const LADDERS = {
       {trede:'Kiest bewust',     tekst:'Ziet wat er gebeurt en kiest bewust de beste oplossing.'},
       {trede:'Bedenkt & coacht', tekst:'Bedenkt eigen oplossingen en stuurt medespelers aan.'},
     ]},
-  krathwohl: { naam:'Houding', model:'Krathwohl · houding en gedrag', domeinen:['ME','GE'],
+  krathwohl: { naam:'Houding', model:'Krathwohl · houding en gedrag', bron:'David Krathwohl (1964), ladder voor houding', domeinen:['ME','GE'],
     treden:[null,
       {trede:'Luistert',        tekst:'Hoort het aan, maar het komt nog niet van zichzelf.'},
       {trede:'Doet mee',        tekst:'Laat het zien als erom gevraagd wordt.'},
@@ -539,7 +582,8 @@ function faseVan(lft){ return FASES.find(f => lft <= f.tot); }
 function ladderHtml(l){
   return l.treden.slice(1).map((t, i) => `
     <div class="ladder-rij"><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span>
-      <span class="tx">${t.tekst}<small>${t.trede}</small></span></div>`).join('');
+      <span class="tx">${t.tekst}<small>${t.trede}</small></span></div>`).join('')
+    + `<div class="ladder-bron">Gebaseerd op <b>${l.bron}</b>. <button data-naslag style="color:var(--accent);font-weight:600;font-size:inherit">Lees hoe we beoordelen ›</button></div>`;
 }
 
 function beleidTekst(c){
@@ -874,6 +918,100 @@ document.getElementById('popTekst').addEventListener('click', e => {
 });
 document.getElementById('popSluit').onclick = () => popup.classList.remove('toon');
 popup.onclick = e => { if (e.target === popup) popup.classList.remove('toon'); };
+
+
+// ==================== NASLAG: ZO BEOORDELEN WE ====================
+// Achtergrond voor trainers. Niet standaard in beeld: te openen via de link
+// onderaan het scherm en via "Wat betekent elk niveau?".
+function voorbeeldLadder(sleutel){
+  return LADDERS[sleutel].treden.slice(1).map((t, i) =>
+    `<div class="vraag-rij"><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span><span>${t.tekst}</span></div>`).join('');
+}
+function bouwNaslag(){
+  const f = faseVan(TEAM_LEEFTIJD);
+  document.getElementById('naslagTekst').innerHTML = `
+    <div class="naslag-inhoud">
+      <a href="#ns-waarom">Waarom</a><a href="#ns-ladders">Drie ladders</a><a href="#ns-fase">Leeftijd</a>
+      <a href="#ns-tips">Tips</a><a href="#ns-vragen">Coachvragen</a><a href="#ns-bronnen">Bronnen</a>
+    </div>
+
+    <h3 id="ns-waarom">Waarom vaste niveaus?</h3>
+    <p>Een kleur zonder uitleg betekent voor iedere coach iets anders. De één geeft snel "Sterk", de ander bijna nooit. Daarom heeft elk niveau een vaste beschrijving. Zo bedoelen alle coaches hetzelfde, en kun je een score ook uitleggen aan speler en ouders.</p>
+    <p>Dat is belangrijk, want beoordelingen tellen mee bij de teamindeling. Een score die je kunt onderbouwen, voorkomt discussie.</p>
+
+    <h3 id="ns-ladders">Drie soorten leren, drie ladders</h3>
+    <p>Een pass leren is iets anders dan leren kiezen, en dat is weer iets anders dan leren doorzetten. In het onderwijs zijn daar drie bekende ladders voor. Elke ladder loopt van eenvoudig naar meesterschap. Wij gebruiken ze alle drie, elk voor de domeinen waar ze bij past.</p>
+
+    <div class="persoon">
+      <div class="p-kop"><span class="p-naam">Ravindra Dave</span><span class="p-dom">TE · FY</span></div>
+      <div class="p-jaar">Indiase onderwijskundige · ladder voor motorisch leren (1970)</div>
+      <p>Dave beschreef hoe je een beweging leert beheersen: eerst nadoen, dan op instructie uitvoeren, dan zuiver, dan onder wisselende omstandigheden, en ten slotte vanzelf. Dat is precies hoe een kind een techniek leert.</p>
+      ${voorbeeldLadder('dave')}
+      <div class="voorbeeld"><b>Voorbeeld, passen:</b> lukt het alleen in een passvorm zonder tegenstander? Dan is het <b>Op weg</b>. Lukt het ook in de partij met druk erop? Dan is het <b>Sterk</b>.</div>
+    </div>
+
+    <div class="persoon">
+      <div class="p-kop"><span class="p-naam">Benjamin Bloom</span><span class="p-dom">TA</span></div>
+      <div class="p-jaar">Amerikaanse onderwijspsycholoog · taxonomie van Bloom (1956, herzien 2001 door Anderson en Krathwohl)</div>
+      <p>Bloom ordende denken in stappen: onthouden, begrijpen, toepassen, analyseren, evalueren en creëren. In voetbal is dat spelinzicht: van de situatie nog niet zien tot zelf oplossingen bedenken en medespelers aansturen. Wij hebben de zes stappen teruggebracht tot onze vijf niveaus.</p>
+      ${voorbeeldLadder('bloom')}
+      <div class="voorbeeld"><b>Voorbeeld, omschakelen:</b> zakt terug als jij "terug!" roept (<b>Op weg</b>). Zet zelf direct druk op de bal en wijst een medespeler zijn man aan (<b>Uitblinker</b>).</div>
+    </div>
+
+    <div class="persoon">
+      <div class="p-kop"><span class="p-naam">David Krathwohl</span><span class="p-dom">ME · GE</span></div>
+      <div class="p-jaar">Amerikaanse onderwijskundige, collega van Bloom · ladder voor houding (1964, met Bloom en Masia)</div>
+      <p>Krathwohl beschreef hoe een houding groeit: eerst hoor je het, dan doe je mee als het gevraagd wordt, dan wil je het zelf, dan maak je het tot je eigen doel, en ten slotte ben je er een voorbeeld in. Zo kijken we naar mentaliteit en gedrag.</p>
+      ${voorbeeldLadder('krathwohl')}
+      <div class="voorbeeld"><b>Voorbeeld, omgaan met tegenslag:</b> laat na een fout de schouders hangen, maar pakt het op als jij hem aanmoedigt (<b>Op weg</b>). Peppt na een tegengoal zelf het team op (<b>Uitblinker</b>).</div>
+    </div>
+
+    <h3 id="ns-fase">Leeftijd: wat is normaal?</h3>
+    <p>De ladder is voor iedere leeftijd hetzelfde, maar wat je mag verwachten groeit mee met de fase uit het opleidingsmodel (Meulensteen/KNVB):</p>
+    <ul>
+      ${FASES.map(x => `<li><b>${x.naam}</b> (${x.leeft}), nadruk ${x.nadruk.toLowerCase()}. ${x.stap}</li>`).join('')}
+    </ul>
+    <p class="zacht">Dit team zit in de ${f.naam.toLowerCase()} (${f.leeft}). Een jonge speler met "Op weg" op tactiek doet het dus vaak gewoon goed voor zijn leeftijd.</p>
+
+    <h3 id="ns-tips">Tips bij het scoren</h3>
+    <ul>
+      <li><b>Scoor wat je meestal ziet</b>, over meerdere trainingen en wedstrijden, niet die ene uitschieter.</li>
+      <li><b>Lees de beschrijving, niet alleen de kleur.</b> Tik een niveau aan en kijk of de zin onder de schaal klopt.</li>
+      <li><b>Twijfel je tussen twee niveaus?</b> Kies het lagere en schrijf in de toelichting wat er al wél lukt.</li>
+      <li><b>Uitblinker is zeldzaam.</b> Het betekent: een voorbeeld voor leeftijdsgenoten.</li>
+      <li><b>Gebruik de toelichting</b> voor het gesprek met speler of ouders: wat gaat goed, wat is de volgende stap.</li>
+    </ul>
+
+    <h3 id="ns-vragen">Coachvragen per stap</h3>
+    <p>De ladders helpen ook bij het coachen. Stel een vraag die past bij de volgende trede van de speler:</p>
+    <div class="vraag-rij"><span class="chip kn2">Op weg</span><span>"Wat zie je hier gebeuren?"</span></div>
+    <div class="vraag-rij"><span class="chip kn3">Prima</span><span>"Wat ga je doen als de bal daar komt?"</span></div>
+    <div class="vraag-rij"><span class="chip kn4">Sterk</span><span>"Waarom koos je voor die pass?"</span></div>
+    <div class="vraag-rij"><span class="chip kn5">Uitblinker</span><span>"Wat had beter gekund? Hoe help je je medespeler?"</span></div>
+
+    <h3 id="ns-bronnen">Bronnen</h3>
+    <ul class="bronnen">
+      <li>Bloom, B.S. e.a. (1956). <i>Taxonomy of Educational Objectives, Handbook I: Cognitive Domain.</i></li>
+      <li>Anderson, L.W. &amp; Krathwohl, D.R. (2001). <i>A Taxonomy for Learning, Teaching, and Assessing</i> (herziene versie).</li>
+      <li>Krathwohl, D.R., Bloom, B.S. &amp; Masia, B.B. (1964). <i>Taxonomy of Educational Objectives, Handbook II: Affective Domain.</i></li>
+      <li>Dave, R.H. (1970). Psychomotor levels. In: Armstrong (red.), <i>Developing and Writing Behavioral Objectives.</i></li>
+      <li>Meulensteen, R. Opleidingsmodel (basis-, herhalings-, competitie- en winfase), zoals gebruikt in het jeugdbeleid.</li>
+    </ul>`;
+}
+function openNaslag(){
+  bouwNaslag();
+  popup.classList.remove('toon');
+  const n = document.getElementById('naslag');
+  n.classList.add('toon'); n.scrollTop = 0;
+}
+document.getElementById('naslagSluit').onclick = () => document.getElementById('naslag').classList.remove('toon');
+document.getElementById('naslagLink').onclick = openNaslag;
+document.getElementById('popTekst').addEventListener('click', e => { if (e.target.closest('[data-naslag]')) openNaslag(); });
+document.getElementById('naslagTekst').addEventListener('click', e => {
+  const a = e.target.closest('.naslag-inhoud a'); if (!a) return;
+  e.preventDefault(); document.querySelector(a.getAttribute('href')).scrollIntoView({behavior:'smooth'});
+});
+document.getElementById('icNaslag').innerHTML = ICO('training-plan', 19);
 
 // ==================== ONBOARDING / RONDLEIDING ====================
 // Zelfde principe als de echte onboarding.js: spotlight (waas + ring) rond
