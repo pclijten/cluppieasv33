@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261112c';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261112d';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -521,28 +521,47 @@ async function bewaar(w, deel){
   }
 }
 
+/* [20261112] WhatsApp-bericht: kopje in *vet*, blokken met witregels en emoji als
+   ankers, route-link onderaan (WhatsApp zet de kaartpreview dan niet midden in de tekst). */
+const WEER_EMOJI = [[1, '☀️'], [2, '⛅'], [3, '☁️'], [48, '🌫️'], [67, '🌧️'], [77, '❄️'], [82, '🌦️'], [86, '🌨️'], [99, '⛈️']];
+const weerEmoji = c => (WEER_EMOJI.find(([max]) => c <= max) || [0, '🌤️'])[1];
+const adviesEmoji = t => /^Regen/.test(t) ? '☔' : /^Koud/.test(t) ? '🧤' : /^Fris/.test(t) ? '🧥' : /^Warm/.test(t) ? '💧' : '💨';
+const metWoord = (v, woord) => { const t = String(v || '').trim().replace(/\s+/g, ' ').replace(new RegExp('^' + woord + '\\s*', 'i'), ''); return t ? `${woord} ${t}` : ''; };
+
 async function deelTekst(w){
-  const regels = [`Wedstrijd ${datumLang(w.datum)}: ${S.team?.naam || ''} ${w.thuis ? 'thuis tegen' : 'uit bij'} ${w.tegenstander || ''}`.replace(/\s+/g, ' ').trim()];
-  if (w.aftrap) regels.push(`Aanvang ${w.aftrap}`);
-  const plek = [w.thuis ? '' : (w.locatie || w.adres || ''), w.veld || w.slVeld ? `veld ${String(w.veld || w.slVeld).replace(/^veld\s*/i, '')}` : '', w.kleedkamer || w.slKleedkamer ? `kleedkamer ${String(w.kleedkamer || w.slKleedkamer).replace(/^kleedkamer\s*/i, '')}` : ''].filter(Boolean);
-  if (plek.length) regels.push(hoofd(plek.join(', ')));
-  const route = !w.thuis ? routeUrl(w) : '';
-  if (route) regels.push(`Route: ${route}`);
-  const plaats = weerPlaats(w), n = dagenTot(w.datum);
-  if (plaats && w.aftrap && n >= 0 && n <= 14){
-    const r = await haalWeer(plaats, w.datum);
+  const team = String(S.team?.naam || '').trim(), tegen = String(w.tegenstander || '').trim() || 'onbekende tegenstander';
+  const kop = [`⚽ *${team ? team + ' ' : ''}${w.thuis ? 'thuis tegen' : 'uit bij'} ${tegen}*`];
+  if (w.datum) kop.push(`📅 ${hoofd(datumLang(w.datum))}`);
+  kop.push(w.aftrap ? `⏰ Aanvang *${w.aftrap}*` : '⏰ Aanvang nog onbekend');
+
+  const plek = [];
+  const plaats = w.plaats ? String(w.plaats).trim().toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase()) : '';
+  const naam = w.thuis ? 'Thuis' : String(w.locatie || w.adres || '').trim();
+  if (naam) plek.push(`📍 ${naam}${!w.thuis && plaats && !w.adres && !naam.toLowerCase().includes(plaats.toLowerCase()) ? ', ' + plaats : ''}`);
+  const veld = [metWoord(w.veld || w.slVeld, 'Veld'), metWoord(w.kleedkamer || w.slKleedkamer, 'Kleedkamer')].filter(Boolean);
+  if (veld.length) plek.push(`🥅 ${veld.join(' · ')}`);
+
+  const weer = [];
+  const wPlaats = weerPlaats(w), n = dagenTot(w.datum);
+  if (wPlaats && w.aftrap && n >= 0 && n <= 14){
+    const r = await haalWeer(wPlaats, w.datum);
     if (r && !r.fout){
       const uur = parseInt(w.aftrap.slice(0, 2), 10), u = r.uren.find(x => x.uur === uur);
       if (u){
         const blok = r.uren.filter(x => x.uur >= uur - 1 && x.uur <= uur + 3);
         const regen = blok.some(x => x.mm >= 0.3 || (x.kans ?? 0) >= 50);
-        regels.push(`Weer: ${Math.round(u.temp)}°, ${weerTekst(u.code).toLowerCase()}, wind ${bft(u.wind)} Bft.`);
-        const adv = adviesVan(u, regen);
-        if (adv.length) regels.push(adv[0] + '.');
+        const temp = Math.round(u.temp), gevoel = Math.round(u.gevoel);
+        weer.push(`${weerEmoji(u.code)} *Weer bij aanvang*`);
+        weer.push(`${temp}°${Math.abs(gevoel - temp) >= 2 ? ` (voelt als ${gevoel}°)` : ''}, ${weerTekst(u.code).toLowerCase()}`);
+        weer.push(`Wind ${bft(u.wind)} Bft · ${regen ? 'kans op regen' : 'droog'}`);
+        for (const a of adviesVan(u, regen)) weer.push(`${adviesEmoji(a)} ${a}`);
       }
     }
   }
-  return regels.join('\n');
+
+  const route = !w.thuis ? routeUrl(w).replace(/%20/g, '+') : '';
+  const blokken = [kop, plek, weer, route ? ['🚗 *Route*', route] : []].filter(b => b.length);
+  return blokken.map(b => b.join('\n')).join('\n\n');
 }
 
 function koppel(body){
@@ -555,7 +574,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261112c');
+      const m = await import('./wedstrijd.js?v=20261112d');
       m.openWedstrijd(id);
       return;
     }
