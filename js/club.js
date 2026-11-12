@@ -15,7 +15,7 @@ import { htmlDiagramHerstel, koppelDiagramHerstel } from './training-herstel.js?
 import { htmlBouwIndeling, koppelBouwIndeling, standaardBouwVoorStof, bouwGroepen } from './bouw-indeling.js?v=20261111g';
 import { clubEvaluatiesOphalen, htmlClubEvaluaties, koppelClubEvaluaties } from './club-evaluaties.js?v=20261111g';
 import { startClubContentListener, htmlClubContent, koppelClubContent } from './club-content.js?v=20261111g';
-import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261111g';
+import { htmlInzichtTabs, htmlInzichtTab, openRapport } from './club-inzicht.js?v=20261112a';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261111g';
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261111g'); }
+async function teamsModule(){ return await import('./teams.js?v=20261112a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261111g').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261112a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -113,6 +113,14 @@ async function clubTeamsOphalen(){
     snap.docs.forEach(d => result.push({id:d.id, ...d.data()}));
   }
   return result.sort((a,b) => (a.naam||'').localeCompare(b.naam||''));
+}
+
+/* Inzicht → Trainingen: lazy geladen, leest alleen als de tab open staat. */
+async function vulTrainingsgebruikTab(v){
+  const bak = v.querySelector('#tgInzicht');
+  if (!bak) return;
+  const m = await import('./club-trainingsgebruik.js?v=20261112a');
+  m.vulTrainingsgebruik(bak, S.clubTeams || []);
 }
 
 async function clubTrainingenOphalen(){
@@ -1145,10 +1153,11 @@ async function renderClub(opts = {}){
       S.clubInzichtTab = nieuw;
       v.querySelectorAll('.inzicht-tabs [data-inztab]').forEach(b => b.classList.toggle('actief', b === btn));
       const bak = v.querySelector('#inzichtInhoud');
-      if (bak){ bak.innerHTML = htmlInzichtTab(nieuw, S._gebruikstats); koppelInzichtRapporten(v); }
+      if (bak){ bak.innerHTML = htmlInzichtTab(nieuw, S._gebruikstats); koppelInzichtRapporten(v); vulTrainingsgebruikTab(v); }
     };
   });
   koppelInzichtRapporten(v);
+  vulTrainingsgebruikTab(v);
 
   const openBeheer = id => { S._cbTeam = id; S._cbUitnodig = null; naarClubTab('teambeheer'); };
   if (tab === 'teams') koppelTeamsBeheer(v, {
