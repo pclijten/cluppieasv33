@@ -57,7 +57,7 @@ const CAT_KLEUR = { Trainingen:'#e2342f', Wedstrijden:'#2b6cb0', Spelers:'#3fb95
 
 /* Segment-control voor de tabkeuze binnen Inzicht. */
 export function htmlInzichtTabs(actief){
-  const tabs = [['teams','Teams'],['gebruik','Gebruik'],['paginas','Pagina\u2019s'],['tijd','Tijd'],['rapporten','Rapporten']];
+  const tabs = [['teams','Teams'],['trainingen','Trainingen'],['gebruik','Gebruik'],['paginas','Pagina\u2019s'],['tijd','Tijd'],['rapporten','Rapporten']];
   return `<div class="segment inzicht-tabs">${tabs.map(([id,label]) =>
     `<button data-inztab="${id}" class="${actief===id?'actief':''}">${label}</button>`).join('')}</div>`;
 }
@@ -253,6 +253,8 @@ export function htmlInzichtTab(tab, stats){
     case 'paginas':   return htmlInzichtPaginas(stats);
     case 'tijd':      return htmlInzichtTijd(stats);
     case 'rapporten': return htmlInzichtRapporten(stats);
+    // Trainingen: eigen data (presentie + openingen), gevuld door club.js via club-trainingsgebruik.js
+    case 'trainingen': return '<div id="tgInzicht"></div>';
     case 'teams':
     default:          return htmlInzichtTeams(stats);
   }

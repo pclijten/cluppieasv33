@@ -6668,3 +6668,52 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .dk-at.dk-at-elders:hover{ border-color:var(--line-d); }
 
 
+
+/* ==================== INZICHT: TRAININGEN (club-trainingsgebruik.js) ==================== */
+.tg-filters{display:flex;flex-wrap:wrap;gap:var(--space-2xs);margin-bottom:var(--space-xs)}
+.tg-chip{border:1px solid var(--line-d);background:var(--surface);color:var(--ink);font-size:var(--t-sm);font-weight:500;padding:6px 12px;border-radius:999px;cursor:pointer}
+.tg-chip.aan{border-color:var(--accent);color:var(--accent);font-weight:600}
+.inz-kpi .g small{font-size:var(--t-lg,var(--t-md));color:var(--ink-2);font-weight:600}
+.tg-modus{margin:var(--space-xs) 0 var(--space-sm)}
+.tg-uitleg{margin-top:0}
+.tg-rooster{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tg-tab{border-collapse:separate;border-spacing:4px;width:100%;font-variant-numeric:tabular-nums}
+.tg-tab th{font-size:var(--t-2xs);font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em;padding:0 2px 4px;text-align:center;white-space:nowrap}
+.tg-tab th.huidig{color:var(--accent)}
+.tg-tab .tg-tn{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;padding-right:var(--space-xs);white-space:nowrap}
+.tg-tab td.tg-tn{font-weight:600;font-size:var(--t-sm)}
+.tg-tab td.tg-tn span{display:block;font-weight:400;font-size:var(--t-2xs);color:var(--ink-2)}
+.tg-cel{width:100%;min-width:44px;height:40px;border-radius:8px;border:0;font-weight:700;font-size:var(--t-sm);cursor:pointer;color:var(--ink);font-variant-numeric:tabular-nums}
+.tg-cel:focus-visible,.tg-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tg-cel.vol,.tg-c-vol{background:color-mix(in srgb,var(--ok) 28%,transparent)}
+.tg-cel.deel,.tg-c-deel{background:color-mix(in srgb,var(--warn) 30%,transparent)}
+.tg-cel.nul,.tg-c-nul{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+.tg-cel.geen,.tg-c-geen{background:var(--op-vlak);color:var(--ink-2);font-weight:500}
+.tg-cel.gekozen{outline:2px solid var(--ink)}
+.tg-pct{font-weight:700;font-size:var(--t-sm);text-align:right;padding-left:6px;white-space:nowrap}
+.tg-detail{border-top:1px solid var(--line-d);margin-top:var(--space-sm);padding-top:var(--space-sm)}
+.tg-hint{margin:0}
+.tg-dkop{margin:0 0 var(--space-xs);font-size:var(--t-md)}
+.tg-tr{display:grid;grid-template-columns:auto 1fr auto;gap:var(--space-xs);align-items:start;padding:var(--space-xs) 0;border-bottom:1px solid var(--line-d)}
+.tg-tr:last-child{border-bottom:0}
+.tg-dt{font-family:var(--font-display);font-weight:700;font-size:var(--t-md);text-transform:uppercase;min-width:74px;line-height:1.15}
+.tg-dt small{display:block;font-family:inherit;font-weight:600;font-size:var(--t-2xs);color:var(--ink-2)}
+.tg-m{display:flex;flex-direction:column;gap:2px;font-size:var(--t-xs);color:var(--ink-2);min-width:0}
+.tg-m b{color:var(--ink);font-weight:600;font-size:var(--t-sm)}
+.tg-m .mis{color:var(--accent)}
+.tg-extra{font-size:var(--t-2xs);font-weight:600;color:var(--ink-2)}
+.tg-pil{font-size:var(--t-2xs);font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.tg-pil.ok{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.tg-pil.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.tg-pil.mis{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.tg-pil.grijs{background:var(--op-vlak);color:var(--ink-2)}
+.tg-vrij{display:grid;grid-template-columns:calc(80px * var(--fs,1)) 1fr;gap:var(--space-xs);align-items:center;padding:3px 0}
+.tg-vn{font-weight:600;font-size:var(--t-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg-balk{display:flex;height:20px;border-radius:6px;overflow:hidden;background:var(--surface-2)}
+.tg-balk > div{display:flex;align-items:center;justify-content:center;font-size:var(--t-2xs);font-weight:700;color:var(--ink);overflow:hidden;white-space:nowrap}
+.tg-balk.leeg span{font-size:var(--t-2xs);color:var(--ink-2);padding:0 8px;align-self:center}
+.tg-balk .s1,.tg-s1{background:color-mix(in srgb,var(--ok) 45%,transparent)}
+.tg-balk .s2,.tg-s2{background:color-mix(in srgb,var(--ok) 22%,transparent)}
+.tg-balk .s3,.tg-s3{background:color-mix(in srgb,var(--warn) 35%,transparent)}
+.tg-balk .s4,.tg-s4{background:color-mix(in srgb,var(--accent) 25%,transparent)}
+.tg-voet{margin-top:var(--space-xs)}
