@@ -16,7 +16,7 @@
    ====================================================================== */
 
 import { db, collection, getDocs, query, where, functions, httpsCallable } from './firebase.js?v=20261106r';
-import { S, esc } from './state.js?v=20261111g';
+import { S, esc, meld } from './state.js?v=20261111g';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261111g';
 import { bouwGroepen } from './bouw-indeling.js?v=20261111g';
 
@@ -190,8 +190,8 @@ function bouwData(ruw, teams){
 /* ---------- tellingen ---------- */
 const PRES_OK = new Set(['t', 'z', 'n', 'd', 'v']);
 const OPEN_OK = new Set(['3', '1', '0']);
-function telCel(trs){
-  if (staat.modus === 'pres'){
+function telCel(trs, modus = staat.modus){
+  if (modus === 'pres'){
     const gep = trs.filter(x => x.pres !== '-');
     return { gep: gep.length, vl: gep.filter(x => PRES_OK.has(x.pres)).length };
   }
@@ -216,7 +216,7 @@ function htmlFilters(groepen){
     </div>` : ''}`;
 }
 
-function htmlKpis(data){
+function kpiWaarden(data){
   let gep = 0, vl = 0, snel = 0, ogep = 0, ovl = 0;
   for (const r of data.rijen) for (const trs of r.perWeek) for (const x of trs){
     if (x.pres === '-') continue;
@@ -225,7 +225,11 @@ function htmlKpis(data){
     if (x.pres === 't' || x.pres === 'z' || x.pres === 'd') snel++;
     if (x.open !== 'g'){ ogep++; if (OPEN_OK.has(x.open)) ovl++; }
   }
-  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+  return { gep, vl, snel, ogep, ovl };
+}
+const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+function htmlKpis(data){
+  const { gep, vl, snel, ogep, ovl } = kpiWaarden(data);
   const kpi = (g, l) => `<div class="inz-kpi"><div class="g">${g}</div><div class="l">${l}</div></div>`;
   return `<div class="inz-kpis">
     ${kpi(`${vl}<small>/${gep}</small>`, 'trainingen met presentie')}
@@ -336,6 +340,11 @@ function htmlTab(data, groepen){
     ${htmlAanvullen()}
     ${htmlFilters(groepen)}
     ${htmlKpis(data)}
+    <div class="tg-deel">
+      <span class="inz-sub">Deel dit overzicht</span>
+      <button class="knop licht" id="tgExcel">Excel</button>
+      <button class="knop licht" id="tgPdf">PDF</button>
+    </div>
     <div class="kaart">
       <div class="sectie-kop">Per week</div>
       <div class="segment segment-sub tg-modus">
@@ -351,6 +360,52 @@ function htmlTab(data, groepen){
     </div>
     ${htmlVerdeling(data)}
     <div class="inz-sub tg-voet">Alleen teamniveau, zonder namen. Oefenstof-openingen worden bijgehouden sinds 12 november 2026; afgelaste dagen tellen niet mee.</div>`;
+}
+
+/* ---------- export-model: platte, kant-en-klare waarden voor Excel/PDF ----------
+   Volgt de filters op het scherm (periode en bouw). Alleen teamniveau. */
+const PRES_LABEL = { t:'tijdens de training', z:'na de training', n:'later nagetypt', d:'op de dag zelf', v:'vastgelegd', x:'niet ingevuld', '-':'afgelast' };
+const OPEN_EXPORT = { '3':'2+ dagen vooruit', '1':'dag ervoor', '0':'dag zelf', 'l':'pas na de training', 'x':'niet geopend', 'g':'geen oefenstof' };
+function exportModel(data, groep){
+  const nrs = data.weken.map(w => w.nr);
+  const periode = nrs.length ? (nrs.length === 1 ? `week ${nrs[0]}` : `week ${nrs[0]} t/m ${nrs[nrs.length - 1]}`) : '';
+  const rooster = modus => data.rijen.map(r => {
+    let g = 0, v = 0;
+    const cellen = r.perWeek.map(trs => { const c = telCel(trs, modus); g += c.gep; v += c.vl; return { ...c, klasse: klasse(c.gep, c.vl) }; });
+    return { team: r.team.naam || 'Team', cellen, pct: g ? Math.round(100 * v / g) : null };
+  });
+  const k = kpiWaarden(data);
+  const trainingen = [];
+  const verdeling = [];
+  for (const r of data.rijen){
+    const o = { '3':0, '1':0, '0':0, 'x':0 }, p = { t:0, z:0, n:0, x:0 };
+    r.perWeek.forEach((trs, wi) => trs.forEach(x => {
+      if (x.pres !== '-'){
+        if (x.open !== 'g') o[x.open === 'l' ? 'x' : x.open]++;
+        const pk = x.pres === 'd' || x.pres === 'v' ? 't' : x.pres; p[pk]++;
+      }
+      trainingen.push({
+        team: r.team.naam || 'Team', week: data.weken[wi].nr, datum: x.iso, dag: kortDatum(x.iso),
+        tijd: x.start ? `${x.start}${x.eind ? '-' + x.eind : ''}` : '', extra: x.extra ? 'ja' : '',
+        afgelast: x.pres === '-' ? 'ja' : '',
+        oefenstof: x.stof ? (x.stof.titel || x.stof.bestandsnaam || 'Training') : '',
+        geopendOp: x.openMs ? `${isoVan(new Date(x.openMs))} ${tijdVan(x.openMs)}` : '',
+        keerGeopend: x.openMs ? (x.aantal || 1) : (x.stof ? 0 : ''),
+        openMoment: OPEN_EXPORT[x.open] || '',
+        presentie: x.pres === '-' ? 'afgelast' : PRES_OK.has(x.pres) ? 'ja' : 'nee',
+        presentieOp: x.presMs ? `${isoVan(new Date(x.presMs))} ${tijdVan(x.presMs)}` : '',
+        presentieMoment: PRES_LABEL[x.pres] || '',
+      });
+    }));
+    const pct4 = c => { const t = Object.values(c).reduce((a, b) => a + b, 0); return Object.fromEntries(Object.entries(c).map(([kk, n]) => [kk, t ? Math.round(100 * n / t) : null])); };
+    verdeling.push({ team: r.team.naam || 'Team', open: pct4(o), pres: pct4(p) });
+  }
+  return {
+    club: S.club?.naam || 'Club', bouw: groep ? groep.naam : 'Alle teams', periode,
+    gemaakt: new Date(), weken: nrs,
+    kpi: { presentie: `${k.vl}/${k.gep}`, oefenstof: pct(k.ovl, k.ogep), dagZelf: pct(k.snel, k.vl) },
+    presentie: rooster('pres'), oefenstof: rooster('open'), trainingen, verdeling,
+  };
 }
 
 /* ---------- publiek: vul de tab-container ---------- */
@@ -372,6 +427,20 @@ export async function vulTrainingsgebruik(bak, alleTeams){
     const zicht = groep ? groep.teams : teams;
     const data = bouwData(ruw, zicht);
     bak.innerHTML = htmlTab(data, groepen);
+    const exporteer = soort => async () => {
+      const knop = bak.querySelector(soort === 'pdf' ? '#tgPdf' : '#tgExcel');
+      const label = knop.textContent;
+      knop.disabled = true; knop.textContent = 'Bezig…';
+      try {
+        const m = await import('./trainingsgebruik-export.js?v=20261112c');
+        await (soort === 'pdf' ? m.exportPdf : m.exportExcel)(exportModel(data, groep));
+      } catch (e){
+        console.warn('[Cluppie] export trainingsgebruik:', e);
+        meld('Delen mislukt: ' + (e?.message || 'onbekende fout'));
+      } finally { knop.disabled = false; knop.textContent = label; }
+    };
+    bak.querySelector('#tgExcel').onclick = exporteer('excel');
+    bak.querySelector('#tgPdf').onclick = exporteer('pdf');
     bak.querySelectorAll('[data-tgweken]').forEach(b => b.onclick = () => { staat.weken = +b.dataset.tgweken; staat.gekozen = null; teken(); });
     bak.querySelectorAll('[data-tgbouw]').forEach(b => b.onclick = () => { staat.bouw = b.dataset.tgbouw; staat.gekozen = null; teken(); });
     bak.querySelectorAll('[data-tgmodus]').forEach(b => b.onclick = () => { staat.modus = b.dataset.tgmodus; teken(); });
