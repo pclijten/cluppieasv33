@@ -240,6 +240,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 
 /* ── Naslag "Zo beoordelen we" — volledig scherm, alleen op verzoek ── */
 .naslag-link{display:flex;align-items:center;gap:9px;width:100%;margin-top:14px;padding:11px 13px;border-radius:11px;background:var(--surface);border:1px solid var(--hair);text-align:left}
+.naslag-link.boven{margin:0 0 14px;padding:9px 12px}
 .naslag-link .ic{color:var(--accent);display:flex;flex-shrink:0}
 .naslag-link .tx{flex:1;font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
 .naslag-link .tx small{display:block;font-size:11px;font-weight:400;color:var(--ink-2)}
@@ -271,6 +272,9 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .vraag-rij:first-of-type{border-top:none}
 .vraag-rij .chip{flex-shrink:0;width:76px;text-align:center;font-size:10px;font-weight:700;padding:4px 0;border-radius:6px;color:#fff;text-transform:uppercase}
 .vraag-rij .chip.kn3,.vraag-rij .chip.kn4{color:#1D1E1E}
+.naslag-eerste{display:none;margin-top:14px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb, var(--accent) 12%, transparent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);font-size:13px;line-height:1.5;color:var(--ink)}
+.naslag.eerste .naslag-eerste{display:block}
+.naslag-klaar{display:block;max-width:none;margin-top:26px}
 .bronnen li{font-size:12px;color:var(--ink-2)}
 </style>
 </head>
@@ -290,6 +294,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
       <span class="wissel-chevron" id="icWisselChevron"></span>
     </div>
     <div class="jouw-beoordeling">Jouw beoordeling — niet zichtbaar of aanpasbaar voor andere coaches van dit team.</div>
+    <button class="naslag-link boven" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl">›</span></button>
 
     <div class="samenvatting open" id="samenvatting">
       <div class="sv-balk">
@@ -346,7 +351,6 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 
     <button class="knop fluo" style="margin-top:6px">Beoordeling opslaan</button>
     <p style="font-size:11.5px;color:var(--ink-2);margin-top:10px;line-height:1.45">Tip: leerpunten beheer je in het tabblad Leerlijn van de speler — die lopen door over meerdere beoordelingen.</p>
-    <button class="naslag-link" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl">›</span></button>
 
   </div>
 </div>
@@ -384,14 +388,16 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 <div class="ob-klaar" id="obKlaar">
   <div class="ob-klaar-emoji" id="icKlaar"></div>
   <h1>Helemaal klaar!</h1>
-  <p>Je kent nu alle onderdelen van Volledige beoordeling. Via het 🎓-icoontje bovenin kun je deze rondleiding altijd opnieuw bekijken. Onderaan het scherm vind je ‘Zo beoordelen we’ met de achtergrond bij de niveaus.</p>
+  <p>Je kent nu alle onderdelen van Volledige beoordeling. Via het 🎓-icoontje bovenin kun je deze rondleiding altijd opnieuw bekijken. Bovenaan het scherm vind je ‘Zo beoordelen we’ met de achtergrond bij de niveaus.</p>
   <button class="ob-intro-start" id="obKlaarOk">Aan de slag ⚽</button>
 </div>
 
 <div class="naslag" id="naslag">
   <div class="naslag-in">
     <div class="naslag-kop"><h2>Zo beoordelen we</h2><button id="naslagSluit" title="Sluiten">✕</button></div>
+    <div class="naslag-eerste" id="naslagEerste">Je opent de beoordeling voor het eerst. Lees dit even door — daarna vind je het altijd terug bovenaan het beoordelingsscherm.</div>
     <div id="naslagTekst"></div>
+    <button class="ob-intro-start naslag-klaar" id="naslagKlaar">Begrepen</button>
   </div>
 </div>
 
@@ -998,15 +1004,25 @@ function bouwNaslag(){
       <li>Meulensteen, R. Opleidingsmodel (basis-, herhalings-, competitie- en winfase), zoals gebruikt in het jeugdbeleid.</li>
     </ul>`;
 }
-function openNaslag(){
+const NASLAG_KEY = 'cluppie_naslag_beoordelen_v1';   // versie ophogen = iedereen ziet hem opnieuw
+let naslagNaSluiten = null;
+function openNaslag(eersteKeer){
   bouwNaslag();
   popup.classList.remove('toon');
   const n = document.getElementById('naslag');
+  n.classList.toggle('eerste', eersteKeer === true);
+  document.getElementById('naslagKlaar').textContent = naslagNaSluiten ? 'Begrepen, verder naar de rondleiding' : 'Begrepen';
   n.classList.add('toon'); n.scrollTop = 0;
 }
-document.getElementById('naslagSluit').onclick = () => document.getElementById('naslag').classList.remove('toon');
-document.getElementById('naslagLink').onclick = openNaslag;
-document.getElementById('popTekst').addEventListener('click', e => { if (e.target.closest('[data-naslag]')) openNaslag(); });
+function sluitNaslag(){
+  document.getElementById('naslag').classList.remove('toon');
+  try{ localStorage.setItem(NASLAG_KEY,'1'); }catch(e){}
+  if (naslagNaSluiten){ const f = naslagNaSluiten; naslagNaSluiten = null; f(); }
+}
+document.getElementById('naslagSluit').onclick = sluitNaslag;
+document.getElementById('naslagKlaar').onclick = sluitNaslag;
+document.getElementById('naslagLink').onclick = () => openNaslag(false);
+document.getElementById('popTekst').addEventListener('click', e => { if (e.target.closest('[data-naslag]')) openNaslag(false); });
 document.getElementById('naslagTekst').addEventListener('click', e => {
   const a = e.target.closest('.naslag-inhoud a'); if (!a) return;
   e.preventDefault(); document.querySelector(a.getAttribute('href')).scrollIntoView({behavior:'smooth'});
@@ -1177,10 +1193,19 @@ window.addEventListener('resize', () => { if (document.getElementById('obHud').s
 // Eerste keer: toon de intro automatisch (na de content, zodat targets bestaan)
 let algemeenGezien = false;
 try{ algemeenGezien = localStorage.getItem('cluppie_ob_volledige_gezien') === '1'; }catch(e){}
-if (!algemeenGezien){
+function toonIntro(){
   const intro = document.getElementById('obIntro');
   intro.style.display = 'flex';
   requestAnimationFrame(() => intro.classList.add('aan'));
+}
+let naslagGezien = false;
+try{ naslagGezien = localStorage.getItem(NASLAG_KEY) === '1'; }catch(e){}
+if (!naslagGezien){
+  // Eerst het waarom (naslag), daarna het hoe (rondleiding)
+  if (!algemeenGezien) naslagNaSluiten = toonIntro;
+  openNaslag(true);
+} else if (!algemeenGezien){
+  toonIntro();
 }
 </script>
 </body>
