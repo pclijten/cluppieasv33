@@ -244,7 +244,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .naslag-link .ic{color:var(--accent);display:flex;flex-shrink:0}
 .naslag-link .tx{flex:1;font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
 .naslag-link .tx small{display:block;font-size:11px;font-weight:400;color:var(--ink-2)}
-.naslag-link .pijl{color:var(--ink-2);font-size:16px}
+.naslag-link .pijl{color:var(--ink-2);display:flex}
 .ladder-bron{font-size:10.5px;color:var(--ink-2);line-height:1.45;margin-top:10px}
 .ladder-bron b{color:var(--ink);font-weight:600}
 .naslag{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;overflow-y:auto}
@@ -252,90 +252,76 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .naslag-in{max-width:540px;margin:0 auto;padding:0 18px 40px}
 .naslag-kop{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:10px;padding:14px 0 12px;border-bottom:1px solid var(--hair);z-index:1}
 .naslag-kop h2{flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:20px;text-transform:uppercase;letter-spacing:.3px}
-.naslag-kop button{width:40px;height:40px;border-radius:11px;background:var(--surface-2);font-size:18px}
+.naslag-kop button{width:40px;height:40px;border-radius:11px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--ink)}
 .ns-sectie{margin-top:26px}
 .ns-titel{font-family:'Barlow Condensed';font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.3px;color:var(--ink);margin-bottom:4px}
 .ns-lead{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin-bottom:12px}
-/* In het kort */
-.ns-kort{margin-top:16px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px 14px}
-.ns-kort-rij{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--hair)}
-.ns-kort-rij:first-child{border-top:none}
-.ns-kort-rij .nr{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:color-mix(in srgb, var(--accent) 16%, transparent);color:var(--accent);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
-.ns-kort-rij .tx{font-size:14px;color:var(--ink);line-height:1.45}
-.ns-kort-rij .tx small{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px}
-/* Ladders met tabs */
-.ns-tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border-radius:12px;margin-bottom:12px}
-.ns-tabs button{flex:1;padding:8px 4px;border-radius:9px;font-size:13px;font-weight:600;color:var(--ink-2);line-height:1.2}
-.ns-tabs button small{display:block;font-size:10.5px;font-weight:500;opacity:.8;margin-top:1px}
+/* ── Naslag in Cluppie-huisstijl: kaarten met icoon + veldlabel, alleen SVG-iconen ── */
+.ns-kaart{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-top:12px}
+.ns-kaart .dom-kop{margin-bottom:10px}
+.ns-lead{font-size:13px;color:var(--ink-2);line-height:1.5;margin:-2px 0 12px}
+.ns-p{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:10px}
+.ns-p:last-child{margin-bottom:0}
+.ns-ic{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:30px;height:30px;border-radius:9px;background:var(--surface-2);color:var(--ink-2)}
+.ns-ic.accent{background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent)}
+.ns-rij{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--hair)}
+.ns-rij:first-of-type{border-top:none;padding-top:2px}
+.ns-rij:last-child{padding-bottom:0}
+.ns-rij .tx{font-size:14px;font-weight:600;color:var(--ink);line-height:1.35;padding-top:5px}
+.ns-rij .tx small{display:block;font-size:12.5px;font-weight:400;color:var(--ink-2);margin-top:2px;line-height:1.45}
+/* segmenten (Kort/Verdieping en ladders) */
+.ns-tabs{display:flex;gap:4px;padding:4px;background:var(--surface-2);border-radius:12px}
+.ns-tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.ns-tabs button .iconen{display:flex;gap:3px}
 .ns-tabs button.aan{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
-.ns-paneel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
-.ns-vraag{font-size:15px;font-weight:600;color:var(--ink);line-height:1.4;margin-bottom:10px}
-.ns-trede{display:flex;gap:10px;align-items:center;padding:7px 0}
+.ns-tabs button.aan .iconen{color:var(--accent)}
+.ns-tabs.rij button{flex-direction:row;justify-content:center;gap:7px;padding:9px 4px}
+.ns-modus{position:sticky;top:67px;z-index:1;background:var(--bg);padding:12px 0 2px}
+.ns-deel{display:none}
+.ns-deel.aan{display:block}
+/* ladder */
+.ns-paneel{margin-top:12px}
+.ns-vraag{font-size:15px;font-weight:600;color:var(--ink);line-height:1.4;margin-bottom:8px}
+.ns-trede{display:flex;gap:10px;align-items:center;padding:6px 0}
 .ns-trede .chip{flex-shrink:0;width:82px;text-align:center;font-size:10px;font-weight:700;padding:5px 0;border-radius:6px;color:#fff;text-transform:uppercase;letter-spacing:.2px}
 .ns-trede .chip.kn3,.ns-trede .chip.kn4{color:#1D1E1E}
 .ns-trede .tx{font-size:13.5px;color:var(--ink);line-height:1.4}
-.ns-voorbeeld{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--surface);font-size:13px;line-height:1.5;color:var(--ink)}
-.ns-voorbeeld .lbl{display:block;font-size:10.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-.ns-persoon{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding-top:12px;border-top:1px solid var(--hair)}
-.ns-persoon .av{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed';font-weight:700;font-size:14px;color:var(--ink)}
-.ns-persoon .tx{font-size:12.5px;color:var(--ink-2);line-height:1.45}
-.ns-persoon .tx b{display:block;color:var(--ink);font-size:13px;font-weight:600}
-/* Fases */
+.ns-voorbeeld{display:flex;gap:10px;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:13px;line-height:1.5;color:var(--ink)}
+.ns-voorbeeld .ic{color:var(--accent);display:flex;padding-top:1px}
+.ns-bron{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding-top:12px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.ns-bron b{display:block;color:var(--ink);font-size:13px;font-weight:600}
+/* fases */
 .ns-fases{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.ns-fase{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:11px 12px;border:1.5px solid transparent}
-.ns-fase.nu{border-color:var(--accent)}
-.ns-fase .lft{font-size:10.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;display:flex;justify-content:space-between;gap:6px}
-.ns-fase .lft em{font-style:normal;color:var(--accent)}
-.ns-fase .nm{font-family:'Barlow Condensed';font-weight:700;font-size:16px;text-transform:uppercase;color:var(--ink);margin:2px 0 4px}
+.ns-fase{border-radius:11px;background:var(--surface-2);padding:10px 11px;border:1.5px solid transparent}
+.ns-fase.nu{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 8%, var(--surface-2))}
+.ns-fase .lft{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink-2)}
+.ns-fase .lft .ic{color:var(--accent);display:flex}
+.ns-fase .nm{font-family:'Barlow Condensed';font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.2px;color:var(--ink);margin:1px 0 3px}
 .ns-fase .tx{font-size:12.5px;color:var(--ink-2);line-height:1.4}
 .ns-fase .tx b{color:var(--ink);font-weight:600}
-.ns-noot{font-size:12.5px;color:var(--ink-2);line-height:1.5;margin-top:10px}
-/* Tips */
-.ns-tip{display:flex;gap:12px;align-items:flex-start;background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:11px 13px;margin-bottom:8px}
-.ns-tip .ic{flex-shrink:0;font-size:18px;line-height:1.2}
-.ns-tip .tx{font-size:14px;font-weight:600;color:var(--ink);line-height:1.35}
-.ns-tip .tx small{display:block;font-size:12.5px;font-weight:400;color:var(--ink-2);margin-top:2px}
-/* Coachvragen */
-.ns-vragen{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px 14px}
-.ns-vragen .ns-trede{border-top:1px solid var(--hair);padding:10px 0}
-.ns-vragen .ns-trede:first-child{border-top:none}
-.ns-vragen .tx{font-style:italic}
-/* Kort / Verdieping */
-.ns-modus{position:sticky;top:67px;z-index:1;background:var(--bg);padding:12px 0 4px}
-.ns-modus .ns-tabs{margin-bottom:0}
-.ns-deel{display:none}
-.ns-deel.aan{display:block}
-.ns-teamfase{margin-top:10px;padding:10px 12px;border-radius:10px;border-left:3px solid var(--accent);background:var(--surface);font-size:13px;line-height:1.5;color:var(--ink)}
-.ns-teamfase b{display:block;font-size:10.5px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px}
-.ns-meer{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:22px;padding:12px 14px;border-radius:12px;border:1px dashed var(--hair);font-size:13.5px;font-weight:600;color:var(--ink);text-align:left}
-.ns-meer small{display:block;font-size:12px;font-weight:400;color:var(--ink-2)}
-.ns-meer .pijl{color:var(--accent);font-size:18px}
-.ns-p{font-size:14px;color:var(--ink);line-height:1.6;margin-bottom:10px}
-.ns-model{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
-.ns-model .kop{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.ns-model .kop .tx{font-size:12px;color:var(--ink-2);line-height:1.4}
-.ns-model .kop .tx b{display:block;font-size:15px;color:var(--ink)}
-.ns-model .dom{margin-left:auto;font-size:10px;font-weight:700;color:var(--accent);background:color-mix(in srgb, var(--accent) 14%, transparent);padding:3px 8px;border-radius:20px;white-space:nowrap}
-.ns-map{width:100%;border-collapse:collapse;margin-top:6px}
+.ns-fase-lijst{display:flex;flex-direction:column;gap:8px}
+/* vertaaltabel */
+.ns-map{width:100%;border-collapse:collapse;margin-top:4px}
 .ns-map td{padding:7px 0;border-top:1px solid var(--hair);font-size:13px;color:var(--ink);vertical-align:middle}
-.ns-map td:first-child{color:var(--ink-2);width:46%}
-.ns-map td:nth-child(2){width:18px;color:var(--ink-2)}
+.ns-map td:first-child{color:var(--ink-2);width:50%;padding-right:6px}
+.ns-map td:nth-child(2){width:22px;color:var(--ink-2)}
+.ns-map td:nth-child(2) svg{display:block}
 .ns-map .chip{display:inline-block;width:82px;text-align:center;font-size:10px;font-weight:700;padding:4px 0;border-radius:6px;color:#fff;text-transform:uppercase}
 .ns-map .chip.kn3,.ns-map .chip.kn4{color:#1D1E1E}
-.ns-fase-lijst .ns-fase{margin-bottom:8px}
-.ns-fase .stap{margin-top:6px;font-size:12px;color:var(--ink-2)}
-.ns-bronnen.open-altijd summary{display:none}
-.ns-bronnen.open-altijd{border-top:none;margin-top:8px;padding-top:0}
-/* Bronnen */
-.ns-bronnen{margin-top:26px;border-top:1px solid var(--hair);padding-top:12px}
-.ns-bronnen summary{font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;list-style:none}
-.ns-bronnen summary::-webkit-details-marker{display:none}
-.ns-bronnen summary::after{content:' ›'}
-.ns-bronnen[open] summary::after{content:' ⌄'}
-.ns-bronnen ul{margin:8px 0 0 16px}
-.ns-bronnen li{font-size:12px;color:var(--ink-2);line-height:1.5;margin-bottom:4px}
+.ns-model-kop{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ns-model-kop .tx{flex:1;font-size:12px;color:var(--ink-2);line-height:1.35}
+.ns-model-kop .tx b{display:block;font-size:15px;color:var(--ink)}
+.ns-model-kop .iconen{display:flex;gap:4px;color:var(--accent)}
+/* meer-knop + bronnen */
+.ns-meer{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:12px 14px;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);text-align:left}
+.ns-meer .tx{flex:1;font-size:14px;font-weight:600;color:var(--ink)}
+.ns-meer .tx small{display:block;font-size:12px;font-weight:400;color:var(--ink-2)}
+.ns-meer .pijl{color:var(--accent);display:flex}
+.ns-bronnen{margin:0 0 0 16px}
+.ns-bronnen li{font-size:12px;color:var(--ink-2);line-height:1.5;margin-bottom:5px}
 .naslag-eerste{display:none;margin-top:14px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb, var(--accent) 12%, transparent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);font-size:13px;line-height:1.5;color:var(--ink)}
-.naslag.eerste .naslag-eerste{display:block}
+.naslag.eerste .naslag-eerste{display:flex;gap:10px;align-items:flex-start}
+.naslag-eerste .ic{color:var(--accent);display:flex;padding-top:1px}
 .naslag-klaar{display:block;max-width:none;margin-top:26px}
 </style>
 </head>
@@ -355,7 +341,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
       <span class="wissel-chevron" id="icWisselChevron"></span>
     </div>
     <div class="jouw-beoordeling">Jouw beoordeling — niet zichtbaar of aanpasbaar voor andere coaches van dit team.</div>
-    <button class="naslag-link boven" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl">›</span></button>
+    <button class="naslag-link boven" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl" id="icNaslagPijl"></span></button>
 
     <div class="samenvatting open" id="samenvatting">
       <div class="sv-balk">
@@ -455,8 +441,8 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 
 <div class="naslag" id="naslag">
   <div class="naslag-in">
-    <div class="naslag-kop"><h2>Zo beoordelen we</h2><button id="naslagSluit" title="Sluiten">✕</button></div>
-    <div class="naslag-eerste" id="naslagEerste">Eerste keer? Lees dit even door. Je vindt het daarna altijd terug bovenaan het scherm.</div>
+    <div class="naslag-kop"><h2>Zo beoordelen we</h2><button id="naslagSluit" title="Sluiten" aria-label="Sluiten"></button></div>
+    <div class="naslag-eerste" id="naslagEerste"><span class="ic" id="icEerste"></span><span>Eerste keer? Lees dit even door. Je vindt het daarna altijd terug bovenaan het scherm.</span></div>
     <div id="naslagTekst"></div>
     <button class="ob-intro-start naslag-klaar" id="naslagKlaar">Begrepen</button>
   </div>
@@ -992,23 +978,26 @@ popup.onclick = e => { if (e.target === popup) popup.classList.remove('toon'); }
 // onderaan het scherm en via "Wat betekent elk niveau?".
 const NS_LADDER = {
   dave: {
-    vraag:'Hoe goed beheerst de speler de beweging?',
+    iconen:['football-ball','tag-speed'], vraag:'Hoe goed beheerst de speler de beweging?',
     voorbeeld:'Lukt de pass alleen in een oefening zonder tegenstander? Dan is het <b>Op weg</b>. Lukt hij ook in de partij met druk erop? Dan is het <b>Sterk</b>.',
-    persoon:'Ravindra Dave', init:'RD', jaar:'1970',
+    persoon:'Ravindra Dave', jaar:'1970',
     over:'Indiase onderwijskundige. Beschreef hoe je een beweging leert: van nadoen tot vanzelf.',
-    diep:'Dave vulde in 1970 het ontbrekende motorische deel aan bij de taxonomie van Bloom. Zijn ladder beschrijft hoe een vaardigheid groeit: eerst nadoen, dan op instructie, dan zuiver, dan aanpassen aan de situatie, tot het vanzelf gaat. Voor techniek en fysiek kijk je dus vooral naar: onder welke omstandigheden lukt het nog?' },
+    diep:'Dave vulde in 1970 het motorische deel aan bij de taxonomie van Bloom. Een vaardigheid groeit van nadoen, via op instructie en zuiver, naar aanpassen aan de situatie, tot het vanzelf gaat. Kijk bij techniek en fysiek dus: onder welke omstandigheden lukt het nog?',
+    stappen:['Imitatie (nadoen)','Manipulatie (op instructie)','Precisie (zuiver)','Articulatie (aanpassen)','Naturalisatie (vanzelf)'] },
   bloom: {
-    vraag:'Hoe goed begrijpt de speler het spel en maakt hij keuzes?',
+    iconen:['football-tactics'], vraag:'Hoe goed begrijpt de speler het spel en maakt hij keuzes?',
     voorbeeld:'Zakt terug als jij "terug!" roept? Dan is het <b>Op weg</b>. Zet zelf direct druk op de bal en wijst een medespeler zijn man aan? Dan is het <b>Uitblinker</b>.',
-    persoon:'Benjamin Bloom', init:'BB', jaar:'1956, herzien 2001',
-    over:'Amerikaanse onderwijspsycholoog. Ordende denken in stappen: van onthouden tot zelf iets bedenken. Wij gebruiken die stappen in vijf niveaus.',
-    diep:'Bloom ordende in 1956 het denken in stappen. In 2001 herzagen Anderson en Krathwohl die tot: onthouden, begrijpen, toepassen, analyseren, evalueren en creëren. In voetbal is dat spelinzicht. Wij voegen de laatste twee samen, zodat de ladder op onze vijf niveaus past.' },
+    persoon:'Benjamin Bloom', jaar:'1956, herzien 2001',
+    over:'Amerikaanse onderwijspsycholoog. Ordende denken in stappen: van onthouden tot zelf iets bedenken.',
+    diep:'Bloom ordende in 1956 het denken in stappen. In 2001 herzagen Anderson en Krathwohl die tot: onthouden, begrijpen, toepassen, analyseren, evalueren en creëren. In voetbal is dat spelinzicht. Wij voegen de laatste twee samen, zodat de ladder op onze vijf niveaus past.',
+    stappen:['Nog niet herkennen','Begrijpen','Toepassen','Analyseren','Evalueren en creëren'] },
   krathwohl: {
-    vraag:'Hoe sterk laat de speler deze houding zelf zien?',
+    iconen:['tag-insight','tag-handshake'], vraag:'Hoe sterk laat de speler deze houding zelf zien?',
     voorbeeld:'Laat na een fout de schouders hangen, maar pakt het op als jij aanmoedigt? Dan is het <b>Op weg</b>. Peppt na een tegengoal zelf het team op? Dan is het <b>Uitblinker</b>.',
-    persoon:'David Krathwohl', init:'DK', jaar:'1964',
+    persoon:'David Krathwohl', jaar:'1964',
     over:'Amerikaanse onderwijskundige en collega van Bloom. Beschreef hoe een houding groeit: van horen tot een voorbeeld zijn.',
-    diep:'Krathwohl schreef in 1964 met Bloom en Masia het deel over houding en waarden. Een houding groeit van iets horen, via meedoen als het gevraagd wordt, naar het zelf willen, tot het een vast deel van wie je bent. Bij mentaliteit en gedrag kijk je dus: komt het uit de speler zelf?' },
+    diep:'Krathwohl schreef in 1964 met Bloom en Masia het deel over houding. Een houding groeit van iets horen, via meedoen als het gevraagd wordt, naar het zelf willen, tot het bij je hoort. Kijk bij mentaliteit en gedrag dus: komt het uit de speler zelf?',
+    stappen:['Ontvangen (luisteren)','Reageren (meedoen)','Waarderen (zelf willen)','Organiseren (eigen doelen)','Karakteriseren (hoort bij je)'] },
 };
 const NS_FASE_KORT = {
   Basisfase:      ['Aanleren', 'nadoen en begrijpen'],
@@ -1016,101 +1005,106 @@ const NS_FASE_KORT = {
   Competitiefase: ['Analyseren', 'bewust kiezen wanneer wat'],
   Winfase:        ['Evalueren', 'zelf oplossen, elkaar coachen'],
 };
+const nsIconen = (lijst, g = 16) => `<span class="iconen">${lijst.map(n => ICO(n, g)).join('')}</span>`;
+const nsKop = (icoon, label) => `<div class="dom-kop"><span class="dom-emoji">${ICO(icoon,17)}</span><span class="veldlabel">${label}</span></div>`;
+const nsRij = (icoon, titel, uitleg, accent) => `<div class="ns-rij"><span class="ns-ic${accent?' accent':''}">${ICO(icoon,17)}</span><span class="tx">${titel}<small>${uitleg}</small></span></div>`;
 function nsPaneel(sleutel){
   const l = LADDERS[sleutel], x = NS_LADDER[sleutel];
   return `
     <div class="ns-vraag">${x.vraag}</div>
     ${l.treden.slice(1).map((t, i) => `
       <div class="ns-trede"><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span><span class="tx">${t.tekst}</span></div>`).join('')}
-    <div class="ns-voorbeeld"><span class="lbl">Voorbeeld</span>${x.voorbeeld}</div>
-    <div class="ns-persoon"><span class="av">${x.init}</span>
-      <span class="tx"><b>Gebaseerd op ${x.persoon} (${x.jaar})</b>${x.over}</span></div>`;
+    <div class="ns-voorbeeld"><span class="ic">${ICO('football-ball',16)}</span><span>${x.voorbeeld}</span></div>
+    <div class="ns-bron"><span class="ns-ic">${ICO('admin-document',16)}</span>
+      <span><b>Gebaseerd op ${x.persoon} (${x.jaar})</b>${x.over}</span></div>`;
 }
-function nsModel(sleutel, rijen, dom){
-  const x = NS_LADDER[sleutel];
-  return `<div class="ns-model">
-    <div class="kop"><span class="ns-persoon" style="margin:0;padding:0;border:0"><span class="av">${x.init}</span></span>
-      <span class="tx"><b>${x.persoon}</b>${x.jaar}</span><span class="dom">${dom}</span></div>
-    <div class="ns-p" style="font-size:13.5px">${x.diep}</div>
-    <table class="ns-map">${rijen.map((r, i) =>
-      `<tr><td>${r}</td><td>→</td><td><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span></td></tr>`).join('')}</table>
+function nsModel(sleutel){
+  const x = NS_LADDER[sleutel], l = LADDERS[sleutel];
+  return `<div class="ns-kaart">
+    <div class="ns-model-kop"><span class="ns-ic">${ICO('admin-document',17)}</span>
+      <span class="tx"><b>${x.persoon}</b>${x.jaar} · ${l.naam.toLowerCase()}</span>${nsIconen(x.iconen, 17)}</div>
+    <p class="ns-p" style="font-size:13.5px">${x.diep}</p>
+    <table class="ns-map">${x.stappen.map((r, i) =>
+      `<tr><td>${r}</td><td>${ICO('navigation-forward',14)}</td><td><span class="chip kn${i+1}">${NIV_LABEL[i+1]}</span></td></tr>`).join('')}</table>
   </div>`;
 }
 function bouwNaslag(){
   const f = faseVan(TEAM_LEEFTIJD);
+  const ladderTabs = Object.entries(LADDERS).map(([k, v], i) =>
+    `<button data-ns-tab="${k}" class="${i===0?'aan':''}">${nsIconen(NS_LADDER[k].iconen)}${v.naam}</button>`).join('');
   document.getElementById('naslagTekst').innerHTML = `
-    <div class="ns-modus"><div class="ns-tabs">
-      <button data-ns-modus="kort" class="aan">Kort<small>± 1 minuut</small></button>
-      <button data-ns-modus="diep">Verdieping<small>± 5 minuten</small></button>
+    <div class="ns-modus"><div class="ns-tabs rij">
+      <button data-ns-modus="kort" class="aan">${ICO('action-check',16)}Kort</button>
+      <button data-ns-modus="diep">${ICO('training-plan',16)}Verdieping</button>
     </div></div>
 
-    <!-- ===== KORT ===== -->
     <div class="ns-deel aan" data-ns-deel="kort">
-      <div class="ns-kort">
-        <div class="ns-kort-rij"><span class="nr">1</span><span class="tx">Elk niveau heeft een vaste betekenis.<small>Lees de zin onder de schaal, niet alleen de kleur.</small></span></div>
-        <div class="ns-kort-rij"><span class="nr">2</span><span class="tx">Techniek, inzicht en houding leer je anders.<small>Daarom zijn er drie ladders.</small></span></div>
-        <div class="ns-kort-rij"><span class="nr">3</span><span class="tx">Leeftijd telt mee.<small>Een lage score bij een jonge speler is geen zwakte.</small></span></div>
+      <div class="ns-kaart">
+        ${nsKop('navigation-help','In het kort')}
+        ${nsRij('stats-bars','Elk niveau heeft een vaste betekenis','Lees de zin onder de schaal, niet alleen de kleur.', true)}
+        ${nsRij('football-tactics','Techniek, inzicht en houding leer je anders','Daarom zijn er drie ladders.', true)}
+        ${nsRij('team-player','Leeftijd telt mee','Een lage score bij een jonge speler is geen zwakte.', true)}
       </div>
 
-      <div class="ns-sectie">
-        <div class="ns-titel">De drie ladders</div>
-        <div class="ns-tabs">${Object.entries(LADDERS).map(([k, v], i) =>
-          `<button data-ns-tab="${k}" class="${i===0?'aan':''}">${v.naam}<small>${v.domeinen.join(' · ')}</small></button>`).join('')}</div>
+      <div class="ns-kaart">
+        ${nsKop('stats-bars','De drie ladders')}
+        <div class="ns-tabs">${ladderTabs}</div>
         <div class="ns-paneel" id="nsPaneel">${nsPaneel('dave')}</div>
-        <div class="ns-teamfase"><b>Dit team: ${f.naam} (${f.leeft})</b>${NS_FASE_KORT[f.naam][0]}: ${NS_FASE_KORT[f.naam][1]}.</div>
       </div>
 
-      <div class="ns-sectie">
-        <div class="ns-titel">Tips bij het scoren</div>
-        <div class="ns-tip"><span class="ic">📅</span><span class="tx">Kijk over meerdere weken<small>Scoor wat je meestal ziet, niet die ene uitschieter.</small></span></div>
-        <div class="ns-tip"><span class="ic">⚖️</span><span class="tx">Twijfel? Kies het lagere niveau<small>Schrijf in de toelichting wat al wél lukt.</small></span></div>
-        <div class="ns-tip"><span class="ic">⭐</span><span class="tx">Uitblinker is zeldzaam<small>Het betekent: een voorbeeld voor leeftijdsgenoten.</small></span></div>
+      <div class="ns-kaart">
+        ${nsKop('team-player','Dit team')}
+        ${nsRij('planning-calendar', `${f.naam} (${f.leeft})`, `${NS_FASE_KORT[f.naam][0]}: ${NS_FASE_KORT[f.naam][1]}. Nadruk ${f.nadruk.toLowerCase()}.`, true)}
       </div>
 
-      <button class="ns-meer" data-ns-modus="diep"><span>Meer weten?<small>Waar de ladders vandaan komen, de fases en coachvragen</small></span><span class="pijl">›</span></button>
+      <div class="ns-kaart">
+        ${nsKop('action-check','Tips bij het scoren')}
+        ${nsRij('planning-calendar','Kijk over meerdere weken','Scoor wat je meestal ziet, niet die ene uitschieter.')}
+        ${nsRij('action-filter','Twijfel? Kies het lagere niveau','Schrijf in de toelichting wat al wél lukt.')}
+        ${nsRij('tag-leader','Uitblinker is zeldzaam','Het betekent: een voorbeeld voor leeftijdsgenoten.')}
+      </div>
+
+      <button class="ns-meer" data-ns-modus="diep"><span class="ns-ic accent">${ICO('training-plan',17)}</span>
+        <span class="tx">Meer weten?<small>Waar de ladders vandaan komen, de fases en coachvragen</small></span>
+        <span class="pijl">${ICO('navigation-forward',18)}</span></button>
     </div>
 
-    <!-- ===== VERDIEPING ===== -->
     <div class="ns-deel" data-ns-deel="diep">
-      <div class="ns-sectie" style="margin-top:16px">
-        <div class="ns-titel">Waarom vaste niveaus?</div>
-        <p class="ns-p">Een kleur zonder uitleg betekent voor iedere coach iets anders. De één geeft snel "Sterk", de ander bijna nooit. Met een vaste beschrijving per niveau scoren alle coaches op dezelfde manier.</p>
+      <div class="ns-kaart">
+        ${nsKop('navigation-help','Waarom vaste niveaus')}
+        <p class="ns-p">Een kleur zonder uitleg betekent voor iedere coach iets anders. De één geeft snel Sterk, de ander bijna nooit. Met een vaste beschrijving per niveau scoren alle coaches op dezelfde manier.</p>
         <p class="ns-p">Dat telt, want beoordelingen wegen mee bij de teamindeling. En een score die je kunt onderbouwen, kun je ook uitleggen aan speler en ouders.</p>
       </div>
 
-      <div class="ns-sectie">
-        <div class="ns-titel">Hoofd, handen en hart</div>
-        <div class="ns-lead">In het onderwijs zijn drie bekende ladders, elk voor een ander soort leren. Ze lopen van eenvoudig naar meesterschap. Zo vertalen wij hun stappen naar onze vijf niveaus:</div>
-        ${nsModel('dave',  ['Imitatie (nadoen)','Manipulatie (op instructie)','Precisie (zuiver)','Articulatie (combineren, aanpassen)','Naturalisatie (vanzelf)'], 'Handen · TE · FY')}
-        ${nsModel('bloom', ['Nog niet herkennen','Begrijpen','Toepassen','Analyseren','Evalueren en creëren'], 'Hoofd · TA')}
-        ${nsModel('krathwohl', ['Ontvangen (luisteren)','Reageren (meedoen)','Waarderen (het zelf willen)','Organiseren (eigen doelen)','Karakteriseren (het is wie je bent)'], 'Hart · ME · GE')}
+      <div class="ns-kaart">
+        ${nsKop('stats-bars','Hoofd, handen en hart')}
+        <p class="ns-p" style="color:var(--ink-2);font-size:13px">Drie bekende ladders uit het onderwijs, elk voor een ander soort leren. Zo vertalen wij hun stappen naar onze vijf niveaus.</p>
       </div>
+      ${nsModel('dave')}${nsModel('bloom')}${nsModel('krathwohl')}
 
-      <div class="ns-sectie">
-        <div class="ns-titel">De fases in het opleidingsmodel</div>
-        <div class="ns-lead">Het opleidingsmodel (Meulensteen/KNVB) deelt de jeugd in vier fases. Elke fase legt de nadruk op één pijler en past bij een stap op de ladder van Bloom.</div>
+      <div class="ns-kaart">
+        ${nsKop('planning-calendar','Fases in het opleidingsmodel')}
+        <div class="ns-lead">Meulensteen/KNVB delen de jeugd in vier fases. Elke fase legt de nadruk op één pijler.</div>
         <div class="ns-fase-lijst">${FASES.map(x => `
           <div class="ns-fase${x === f ? ' nu' : ''}">
-            <div class="lft"><span>${x.leeft} · nadruk ${x.nadruk.toLowerCase()}</span>${x === f ? '<em>Dit team</em>' : ''}</div>
+            <div class="lft"><span>${x.leeft} · nadruk ${x.nadruk.toLowerCase()}</span>${x === f ? `<span class="ic" title="Dit team">${ICO('team-player',15)}</span>` : ''}</div>
             <div class="nm">${x.naam}</div>
             <div class="tx">${x.stap}</div>
           </div>`).join('')}</div>
       </div>
 
-      <div class="ns-sectie">
-        <div class="ns-titel">Coachvragen per stap</div>
-        <div class="ns-lead">De ladders helpen ook bij het coachen. Een vraag die past bij de volgende stap daagt de speler uit om net iets verder te denken.</div>
-        <div class="ns-vragen">
-          <div class="ns-trede"><span class="chip kn2">Op weg</span><span class="tx">"Wat zie je hier gebeuren?"</span></div>
-          <div class="ns-trede"><span class="chip kn3">Prima</span><span class="tx">"Wat doe je als de bal daar komt?"</span></div>
-          <div class="ns-trede"><span class="chip kn4">Sterk</span><span class="tx">"Waarom koos je die pass?"</span></div>
-          <div class="ns-trede"><span class="chip kn5">Uitblinker</span><span class="tx">"Wat had beter gekund? Hoe help je je medespeler?"</span></div>
-        </div>
+      <div class="ns-kaart">
+        ${nsKop('communication-chat','Coachvragen per stap')}
+        <div class="ns-lead">Een vraag bij de volgende stap daagt de speler uit net iets verder te denken.</div>
+        <div class="ns-trede"><span class="chip kn2">Op weg</span><span class="tx">Wat zie je hier gebeuren?</span></div>
+        <div class="ns-trede"><span class="chip kn3">Prima</span><span class="tx">Wat doe je als de bal daar komt?</span></div>
+        <div class="ns-trede"><span class="chip kn4">Sterk</span><span class="tx">Waarom koos je die pass?</span></div>
+        <div class="ns-trede"><span class="chip kn5">Uitblinker</span><span class="tx">Hoe help je je medespeler?</span></div>
       </div>
 
-      <div class="ns-sectie">
-        <div class="ns-titel">Bronnen</div>
-        <ul class="ns-bronnen open-altijd" style="list-style:disc;margin-left:16px">
+      <div class="ns-kaart">
+        ${nsKop('admin-document','Bronnen')}
+        <ul class="ns-bronnen">
           <li>Bloom, B.S. e.a. (1956). <i>Taxonomy of Educational Objectives, Handbook I: Cognitive Domain.</i></li>
           <li>Anderson, L.W. &amp; Krathwohl, D.R. (2001). <i>A Taxonomy for Learning, Teaching, and Assessing.</i></li>
           <li>Krathwohl, D.R., Bloom, B.S. &amp; Masia, B.B. (1964). <i>Handbook II: Affective Domain.</i></li>
@@ -1153,6 +1147,9 @@ document.getElementById('naslagTekst').addEventListener('click', e => {
   document.getElementById('nsPaneel').innerHTML = nsPaneel(t.dataset.nsTab);
 });
 document.getElementById('icNaslag').innerHTML = ICO('training-plan', 19);
+document.getElementById('naslagSluit').innerHTML = ICO('navigation-close', 18);
+document.getElementById('icNaslagPijl').innerHTML = ICO('navigation-forward', 16);
+document.getElementById('icEerste').innerHTML = ICO('navigation-help', 17);
 
 // ==================== ONBOARDING / RONDLEIDING ====================
 // Zelfde principe als de echte onboarding.js: spotlight (waas + ring) rond
