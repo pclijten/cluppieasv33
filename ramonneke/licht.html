@@ -91,7 +91,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .sv-balk .sv-tekst b{color:var(--ink)}
 .sv-detail{max-height:0;overflow:hidden;transition:max-height .25s ease}
 .samenvatting.open .sv-detail{max-height:900px}
-.sv-inner{padding:2px 14px 16px}
+.sv-inner{padding:14px 14px 16px}
 .sv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px}
 .sv-box{background:var(--surface);border-radius:10px;padding:9px 5px;text-align:center}
 .sv-box .v{font-family:'Barlow Condensed';font-weight:700;font-size:18px;line-height:1.1}
@@ -344,9 +344,6 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
     <button class="naslag-link boven" id="naslagLink"><span class="ic" id="icNaslag"></span><span class="tx">Zo beoordelen we<small>Achtergrond bij de niveaus · Bloom, Krathwohl en Dave</small></span><span class="pijl" id="icNaslagPijl"></span></button>
 
     <div class="samenvatting open" id="samenvatting">
-      <div class="sv-balk">
-        <span class="sv-tekst" id="svTekstKort"></span>
-      </div>
       <div class="sv-detail"><div class="sv-inner">
 
         <div class="sv-grid">
@@ -759,9 +756,6 @@ function renderSpeler(i){
   document.getElementById('svLaatsteKort').textContent = p.laatsteKort;
   document.getElementById('svLaatsteDatum').textContent = p.laatsteDatum;
 
-  const topPos = p.posities[0];
-  document.getElementById('svTekstKort').innerHTML =
-    `<b>${p.opkomst}%</b> opkomst · <b>${p.speeltijd}%</b> speeltijd · meestal <b>${topPos.naam}</b> · gem. laatste ronde <b style="color:var(--n${p.dom.TE.s})">${p.dom.TE.l} ${trendPijl[p.dom.TE.t]}</b>`;
 
   document.getElementById('svPosBalk').innerHTML = p.posities.map(pos => `<div style="width:${pos.pct}%;background:${pos.kleur}"></div>`).join('');
   document.getElementById('svPosLegend').innerHTML = p.posities.map(pos => `<span><span class="dot" style="background:${pos.kleur}"></span>${pos.naam} · ${pos.pct}%</span>`).join('');
