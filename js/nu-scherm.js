@@ -342,7 +342,7 @@ export function htmlNu(opties = {}){
   const live = c.soort === 'live' || (c.soort === 'wedstrijd' && c.fase === 'verzamelen');
   return `<section class="nu-blokje" aria-label="Nu">
     <div class="nu-kaart${live ? ' nu-s-live' : ''}">${kaartHtml(c, nu)}</div>
-    ${c.daarna.length ? `<h2 class="nu-sectiekop">Daarna</h2><div class="nu-daarna">${c.daarna.map(e => daarnaItem(e, nu)).join('')}</div>` : ''}
+    ${c.daarna.length ? `<h2 class="nu-sectiekop">Daarna<button type="button" class="nu-agenda" data-nu-tab="planning" hidden>Agenda &#8250;</button></h2><div class="nu-daarna">${c.daarna.map(e => daarnaItem(e, nu)).join('')}</div>` : ''}
   </section>`;
 }
 
@@ -369,8 +369,8 @@ export function koppelNu(v, ctx){
       open ? S._nuOpen.add(d.dataset.nuDaarna) : S._nuOpen.delete(d.dataset.nuDaarna);
       d.setAttribute('aria-expanded', String(open));
       clearTimeout(item._dicht);
-      if (open){ inhoud.hidden = false; void paneel.offsetHeight; item.classList.add('open'); }
-      else { item.classList.remove('open'); item._dicht = setTimeout(() => { if (!S._nuOpen.has(d.dataset.nuDaarna)) inhoud.hidden = true; }, 320); }
+      if (open){ inhoud.hidden = false; void paneel.offsetHeight; item.classList.add('open'); ctx.naTeken?.(); }
+      else { item.classList.remove('open'); item._dicht = setTimeout(() => { if (!S._nuOpen.has(d.dataset.nuDaarna)) inhoud.hidden = true; ctx.naTeken?.(); }, 320); }
       return;
     }
     const pt = ev.target.closest('[data-nu-pres-training]');
@@ -383,9 +383,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261112e'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261113a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261112e'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261113a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
@@ -403,6 +403,6 @@ export function koppelNu(v, ctx){
     if (oud.contains(document.activeElement)) return;   // niet onder iemands vinger verversen
     const tmp = document.createElement('div'); tmp.innerHTML = htmlNu({ evaluatie: ctx.evaluatie });
     const nieuw = tmp.firstElementChild; if (!nieuw) return;
-    oud.replaceWith(nieuw); koppelNu(nieuw.parentElement, ctx);
+    oud.replaceWith(nieuw); koppelNu(nieuw.parentElement, ctx); ctx.naTeken?.();
   }, 60000);
 }

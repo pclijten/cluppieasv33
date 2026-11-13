@@ -19,7 +19,7 @@ import { telGebruik } from './tracker.js?v=20261111g';
 import { ongelezenBerichten } from './berichten.js?v=20261111g';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261111g';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261111g';
-import { htmlNu } from './nu-scherm.js?v=20261112e';
+import { htmlNu } from './nu-scherm.js?v=20261113a';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111d';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261111g';
 
@@ -131,7 +131,10 @@ export function htmlHub(updInfo){
      de onderdelen waar iets nieuws of openstaands is; open/dicht blijft bewaard. */
   const nieuwIn = [oefenstofOngelezen, documentenOngelezen, evalOpen, ongelezenBerichten(),
     modAan('lijstjes') ? lijstjesOpenTotaal() : 0].filter(n => n > 0).length;
-  const allesOpen = (() => { try { return localStorage.getItem('cluppieHubAlles') === '1'; } catch(e){ return false; } })();
+  /* [20261113] Passend startscherm: op een telefoon (staand) vult de hub precies
+     het scherm en opent "Alles" als paneel van onderen; dan geen bewaarde open-stand. */
+  const pas = hubPasModus();
+  const allesOpen = pas ? false : (() => { try { return localStorage.getItem('cluppieHubAlles') === '1'; } catch(e){ return false; } })();
 
   /* Update-melding: alleen de onder-link met teller. De banner bovenaan de hub is
      bewust weg (6 nov): het startscherm blijft rustig. */
@@ -140,6 +143,12 @@ export function htmlHub(updInfo){
       <span class="upd-l-dot"></span>Wat is er nieuw?<span class="upd-l-pil">${upd.ongelezen} nieuw</span><span class="upd-l-pijl">&#8250;</span>
     </button>` : `
     <button class="hub-updates-link" data-hub-open="updates">Wat is er nieuw? Bekijk de updates &#8250;</button>`;
+
+  const tegelSecties = secties.map(([kop, tegels]) => `
+      <section class="hub-sectie">
+        <div class="hub-sectie-kop">${esc(kop)}</div>
+        <div class="hub-grid">${tegels.join('')}</div>
+      </section>`).join('');
 
   return `
     <div class="welkom-kop hub-kop">
@@ -159,14 +168,40 @@ export function htmlHub(updInfo){
       ${ico('navigation-dashboard', 22)}<span class="hub-alles-naam">${HUB_ALLES_LABEL}</span>${nieuwIn ? `<span class="hub-alles-tel" aria-label="${nieuwIn} met iets nieuws">${nieuwIn}</span>` : ''}
       <svg class="hub-alles-pijl" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>
     </button>
-    <div class="hub-alles" id="hubAlles"${allesOpen ? '' : ' hidden'}>
-    ${secties.map(([kop, tegels]) => `
-      <section class="hub-sectie">
-        <div class="hub-sectie-kop">${esc(kop)}</div>
-        <div class="hub-grid">${tegels.join('')}</div>
-      </section>`).join('')}
+    ${pas ? `<div class="hub-sheet-achter" id="hubAllesAchter" hidden>
+      <div class="hub-alles hub-sheet" id="hubAlles" role="dialog" aria-label="${HUB_ALLES_LABEL}">
+        <div class="hub-sheet-greep" aria-hidden="true"></div>
+        ${tegelSecties}
+        ${updLink}
+      </div>
+    </div>` : `<div class="hub-alles" id="hubAlles"${allesOpen ? '' : ' hidden'}>
+    ${tegelSecties}
     </div>
-    ${updLink}`;
+    ${updLink}`}`;
+}
+
+/* ==================== PASSEND STARTSCHERM (13 nov) ====================
+   Alleen op een telefoon in staande stand (niet op desktop/tablet/landscape). */
+export function hubPasModus(){
+  if (document.documentElement.classList.contains('desk')) return false;
+  try { return matchMedia('(max-width:699px) and (orientation:portrait)').matches; } catch(e){ return false; }
+}
+
+/* Laat onder "Daarna" alleen hele regels zien die op het scherm passen; de rest
+   staat in de Agenda (link verschijnt dan naast de kop). Is een regel opengeklapt,
+   of past zelfs de kop niet (klein scherm + groot lettertype), dan mag het scherm
+   gewoon scrollen en blijft "Alles" onderaan staan. */
+export function pasHubAan(v){
+  if (!v || !v.classList.contains('hub-pas') || !v.classList.contains('actief')) return;
+  const items = [...v.querySelectorAll('.nu-daarna > .nu-d-item')];
+  const agenda = v.querySelector('.nu-agenda');
+  items.forEach(i => { i.hidden = false; });
+  if (agenda) agenda.hidden = true;
+  if (!items.length || items.some(i => i.classList.contains('open'))) return;
+  const teVeel = () => document.documentElement.scrollHeight - window.innerHeight > 1;
+  let zichtbaar = items.length;
+  while (zichtbaar > 0 && teVeel()) items[--zichtbaar].hidden = true;
+  if (zichtbaar < items.length && agenda) agenda.hidden = false;
 }
 
 /* ==================== PRESENTIE WEDSTRIJD ==================== */

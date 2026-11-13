@@ -6724,3 +6724,51 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 .tg-deel{display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap;margin-bottom:var(--space-sm)}
 .tg-deel .inz-sub{margin:0 auto 0 0}
 .tg-deel .knop{padding:var(--space-xs) var(--space-md);font-size:var(--t-sm);box-shadow:none}
+
+/* ══ Passend startscherm (13 nov): de team-hub vult precies het telefoonscherm ══
+   Alleen actief met .hub-pas op #view-team (telefoon, staand; zie hubPasModus in
+   teams-hub.js). Compacte kop, Nu-blok heel, "Daarna" toont alleen hele regels die
+   passen (pasHubAan) en "Alles" staat vast onderaan en opent een paneel. */
+#view-team.hub-pas.actief{
+  display:flex; flex-direction:column; min-height:100dvh;
+  padding-top:max(var(--space-xs), env(safe-area-inset-top)); padding-bottom:0;
+}
+#view-team.hub-pas .welkom-kop{ padding:var(--space-sm) var(--space-sm) var(--space-sm) var(--space-md) !important; margin-bottom:0 !important; align-items:center; }
+#view-team.hub-pas .welkom-schild{ width:34px; margin:0 var(--space-sm) 0 0; }
+#view-team.hub-pas .welkom-datum{ margin-bottom:0; }
+#view-team.hub-pas .welkom-groet{ font-size:var(--t-3xl) !important; margin-bottom:0 !important; }
+#view-team.hub-pas .uitlog-knop{ width:38px; height:38px; }
+#view-team.hub-pas .hub-teamrij{ padding:var(--space-xs) var(--space-3xs) 0; }
+#view-team.hub-pas .hub-teamnaam{ font-size:var(--t-4xl); }
+#view-team.hub-pas .nu-blokje{ margin:var(--space-sm) 0 0; }
+#view-team.hub-pas .nu-sectiekop{ display:flex; align-items:baseline; justify-content:space-between; margin:var(--space-sm) 0 var(--space-2xs); font-size:var(--t-xl); }
+#view-team.hub-pas .nu-d-item[hidden]{ display:none; }
+#view-team.hub-pas .nu-daarna:not(:has(> .nu-d-item:not([hidden]))){ border-bottom:0; }
+#view-team.hub-pas .nu-kaart{ padding:var(--space-sm) var(--space-md) var(--space-md); }
+#view-team.hub-pas .nu-acties{ margin-top:var(--space-sm); }
+.nu-agenda{ background:none; border:0; padding:var(--space-2xs) 0 var(--space-2xs) var(--space-sm); font-family:var(--font-body); font-size:var(--t-sm); font-weight:600; text-transform:none; color:var(--accent); cursor:pointer; }
+.nu-agenda[hidden]{ display:none; }
+#view-team.hub-pas .hub-alles-knop{
+  position:sticky; bottom:calc(var(--space-sm) + env(safe-area-inset-bottom)); z-index:5; flex:none;
+  margin:auto 0 0; min-height:50px;
+  box-shadow:0 calc(var(--space-sm) * -1) 0 var(--bg), 0 var(--space-sm) 0 var(--bg);
+}
+/* ruimte onder de knop (incl. Android-/iOS-balk) zonder dat de knop meeschuift */
+#view-team.hub-pas.actief::after{ content:""; flex:none; height:calc(var(--space-sm) + env(safe-area-inset-bottom)); }
+#view-team.hub-pas .hub-alles-knop[aria-expanded="true"] .hub-alles-pijl{ transform:none; }
+#view-team.hub-pas .hub-alles-pijl{ transform:rotate(180deg); }
+
+/* Paneel met alle tegels, van onderen */
+.hub-sheet-achter{ position:fixed; inset:0; z-index:45; display:flex; align-items:flex-end; justify-content:center;
+  background:color-mix(in srgb, var(--zwart, #000) 0%, transparent); transition:background-color 200ms var(--ease-out); }
+.hub-sheet-achter[hidden]{ display:none; }
+.hub-sheet-achter.open{ background:color-mix(in srgb, var(--zwart, #000) 55%, transparent); }
+.hub-sheet{ width:100%; max-width:var(--app-w, 540px); max-height:85dvh; overflow-y:auto; overscroll-behavior:contain;
+  background:var(--bg); border:1px solid var(--line-d); border-bottom:0; border-radius:20px 20px 0 0;
+  padding:var(--space-sm) var(--space-md) calc(var(--space-md) + env(safe-area-inset-bottom));
+  transform:translateY(100%); transition:transform 220ms var(--ease-out); }
+.hub-sheet-achter.open .hub-sheet{ transform:none; }
+.hub-sheet-greep{ width:40px; height:4px; border-radius:2px; background:var(--line-d); margin:0 auto var(--space-xs); }
+.hub-sheet .hub-sectie:first-of-type{ margin-top:var(--space-xs); }
+.hub-sheet .hub-updates-link{ margin-top:var(--space-lg); }
+@media (prefers-reduced-motion:reduce){ .hub-sheet, .hub-sheet-achter{ transition:none; } }
