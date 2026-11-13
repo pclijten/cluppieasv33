@@ -22,9 +22,12 @@ import { isBouwCoordinator } from './coordinatoren.js?v=20261111g';
 import { magUitlenen } from './uitleen-rechten.js?v=20261111g';
 import { leenOmschrijving, leenActief } from './uitleen-regels.js?v=20261111d';
 import { ico } from './icons.js?v=20261106r';
-import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261111g';
+import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=20261113v';
 
 import { toonThemaInfo } from './teams-leerlijn.js?v=20261111g';
+import { bouwVanTeam, eigenBouwenVanTeam } from './bouw-indeling.js?v=20261111g';
+import { htmlVolledigFormulier, koppelVolledigFormulier, koppelInfo, htmlSamenvatting, htmlNaslagLink, htmlSnelAnker,
+  domeinScores, leeftijdTeam, naslagEersteKeer } from './beoordeling-volledig.js?v=20261113v';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { opkomstVoor, teltMee } from './opkomst.js?v=20261106r';
 import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261111g';
@@ -34,7 +37,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261113a');
+  const m = await import('./teams.js?v=20261113v');
   m.renderTeam();
 }
 
@@ -817,13 +820,16 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
     </div>`;
   };
 
+  const lftSnel = leeftijdTeam(S.team?.categorie);
   openModal(`
     <h2>Snel beoordelen</h2>
+    <div class="vb-wortel">
     <div class="snel-kop">
       <div class="mini-shirt">${esc(p.nummer ?? '·')}</div>
       <div><div class="nm">${esc(p.naam)}</div><div class="pos" id="mSnPos"></div></div>
     </div>
     ${rondeVoortgang()}
+    ${htmlNaslagLink(true)}
 
     <div class="veldlabel">Koppelen aan</div>
     <div class="segment klein-seg" id="mSnBronType">
@@ -835,6 +841,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
 
     <div class="veldlabel">Hoe ging het?</div>
     ${kleurbalk()}
+    <div class="vb-snel-anker" id="mSnAnker">${htmlSnelAnker(gekozenNiveau)}</div>
 
     <div class="veldlabel">Opvallend (optioneel)</div>
     ${tagRij()}
@@ -844,7 +851,9 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
 
     <button class="knop vol fluo u-mt-sm" id="mSnOk" >${bestaande?'Bijwerken':'Opslaan'}</button>
     ${S._snelRonde ? `<button class="knop licht vol u-mt-xs" id="mSnSkip" >Speler overslaan (niet aanwezig) →</button>` : ''}
-    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mSnWeg" >Verwijderen</button>`:''}`);
+    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mSnWeg" >Verwijderen</button>`:''}
+    </div>`, { vorm: 'paneel' });
+  koppelInfo($('.vb-wortel'), lftSnel);
 
   const updatePos = () => {
     const o = opts.find(x => x.id === bronId && x.type === bronType);
@@ -865,6 +874,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
   $$('#mSnNiveau [data-niv]').forEach(b => b.onclick = () => {
     gekozenNiveau = Number(b.dataset.niv);
     $$('#mSnNiveau [data-niv]').forEach(x => x.classList.toggle('gekozen', x===b));
+    $('#mSnAnker').innerHTML = htmlSnelAnker(gekozenNiveau);
   });
   $$('#mSnTags [data-tag]').forEach(b => b.onclick = () => {
     const id = b.dataset.tag;
@@ -893,6 +903,7 @@ export function modalSnelBeoordeling(spelerId, bestaande = null){
       if (S._snelRonde) volgendeSnelRonde(); else { herrenderTeam(); meld(p.naam+' beoordeeld'); }
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
   };
+  naslagEersteKeer(lftSnel);
   const wegBtn = $('#mSnWeg');
   if (wegBtn) wegBtn.onclick = async () => {
     if (!confirm('Deze beoordeling verwijderen?')) return;
@@ -921,16 +932,78 @@ function volgendeSnelRonde(){
   modalSnelBeoordeling(r.ids[r.index]);
 }
 
-/* --- Volledige beoordeling (5 ontwikkeldomeinen) --- */
+/* --- Volledige beoordeling (22 criteria over 5 domeinen) ---
+   [20261113v] Nieuw scherm uit de mockup /ramonneke/: samenvatting, criteria
+   met niveau-ladder, ⓘ-uitleg en de naslag "Zo beoordelen we" (zie
+   beoordeling-volledig.js). Opslaan: `criteria` per criterium + `scores` per
+   domein (afgerond gemiddelde), zodat radar, kaartcijfer en dashboards
+   ongewijzigd blijven werken.
+   Privé: een beoordeling die bij een evaluatieronde van de club hoort (winter,
+   lente) staat in de top-level collectie `beoordelingenPrive` en is alleen
+   leesbaar voor de schrijver, de coördinatoren van de bouw(en) van het team en
+   de clubbeheerders (veld `zichtbaarVoor`, afgedwongen in de Firestore-rules).
+   Losse metingen blijven in teams/{id}/beoordelingen, zichtbaar voor het team. */
+
+const POS_KLEUREN = ['#5B8DEF', '#9B6BD6', '#4FBFA8'];
+function vbSamenvatting(p){
+  const st = spelerStats(p.id);
+  const eigen = S.beoordelingen.filter(b => b.spelerId === p.id);
+  const laatste = eigen[0];
+  let laatsteKort = '', laatsteDatum = '';
+  if (laatste?.datum){
+    const dagen = Math.max(0, Math.round((Date.now() - new Date(laatste.datum + 'T12:00:00').getTime()) / 864e5));
+    laatsteKort = dagen === 0 ? 'vandaag' : dagen < 7 ? dagen + ' d' : dagen < 60 ? Math.round(dagen / 7) + ' wk' : Math.round(dagen / 30) + ' mnd';
+    laatsteDatum = datumNL(laatste.datum);
+  }
+  const alleePos = Object.values(st.posities || {}).reduce((a, b) => a + b, 0);
+  const posities = alleePos ? meestGespeeldePosities(p.id).slice(0, 3).map((x, i) => ({
+    naam: x.naam, pct: Math.round(x.n / alleePos * 100), kleur: POS_KLEUREN[i] })) : [];
+  const rest = 100 - posities.reduce((a, b) => a + b.pct, 0);
+  if (posities.length && rest >= 5) posities.push({ naam: 'Overig', pct: rest, kleur: 'var(--surface-2)' });
+  const volledig = eigen.filter(b => b.soort === 'volledig' && b.scores).slice(0, 3);
+  let domeinen = null;
+  if (volledig.length){
+    domeinen = {};
+    for (const d of SKILLS){
+      const w = volledig.map(b => b.scores[d.id]).filter(n => n >= 1 && n <= 5);
+      if (!w.length) continue;
+      const s = Math.round(w.reduce((a, b) => a + b, 0) / w.length);
+      const t = w.length > 1 ? (w[0] > w[1] ? 'op' : w[0] < w[1] ? 'neer' : 'gelijk') : 'gelijk';
+      domeinen[d.id] = { s, t };
+    }
+  }
+  const leerpunten = (p.leerpunten || []).filter(l => !l.klaar).map(l => `${l.tekst}${l.domein ? ' (' + l.domein + ')' : ''}`);
+  return { opkomst: st.opkomst ?? null, speeltijd: st.pctSpeeltijd, reserve: st.pctReserve,
+    laatsteKort, laatsteDatum, posities, domeinen, leerpunten, notitie: (p.notitie || '').trim() };
+}
+
+/* Wie mag een privé-rondebeoordeling lezen: jijzelf, de clubbeheerders en de
+   coördinatoren van de standaardbouw + eigen bouwen van dit team. */
+function priveLezers(){
+  const t = { ...(S.team || {}), id: S.teamId };
+  const lezers = new Set([S.user.uid]);
+  for (const [u, v] of Object.entries(S.club?.admins || {})) if (v) lezers.add(u);
+  const bc = S.club?.bouwCoordinatoren || {};
+  const eigen = eigenBouwenVanTeam(t);
+  for (const b of [bouwVanTeam(t), ...eigen.map(x => x.id)])
+    for (const [u, v] of Object.entries(bc[b] || {})) if (v) lezers.add(u);
+  for (const eb of eigen) for (const [u, v] of Object.entries(eb.coaches || {})) if (v === true) lezers.add(u);
+  return [...lezers];
+}
+const beoordelingRef = b => b.prive ? doc(db, 'beoordelingenPrive', b.id) : doc(db, 'teams', S.teamId, 'beoordelingen', b.id);
 
 export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   if (!modAan('evaluaties')) return meld('Evaluaties staan uit voor dit team');
   const p = speler(spelerId); if (!p) return;
-  const scores = {...(bestaande?.scores || {})};
-  const notities = {...(bestaande?.notities || {})};
+  const lft = leeftijdTeam(S.team?.categorie);
+  const alleenLezen = !!(bestaande?.prive && bestaande.door?.uid && bestaande.door.uid !== S.user?.uid);
+  const waarden = {
+    criteria: { ...(bestaande?.criteria || {}) },
+    notities: { ...(bestaande?.notities || {}) },
+    oud: bestaande && !bestaande.criteria ? { ...(bestaande.scores || {}) } : {},
+  };
   const moment = bestaande?.bron?.label || '';
-  /* [20260929a] "Hoort bij": een lopende evaluatieronde van de club, of een losse meting.
-     Vervangt het vinkje "officiële halfjaarevaluatie". */
+  /* "Hoort bij": een lopende evaluatieronde van de club, of een losse meting. */
   const flow = (!bestaande && S._evalRonde && S._evalRonde.ids[S._evalRonde.index] === spelerId) ? S._evalRonde : null;
   if (!flow) S._evalRonde = null;
   const lopend = rondesVoorTeam(S._clubRondes, S.teamId).filter(r => r.soort !== 'snel');
@@ -939,19 +1012,11 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
     const oud = (S._clubRondes || []).find(r => r.id === bestaande.ronde);
     rondeOpties.push({ id: bestaande.ronde, naam: oud?.naam || 'Evaluatieronde', tot: null });
   }
-  const alInRonde = r => S.beoordelingen.some(b => b.ronde === r.id && b.spelerId === spelerId && b.id !== bestaande?.id);
+  // [20261113v] per trainer: iedere trainer beoordeelt in een ronde zelf alle spelers
+  const alInRonde = r => S.beoordelingen.some(b => b.ronde === r.id && b.spelerId === spelerId && b.id !== bestaande?.id && b.door?.uid === S.user?.uid);
   const rondeStart = flow ? flow.ronde.id
     : bestaande ? (bestaande.ronde || (bestaande.officieel ? '_oud' : ''))
     : (lopend.find(r => !alInRonde(r))?.id || '');
-
-  const domeinKaart = (d) => `
-    <div class="kaart">
-      <div class="veldlabel u-mt-0">${d.id}<span class="sep" aria-hidden="true"></span>${d.naam}</div>
-      <p class="u-t-xs u-zacht" style="margin:-2px 0 var(--space-2xs)">${esc(d.omschrijving)}</p>
-      <div class="kleurbalk dom" data-dom="${d.id}">${NIVEAUS.slice(1).map(n =>
-        `<button data-niv="${n.n}" class="kn${n.n} ${scores[d.id]===n.n?'gekozen':''}"><span class="lbl">${n.kort}</span></button>`).join('')}</div>
-      <textarea class="invoer" data-not="${d.id}" rows="2" placeholder="Toelichting ${d.naam.toLowerCase()}...">${esc(notities[d.id]||'')}</textarea>
-    </div>`;
 
   const rondeVoortgang = flow ? `<div class="ronde-voortgang">
       <div class="veldlabel" style="margin:0 0 var(--space-2xs)">${esc(flow.ronde.naam)}</div>
@@ -959,51 +1024,86 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
         <div class="rv-klaar">${flow.ids.length - flow.index - 1 > 0 ? 'daarna nog ' + (flow.ids.length - flow.index - 1) : 'laatste speler'}</div></div>
       <div class="rv-track">${flow.ids.map((id, i) => `<span class="rv-seg ${i < flow.index ? 'gedaan' : i === flow.index ? 'nu' : ''}"></span>`).join('')}</div>
     </div>` : '';
+  const positie = meestGespeeldePositie(p);
 
   openModal(`
     <h2>Volledige beoordeling</h2>
-    <p class="u-t-sm u-zacht u-mb-sm">${esc(p.naam)}${p.nummer!=null&&p.nummer!==''?'<span class="sep" aria-hidden="true"></span>#'+esc(p.nummer):''}</p>
+    <div class="vb-wortel">
+    <div class="vb-kop"><div class="vb-shirt">${esc(p.nummer ?? '·')}</div>
+      <div><div class="vb-nm">${esc(p.naam)}</div>${positie ? `<div class="vb-pos">${esc(positie)}</div>` : ''}</div></div>
     ${rondeVoortgang}
+    ${htmlNaslagLink()}
+    ${htmlSamenvatting(vbSamenvatting(p))}
+    ${alleenLezen ? `<div class="vb-alleenlezen">Beoordeling van ${esc(bestaande.door?.naam || 'een andere trainer')}. Je kunt hem bekijken, maar niet aanpassen.</div>` : ''}
     <div class="veldgroep"><label>Hoort bij</label>
-      <select class="invoer" id="mVbRonde">
-        ${rondeOpties.map(r => `<option value="${esc(r.id)}" ${rondeStart === r.id ? 'selected' : ''}>${esc(r.naam)}${r.tot ? ' (t/m ' + esc(datumKort(r.tot)) + ')' : ''}${alInRonde(r) ? '<span class="sep" aria-hidden="true"></span>al beoordeeld' : ''}</option>`).join('')}
+      <select class="invoer" id="mVbRonde"${alleenLezen ? ' disabled' : ''}>
+        ${rondeOpties.map(r => `<option value="${esc(r.id)}" ${rondeStart === r.id ? 'selected' : ''}>${esc(r.naam)}${r.tot ? ' (t/m ' + esc(datumKort(r.tot)) + ')' : ''}${alInRonde(r) ? ', al door jou beoordeeld' : ''}</option>`).join('')}
         ${rondeStart === '_oud' ? `<option value="_oud" selected>Officiële halfjaarevaluatie (eerder ingevuld)</option>` : ''}
-        <option value="" ${rondeStart === '' ? 'selected' : ''}>Geen ronde<span class="sep" aria-hidden="true"></span>losse meting</option>
+        <option value="" ${rondeStart === '' ? 'selected' : ''}>Geen ronde, losse meting</option>
       </select></div>
-    <div class="veldgroep"><label>Moment</label>
-      <input class="invoer" id="mVbMoment" value="${esc(moment)}" placeholder="Bijv. Kwartaalmeting Q3"></div>
-    ${SKILLS.map(domeinKaart).join('')}
-    <button class="knop vol fluo u-mt-xs" id="mVbOk" >${bestaande?'Bijwerken':flow?'Opslaan en volgende →':'Beoordeling opslaan'}</button>
-    ${flow ? `<button class="knop licht vol u-mt-xs" id="mVbSkip" >Speler overslaan →</button>` : ''}
-    ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mVbWeg" >Verwijderen</button>`:''}
-    <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler: die lopen door over meerdere beoordelingen.</p>`);
+    <div class="veldgroep"><label>Moment</label><div id="mVbMomentWrap"></div></div>
+    <div class="vb-zicht" id="mVbZicht"></div>
+    <div id="mVbForm">${htmlVolledigFormulier({ lft, waarden, alleenLezen })}</div>
+    ${alleenLezen ? '' : `<button class="knop vol fluo u-mt-xs" id="mVbOk">${bestaande ? 'Bijwerken' : flow ? 'Opslaan en volgende →' : 'Beoordeling opslaan'}</button>`}
+    ${flow ? `<button class="knop licht vol u-mt-xs" id="mVbSkip">Speler overslaan →</button>` : ''}
+    ${bestaande && !alleenLezen ? `<button class="knop vol gevaar u-mt-xs" id="mVbWeg">Verwijderen</button>` : ''}
+    <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">Tip: leerpunten beheer je in het tabblad <b>Leerlijn</b> van de speler: die lopen door over meerdere beoordelingen.</p>
+    </div>`, { vorm: 'paneel' });
 
-  $$('.kleurbalk.dom').forEach(balk => {
-    const dom = balk.dataset.dom;
-    balk.querySelectorAll('[data-niv]').forEach(b => b.onclick = () => {
-      scores[dom] = Number(b.dataset.niv);
-      balk.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', x===b));
-    });
-  });
+  const wortel = $('.vb-wortel');
+  koppelVolledigFormulier(wortel, { lft, waarden, alleenLezen });
 
-  $('#mVbOk').onclick = async () => {
+  // Moment + zichtbaarheid volgen de keuze bij "Hoort bij"
+  let momentTekst = moment;
+  const zetMoment = () => {
+    const keuze = $('#mVbRonde').value;
+    const ronde = keuze && keuze !== '_oud' ? rondeOpties.find(r => r.id === keuze) : null;
+    const veld = $('#mVbMoment'); if (veld) momentTekst = veld.value;
+    $('#mVbMomentWrap').innerHTML = ronde
+      ? `<div class="vb-moment"><span class="ic">${ico('admin-permissions', 17)}</span><span>${esc(ronde.naam)}</span></div>
+         <p class="u-t-xs u-zacht u-mt-2xs u-lh-ruim">Vastgezet door de club voor deze evaluatieronde.</p>`
+      : `<input class="invoer" id="mVbMoment" value="${esc(momentTekst)}" placeholder="Bijv. Kwartaalmeting Q3"${alleenLezen ? ' readonly' : ''}>`;
+    $('#mVbZicht').className = 'vb-zicht' + (ronde ? ' prive' : '');
+    $('#mVbZicht').innerHTML = ronde
+      ? `${ico('admin-permissions', 15)}<span><b>Privé.</b> Alleen jij, de coördinatoren van de bouw en de clubbeheerder zien deze rondebeoordeling.</span>`
+      : `${ico('team-player', 15)}<span>Zichtbaar voor alle trainers van dit team en de coördinatoren.</span>`;
+  };
+  $('#mVbRonde').onchange = zetMoment;
+  zetMoment();
+
+  const okBtn = $('#mVbOk');
+  if (okBtn) okBtn.onclick = async () => {
+    const scores = domeinScores(waarden.criteria, lft, waarden.oud);
     if (!Object.keys(scores).length) return meld('Geef minstens één score');
-    SKILLS.forEach(d => { const t = $(`[data-not="${d.id}"]`); if (t) notities[d.id] = t.value.trim(); });
+    const notities = {};
+    SKILLS.forEach(d => { const t = $(`[data-vb-not="${d.id}"]`); const v = t ? t.value.trim() : ''; if (v) notities[d.id] = v; });
     const rondeKeuze = $('#mVbRonde')?.value || '';
     const rondeId = rondeKeuze && rondeKeuze !== '_oud' ? rondeKeuze : null;
     const rondeNaam = rondeId ? (rondeOpties.find(r => r.id === rondeId)?.naam || '') : '';
+    const prive = !!rondeId;
+    const criteria = {};
+    for (const [k, n] of Object.entries(waarden.criteria)) if (n >= 1 && n <= 5) criteria[k] = n;
     const data = {
       soort:'volledig', spelerId, datum:bestaande?.datum || vandaagISO(),
-      bron:{type:'los', label:$('#mVbMoment').value.trim() || rondeNaam || 'Periodieke meting'},
+      bron:{type:'los', label: rondeNaam || ($('#mVbMoment')?.value || '').trim() || 'Periodieke meting'},
       officieel: !!rondeId || rondeKeuze === '_oud',
-      scores, notities, door:deelnemer(), gemaaktMs:Date.now(),
+      criteria, scores, notities, versie:2, door:deelnemer(), gemaaktMs:Date.now(),
     };
     if (rondeId) data.ronde = rondeId;
-    else if (bestaande?.ronde) data.ronde = deleteField();
     if (!bestaande) data.seizoen = S.huidigSeizoen || SEIZOEN_FALLBACK;
+    else data.seizoen = bestaande.seizoen || S.huidigSeizoen || SEIZOEN_FALLBACK;
+    if (prive) Object.assign(data, { prive:true, teamId:S.teamId, club:S.team?.club || '', zichtbaarVoor:priveLezers() });
     try {
-      if (bestaande) await updateDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id), data);
-      else { await addDoc(collection(db,'teams',S.teamId,'beoordelingen'), data); telGebruik(rondeId ? 'ronde_beoordeling' : 'volledige_beoordeling'); }
+      if (bestaande && !!bestaande.prive === prive){
+        if (!rondeId && bestaande.ronde) data.ronde = deleteField();
+        await updateDoc(beoordelingRef(bestaande), data);
+      } else {
+        // nieuw, of verhuist tussen privé en team (ronde aan/uit gezet)
+        const doel = prive ? collection(db, 'beoordelingenPrive') : collection(db, 'teams', S.teamId, 'beoordelingen');
+        await addDoc(doel, data);
+        if (bestaande) await deleteDoc(beoordelingRef(bestaande));
+        else telGebruik(rondeId ? 'ronde_beoordeling' : 'volledige_beoordeling');
+      }
       sluitModal();
       if (flow) volgendeEvalRonde(); else { herrenderTeam(); meld('Beoordeling opgeslagen'); }
     } catch(e){ meld('Opslaan mislukt: '+(e.code||e.message)); }
@@ -1013,9 +1113,10 @@ export function modalVolledigeBeoordeling(spelerId, bestaande = null){
   const wegBtn = $('#mVbWeg');
   if (wegBtn) wegBtn.onclick = async () => {
     if (!confirm('Deze beoordeling verwijderen?')) return;
-    await deleteDoc(doc(db,'teams',S.teamId,'beoordelingen',bestaande.id));
-    sluitModal(); herrenderTeam();
+    try { await deleteDoc(beoordelingRef(bestaande)); sluitModal(); herrenderTeam(); }
+    catch(e){ meld('Verwijderen mislukt: '+(e.code||e.message)); }
   };
+  naslagEersteKeer(lft);
 }
 
 /* ---------- Evaluatieronde van de club: speler voor speler ----------
@@ -1028,9 +1129,10 @@ export function startRondeFlow(rondeId){
   if (!ronde) return meld('Deze evaluatieronde bestaat niet meer');
   const spelers = rondeSpelers(S.spelers);
   if (!spelers.length) return meld('Voeg eerst spelers toe');
-  const gedaan = new Set(S.beoordelingen.filter(b => b.ronde === rondeId).map(b => b.spelerId));
+  // [20261113v] volledige ronde: per trainer (iedere trainer beoordeelt zelf alle spelers)
+  const gedaan = new Set(S.beoordelingen.filter(b => b.ronde === rondeId && (ronde.soort === 'snel' || b.door?.uid === S.user?.uid)).map(b => b.spelerId));
   const ids = spelers.filter(p => !gedaan.has(p.id)).map(p => p.id);
-  if (!ids.length) return meld(`Alle spelers zijn al beoordeeld voor ${ronde.naam}`);
+  if (!ids.length) return meld(ronde.soort === 'snel' ? `Alle spelers zijn al beoordeeld voor ${ronde.naam}` : `Je hebt alle spelers al beoordeeld voor ${ronde.naam}`);
   telGebruik('ronde_start');
   if (ronde.soort === 'snel'){
     S._snelRonde = { index:0, ids, overgeslagen:new Set(), ronde:{ id:ronde.id, naam:ronde.naam } };
@@ -1311,7 +1413,7 @@ export async function modalUitlenen(spelerId){
      Uitgebreid) en mag alleen door coördinatoren en de clubadmin. */
   const team = { ...S.team, id: S.teamId };
   if (!magUitlenen(team)) return meld('Uitlenen regelt de coördinator van de bouw');
-  const m = await import('./uitleen-form.js?v=20261113a');
+  const m = await import('./uitleen-form.js?v=20261113v');
   m.openUitleenForm({ clubId, vanTeam: team, speler: p });
 }
 
@@ -1319,7 +1421,7 @@ export async function modalUitlenen(spelerId){
 export async function wijzigUitlening(u, clubIdOverride, naOpslaan){
   const clubId = clubIdOverride || S.team?.club;
   if (!clubId || !u) return meld('Uitlening niet gevonden');
-  const m = await import('./uitleen-form.js?v=20261113a');
+  const m = await import('./uitleen-form.js?v=20261113v');
   m.openUitleenForm({ clubId, vanTeam: { id: u.vanTeam, naam: u.vanTeamNaam }, speler: { id: u.spelerId, naam: u.snapshot?.naam || 'Speler' }, bestaand: u, naOpslaan });
 }
 

@@ -17,6 +17,7 @@
    Dit bestand importeert niets uit club.js of teams*.js (geen kringimport):
    club.js geeft een klein api-object mee voor hertekenen en berichten. */
 import { db, collection, doc, getDocs, query, where, updateDoc, addDoc, serverTimestamp } from './firebase.js?v=20261106r';
+import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
 import { S, esc, meld } from './state.js?v=20261111g';
 import { SEIZOEN_FALLBACK } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
@@ -95,11 +96,13 @@ export async function voortgangOphalen(teams, rondes){
   const betrokken = teams.filter(t => rondes.some(r => (r.teams || []).includes(t.id)));
   const perTeam = await Promise.all(betrokken.map(async t => {
     try {
-      const [ssnap, bsnap] = await Promise.all([
+      const [ssnap, bsnap, priveLijst] = await Promise.all([
         getDocs(collection(db, 'teams', t.id, 'spelers')),
         getDocs(query(collection(db, 'teams', t.id, 'beoordelingen'), where('ronde', 'in', ids))),
+        priveBeoordelingenVan(t.id),   // [20261113v] privé-rondebeoordelingen tellen ook mee
       ]);
-      return { t, spelers: ssnap.docs.map(d => ({ id:d.id, ...d.data() })).filter(p => !p.gearchiveerd), beoordelingen: bsnap.docs.map(d => ({ id:d.id, ...d.data() })) };
+      const prive = priveLijst.filter(b => ids.includes(b.ronde));
+      return { t, spelers: ssnap.docs.map(d => ({ id:d.id, ...d.data() })).filter(p => !p.gearchiveerd), beoordelingen: [...bsnap.docs.map(d => ({ id:d.id, ...d.data() })), ...prive] };
     } catch(e){
       console.warn('[Cluppie] evaluatierondes: team niet gelezen', t.naam, e.code || e.message);
       return { t, spelers: [], beoordelingen: [], fout: true };
