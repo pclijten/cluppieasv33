@@ -208,7 +208,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
 .autosave-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);z-index:3000;
   background:var(--surface-2);border:1px solid var(--line-d);border-radius:99px;padding:9px 16px;
   display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--ink);
-  box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .25s ease, transform .25s ease;pointer-events:none}
+  box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .25s ease, transform .25s ease;pointer-events:none;white-space:nowrap}
 .autosave-toast.toon{opacity:1;transform:translateX(-50%) translateY(0)}
 .autosave-toast svg{color:var(--n5);flex-shrink:0}
 
@@ -445,7 +445,7 @@ textarea.invoer{font-family:inherit;line-height:1.5;resize:vertical;min-height:5
   </div>
 </div>
 
-<div class="autosave-toast\" id="autosaveToast"><span id="icAutosave"></span><span>Automatisch opgeslagen</span></div>
+<div class="autosave-toast" id="autosaveToast"><span id="icAutosave"></span><span>Automatisch opgeslagen</span></div>
 
 <script>
 // ── Cluppie iconensysteem: 1-op-1 uit icons.js overgenomen (zelfde paths, zelfde ico()-functie) ──
