@@ -13,32 +13,44 @@ Elk privé-document heeft:
 
 ## 1. Regel toevoegen (Firebase-console → Firestore → Rules)
 
-Zet dit blok **naast** je bestaande `match /teams/{teamId}`, binnen `match /databases/{database}/documents`:
+Gebruikt de bestaande hulpfuncties `isEchteGebruiker()` en `isTeamMember()`. Zet dit blok binnen `match /databases/{database}/documents`, direct vóór `// ===== Clubs =====`:
 
 ```
-match /beoordelingenPrive/{id} {
-  // lezen: alleen wie in zichtbaarVoor staat
-  allow read: if request.auth != null
-    && request.auth.uid in resource.data.zichtbaarVoor;
-
-  // aanmaken: alleen als jezelf, en jezelf moet in zichtbaarVoor staan
-  allow create: if request.auth != null
-    && request.resource.data.door.uid == request.auth.uid
-    && request.auth.uid in request.resource.data.zichtbaarVoor
-    && request.resource.data.teamId is string;
-
-  // aanpassen en verwijderen: alleen de schrijver zelf
-  allow update: if request.auth != null
-    && resource.data.door.uid == request.auth.uid
-    && request.resource.data.door.uid == request.auth.uid;
-  allow delete: if request.auth != null
-    && resource.data.door.uid == request.auth.uid;
-}
+    // ===== [20261113v] Privé-rondebeoordelingen =====
+    // Volledige beoordelingen die bij een evaluatieronde van de club horen
+    // (winter, lente). Top-level i.p.v. onder teams/{teamId}, zodat de brede
+    // subcollectie-regel van teams (isTeamMember) er niet bij kan: andere
+    // trainers van het team lezen ze dus NIET. Wie wel mag lezen staat in het
+    // document zelf (zichtbaarVoor): de schrijver, de clubbeheerders en de
+    // coördinatoren van de bouw(en) van het team — vastgelegd bij opslaan.
+    // De app vraagt altijd op met zichtbaarVoor array-contains <eigen uid>,
+    // anders weigert Firestore de hele query.
+    match /beoordelingenPrive/{beoordelingId} {
+      allow read: if isEchteGebruiker()
+                  && request.auth.uid in resource.data.zichtbaarVoor;
+      // Aanmaken: alleen een teamlid (coach, bouwcoördinator of eigen-bouw-coach)
+      // van dat team, op eigen naam, en zelf in zichtbaarVoor.
+      allow create: if isEchteGebruiker()
+                    && request.resource.data.teamId is string
+                    && isTeamMember(request.resource.data.teamId)
+                    && request.resource.data.door.uid == request.auth.uid
+                    && request.resource.data.zichtbaarVoor is list
+                    && request.auth.uid in request.resource.data.zichtbaarVoor;
+      // Aanpassen: alleen de schrijver; team en schrijver blijven gelijk.
+      allow update: if isEchteGebruiker()
+                    && resource.data.door.uid == request.auth.uid
+                    && request.resource.data.door.uid == request.auth.uid
+                    && request.resource.data.teamId == resource.data.teamId
+                    && request.resource.data.zichtbaarVoor is list
+                    && request.auth.uid in request.resource.data.zichtbaarVoor;
+      allow delete: if isEchteGebruiker()
+                    && resource.data.door.uid == request.auth.uid;
+    }
 ```
 
 ## 2. Controleer je bestaande regels
 
-- **Geen algemene regel** zoals `match /{document=**} { allow read, write: if request.auth != null; }`. Regels tellen bij elkaar op: zo'n regel maakt de privé-collectie toch voor iedereen leesbaar.
+- **Geen algemene regel** (gecontroleerd op 14 nov 2026: de huidige rules hebben er geen) zoals `match /{document=**} { allow read, write: if request.auth != null; }`. Regels tellen bij elkaar op: zo'n regel maakt de privé-collectie toch voor iedereen leesbaar.
 - Wil je strenger zijn bij aanmaken, voeg dan aan `allow create` je bestaande check toe dat de gebruiker lid is van het team (`request.resource.data.teamId`).
 
 ## 3. Volgorde
