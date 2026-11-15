@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar } from './nu-scherm.js?v=20261113v';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261114a';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -37,7 +37,8 @@ function dagenTot(datum){
   const nu = new Date(), vandaag = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate(), 12);
   return Math.round((new Date(datum + 'T12:00') - vandaag) / 86400000);
 }
-function wanneer(datum){
+function wanneer(datum, w){
+  if (w && isAfgelast(w)) return 'Afgelast';
   const n = dagenTot(datum);
   return n === 0 ? 'Vandaag' : n === 1 ? 'Morgen' : n > 1 ? `Over ${n} dagen` : 'Gespeeld';
 }
@@ -176,6 +177,7 @@ const richting = gr => RICHTING[Math.round(((gr % 360) + 360) % 360 / 45) % 8];
    Uit: adres of plaats uit Sportlink, anders de clubnaam van de tegenstander. */
 function weerPlaats(w){
   const uitAdres = s => { const d = String(s || '').split(',').map(x => x.trim()).filter(Boolean); return d.length > 1 ? d[d.length - 1].replace(/^\d{4}\s?[a-z]{2}\s*/i, '') : ''; };
+  if (w.slAccommodatie?.plaats) return String(w.slAccommodatie.plaats).trim();
   if (w.plaats) return String(w.plaats).trim();
   if (w.adres && uitAdres(w.adres)) return uitAdres(w.adres);
   if (w.thuis){
@@ -263,11 +265,72 @@ function tabPraktisch(w){
   else weer = `<div class="vb-weer" data-vb-weer><p class="vb-leeg">Weer ophalen voor ${esc(plaats)}…</p></div>`;
 
   const plek = plekHtml(w);
-  const veldInfo = feiten(rij('Aanvang', w.aftrap ? `<b>${esc(w.aftrap)}</b>` : 'Nog onbekend'), rij('Thuis of uit', w.thuis ? 'Thuis' : 'Uit'));
-  return `${kaart('Weer bij aanvang', weer)}
-    ${kaart('Waar en wanneer', `${veldInfo}${plek || leeg('Nog geen locatie, veld of kleedkamer bekend. Vul die in bij Wijzig opzet.')}`)}
+  /* [20261114] Uit Sportlink: verzamel-/vertrektijd, rijders, scheidsrechter,
+     kleedkamer van de scheidsrechter en het adres van het sportpark. */
+  const acc = w.slAccommodatie || {};
+  const metVertrek = !!(w.slVerzameltijd || w.slVertrektijd || w.slRijders);
+  const veldInfo = feiten(metVertrek ? '' : rij('Aanvang', w.aftrap ? `<b>${esc(w.aftrap)}</b>` : 'Nog onbekend'), rij('Thuis of uit', w.thuis ? 'Thuis' : 'Uit'),
+    !w.thuis && acc.adres && !w.adres ? rij('Adres', `${esc(acc.adres)}${acc.plaats ? `, ${esc(acc.plaats)}` : ''}`) : '',
+    w.slScheidsrechter ? rij('Scheidsrechter', esc(w.slScheidsrechter)) : '',
+    w.slKleedkamerScheids ? rij('Kleedkamer scheids', esc(w.slKleedkamerScheids)) : '');
+  const bel = !w.thuis && acc.telefoon ? `<div class="nu-acties"><a class="knop vol licht" href="tel:${esc(acc.telefoon.replace(/[^\d+]/g, ''))}">${ico('communication-phone', 20)}Bel ${esc(acc.naam || 'het sportpark')}</a></div>` : '';
+  const vertrek = metVertrek ? kaart('Vertrek en aankomst', `${feiten(
+      w.slVerzameltijd ? rij('Verzamelen', `<b>${esc(w.slVerzameltijd)}</b>`) : '',
+      w.slVertrektijd ? rij('Vertrek', `<b>${esc(w.slVertrektijd)}</b>`) : '',
+      w.slRijders ? rij('Rijders', esc(w.slRijders)) : '',
+      rij('Aanvang', w.aftrap ? `<b>${esc(w.aftrap)}</b>` : 'Nog onbekend'))}
+    <p class="vb-bron">${ico('action-info', 16)}Uit Sportlink. Rijders gaan niet mee in het bericht voor de groepsapp.</p>`) : '';
+  const afgelast = isAfgelast(w) ? `<p class="nu-melding" role="status">${ico('action-warning', 20)}<span><b>Sportlink meldt deze wedstrijd als afgelast.</b></span></p>` : '';
+  return `${afgelast}${vertrek}${kaart('Weer bij aanvang', weer)}
+    ${kaart('Waar en wanneer', `${veldInfo}${plek || leeg('Nog geen locatie, veld of kleedkamer bekend. Vul die in bij Wijzig opzet.')}${bel}`)}
     <div class="nu-acties">${knop('Deel in de groepsapp', 'action-whatsapp', 'data-vb-deel')}</div>
     <p class="vb-bron">Zonder spelersnamen: alleen datum, tijd, plek en weer.</p>`;
+}
+
+/* ==================== WEDSTRIJDFORMULIER (Sportlink) ====================
+   [20261114] De sync bewaart de namen van de eigen spelers op het digitale
+   wedstrijdformulier (w.slFormulier.spelers). Hier zoeken we die terug in de
+   selectie van Cluppie, op naam: Sportlink levert geen lidnummer mee. Alleen een
+   voorstel: er verandert pas iets als de coach op Overnemen tikt. */
+const tokens = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
+function zoekSpeler(slNaam, kandidaten){
+  const sl = tokens(slNaam);
+  const past = p => { const t = tokens(p.naam); return t.length && t.every(x => sl.some(y => y === x || (x.length === 1 && y.startsWith(x)))); };
+  const exact = kandidaten.filter(p => tokens(p.naam).join(' ') === sl.join(' '));
+  if (exact.length === 1) return exact[0];
+  const raak = kandidaten.filter(past);
+  if (raak.length === 1) return raak[0];
+  /* Meerdere treffers (bv. twee spelers met dezelfde voornaam): alleen een
+     eenduidige treffer met meer dan een voornaam telt. */
+  if (raak.length > 1){
+    const lang = raak.filter(p => tokens(p.naam).length > 1);
+    if (lang.length === 1) return lang[0];
+  }
+  return null;
+}
+export function formulierMatch(w){
+  const namen = w.slFormulier?.spelers || [];
+  const rijen = namen.map(n => ({ naam: n, speler: zoekSpeler(n, S.spelers || []) }));
+  const ids = [...new Set(rijen.map(r => r.speler?.id).filter(Boolean))];
+  return { rijen, ids };
+}
+function formulierHtml(w){
+  const f = w.slFormulier;
+  if (!f?.spelers?.length || isAfgelast(w) || dagenTot(w.datum) < 0) return '';
+  if (w.voorbereiding?.formulierKlaar === f.bijgewerkt) return '';
+  const { rijen, ids } = formulierMatch(w);
+  const huidig = Array.isArray(w.selectie) ? [...w.selectie].sort().join() : '';
+  if (ids.length && huidig === [...ids].sort().join()) return '';
+  const lijst = `<ul class="vb-form">${rijen.map(r => r.speler
+      ? `<li><span>${esc(r.speler.naam)}</span><span class="vb-ok">In Cluppie</span></li>`
+      : `<li><span>${esc(r.naam)}</span><span class="vb-bad">Niet gevonden</span></li>`).join('')}</ul>`;
+  return kaart('Wedstrijdformulier Sportlink', `<p class="vb-groot">Op het formulier staan <b>${rijen.length}</b> speler${rijen.length === 1 ? '' : 's'}. Wil je die als selectie overnemen?</p>
+    ${lijst}
+    <div class="nu-acties nu-acties-duo">
+      <button type="button" class="knop vol fluo" data-vb-form="over"${ids.length ? '' : ' disabled'}>Overnemen</button>
+      <button type="button" class="knop vol licht" data-vb-form="neg">Negeren</button></div>
+    <p class="vb-bron">Er verandert pas iets als je op Overnemen tikt. Spelers die niet gevonden zijn, voeg je zelf toe bij Presentie.</p>`);
 }
 
 /* ==================== TAB: PLAN ==================== */
@@ -295,7 +358,7 @@ function tabPlan(w){
     <textarea class="invoer vb-na" id="vbNa" rows="3" placeholder="Wat ging goed, wat pakken we op in de training?">${esc(w.voorbereiding?.naAfloop || '')}</textarea>
     <p class="vb-bron">Bewaard bij deze wedstrijd. De volgende keer tegen deze tegenstander zie je hem terug onder Vorige ontmoeting.</p>`;
 
-  return `${kaart('Beschikbaarheid', pres)}
+  return `${formulierHtml(w)}${kaart('Beschikbaarheid', pres)}
     ${kaart('Aandachtspunten', plan)}
     ${kaart('Opstelling', `${opst}<div class="nu-acties">${knop('Opstelling', 'football-lineup', `data-vb-wedstrijd="${esc(w.id)}"`)}</div>`)}
     ${kaart('Na afloop', na)}`;
@@ -479,7 +542,7 @@ const huidig = () => (S.wedstrijden || []).find(x => x.id === _wid) || null;
 
 function kopHtml(w){
   return `<div class="vb-wedkop">
-      <div class="nu-kaart-kop"><span class="nu-tag nu-tag-warn">${esc(wanneer(w.datum))}</span>
+      <div class="nu-kaart-kop"><span class="nu-tag nu-tag-${isAfgelast(w) ? 'accent' : 'warn'}">${esc(wanneer(w.datum, w))}</span>
         <span class="vb-zacht">${w.thuis ? 'Thuis' : 'Uit'}${w.aftrap ? ` · ${esc(w.aftrap)}` : ''}</span></div>
       <p class="nu-titel">${esc(w.tegenstander || 'Wedstrijd')}</p>
       <p class="nu-meta"><span>${esc(hoofd(datumLang(w.datum)))}</span></p>
@@ -532,6 +595,9 @@ async function deelTekst(w){
   const team = String(S.team?.naam || '').trim(), tegen = String(w.tegenstander || '').trim() || 'onbekende tegenstander';
   const kop = [`⚽ *${team ? team + ' ' : ''}${w.thuis ? 'thuis tegen' : 'uit bij'} ${tegen}*`];
   if (w.datum) kop.push(`📅 ${hoofd(datumLang(w.datum))}`);
+  if (isAfgelast(w)) kop.push('❌ *Afgelast* (volgens Sportlink)');
+  if (w.slVerzameltijd) kop.push(`🕗 Verzamelen *${w.slVerzameltijd}*`);
+  if (w.slVertrektijd && w.slVertrektijd !== w.slVerzameltijd) kop.push(`🚗 Vertrek ${w.slVertrektijd}`);
   kop.push(w.aftrap ? `⏰ Aanvang *${w.aftrap}*` : '⏰ Aanvang nog onbekend');
 
   const plek = [];
@@ -574,7 +640,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261113v');
+      const m = await import('./wedstrijd.js?v=20261114a');
       m.openWedstrijd(id);
       return;
     }
@@ -583,6 +649,22 @@ function koppel(body){
     if (ev.target.closest('[data-vb-scout]')){ startScout(w); return; }
     const br = ev.target.closest('.vb-bronref');
     if (br){ ev.preventDefault(); document.querySelector(br.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    const fk = ev.target.closest('[data-vb-form]');
+    if (fk){
+      const f = w.slFormulier;
+      if (!f) return;
+      if (fk.dataset.vbForm === 'neg'){ await bewaar(w, { formulierKlaar: f.bijgewerkt }); teken(); return; }
+      const { ids } = formulierMatch(w);
+      if (!ids.length) return;
+      try {
+        await setDoc(doc(db, 'teams', S.teamId, 'wedstrijden', w.id), { selectie: ids, voorbereiding: { formulierKlaar: f.bijgewerkt } }, { merge: true });
+        w.selectie = ids; w.voorbereiding = { ...(w.voorbereiding || {}), formulierKlaar: f.bijgewerkt };
+        telGebruik('formulier_overnemen');
+        meld(`Selectie overgenomen: ${ids.length} speler${ids.length === 1 ? '' : 's'}`);
+        teken();
+      } catch (e){ meld('Opslaan mislukt, geen verbinding. Probeer het zo opnieuw.'); }
+      return;
+    }
     if (ev.target.closest('[data-vb-pres]')){ S._presWedstrijdId = w.id; sluitModal(); _ctx?.zetTeamTab?.('preswedstrijd'); return; }
     const weg = ev.target.closest('[data-vb-weg]');
     if (weg){
