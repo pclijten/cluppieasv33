@@ -152,15 +152,23 @@ const wedKnoppen = w => `<div class="nu-acties nu-acties-duo">${
    bij Wijzig opzet invult (adres, veld, kleedkamer) gaat voor. */
 const metVoorvoegsel = (v, woord) => { const t = String(v || '').trim().replace(/\s+/g, ' '); return !t ? '' : /^\d+\s?[a-z]?$/i.test(t) ? `${woord} ${t}` : t.charAt(0).toUpperCase() + t.slice(1); };
 const plaatsNaam = p => String(p || '').trim().toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
+/* [20261114] Afgelast volgens Sportlink (programma-status of de uurlijkse
+   wedstrijddag-check). Een coach kan dit niet zelf zetten of wissen. */
+export const isAfgelast = w => /afgelast/i.test(String(w?.slStatus || ''));
 export function routeUrl(w){
   const club = String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim();
-  const doel = (w.adres || '').trim() || [w.locatie, plaatsNaam(w.plaats) || club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
+  /* [20261114] Adres van het sportpark uit Sportlink (wedstrijd-accommodatie) gaat
+     voor de naam; wat de coach zelf invulde (w.adres) gaat altijd voor. */
+  const acc = w.slAccommodatie || {};
+  const doel = (w.adres || '').trim()
+    || (acc.adres ? [acc.adres, acc.plaats].filter(Boolean).join(', ') : '')
+    || [w.locatie, plaatsNaam(w.plaats) || club].map(x => String(x || '').trim()).filter(Boolean).join(' ');
   return doel ? 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(doel) : '';
 }
 export function plekHtml(w){
   if (!w) return '';
   const veld = metVoorvoegsel(w.veld || w.slVeld, 'Veld'), kleed = metVoorvoegsel(w.kleedkamer || w.slKleedkamer, 'Kleedkamer');
-  const naam = !w.thuis ? String(w.adres || w.locatie || '').trim() ? String(w.locatie || w.adres).trim() : '' : '';
+  const naam = !w.thuis ? String(w.locatie || w.adres || w.slAccommodatie?.naam || '').trim() : '';
   if (!naam && !veld && !kleed) return '';
   const url = !w.thuis ? routeUrl(w) : '';
   const pillen = [veld, kleed].filter(Boolean).map(x => `<span class="nu-plek-pil">${esc(x)}</span>`).join('');
@@ -226,10 +234,20 @@ function doelenHtml(t, doelen){
 }
 const afgelastOp = datum => { const a = S.team?.afgelast; return a && a.datum === datum ? a : null; };
 
+/* [20261114] Wedstrijd afgelast: doorgestreepte kaart met de melding uit Sportlink. */
+function afgelastKaart(w, nu){
+  return `${kop(tag('Afgelast', 'accent'))}${titel(`<s class="nu-doorgestreept">${esc(w.tegenstander || 'Wedstrijd')}</s>`)}
+    ${meta(`${esc(dagLabel(w.datum, nu))} ${esc(w.aftrap || '')}`.trim(), w.thuis ? 'thuis' : 'uit')}
+    <p class="nu-melding" role="status">${ico('action-warning', 20)}<span><b>Sportlink meldt deze wedstrijd als afgelast.</b>
+      <span class="nu-zacht">Wordt in het weekend elk uur gecontroleerd.</span></span></p>
+    ${acties(knop('Planning openen', 'planning-calendar', 'data-nu-tab="planning"', false))}`;
+}
+
 /* ---------- de kaart ---------- */
 function kaartHtml(c, nu){
   const e = c.event, w = e?.w?._w;
   const tot = e ? Math.round((e.start - nu) / 60000) : 0;
+  if (w && isAfgelast(w) && ['live', 'na', 'wedstrijd', 'dagervoor'].includes(c.soort)) return afgelastKaart(w, nu);
 
   if (c.soort === 'live'){
     const st = klokStaat(w), [a, b] = stand(w);
@@ -254,7 +272,8 @@ function kaartHtml(c, nu){
     const label = c.soort === 'dagervoor' ? 'Morgen wedstrijd' : c.fase === 'verzamelen' ? 'Verzamelen' : 'Wedstrijddag';
     return `${kop(tag(label, 'warn'))}${titel(esc(w.tegenstander || 'Wedstrijd'))}
       ${meta(c.soort === 'dagervoor' ? `${esc(dagLabel(w.datum, nu))} ${esc(w.aftrap || '')}`.trim() : (w.aftrap ? `Aanvang ${esc(w.aftrap)}` : 'Vandaag'),
-        w.thuis ? 'thuis' : 'uit', c.soort === 'wedstrijd' && w.aftrap ? `<b>${esc(over(tot))}</b>` : '')}
+        w.thuis ? 'thuis' : 'uit', w.slVerzameltijd ? `Verzamelen <b>${esc(w.slVerzameltijd)}</b>` : '',
+        c.soort === 'wedstrijd' && w.aftrap ? `<b>${esc(over(tot))}</b>` : '')}
       ${plekHtml(w)}
       ${feiten(rij('Opstelling', opst))}
       ${presKnopWedstrijd(w)}
@@ -284,6 +303,7 @@ function kaartHtml(c, nu){
   }
   if (e.type === 'wedstrijd'){
     const v = e.w._w;
+    if (isAfgelast(v)) return afgelastKaart(v, nu);
     return `${kop(tag('Geen activiteit nu', 'ok'))}${titel('Volgende: wedstrijd')}
       ${meta(`${esc(dagLabel(v.datum, nu))} ${esc(v.aftrap || '')}`.trim(), esc(v.tegenstander || ''), v.thuis ? 'thuis' : 'uit')}
       ${plekHtml(v)}
@@ -311,9 +331,9 @@ function daarnaItem(e, nu){
       ${acties(stofKnop(e.datum, 'Naar oefenstof', false))}`;
   } else {
     const w = e.w._w, p = presentieWedstrijd(w), ok = opstellingKlaar(w);
-    wat = `Wedstrijd ${esc(w.tegenstander || '').replace(/-/g, '‑')}`;
+    wat = `Wedstrijd ${esc(w.tegenstander || '').replace(/-/g, '‑')}${isAfgelast(w) ? ' (afgelast)' : ''}`;
     tel = `${p.ja}/${p.totaal}<span class="visually-hidden"> spelen mee</span>`;
-    inhoud = `${meta(w.aftrap ? `Aanvang ${esc(w.aftrap)}` : '', w.thuis ? 'thuis' : 'uit')}
+    inhoud = isAfgelast(w) ? `${meta('Sportlink meldt deze wedstrijd als afgelast.')}` : `${meta(w.aftrap ? `Aanvang ${esc(w.aftrap)}` : '', w.thuis ? 'thuis' : 'uit')}
       ${plekHtml(w)}
       ${feiten(rij('Opstelling', ok.klaar === ok.totaal ? 'Klaar' : `<span class="nu-let">${ok.klaar} van ${ok.totaal} periodes</span>`))}
       ${presKnopWedstrijd(w)}
@@ -383,9 +403,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261113v'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261114a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261113v'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261114a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

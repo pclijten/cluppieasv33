@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261113v'); }
+async function teamsModule(){ return await import('./teams.js?v=20261114a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261113v').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261114a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2528,7 +2528,7 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     if (syncBtn) syncBtn.onclick = async () => {
       syncBtn.disabled = true; const orig = syncBtn.textContent; syncBtn.textContent = 'Bezig met synchroniseren...';
       try {
-        const fn = httpsCallable(functions, 'syncNu');
+        const fn = httpsCallable(functions, 'syncNu', { timeout: 300000 });   // [20261114] sync haalt nu meer op
         const res = await fn({ clubId: S.clubId });
         const n = res.data?.totaalWedstrijden ?? 0;
         meld(`Sync klaar — ${n} wedstrijd${n===1?'':'en'} verwerkt`);
