@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261114a';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261115a';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -287,52 +287,6 @@ function tabPraktisch(w){
     <p class="vb-bron">Zonder spelersnamen: alleen datum, tijd, plek en weer.</p>`;
 }
 
-/* ==================== WEDSTRIJDFORMULIER (Sportlink) ====================
-   [20261114] De sync bewaart de namen van de eigen spelers op het digitale
-   wedstrijdformulier (w.slFormulier.spelers). Hier zoeken we die terug in de
-   selectie van Cluppie, op naam: Sportlink levert geen lidnummer mee. Alleen een
-   voorstel: er verandert pas iets als de coach op Overnemen tikt. */
-const tokens = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean);
-function zoekSpeler(slNaam, kandidaten){
-  const sl = tokens(slNaam);
-  const past = p => { const t = tokens(p.naam); return t.length && t.every(x => sl.some(y => y === x || (x.length === 1 && y.startsWith(x)))); };
-  const exact = kandidaten.filter(p => tokens(p.naam).join(' ') === sl.join(' '));
-  if (exact.length === 1) return exact[0];
-  const raak = kandidaten.filter(past);
-  if (raak.length === 1) return raak[0];
-  /* Meerdere treffers (bv. twee spelers met dezelfde voornaam): alleen een
-     eenduidige treffer met meer dan een voornaam telt. */
-  if (raak.length > 1){
-    const lang = raak.filter(p => tokens(p.naam).length > 1);
-    if (lang.length === 1) return lang[0];
-  }
-  return null;
-}
-export function formulierMatch(w){
-  const namen = w.slFormulier?.spelers || [];
-  const rijen = namen.map(n => ({ naam: n, speler: zoekSpeler(n, S.spelers || []) }));
-  const ids = [...new Set(rijen.map(r => r.speler?.id).filter(Boolean))];
-  return { rijen, ids };
-}
-function formulierHtml(w){
-  const f = w.slFormulier;
-  if (!f?.spelers?.length || isAfgelast(w) || dagenTot(w.datum) < 0) return '';
-  if (w.voorbereiding?.formulierKlaar === f.bijgewerkt) return '';
-  const { rijen, ids } = formulierMatch(w);
-  const huidig = Array.isArray(w.selectie) ? [...w.selectie].sort().join() : '';
-  if (ids.length && huidig === [...ids].sort().join()) return '';
-  const lijst = `<ul class="vb-form">${rijen.map(r => r.speler
-      ? `<li><span>${esc(r.speler.naam)}</span><span class="vb-ok">In Cluppie</span></li>`
-      : `<li><span>${esc(r.naam)}</span><span class="vb-bad">Niet gevonden</span></li>`).join('')}</ul>`;
-  return kaart('Wedstrijdformulier Sportlink', `<p class="vb-groot">Op het formulier staan <b>${rijen.length}</b> speler${rijen.length === 1 ? '' : 's'}. Wil je die als selectie overnemen?</p>
-    ${lijst}
-    <div class="nu-acties nu-acties-duo">
-      <button type="button" class="knop vol fluo" data-vb-form="over"${ids.length ? '' : ' disabled'}>Overnemen</button>
-      <button type="button" class="knop vol licht" data-vb-form="neg">Negeren</button></div>
-    <p class="vb-bron">Er verandert pas iets als je op Overnemen tikt. Spelers die niet gevonden zijn, voeg je zelf toe bij Presentie.</p>`);
-}
-
 /* ==================== TAB: PLAN ==================== */
 function tabPlan(w){
   const p = presentieWedstrijd(w), ok = opstellingKlaar(w);
@@ -358,7 +312,7 @@ function tabPlan(w){
     <textarea class="invoer vb-na" id="vbNa" rows="3" placeholder="Wat ging goed, wat pakken we op in de training?">${esc(w.voorbereiding?.naAfloop || '')}</textarea>
     <p class="vb-bron">Bewaard bij deze wedstrijd. De volgende keer tegen deze tegenstander zie je hem terug onder Vorige ontmoeting.</p>`;
 
-  return `${formulierHtml(w)}${kaart('Beschikbaarheid', pres)}
+  return `${kaart('Beschikbaarheid', pres)}
     ${kaart('Aandachtspunten', plan)}
     ${kaart('Opstelling', `${opst}<div class="nu-acties">${knop('Opstelling', 'football-lineup', `data-vb-wedstrijd="${esc(w.id)}"`)}</div>`)}
     ${kaart('Na afloop', na)}`;
@@ -640,7 +594,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261114a');
+      const m = await import('./wedstrijd.js?v=20261115a');
       m.openWedstrijd(id);
       return;
     }
@@ -649,22 +603,6 @@ function koppel(body){
     if (ev.target.closest('[data-vb-scout]')){ startScout(w); return; }
     const br = ev.target.closest('.vb-bronref');
     if (br){ ev.preventDefault(); document.querySelector(br.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-    const fk = ev.target.closest('[data-vb-form]');
-    if (fk){
-      const f = w.slFormulier;
-      if (!f) return;
-      if (fk.dataset.vbForm === 'neg'){ await bewaar(w, { formulierKlaar: f.bijgewerkt }); teken(); return; }
-      const { ids } = formulierMatch(w);
-      if (!ids.length) return;
-      try {
-        await setDoc(doc(db, 'teams', S.teamId, 'wedstrijden', w.id), { selectie: ids, voorbereiding: { formulierKlaar: f.bijgewerkt } }, { merge: true });
-        w.selectie = ids; w.voorbereiding = { ...(w.voorbereiding || {}), formulierKlaar: f.bijgewerkt };
-        telGebruik('formulier_overnemen');
-        meld(`Selectie overgenomen: ${ids.length} speler${ids.length === 1 ? '' : 's'}`);
-        teken();
-      } catch (e){ meld('Opslaan mislukt, geen verbinding. Probeer het zo opnieuw.'); }
-      return;
-    }
     if (ev.target.closest('[data-vb-pres]')){ S._presWedstrijdId = w.id; sluitModal(); _ctx?.zetTeamTab?.('preswedstrijd'); return; }
     const weg = ev.target.closest('[data-vb-weg]');
     if (weg){
