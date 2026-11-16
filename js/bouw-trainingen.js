@@ -1,5 +1,5 @@
 /* ==================== BOUW: TRAININGEN VAN DE WEEK ====================
-   [20261116a] Coördinatoren zien per week wat de teams in hun bouw trainen,
+   [20261116b] Coördinatoren zien per week wat de teams in hun bouw trainen,
    wanneer, en of het gebeurd is. Twee plekken, op desktop en telefoon:
      • een blok bovenaan het bouw-dashboard ("Deze week op het trainingsveld")
      • een eigen scherm Trainingen (per dag of per team), met de training

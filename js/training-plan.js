@@ -19,7 +19,9 @@
    De gewone upload (één PDF, of meerdere PDF's verdelen per groep) blijft
    ongewijzigd; deze flow start alleen bij een zip of bij meerdere PDF's met
    blok-namen. Alle extra velden op een training zijn optioneel:
-     plan { id, naam, blok, start, vrij[], zichtbaar, weken, groep? }
+     plan { id, naam, blok, start, vrij[], zichtbaar, weken, eerste?, groep? }
+       [20261116a] eerste = laagste blokweek in de upload (alleen als die niet
+       1 is). `start` is de week van díé blokweek, niet van blokweek 1.
      blokWeek, trainingNr, weekStart (maandag, 'YYYY-MM-DD'),
      zichtbaarVanaf ('YYYY-MM-DD' of null = meteen)
    Trainingen zonder deze velden gedragen zich precies zoals voorheen.
@@ -91,6 +93,30 @@ export function planWeken(start, vrij, aantal){
   }
   return uit;
 }
+/* [20261116a] Een upload hoeft niet bij blokweek 1 te beginnen ("Week 9" t/m
+   "Week 14" als vervolg op een eerdere reeks). De startweek hoort dan bij de
+   láágste blokweek uit de upload; anders schoof alles (laagste - 1) weken op. */
+const eersteVan = st => Math.min(...st.a.items.map(i => i.week));
+const spanVan = st => Math.max(1, st.weken - eersteVan(st) + 1);
+const planEerste = plan => Math.max(1, Number(plan?.eerste) || 1);
+
+/* [20261116a] Het weeklabel van een ingeplande training is met de hand aangepast
+   ("Week 1" -> "Week 46"): geef de maandag die bij dat weeknummer hoort, zo
+   dicht mogelijk bij de oude weekStart (zo kiest het vanzelf het goede jaar).
+   Zonder herkenbaar "week NN" (of alleen een getal) blijft de oude weekStart. */
+export function weekStartBijLabel(label, oud){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(oud || '')) return oud || null;
+  const m = String(label || '').match(/\b(?:week|wk)\.?\s*(\d{1,2})\b/i) || String(label || '').match(/^\s*(\d{1,2})\s*$/);
+  const nr = m ? Number(m[1]) : 0;
+  if (!(nr >= 1 && nr <= 53) || isoWeekNr(oud) === nr) return oud;
+  const j = isoJaar(oud);
+  const afstand = ws => Math.abs(datumVan(ws) - datumVan(oud));
+  return [j - 1, j, j + 1]
+    .map(jaar => plusDagen(maandagVan(`${jaar}-01-04`), (nr - 1) * 7))
+    .filter(ws => isoWeekNr(ws) === nr)                 // week 53 bestaat niet elk jaar
+    .sort((a, b) => afstand(a) - afstand(b))[0] || oud;
+}
+
 /* Benaming sluit aan bij de bestaande lijst: "Week 42 - training 1". */
 export const weekLabel = weekStart => `Week ${isoWeekNr(weekStart)}`;
 export const titelVoor = (weekStart, nr) => `${weekLabel(weekStart)} - training ${nr}`;
@@ -294,7 +320,7 @@ function htmlTeams(st, ctx){
       <div class="bp-bloknr">${a.blokken.some(Boolean) ? `Blok ${a.blokken.filter(Boolean).map(Number).join(' + ')}` : esc(a.voor || 'Trainingsreeks')}</div>
       ${a.thema || (a.voor && a.blokken.some(Boolean)) ? `<div class="bp-thema">${esc([a.blokken.some(Boolean) ? a.voor : '', a.thema].filter(Boolean).join(', '))}</div>` : ''}
       <div class="bp-tellers">
-        <div><b>${st.weken}</b><span>weken</span></div>
+        <div><b>${spanVan(st)}</b><span>weken</span></div>
         <div><b>${perWeek}</b><span>per week</span></div>
         <div><b class="acc">${a.items.length}</b><span>trainingen</span></div>
       </div>
@@ -325,7 +351,8 @@ function dubbeleItems(st, ctx){
 }
 
 function htmlPlanning(st, ctx){
-  const map = planWeken(st.start, st.vrij, st.weken);
+  const eersteWk = eersteVan(st);
+  const map = planWeken(st.start, st.vrij, spanVan(st));
   const laatste = map[map.length - 1];
   const strip = [];
   for (let m = st.start; m <= plusDagen(laatste, 7); m = plusDagen(m, 7)) strip.push(m);
@@ -333,13 +360,13 @@ function htmlPlanning(st, ctx){
     const k = map.indexOf(m);
     const vrij = st.vrij.includes(m);
     const cls = vrij ? 'vrij' : k >= 0 ? 'plan' : 'leeg';
-    const sub = vrij ? 'vrij' : k >= 0 ? `week ${k + 1}` : 'leeg';
+    const sub = vrij ? 'vrij' : k >= 0 ? `week ${k + eersteWk}` : 'leeg';
     return `<button type="button" class="bp-wk ${cls}" data-bp-wk="${m}" ${cls === 'leeg' ? 'disabled' : ''} aria-pressed="${vrij}" title="${esc(kortDatum(m))}"><b>${isoWeekNr(m)}</b><span>${sub}</span></button>`;
   }).join('');
   const rijen = map.map((m, i) => {
     const zv = zichtbaarDatum(m, st.zichtbaar);
-    const th = weekThema(st.a, i + 1);
-    return `<tr><td class="bp-bw">Week ${i + 1}${th ? `<small>${esc(th)}</small>` : ''}</td><td>wk ${isoWeekNr(m)}<span class="sep" aria-hidden="true"></span>${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
+    const th = weekThema(st.a, i + eersteWk);
+    return `<tr><td class="bp-bw">Week ${i + eersteWk}${th ? `<small>${esc(th)}</small>` : ''}</td><td>wk ${isoWeekNr(m)}<span class="sep" aria-hidden="true"></span>${esc(kortDatum(m))}</td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
   }).join('');
   const dubbel = dubbeleItems(st, ctx);
   const aantal = st.a.items.length - dubbel.length;
@@ -348,7 +375,7 @@ function htmlPlanning(st, ctx){
     <div class="bp-sub">${esc(planNaam(st.a))}<span class="sep" aria-hidden="true"></span>${esc(teamsTekst(st, ctx))}</div>
     <div class="bp-start">
       <button type="button" class="bp-pijl" data-bp-start="-7" aria-label="Een week eerder">${pijl('l')}</button>
-      <div class="bp-start-m"><small>Blokweek 1 wordt</small><b>Week ${isoWeekNr(st.start)}<span class="sep" aria-hidden="true"></span>vanaf ${esc(kortDatum(st.start))}</b></div>
+      <div class="bp-start-m"><small>Blokweek ${eersteWk} wordt</small><b>Week ${isoWeekNr(st.start)}<span class="sep" aria-hidden="true"></span>vanaf ${esc(kortDatum(st.start))}</b></div>
       <button type="button" class="bp-pijl" data-bp-start="7" aria-label="Een week later">${pijl('r')}</button>
     </div>
     <p class="bp-hint">Tik een week aan om hem over te slaan, bijvoorbeeld bij vakantie. De rest schuift mee.</p>
@@ -359,7 +386,7 @@ function htmlPlanning(st, ctx){
     </div>
     <table class="bp-tabel"><thead><tr><th>Blok</th><th>Week</th><th>Zichtbaar vanaf</th></tr></thead><tbody>${rijen}</tbody></table>
     ${htmlModelKeuze('bpModel', st.aiModel || 'standaard')}
-    <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - 1], eerste.nr))}</b><span>${esc(eerste.naam)}</span></div>
+    <div class="bp-voorbeeld"><small>Zo staat het in de lijst</small><b>${esc(titelVoor(map[eerste.week - eersteWk], eerste.nr))}</b><span>${esc(eerste.naam)}</span></div>
     ${dubbel.length ? `<div class="mm-samenv warn">${dubbel.length} training${dubbel.length === 1 ? ' staat' : 'en staan'} al bij deze teams en ${dubbel.length === 1 ? 'wordt' : 'worden'} overgeslagen.</div>` : ''}
     <button class="knop vol" id="bpStart" ${aantal ? '' : 'disabled'}>Verwerk ${aantal} training${aantal === 1 ? '' : 'en'}</button>
     <p class="bp-hint u-tc">Het verwerken loopt op de achtergrond; je kunt meteen verder.</p>
@@ -414,7 +441,8 @@ function koppel(st, ctx, root){
 
 /* ---------- Naar de wachtrij ---------- */
 async function naarWachtrij(st, ctx){
-  const map = planWeken(st.start, st.vrij, st.weken);
+  const eersteWk = eersteVan(st);
+  const map = planWeken(st.start, st.vrij, spanVan(st));
   const dubbel = new Set(dubbeleItems(st, ctx));
   const teams = [...st.teams];
   const plan = {
@@ -425,10 +453,11 @@ async function naarWachtrij(st, ctx){
     vrij: [...st.vrij].sort(),
     zichtbaar: st.zichtbaar,
     weken: st.weken,
+    ...(eersteWk > 1 ? { eerste: eersteWk } : {}),
     ...(st.groepId ? { groep: st.groepId } : {}),
   };
   const items = st.a.items.map(it => {
-    const ws = map[it.week - 1];
+    const ws = map[it.week - eersteWk];
     return {
       idx: it.idx, naam: it.naam, file: it.file,
       titel: titelVoor(ws, it.nr), week: weekLabel(ws), teams, aiModel: st.aiModel || 'standaard',
@@ -466,7 +495,8 @@ export function htmlPlannen(trainingen, teams, groepen = []){
   return [...plannen.values()]
     .sort((x, y) => (y.plan.start || '').localeCompare(x.plan.start || ''))
     .map(({ plan, items }) => {
-      const aantal = plan.weken || Math.max(...items.map(i => i.blokWeek || 1));
+      const eersteWk = planEerste(plan);
+      const aantal = Math.max(1, (plan.weken || Math.max(...items.map(i => i.blokWeek || 1))) - eersteWk + 1);
       const map = planWeken(plan.start, plan.vrij, aantal);
       const laatste = map[map.length - 1];
       const strip = [];
@@ -476,7 +506,7 @@ export function htmlPlannen(trainingen, teams, groepen = []){
         const vrij = (plan.vrij || []).includes(m);
         const voorbij = m <= nuMa;
         const cls = vrij ? 'vrij' : k >= 0 ? 'plan' : 'leeg';
-        const sub = vrij ? 'vrij' : k >= 0 ? `week ${k + 1}` : 'leeg';
+        const sub = vrij ? 'vrij' : k >= 0 ? `week ${k + eersteWk}` : 'leeg';
         const uit = voorbij || cls === 'leeg';
         return `<button type="button" class="bp-wk ${cls}${voorbij ? ' voorbij' : ''}" data-bp-pwk="${m}" data-bp-plan="${esc(plan.id)}" ${uit ? 'disabled' : ''} aria-pressed="${vrij}" title="${esc(kortDatum(m))}"><b>${isoWeekNr(m)}</b><span>${voorbij && k >= 0 ? '✓ ' : ''}${sub}</span></button>`;
       }).join('');
@@ -508,12 +538,13 @@ function wijzigVrijeWeek(planId, maandag, trainingen, ctx){
   const wordtVrij = !vrij.has(maandag);
   wordtVrij ? vrij.add(maandag) : vrij.delete(maandag);
   const nieuweVrij = [...vrij].sort();
-  const aantal = plan.weken || Math.max(...items.map(i => i.blokWeek || 1));
+  const eersteWk = planEerste(plan);
+  const aantal = Math.max(1, (plan.weken || Math.max(...items.map(i => i.blokWeek || 1))) - eersteWk + 1);
   const map = planWeken(plan.start, nieuweVrij, aantal);
   const nuMa = maandagVan(vandaagIso());
   // alleen toekomstige weken verschuiven; wat in deze of een eerdere week valt blijft staan
   const wijzig = items.map(t => {
-    const ws = map[(t.blokWeek || 1) - 1];
+    const ws = map[(t.blokWeek || 1) - eersteWk];
     if (!ws || ws === t.weekStart || (t.weekStart || '') <= nuMa) return null;
     return { t, ws };
   }).filter(Boolean);

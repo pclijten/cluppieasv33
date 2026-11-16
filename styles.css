@@ -6981,7 +6981,7 @@ a.knop { text-decoration: none; }
 .dk-ev.club { background: color-mix(in srgb, #6aa8ff 18%, transparent); box-shadow: inset 2px 0 0 #6aa8ff; }
 
 /* ==================== BOUW: TRAININGEN VAN DE WEEK ====================
-   [20261116a] js/bouw-trainingen.js. Blok bovenaan het bouw-dashboard en het
+   [20261116b] js/bouw-trainingen.js. Blok bovenaan het bouw-dashboard en het
    scherm Trainingen, op desktop (.dk-scherm) en telefoon (.mb-scherm).
    Bewust buiten de desktop-media-query: dezelfde onderdelen op beide. */
 .btr-dash{ display:flex; flex-direction:column; gap:var(--space-md); }

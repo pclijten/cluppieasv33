@@ -12,13 +12,13 @@ import { S, $, esc, meld, isBeheerder, toon, terugView } from './state.js?v=2026
 import { BOUWEN, NIVEAUS, niveauKleur, bouwVanCategorie } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { analyseWedstrijd } from './analyse.js?v=20261111g';
-import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261116a';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261116a';
-import { htmlMeekijk } from './desktop-schermen.js?v=20261116a';
+import { laadBouwData, zetBouwContext, presentiePctTeam, presentiePctWedstrijdTeam, uitslagenTeam, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261116b';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261116b';
+import { htmlMeekijk } from './desktop-schermen.js?v=20261116b';
 import { rondeStatusTeam } from './evaluatierondes.js?v=20261113v';
-import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261116a';
-/* [20261116a] Trainingen van de week: blok op het dashboard + eigen scherm 'tr' */
-import { zorgVoorTrainingen, htmlDashBlok, htmlTrainingenScherm, trainingenKlik } from './bouw-trainingen.js?v=20261116a';
+import { isSelectieBouw, htmlRadarBlok, htmlSelectieTegel, htmlSelectieScherm, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261116b';
+/* [20261116b] Trainingen van de week: blok op het dashboard + eigen scherm 'tr' */
+import { zorgVoorTrainingen, htmlDashBlok, htmlTrainingenScherm, trainingenKlik } from './bouw-trainingen.js?v=20261116b';
 
 const cache = new Map();          // 'clubId|bouw' → context uit laadBouwData
 const bezig = new Map();          // lopende laadacties
@@ -89,7 +89,7 @@ terugView('dkbouw', () => {
     huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
     teken(); window.scrollTo(0, 0); return true;
   }
-  import('./teams.js?v=20261116a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261116b').then(m => { m.renderTeams(); toon('teams'); });
   return true;
 });
 
@@ -98,7 +98,7 @@ function teken(){
   const ctx = cache.get(huidig.clubId + '|' + huidig.bouw); if (!ctx) return;
   zetBouwContext(ctx);
   const v = view();
-  /* [20261116a] trainingen van de week pas ophalen als een scherm ze toont;
+  /* [20261116b] trainingen van de week pas ophalen als een scherm ze toont;
      zodra ze er zijn tekent dit scherm opnieuw (als je er nog op staat). */
   if (huidig.scherm === 'dash' || huidig.scherm === 'tr') zorgVoorTrainingen(ctx, () => {
     if (huidig && cache.get(huidig.clubId + '|' + huidig.bouw) === ctx && (huidig.scherm === 'dash' || huidig.scherm === 'tr')
@@ -239,7 +239,7 @@ function htmlUitleningen(ctx){
 /* ---------- klikken ---------- */
 async function klik(e){
   if (huidig && selectieKlik(e, cache.get(huidig.clubId + '|' + huidig.bouw), () => teken())) return;
-  /* [20261116a] week bladeren, weergave kiezen, training openen, naar het scherm Trainingen */
+  /* [20261116b] week bladeren, weergave kiezen, training openen, naar het scherm Trainingen */
   if (huidig && trainingenKlik(e, cache.get(huidig.clubId + '|' + huidig.bouw), {
     herteken: () => teken(),
     naarScherm: () => { huidig.scherm = 'tr'; huidig.teamId = null; huidig.keuze = {}; teken(); window.scrollTo(0, 0); },
