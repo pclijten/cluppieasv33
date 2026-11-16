@@ -20,7 +20,7 @@ import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261111g';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261111g';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel } from './training-plan.js?v=20261111g';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel, weekStartBijLabel, isoWeekNr, kortDatum as planKortDatum } from './training-plan.js?v=20261116a';
 import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261111g';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261113v';
 
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261115a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261116a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261115a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261116a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -3343,13 +3343,17 @@ function toonAlleenPdfKeuze(file, meta, ctx, boodschap){
    — zonder het PDF-bestand opnieuw te uploaden. */
 function modalBewerkTraining(t, teams){
   const huidig = new Set(t.teams || []);
+  // [20261116a] ingeplande training (blokplanning): de vaste weekStart bepaalt
+  // bij coaches en de trainingscoördinator de week, niet het weeklabel.
+  const ingepland = /^\d{4}-\d{2}-\d{2}$/.test(t.weekStart || '');
   openModal(`
     <h2>Training aanpassen</h2>
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(t.bestandsnaam || t.titel)}</b>${t.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(t.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
     <div class="veldgroep"><label>Titel</label>
       <input class="invoer" id="mTbTitel" value="${esc(t.titel || '')}" autocomplete="off"></div>
     <div class="veldgroep"><label>Week / periode</label>
-      <input class="invoer" id="mTbWeek" value="${esc(t.week || '')}" autocomplete="off"></div>
+      <input class="invoer" id="mTbWeek" value="${esc(t.week || '')}" autocomplete="off">
+      ${ingepland ? `<p class="bp-hint">Ingepland in week ${isoWeekNr(t.weekStart)}, vanaf ${esc(planKortDatum(t.weekStart))} ${esc(t.weekStart.slice(0, 4))}. Pas je het weeknummer hier aan, dan verhuist de training mee naar die week.</p>` : ''}</div>
     <div class="veldgroep"><label for="mTbZicht">Zichtbaar voor het team vanaf</label>
       <input class="invoer" type="date" id="mTbZicht" value="${esc(t.zichtbaarVanaf || '')}">
       <p class="bp-hint">Leeg = meteen zichtbaar.</p></div>
@@ -3404,7 +3408,12 @@ function modalBewerkTraining(t, teams){
     const zicht = ($('#mTbZicht')?.value || '').trim();
     sluitModal();
     try {
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null});
+      // [20261116a] weeklabel en weekStart horen bij elkaar te blijven: wie het
+      // weeknummer met de hand aanpast, verhuist de training ook echt. Voorheen
+      // bleef weekStart staan en stond de training bij coaches in de oude week.
+      const nieuweStart = ingepland ? weekStartBijLabel(week, t.weekStart) : null;
+      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null,
+        ...(nieuweStart && nieuweStart !== t.weekStart ? { weekStart: nieuweStart } : {})});
       meld('Training bijgewerkt'); renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
