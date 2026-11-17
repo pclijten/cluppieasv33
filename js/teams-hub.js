@@ -18,9 +18,9 @@ import { analyseWedstrijd } from './analyse.js?v=20261111g';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { ongelezenBerichten } from './berichten.js?v=20261111g';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261111g';
-import { toernooiBezig } from './teams-toernooi.js?v=20261117e';
+import { toernooiBezig } from './teams-toernooi.js?v=20261117f';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261113v';
-import { htmlNu } from './nu-scherm.js?v=20261117e';
+import { htmlNu } from './nu-scherm.js?v=20261117f';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111d';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261111g';
 
