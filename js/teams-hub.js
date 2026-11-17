@@ -18,8 +18,9 @@ import { analyseWedstrijd } from './analyse.js?v=20261111g';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { ongelezenBerichten } from './berichten.js?v=20261111g';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261111g';
+import { toernooiBezig } from './teams-toernooi.js?v=20261117e';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261113v';
-import { htmlNu } from './nu-scherm.js?v=20261117c';
+import { htmlNu } from './nu-scherm.js?v=20261117e';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111d';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261111g';
 
@@ -120,6 +121,8 @@ export function htmlHub(updInfo){
       tegel('planning',         'Planning',     'planning-calendar'),
       tegel('documenten',       'Documenten',   'admin-document', documentenOngelezen || null),
       ...(modAan('lijstjes') ? [tegel('lijstjes', 'Lijstjes', 'attendance-fill', lijstjesOpenTotaal() || null)] : []),
+      /* [20261117e] onderling toernooitje; een stipje zolang er een bezig is */
+      ...(modAan('toernooitje') ? [tegel('toernooitjes', 'Toernooitje', 'football-tournament', toernooiBezig() ? true : null)] : []),
       tegel('instellingen',     'Instellingen', 'navigation-settings'),
       tegel('help',             'Help',         'navigation-help'),
       `<button class="hub-tegel" data-open-hulpchat="1">${ico('communication-chat', 40)}<span class="hub-tnaam">Hulpchat</span></button>`,
@@ -196,15 +199,21 @@ export function hubPasModus(){
    bijzondere dag uit de Planning, 3 = de rest. Bij ruimtegebrek vallen eerst de
    rijen met prio 3 weg, dan prio 2. Valt de belangrijkste rij weg (prio 1, of
    zonder prio 1 de bijzondere dag), of past het scherm zelfs zonder rijen niet,
-   dan krimpt de kaart in twee stappen (.nu-krap: doel en afmeldregel ingeklapt;
-   .nu-krap-2: ook de weekbalk weg) en proberen we het opnieuw. Helpt dat niet,
+   dan krimpt de kaart in twee stappen (data-nu-krap="1": doel en afmeldregel
+   ingeklapt; "2": ook de weekbalk weg) en proberen we het opnieuw. Helpt dat niet,
    dan blijft de gewone kaart staan en mag het scherm scrollen, zoals voorheen.
-   De link naar de Agenda staat er op dit scherm altijd. */
+   De link naar de Agenda staat er op dit scherm altijd.
+
+   [20261117d] De krimpstand staat in een data-attribuut en NIET in de klasse van
+   #view-team: teams.js heeft een MutationObserver op die klasse die deze functie
+   opnieuw aanroept. Een klassewijziging hier (ook classList.remove van een klasse
+   die er niet is) gaf een eindeloze lus van 120 aanroepen per seconde. */
 export function pasHubAan(v){
   if (!v || !v.classList.contains('hub-pas') || !v.classList.contains('actief')) return;
   const items = [...v.querySelectorAll('.nu-daarna > .nu-d-item')];
   const agenda = v.querySelector('.nu-agenda');
-  v.classList.remove('nu-krap', 'nu-krap-2');
+  const zetKrap = n => { if (n) v.dataset.nuKrap = String(n); else delete v.dataset.nuKrap; };
+  zetKrap(0);
   items.forEach(i => { i.hidden = false; });
   if (agenda) agenda.hidden = !items.length;
   /* een opengeklapte rij of een opengeklapt doel: niets weglaten, het scherm mag dan scrollen */
@@ -218,9 +227,9 @@ export function pasHubAan(v){
   const top = Math.min(...items.map(prio));
   const krap = () => teVeel() || (top <= 2 && items.some(i => i.hidden && prio(i) === top));
   if (krap()){
-    for (const stap of ['nu-krap', 'nu-krap-2']){ v.classList.add(stap); snoei(); if (!krap()) break; }
+    for (const stap of [1, 2]){ zetKrap(stap); snoei(); if (!krap()) break; }
     /* helpt krimpen niet, dan terug naar de gewone kaart */
-    if (krap()){ v.classList.remove('nu-krap', 'nu-krap-2'); snoei(); }
+    if (krap()){ zetKrap(0); snoei(); }
   }
 }
 

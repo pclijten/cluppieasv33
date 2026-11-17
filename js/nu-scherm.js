@@ -453,9 +453,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261117c'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261117e'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261117c'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261117e'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
@@ -465,14 +465,20 @@ export function koppelNu(v, ctx){
     const t = ev.target.closest('[data-nu-tab]');
     if (t){ ctx.zetTeamTab(t.dataset.nuTab); }
   });
+  /* Alleen het Nu-blok opnieuw tekenen, niet de hele hub. Geeft false terug als de hub
+     niet (meer) open staat. [20261117d] Ook bereikbaar als S._nuVervers: teams.js roept
+     dit aan als de planning of de clubagenda binnenkomt, zodat de hub zelf blijft staan. */
+  const ververs = () => {
+    const oud = document.querySelector('.nu-blokje');
+    if (!oud || S.teamTab !== 'hub') return false;
+    if (oud.contains(document.activeElement)) return true;   // niet onder iemands vinger verversen
+    const tmp = document.createElement('div'); tmp.innerHTML = htmlNu({ evaluatie: ctx.evaluatie });
+    const nieuw = tmp.firstElementChild; if (!nieuw) return true;
+    oud.replaceWith(nieuw); koppelNu(nieuw.parentElement, ctx); ctx.naTeken?.();
+    return true;
+  };
+  S._nuVervers = ververs;
   /* Elke minuut bijwerken zolang de hub open staat (aftellen, live, fase). */
   clearInterval(S._nuTik);
-  S._nuTik = setInterval(() => {
-    const oud = document.querySelector('.nu-blokje');
-    if (!oud || S.teamTab !== 'hub'){ clearInterval(S._nuTik); return; }
-    if (oud.contains(document.activeElement)) return;   // niet onder iemands vinger verversen
-    const tmp = document.createElement('div'); tmp.innerHTML = htmlNu({ evaluatie: ctx.evaluatie });
-    const nieuw = tmp.firstElementChild; if (!nieuw) return;
-    oud.replaceWith(nieuw); koppelNu(nieuw.parentElement, ctx); ctx.naTeken?.();
-  }, 60000);
+  S._nuTik = setInterval(() => { if (!ververs()) clearInterval(S._nuTik); }, 60000);
 }
