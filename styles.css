@@ -5499,7 +5499,7 @@ textarea.lj-namen{min-height:130px}
 /* modules-matrix */
 .cb-legenda{font-size:var(--t-xs);color:var(--ink-2);line-height:1.45;margin:0 var(--space-3xs) var(--space-sm)}
 .cb-matrix{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line-d);overflow:hidden}
-/* [20261117d] zes onderdelen (Toernooitje erbij): kolommen iets smaller */
+/* [20261117e] zes onderdelen (Toernooitje erbij): kolommen iets smaller */
 .cb-mrij{display:grid;grid-template-columns:minmax(0,1fr) repeat(6,40px);align-items:center;min-height:44px;border-top:1px solid var(--line-d)}
 .cb-mrij:first-child{border-top:none}
 .cb-mrij.cb-mkop{background:var(--surface-2);min-height:62px}
@@ -6754,23 +6754,23 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 #view-team.hub-pas .nu-acties{ margin-top:var(--space-sm); }
 /* [20261117b] Het doel staat op één regel; een tik op de regel toont de hele tekst. */
 #view-team.hub-pas .nu-doelblok:not(.open) .nu-doel-tekst{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* Krappe kaart (kleine telefoon): pasHubAan zet .nu-krap als de eerstvolgende
+/* Krappe kaart (kleine telefoon): pasHubAan zet data-nu-krap als de eerstvolgende
    wedstrijd of training anders niet in beeld past. Doel en afmeldregel klappen in. */
-#view-team.hub-pas.nu-krap .nu-doelblok{ display:none; }
-#view-team.hub-pas.nu-krap .nu-blok,
-#view-team.hub-pas.nu-krap .nu-feiten,
-#view-team.hub-pas.nu-krap .nu-pres{ margin-top:var(--space-sm); }
-#view-team.hub-pas.nu-krap .nu-kaart{ padding-bottom:var(--space-sm); }
-#view-team.hub-pas.nu-krap .nu-kaart-kop{ margin-bottom:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-acties{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-blokje{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap-2 .nu-blok-balk{ display:none; }
-#view-team.hub-pas.nu-krap-2 .nu-rij{ padding:var(--space-xs) 0; }
-#view-team.hub-pas.nu-krap-2 .nu-sectiekop{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-pres{ grid-template-columns:minmax(0, 1fr) auto auto; grid-template-areas:"g k p"; }
-#view-team.hub-pas.nu-krap .nu-pres-af,
-#view-team.hub-pas.nu-krap .nu-pres .nu-zacht{ display:none; }
-#view-team.hub-pas.nu-krap .nu-pres-kort{ display:block; grid-area:k; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
+#view-team.hub-pas[data-nu-krap] .nu-doelblok{ display:none; }
+#view-team.hub-pas[data-nu-krap] .nu-blok,
+#view-team.hub-pas[data-nu-krap] .nu-feiten,
+#view-team.hub-pas[data-nu-krap] .nu-pres{ margin-top:var(--space-sm); }
+#view-team.hub-pas[data-nu-krap] .nu-kaart{ padding-bottom:var(--space-sm); }
+#view-team.hub-pas[data-nu-krap] .nu-kaart-kop{ margin-bottom:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-acties{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-blokje{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap="2"] .nu-blok-balk{ display:none; }
+#view-team.hub-pas[data-nu-krap="2"] .nu-rij{ padding:var(--space-xs) 0; }
+#view-team.hub-pas[data-nu-krap="2"] .nu-sectiekop{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-pres{ grid-template-columns:minmax(0, 1fr) auto auto; grid-template-areas:"g k p"; }
+#view-team.hub-pas[data-nu-krap] .nu-pres-af,
+#view-team.hub-pas[data-nu-krap] .nu-pres .nu-zacht{ display:none; }
+#view-team.hub-pas[data-nu-krap] .nu-pres-kort{ display:block; grid-area:k; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
 .nu-agenda{ background:none; border:0; padding:var(--space-2xs) 0 var(--space-2xs) var(--space-sm); font-family:var(--font-body); font-size:var(--t-sm); font-weight:600; text-transform:none; color:var(--accent); cursor:pointer; }
 .nu-agenda[hidden]{ display:none; }
 #view-team.hub-pas .hub-alles-knop{
@@ -7151,7 +7151,7 @@ button.btr-sessie:hover{ border-color:var(--hover-rand); }
 .mb-scherm .btr-dash .btr-kop-t small{ display:none; }
 .mb-scherm .btr-dash .btr-tr-tekst > span:not(.btr-st){ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 
-/* ==================== TOERNOOITJE (v20261117d, teams-toernooi.js) ====================
+/* ==================== TOERNOOITJE (v20261117e, teams-toernooi.js) ====================
    Goedgekeurde mockup 17 nov. Overzicht hergebruikt de lj-klassen van Lijstjes;
    alles hier heeft de prefix tn-. Hesjeskleuren (--tk, .tn-bib) komen als
    vaste kleur uit de module en kantelen bewust niet mee met het thema. */

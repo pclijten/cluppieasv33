@@ -1,5 +1,5 @@
 /* ==================== TOERNOOITJE (teams/{teamId}/toernooitjes) ====================
-   [20261117d] Onderling toernooitje met het eigen team en eventueel gastspelers:
+   [20261117e] Onderling toernooitje met het eigen team en eventueel gastspelers:
    planner, klok, score per veldje en stand. Goedgekeurde mockup 17 nov.
 
    Bewust "toernooitje": het wedstrijdtype 'toernooi' (een officieel toernooi in
