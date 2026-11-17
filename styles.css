@@ -5499,7 +5499,8 @@ textarea.lj-namen{min-height:130px}
 /* modules-matrix */
 .cb-legenda{font-size:var(--t-xs);color:var(--ink-2);line-height:1.45;margin:0 var(--space-3xs) var(--space-sm)}
 .cb-matrix{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line-d);overflow:hidden}
-.cb-mrij{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,44px);align-items:center;min-height:44px;border-top:1px solid var(--line-d)}
+/* [20261117d] zes onderdelen (Toernooitje erbij): kolommen iets smaller */
+.cb-mrij{display:grid;grid-template-columns:minmax(0,1fr) repeat(6,40px);align-items:center;min-height:44px;border-top:1px solid var(--line-d)}
 .cb-mrij:first-child{border-top:none}
 .cb-mrij.cb-mkop{background:var(--surface-2);min-height:62px}
 .cb-mrij.bouw{min-height:30px;background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
@@ -7149,3 +7150,175 @@ button.btr-sessie:hover{ border-color:var(--hover-rand); }
 /* telefoon, dashboardkaart: compact houden */
 .mb-scherm .btr-dash .btr-kop-t small{ display:none; }
 .mb-scherm .btr-dash .btr-tr-tekst > span:not(.btr-st){ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* ==================== TOERNOOITJE (v20261117d, teams-toernooi.js) ====================
+   Goedgekeurde mockup 17 nov. Overzicht hergebruikt de lj-klassen van Lijstjes;
+   alles hier heeft de prefix tn-. Hesjeskleuren (--tk, .tn-bib) komen als
+   vaste kleur uit de module en kantelen bewust niet mee met het thema. */
+.tn{display:block}
+.tn-nieuw{margin-bottom:var(--space-xs)}
+.tn-kop{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);letter-spacing:.5px;text-transform:uppercase;color:var(--ink);margin:var(--space-lg) 0 var(--space-sm);display:flex;align-items:center;gap:var(--space-xs)}
+.tn-kop .tel{font-family:var(--font-body);font-size:var(--t-sm);font-weight:500;color:var(--ink-2);text-transform:none;letter-spacing:0;margin-left:auto}
+.tn-uitleg{color:var(--ink-2);font-size:var(--t-sm);line-height:1.45;margin:0 0 var(--space-sm)}
+.tn-kaart .tn-uitleg,.tn-hierna .tn-uitleg,.tn-chips .tn-uitleg{margin:0}
+.tn-legenda{margin-top:var(--space-xs)}
+.tn-half{flex:1;min-width:0;padding-left:var(--space-sm);padding-right:var(--space-sm)}
+.tn-bib{display:inline-block;width:14px;height:14px;border-radius:4px;flex-shrink:0;box-shadow:inset 0 0 0 1px var(--hover-rand)}
+.tn-tm{display:inline-flex;align-items:center;gap:5px;font-weight:600;min-width:0}
+.tn-tm.stil{color:var(--ink-2)}
+.tn-gast{font-style:normal;font-size:var(--t-2xs);color:var(--warn);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.tn-pil{display:inline-flex;align-items:center;padding:2px 9px;border-radius:var(--r-pill);font-size:var(--t-2xs);font-weight:700;letter-spacing:.4px;text-transform:uppercase;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.tn-pil.loopt{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.tn-pil.tijd{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+.tn-pil.wacht{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.tn-voet{position:sticky;bottom:0;z-index:3;margin-top:var(--space-md);padding:var(--space-md) 0 calc(var(--space-sm) + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 72%,transparent)}
+.tn-fout{margin-top:var(--space-sm);padding:var(--space-xs) var(--space-sm);border-radius:10px;background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);font-size:var(--t-sm);line-height:1.4;display:flex;gap:var(--space-xs)}
+.tn-fout.los{margin:0 0 var(--space-sm)}
+.tn-fout svg{flex-shrink:0;margin-top:1px}
+
+/* opzet: stappen, spelers, gast */
+.tn-stappen{display:flex;align-items:center;gap:5px;margin:calc(var(--space-xs) * -1) 0 var(--space-md);font-size:var(--t-xs);color:var(--ink-2);font-weight:600}
+.tn-stappen i{width:22px;height:4px;border-radius:2px;background:var(--surface-2)}
+.tn-stappen i.aan{background:var(--accent)}
+.tn-stappen span{margin-left:var(--space-2xs)}
+.tn-spelers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs)}
+.tn-sp{display:flex;align-items:center;gap:var(--space-xs);background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:10px var(--space-sm);text-align:left;min-height:46px;color:var(--ink-2);min-width:0}
+.tn-sp .nr{font-family:var(--font-display);font-weight:700;font-size:var(--t-lg);width:22px;text-align:center;color:var(--ink-2);flex-shrink:0;display:flex;justify-content:center}
+.tn-sp .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.tn-sp .gast{font-size:var(--t-2xs);font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--warn)}
+.tn-sp .vink{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--hair);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:transparent}
+.tn-sp.mee{color:var(--ink);border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.tn-sp.mee .vink{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.tn-gastrij{display:flex;gap:var(--space-xs);margin-top:var(--space-sm)}
+.tn-gastrij .invoer{flex:1;min-width:0;background:var(--surface);color:var(--ink)}
+.tn-gastrij .knop{flex-shrink:0;white-space:nowrap}
+
+/* opzet: vorm, rijen met − getal +, schakelaar, samenvatting */
+.tn-vormen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs)}
+.tn-vorm{background:var(--surface);border:1.5px solid var(--hair);border-radius:var(--r-m);padding:var(--space-sm);text-align:left;display:flex;flex-direction:column;gap:var(--space-2xs);color:var(--ink)}
+.tn-vorm b{font-family:var(--font-display);font-size:var(--t-xl);text-transform:uppercase;letter-spacing:.4px;line-height:1.1}
+.tn-vorm span{font-size:var(--t-xs);color:var(--ink-2);line-height:1.35}
+.tn-vorm.aan{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.tn-rij{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) 0;border-bottom:1px solid var(--hair);min-height:60px}
+.tn-rij:first-child{padding-top:0}
+.tn-rij:last-child{border-bottom:none;padding-bottom:0}
+.tn-rij .lab{flex:1;min-width:0;font-weight:600;color:var(--ink)}
+.tn-rij .lab small{display:block;font-weight:400;color:var(--ink-2);font-size:var(--t-xs);line-height:1.35;margin-top:1px}
+.tn-stap{display:flex;align-items:center;gap:var(--space-2xs);flex-shrink:0}
+.tn-stap button{width:40px;height:40px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line-d);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:500;line-height:1}
+.tn-stap button:disabled{opacity:.3}
+.tn-stap .w{min-width:64px;text-align:center;font-family:var(--font-display);font-weight:700;font-size:var(--t-3xl);font-variant-numeric:tabular-nums;line-height:1;color:var(--ink)}
+.tn-stap .w small{font-family:var(--font-body);font-size:var(--t-xs);font-weight:500;color:var(--ink-2);margin-left:3px}
+.tn-schuif{width:50px;height:30px;border-radius:var(--r-pill);background:var(--surface-2);border:1px solid var(--line-d);position:relative;flex-shrink:0;transition:background var(--dur-micro)}
+.tn-schuif::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--ink-2);transition:transform var(--dur-micro),background var(--dur-micro)}
+.tn-schuif.aan{background:var(--accent-vlak);border-color:transparent}
+.tn-schuif.aan::after{transform:translateX(20px);background:var(--wit)}
+.tn-plan{border-color:color-mix(in srgb,var(--accent) 45%,transparent) !important;background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.tn-plan .groot{font-family:var(--font-display);font-weight:700;font-size:var(--t-4xl);text-transform:uppercase;letter-spacing:.3px;line-height:1.05;color:var(--ink)}
+.tn-plan ul{list-style:none;margin:var(--space-xs) 0 0;padding:0;display:flex;flex-direction:column;gap:var(--space-2xs);font-size:var(--t-sm);color:var(--ink-2)}
+.tn-plan li{display:flex;gap:var(--space-xs);align-items:flex-start;line-height:1.4}
+.tn-plan li svg{flex-shrink:0;margin-top:2px}
+
+/* teams */
+.tn-team{border-left:4px solid var(--tk) !important}
+.tn-team-kop{display:flex;align-items:center;gap:var(--space-xs);margin-bottom:var(--space-xs)}
+.tn-team-kop b{font-family:var(--font-display);font-size:var(--t-2xl);text-transform:uppercase;letter-spacing:.4px;line-height:1;color:var(--ink)}
+.tn-team-kop .aantal{margin-left:auto;font-size:var(--t-xs);color:var(--ink-2)}
+.tn-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tn-chip{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:var(--r-pill);background:var(--surface-2);border:1px solid var(--line-d);font-size:var(--t-sm);font-weight:600;min-height:36px;color:var(--ink)}
+.tn-chip i{font-style:normal;font-size:var(--t-2xs);color:var(--warn);font-weight:700;text-transform:uppercase}
+.tn-chip.vast{background:transparent}
+
+/* live: balkje, tabs, klok */
+.tn-balkje{display:flex;align-items:center;gap:var(--space-xs);margin:calc(var(--space-xs) * -1) 0 var(--space-sm)}
+.tn-balkje .info{flex:1;min-width:0;font-size:var(--t-sm);color:var(--ink-2)}
+.tn-balkje .lj-menu{margin-left:0;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tn-klokmini{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);font-variant-numeric:tabular-nums;background:var(--surface);border:1px solid var(--hair);border-radius:10px;padding:3px 10px;line-height:1.15;flex-shrink:0;color:var(--ink)}
+.tn-tabs{margin-bottom:var(--space-md)}
+.tn-klok{text-align:center}
+.tn-klok .top{display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs)}
+.tn-klok .ronde{font-family:var(--font-display);font-weight:700;font-size:var(--t-xl);text-transform:uppercase;letter-spacing:.6px;color:var(--ink)}
+.tn-klok .tijd{font-family:var(--font-display);font-weight:700;font-size:calc(84px * var(--fs, 1));line-height:1;font-variant-numeric:tabular-nums;letter-spacing:1px;margin:var(--space-2xs) 0 var(--space-xs);color:var(--ink)}
+.tn-klok.tijd .tijd{color:var(--accent)}
+.tn-klok.wissel .tijd{color:var(--warn)}
+.tn-klok .balk{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-bottom:var(--space-md)}
+.tn-klok .balk i{display:block;height:100%;background:var(--ok);border-radius:3px;width:0}
+.tn-klok.wissel .balk i{background:var(--warn)}
+.tn-klok.tijd .balk i{background:var(--accent)}
+
+/* live: veldje met score */
+.tn-veld{padding:0 !important;overflow:hidden}
+.tn-veld-kop{display:flex;align-items:center;gap:var(--space-xs);padding:var(--space-xs) var(--space-md);background:linear-gradient(90deg,var(--veld),var(--veld-2));color:var(--wit);font-family:var(--font-display);font-weight:700;font-size:var(--t-lg);letter-spacing:.8px;text-transform:uppercase}
+.tn-veld-kop .extra{margin-left:auto;font-family:var(--font-body);font-size:var(--t-2xs);font-weight:700;letter-spacing:.4px;color:var(--vast-geel-1)}
+.tn-kant{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md)}
+.tn-kant + .tn-kant{border-top:1px solid var(--hair)}
+.tn-kant .wie{flex:1;min-width:0}
+.tn-kant .wie b{display:flex;align-items:center;gap:var(--space-xs);font-family:var(--font-display);font-size:var(--t-3xl);text-transform:uppercase;letter-spacing:.4px;line-height:1.05;color:var(--ink)}
+.tn-kant .wie small{display:block;color:var(--ink-2);font-size:var(--t-xs);line-height:1.35;margin-top:3px}
+.tn-score{font-family:var(--font-display);font-weight:700;font-size:calc(48px * var(--fs, 1));line-height:1;min-width:44px;text-align:center;font-variant-numeric:tabular-nums;color:var(--ink)}
+.tn-min,.tn-plus{border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tn-min{width:40px;height:40px;background:var(--surface-2);border:1px solid var(--line-d);color:var(--ink-2)}
+.tn-plus{width:58px;height:58px;background:var(--accent-vlak);color:var(--accent-ink)}
+.tn-min:disabled,.tn-plus:disabled{opacity:.3}
+.tn-plus:active:not(:disabled){transform:scale(.94)}
+.tn-bijregel{display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap;font-size:var(--t-sm);color:var(--ink-2);padding:var(--space-xs) var(--space-2xs)}
+.tn-bijregel .tn-tm{color:var(--ink)}
+.tn-hierna{font-size:var(--t-sm)}
+.tn-hierna .hr{display:flex;align-items:center;gap:var(--space-xs);padding:6px 0;flex-wrap:wrap}
+.tn-hierna .hr .v{font-family:var(--font-display);font-weight:700;color:var(--ink-2);width:54px;text-transform:uppercase;letter-spacing:.5px}
+.tn-hierna .hr .tegen{color:var(--ink-2)}
+
+/* schema */
+.tn-ronde-kop{display:flex;align-items:center;gap:var(--space-xs);margin:var(--space-md) 0 var(--space-xs);font-family:var(--font-display);font-weight:700;font-size:var(--t-xl);text-transform:uppercase;letter-spacing:.5px;color:var(--ink)}
+.tn-ronde-kop time{font-family:var(--font-body);font-size:var(--t-sm);font-weight:500;color:var(--ink-2);text-transform:none;letter-spacing:0}
+.tn-ronde-kop .tn-pil{margin-left:auto}
+.tn-wed{display:grid;grid-template-columns:34px minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:var(--space-xs);width:100%;background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:var(--space-sm);margin-bottom:6px;text-align:left;min-height:48px;color:var(--ink)}
+.tn-wed:disabled{opacity:1;cursor:default}
+.tn-wed .v{font-family:var(--font-display);font-weight:700;color:var(--ink-2);font-size:var(--t-md)}
+.tn-wed .a{justify-self:end;text-align:right}
+.tn-wed .u{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);font-variant-numeric:tabular-nums;padding:2px 10px;border-radius:8px;background:var(--surface-2);min-width:58px;text-align:center;white-space:nowrap}
+.tn-wed .u.leeg{color:var(--ink-2);font-size:var(--t-md)}
+.tn-wed.nu{border-color:color-mix(in srgb,var(--ok) 50%,transparent)}
+
+/* stand */
+.tn-tabel{overflow-x:auto;border:1px solid var(--hair);border-radius:var(--r-m);background:var(--surface)}
+.tn-tabel table{width:100%;border-collapse:collapse;font-size:var(--t-md);font-variant-numeric:tabular-nums;color:var(--ink)}
+.tn-tabel th{font-size:var(--t-2xs);font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-2);padding:10px 6px;text-align:center}
+.tn-tabel td{padding:11px 6px;text-align:center;border-top:1px solid var(--hair)}
+.tn-tabel th:nth-child(2),.tn-tabel td:nth-child(2){text-align:left}
+.tn-tabel td:first-child,.tn-tabel th:first-child{padding-left:var(--space-sm);color:var(--ink-2);width:30px}
+.tn-tabel td:last-child,.tn-tabel th:last-child{padding-right:var(--space-sm)}
+.tn-tabel td.pnt{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);line-height:1}
+.tn-tabel tr.top td:first-child{color:var(--accent);font-weight:700}
+
+/* eindstand */
+.tn-podium{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr);gap:var(--space-xs);align-items:end;margin:var(--space-sm) 0 var(--space-lg)}
+.tn-trede{background:var(--surface);border:1px solid var(--hair);border-top:4px solid var(--tk,var(--ink-2));border-radius:var(--r-m) var(--r-m) 0 0;padding:var(--space-sm) var(--space-xs);text-align:center;display:flex;flex-direction:column;gap:var(--space-2xs)}
+.tn-trede .plek{font-family:var(--font-display);font-weight:700;font-size:var(--t-4xl);line-height:1;color:var(--ink-2)}
+.tn-trede b{font-family:var(--font-display);font-size:var(--t-2xl);text-transform:uppercase;letter-spacing:.4px;line-height:1.05;overflow-wrap:anywhere;color:var(--ink)}
+.tn-trede small{font-size:var(--t-xs);color:var(--ink-2);line-height:1.35}
+.tn-trede.p1{min-height:180px;background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.tn-trede.p1 .plek{color:var(--accent);font-size:var(--t-6xl)}
+.tn-trede.p1 svg{color:var(--accent);margin:0 auto}
+.tn-trede.p2{min-height:140px}
+.tn-trede.p3{min-height:112px}
+.tn-acties{display:flex;flex-direction:column;gap:var(--space-xs);margin:var(--space-lg) 0 var(--space-xs)}
+
+/* dialogen (openModal vorm 'dialoog') */
+.tn-dialoog h3{font-family:var(--font-display);font-size:var(--t-3xl);text-transform:uppercase;letter-spacing:.4px;line-height:1.1;margin:0 0 var(--space-2xs);display:flex;align-items:center;gap:var(--space-xs);color:var(--ink)}
+.tn-dialoog .lj-msub{margin:0 0 var(--space-sm)}
+.tn-keuzes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs);margin-bottom:var(--space-sm)}
+.tn-keuzes .knop{padding-left:var(--space-xs);padding-right:var(--space-xs);min-width:0}
+.tn-corr{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-xs) 0}
+.tn-corr .wie{flex:1;min-width:0;font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);text-transform:uppercase;display:flex;align-items:center;gap:var(--space-xs);color:var(--ink)}
+
+@media (max-width:360px){
+  .tn-klok .tijd{font-size:calc(72px * var(--fs, 1))}
+  .tn-score{font-size:calc(40px * var(--fs, 1))}
+  .tn-plus{width:52px;height:52px}
+}
+/* desktop: de toernooischermen blijven een leesbare kolom; de kop met ‹ is daar
+   verborgen, dus de opzet krijgt een eigen Vorige-knop */
+.tn-vorige{display:none;margin-left:auto;align-items:center;gap:var(--space-2xs);font-size:var(--t-sm);font-weight:600;color:var(--ink-2);padding:var(--space-2xs) var(--space-xs)}
+html.desk #view-team.dk-na:not(:has(.dk-narij)) > .tn{max-width:760px}
+html.desk .tn-vorige{display:inline-flex}

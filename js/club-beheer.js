@@ -27,6 +27,7 @@ export const MODULE_DEFS = [
   ['kompas',     'ASV-kompas', 'Tip',   'map',               'Wekelijkse beleidsplan-tip op de Training-tab. Aanbevolen om aan te laten.'],
   ['leerplein',  'Leerplein',  'Plein', 'football-tactics',  'Uitleg en voorbeeld-loopacties per leerthema op het tactiekbord.'],
   ['lijstjes',   'Lijstjes',   'Lijst', 'attendance-fill',   'Lijstjes voor aanwezigheid, kledingmaten en ouderhulp.'],
+  ['toernooitje','Toernooitje','Toern', 'football-tournament','Onderling toernooitje met planner, klok, score en stand.'],
 ];
 const DAG_KORT = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
 const DAG_LANG = ['maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag','zondag'];

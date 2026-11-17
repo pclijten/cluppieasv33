@@ -18,8 +18,9 @@ import { analyseWedstrijd } from './analyse.js?v=20261111g';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { ongelezenBerichten } from './berichten.js?v=20261111g';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261111g';
+import { toernooiBezig } from './teams-toernooi.js?v=20261117d';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261113v';
-import { htmlNu } from './nu-scherm.js?v=20261117c';
+import { htmlNu } from './nu-scherm.js?v=20261117d';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111d';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261111g';
 
@@ -120,6 +121,8 @@ export function htmlHub(updInfo){
       tegel('planning',         'Planning',     'planning-calendar'),
       tegel('documenten',       'Documenten',   'admin-document', documentenOngelezen || null),
       ...(modAan('lijstjes') ? [tegel('lijstjes', 'Lijstjes', 'attendance-fill', lijstjesOpenTotaal() || null)] : []),
+      /* [20261117d] onderling toernooitje; een stipje zolang er een bezig is */
+      ...(modAan('toernooitje') ? [tegel('toernooitjes', 'Toernooitje', 'football-tournament', toernooiBezig() ? true : null)] : []),
       tegel('instellingen',     'Instellingen', 'navigation-settings'),
       tegel('help',             'Help',         'navigation-help'),
       `<button class="hub-tegel" data-open-hulpchat="1">${ico('communication-chat', 40)}<span class="hub-tnaam">Hulpchat</span></button>`,
