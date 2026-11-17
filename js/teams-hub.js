@@ -19,7 +19,7 @@ import { telGebruik } from './tracker.js?v=20261111g';
 import { ongelezenBerichten } from './berichten.js?v=20261111g';
 import { lijstjesOpenTotaal } from './teams-lijsten.js?v=20261111g';
 import { htmlRondeBalk } from './evaluatierondes.js?v=20261113v';
-import { htmlNu } from './nu-scherm.js?v=20261117a';
+import { htmlNu } from './nu-scherm.js?v=20261117b';
 import { spelersOpWedstrijd, effectieveSelectie, leenErbijNa } from './uitleen-regels.js?v=20261111d';
 import { htmlSelectieDashboard, heeftElftallen, elftalWedstrijd, elftalNaam, spelersVoorElftal, elftalPillWedstrijd } from './elftallen.js?v=20261111g';
 
@@ -191,17 +191,37 @@ export function hubPasModus(){
    staat in de Agenda (link verschijnt dan naast de kop). Is een regel opengeklapt,
    of past zelfs de kop niet (klein scherm + groot lettertype), dan mag het scherm
    gewoon scrollen en blijft "Alles" onderaan staan. */
+/* [20261117b] De rijen hebben een belang (data-nu-prio, zie kiesDaarna in nu-context.js):
+   1 = de eerstvolgende wedstrijd of training die niet op de kaart staat, 2 = een
+   bijzondere dag uit de Planning, 3 = de rest. Bij ruimtegebrek vallen eerst de
+   rijen met prio 3 weg, dan prio 2. Valt de belangrijkste rij weg (prio 1, of
+   zonder prio 1 de bijzondere dag), of past het scherm zelfs zonder rijen niet,
+   dan krimpt de kaart in twee stappen (.nu-krap: doel en afmeldregel ingeklapt;
+   .nu-krap-2: ook de weekbalk weg) en proberen we het opnieuw. Helpt dat niet,
+   dan blijft de gewone kaart staan en mag het scherm scrollen, zoals voorheen.
+   De link naar de Agenda staat er op dit scherm altijd. */
 export function pasHubAan(v){
   if (!v || !v.classList.contains('hub-pas') || !v.classList.contains('actief')) return;
   const items = [...v.querySelectorAll('.nu-daarna > .nu-d-item')];
   const agenda = v.querySelector('.nu-agenda');
+  v.classList.remove('nu-krap', 'nu-krap-2');
   items.forEach(i => { i.hidden = false; });
-  if (agenda) agenda.hidden = true;
-  if (!items.length || items.some(i => i.classList.contains('open'))) return;
+  if (agenda) agenda.hidden = !items.length;
+  /* een opengeklapte rij of een opengeklapt doel: niets weglaten, het scherm mag dan scrollen */
+  if (!items.length || items.some(i => i.classList.contains('open')) || v.querySelector('.nu-doelblok.open')) return;
   const teVeel = () => document.documentElement.scrollHeight - window.innerHeight > 1;
-  let zichtbaar = items.length;
-  while (zichtbaar > 0 && teVeel()) items[--zichtbaar].hidden = true;
-  if (zichtbaar < items.length && agenda) agenda.hidden = false;
+  const prio = i => Number(i.dataset.nuPrio) || 3;
+  /* minst belangrijk eerst; bij gelijk belang de laatste eerst */
+  const volgorde = items.map((el, n) => ({ el, n })).sort((a, b) => prio(b.el) - prio(a.el) || b.n - a.n).map(x => x.el);
+  const snoei = () => { items.forEach(i => { i.hidden = false; }); for (const el of volgorde){ if (!teVeel()) break; el.hidden = true; } };
+  snoei();
+  const top = Math.min(...items.map(prio));
+  const krap = () => teVeel() || (top <= 2 && items.some(i => i.hidden && prio(i) === top));
+  if (krap()){
+    for (const stap of ['nu-krap', 'nu-krap-2']){ v.classList.add(stap); snoei(); if (!krap()) break; }
+    /* helpt krimpen niet, dan terug naar de gewone kaart */
+    if (krap()){ v.classList.remove('nu-krap', 'nu-krap-2'); snoei(); }
+  }
 }
 
 /* ==================== PRESENTIE WEDSTRIJD ==================== */

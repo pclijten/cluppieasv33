@@ -3,7 +3,7 @@
    icons.js en hub-opzet van Cluppie, maar draait op nepdata en een simuleerbare
    klok/locatie, dus zonder Firebase of login. Logica: js/nu-context.js. */
 import { ico } from './icons.js?v=20261106r';
-import { bepaalNu, afstandMeter, VENSTER } from './nu-context.js?v=20261106r';
+import { bepaalNu, afstandMeter, VENSTER } from './nu-context.js?v=20261117b';
 
 /* ---------- Instellingen (pas aan voor echte GPS-test) ---------- */
 const CLUB = { lat: 51.5006, lng: 5.7177, straal: 300 };   // ASV'33 sportpark — controleer de coördinaten voor echt gebruik
