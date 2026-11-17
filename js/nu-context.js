@@ -136,8 +136,9 @@ export function bepaalNu({ nu, team, wedstrijden, presentie, plek }){
      1  de eerstvolgende activiteit van de ANDERE soort dan de kaart (kaart =
         training: de eerstvolgende wedstrijd, en omgekeerd). Die staat er altijd.
      2  één bijzondere dag uit de Planning binnen `dagenPlanning` dagen: een
-        eigen dag, of een KNVB-dag vrij / beker / inhaal waarvoor in dat weekend
-        nog geen echte wedstrijd staat.
+        eigen dag, een clubactiviteit uit Sportlink (ledenvergadering, clubavond),
+        of een KNVB-dag vrij / beker / inhaal waarvoor in dat weekend nog geen
+        echte wedstrijd staat. Het is er één: de eerstvolgende.
      3  wat er verder aankomt, tot `max` regels in totaal.
    De regels komen op datum terug, elk met `prio`; het passend startscherm
    (pasHubAan) laat bij ruimtegebrek eerst prio 3 en dan prio 2 vallen.
@@ -155,7 +156,9 @@ export function kiesDaarna({ nu, hoofd, events, losse, planning, wedstrijdDatums
   const eind = iso(new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() + dagenPlanning, 12));
   const isHoofd = e => !!hoofd && (e === hoofd || e.id === hoofd.id);
   const p2 = n => String(n).padStart(2, '0');
-  const sleutel = r => r.datum + (r.type === 'dag' ? ' 0' : r.zonderTijd ? ' 2' : ` 1${p2(r.start.getHours())}:${p2(r.start.getMinutes())}`);
+  /* binnen een dag: eerst dagen zonder tijd, dan alles met een tijd op volgorde, dan activiteiten zonder tijd */
+  const dagTijd = r => { const m = /^(\d{1,2}):(\d{2})/.exec(r.item?.tijd || ''); return m ? ` 1${p2(m[1])}:${m[2]}` : ' 0'; };
+  const sleutel = r => r.datum + (r.type === 'dag' ? dagTijd(r) : r.zonderTijd ? ' 2' : ` 1${p2(r.start.getHours())}:${p2(r.start.getMinutes())}`);
   const alle = [
     ...(events || []).filter(e => e.start > nu && !isHoofd(e)),
     ...(losse || []).filter(e => e.datum >= vandaag && !isHoofd(e)),
@@ -169,8 +172,9 @@ export function kiesDaarna({ nu, hoofd, events, losse, planning, wedstrijdDatums
   const datums = wedstrijdDatums instanceof Set ? wedstrijdDatums : new Set(wedstrijdDatums || []);
   const dag = (planning || [])
     .filter(it => it && it.datum >= vandaag && it.datum <= eind)
-    .filter(it => it.bron === 'eigen' || (it.bron === 'knvb' && BIJZONDER.includes(it.type)))
-    .filter(it => it.bron === 'eigen' || !(datums.has(it.datum) || datums.has(it.knvbDatum)))
+    /* [20261117c] ook clubactiviteiten (bron 'club') tellen als bijzondere dag */
+    .filter(it => it.bron === 'eigen' || it.bron === 'club' || (it.bron === 'knvb' && BIJZONDER.includes(it.type)))
+    .filter(it => it.bron !== 'knvb' || !(datums.has(it.datum) || datums.has(it.knvbDatum)))
     .sort((a, b) => a.datum.localeCompare(b.datum))[0];
   if (dag) gekozen.set({ type: 'dag', id: 'dag-' + dag.datum, datum: dag.datum, item: dag }, 2);
 
