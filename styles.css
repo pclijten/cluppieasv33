@@ -6753,23 +6753,23 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 #view-team.hub-pas .nu-acties{ margin-top:var(--space-sm); }
 /* [20261117b] Het doel staat op één regel; een tik op de regel toont de hele tekst. */
 #view-team.hub-pas .nu-doelblok:not(.open) .nu-doel-tekst{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* Krappe kaart (kleine telefoon): pasHubAan zet .nu-krap als de eerstvolgende
+/* Krappe kaart (kleine telefoon): pasHubAan zet data-nu-krap als de eerstvolgende
    wedstrijd of training anders niet in beeld past. Doel en afmeldregel klappen in. */
-#view-team.hub-pas.nu-krap .nu-doelblok{ display:none; }
-#view-team.hub-pas.nu-krap .nu-blok,
-#view-team.hub-pas.nu-krap .nu-feiten,
-#view-team.hub-pas.nu-krap .nu-pres{ margin-top:var(--space-sm); }
-#view-team.hub-pas.nu-krap .nu-kaart{ padding-bottom:var(--space-sm); }
-#view-team.hub-pas.nu-krap .nu-kaart-kop{ margin-bottom:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-acties{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-blokje{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap-2 .nu-blok-balk{ display:none; }
-#view-team.hub-pas.nu-krap-2 .nu-rij{ padding:var(--space-xs) 0; }
-#view-team.hub-pas.nu-krap-2 .nu-sectiekop{ margin-top:var(--space-xs); }
-#view-team.hub-pas.nu-krap .nu-pres{ grid-template-columns:minmax(0, 1fr) auto auto; grid-template-areas:"g k p"; }
-#view-team.hub-pas.nu-krap .nu-pres-af,
-#view-team.hub-pas.nu-krap .nu-pres .nu-zacht{ display:none; }
-#view-team.hub-pas.nu-krap .nu-pres-kort{ display:block; grid-area:k; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
+#view-team.hub-pas[data-nu-krap] .nu-doelblok{ display:none; }
+#view-team.hub-pas[data-nu-krap] .nu-blok,
+#view-team.hub-pas[data-nu-krap] .nu-feiten,
+#view-team.hub-pas[data-nu-krap] .nu-pres{ margin-top:var(--space-sm); }
+#view-team.hub-pas[data-nu-krap] .nu-kaart{ padding-bottom:var(--space-sm); }
+#view-team.hub-pas[data-nu-krap] .nu-kaart-kop{ margin-bottom:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-acties{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-blokje{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap="2"] .nu-blok-balk{ display:none; }
+#view-team.hub-pas[data-nu-krap="2"] .nu-rij{ padding:var(--space-xs) 0; }
+#view-team.hub-pas[data-nu-krap="2"] .nu-sectiekop{ margin-top:var(--space-xs); }
+#view-team.hub-pas[data-nu-krap] .nu-pres{ grid-template-columns:minmax(0, 1fr) auto auto; grid-template-areas:"g k p"; }
+#view-team.hub-pas[data-nu-krap] .nu-pres-af,
+#view-team.hub-pas[data-nu-krap] .nu-pres .nu-zacht{ display:none; }
+#view-team.hub-pas[data-nu-krap] .nu-pres-kort{ display:block; grid-area:k; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
 .nu-agenda{ background:none; border:0; padding:var(--space-2xs) 0 var(--space-2xs) var(--space-sm); font-family:var(--font-body); font-size:var(--t-sm); font-weight:600; text-transform:none; color:var(--accent); cursor:pointer; }
 .nu-agenda[hidden]{ display:none; }
 #view-team.hub-pas .hub-alles-knop{
