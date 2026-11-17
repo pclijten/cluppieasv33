@@ -131,6 +131,70 @@ export function bepaalNu({ nu, team, wedstrijden, presentie, plek }){
     reden: 'Geen training of wedstrijd nu: je ziet wat er het eerst aankomt.' });
 }
 
+/* ==================== DAARNA (17 nov) ====================
+   Wat er onder de kaart staat, in volgorde van belang:
+     1  de eerstvolgende activiteit van de ANDERE soort dan de kaart (kaart =
+        training: de eerstvolgende wedstrijd, en omgekeerd). Die staat er altijd.
+     2  één bijzondere dag uit de Planning binnen `dagenPlanning` dagen: een
+        eigen dag, of een KNVB-dag vrij / beker / inhaal waarvoor in dat weekend
+        nog geen echte wedstrijd staat.
+     3  wat er verder aankomt, tot `max` regels in totaal.
+   De regels komen op datum terug, elk met `prio`; het passend startscherm
+   (pasHubAan) laat bij ruimtegebrek eerst prio 3 en dan prio 2 vallen.
+
+   Invoer:
+     events     uit evenementen(): trainingen en wedstrijden mét tijd
+     losse      uit losseEvenementen(): activiteiten zonder tijd (alleen een dag)
+     planning   uit planningItems() in teams.js: {bron, type, datum, knvbDatum, label, opmerking}
+     wedstrijdDatums  alle datums waarop het team een wedstrijd heeft
+     afgelast   functie(event) -> true als de activiteit niet doorgaat; zo'n
+                activiteit telt niet als "de eerstvolgende" zolang er een andere is */
+const BIJZONDER = ['vrij', 'beker', 'inhaal', 'eigen'];
+export function kiesDaarna({ nu, hoofd, events, losse, planning, wedstrijdDatums, afgelast, dagenPlanning = 14, max = 4 }){
+  const vandaag = iso(nu);
+  const eind = iso(new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() + dagenPlanning, 12));
+  const isHoofd = e => !!hoofd && (e === hoofd || e.id === hoofd.id);
+  const p2 = n => String(n).padStart(2, '0');
+  const sleutel = r => r.datum + (r.type === 'dag' ? ' 0' : r.zonderTijd ? ' 2' : ` 1${p2(r.start.getHours())}:${p2(r.start.getMinutes())}`);
+  const alle = [
+    ...(events || []).filter(e => e.start > nu && !isHoofd(e)),
+    ...(losse || []).filter(e => e.datum >= vandaag && !isHoofd(e)),
+  ].sort((a, b) => sleutel(a).localeCompare(sleutel(b)));
+
+  const gekozen = new Map();                       // event/dag -> prio
+  const soorten = hoofd ? [hoofd.type === 'training' ? 'wedstrijd' : 'training'] : ['wedstrijd', 'training'];
+  const gaatDoor = e => !(typeof afgelast === 'function' && afgelast(e));
+  for (const s of soorten){ const e = alle.find(x => x.type === s && gaatDoor(x)) || alle.find(x => x.type === s); if (e) gekozen.set(e, 1); }
+
+  const datums = wedstrijdDatums instanceof Set ? wedstrijdDatums : new Set(wedstrijdDatums || []);
+  const dag = (planning || [])
+    .filter(it => it && it.datum >= vandaag && it.datum <= eind)
+    .filter(it => it.bron === 'eigen' || (it.bron === 'knvb' && BIJZONDER.includes(it.type)))
+    .filter(it => it.bron === 'eigen' || !(datums.has(it.datum) || datums.has(it.knvbDatum)))
+    .sort((a, b) => a.datum.localeCompare(b.datum))[0];
+  if (dag) gekozen.set({ type: 'dag', id: 'dag-' + dag.datum, datum: dag.datum, item: dag }, 2);
+
+  for (const e of alle){ if (gekozen.size >= max) break; if (!gekozen.has(e)) gekozen.set(e, 3); }
+  return [...gekozen].map(([e, prio]) => ({ ...e, prio })).sort((a, b) => sleutel(a).localeCompare(sleutel(b)));
+}
+
+/* Activiteiten waarvan alleen de dag bekend is: een wedstrijd zonder aanvangstijd
+   en een training op een trainingsdag zonder ingestelde tijd. Ze staan niet in
+   evenementen() (daar is een tijd nodig om "nu" te bepalen), wel onder Daarna. */
+export function losseEvenementen(nu, team, wedstrijden, dagenVooruit = 10){
+  const vandaag = iso(nu), ev = [];
+  const moments = (Array.isArray(team?.trainingsmomenten) ? team.trainingsmomenten : []).filter(m => !m.start);
+  for (let i = 0; i <= dagenVooruit && moments.length; i++){
+    const dag = new Date(nu.getFullYear(), nu.getMonth(), nu.getDate() + i, 12);
+    if (moments.some(m => Number(m.dag) === isoWeekdag(dag))) ev.push({ type: 'training', id: 't-' + iso(dag), datum: iso(dag), zonderTijd: true });
+  }
+  for (const w of (wedstrijden || [])){
+    if (!w.datum || w.aftrap || w.datum < vandaag) continue;
+    ev.push({ type: 'wedstrijd', id: w.id, datum: w.datum, zonderTijd: true, w });
+  }
+  return ev;
+}
+
 /* Afstand in meter (haversine), voor de echte GPS-variant. */
 export function afstandMeter(a, b){
   const R = 6371000, r = x => x * Math.PI / 180;

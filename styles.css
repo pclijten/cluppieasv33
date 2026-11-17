@@ -6155,11 +6155,16 @@ html.desk .trw-nav { top: var(--dk-kop, 64px); }
 .nu-acties { display: grid; gap: var(--space-xs); margin-top: var(--space-md); }
 .nu-sectiekop { margin: var(--space-lg) 0 var(--space-xs); font-family: var(--font-display); font-weight: 700; font-size: var(--t-2xl); text-transform: uppercase; line-height: 1.05; }
 .nu-daarna { border-bottom: 1px solid var(--line-d); }
-.nu-rij-d { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr) auto 2.75rem 20px; align-items: center; gap: var(--space-sm); width: 100%; min-height: 48px; padding: var(--space-sm) var(--space-xs); border: 0; border-top: 1px solid var(--line-d); background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.nu-rij-d { display: grid; grid-template-columns: 4.75rem minmax(0, 1fr) auto 20px; align-items: center; gap: var(--space-sm); width: 100%; min-height: 56px; padding: var(--space-xs) var(--space-xs); border: 0; border-top: 1px solid var(--line-d); background: transparent; color: var(--ink); text-align: left; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
 .nu-rij-d:hover { background: var(--surface); }
 .nu-rij-d:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .nu-d-dag { font-weight: 600; }
-.nu-d-wat { min-width: 0; overflow-wrap: break-word; text-wrap: balance; }
+/* [20261117b] twee regels per rij: wat het is, met eronder de bijzonderheden */
+.nu-d-wat { display: flex; flex-direction: column; gap: var(--space-3xs); min-width: 0; }
+.nu-d-titel { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-d-sub { font-size: var(--t-sm); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nu-d-dagrij .plan-badge { grid-column: 3 / 5; justify-self: end; }
+.nu-pres-kort { display: none; }
 .nu-d-tijd, .nu-d-tel { text-align: right; font-variant-numeric: tabular-nums; }
 .nu-d-tel { font-size: var(--t-sm); color: var(--ink-2); }
 .nu-d-pijl { display: grid; place-items: center; color: var(--ink-2); }
@@ -6746,6 +6751,25 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
 #view-team.hub-pas .nu-daarna:not(:has(> .nu-d-item:not([hidden]))){ border-bottom:0; }
 #view-team.hub-pas .nu-kaart{ padding:var(--space-sm) var(--space-md) var(--space-md); }
 #view-team.hub-pas .nu-acties{ margin-top:var(--space-sm); }
+/* [20261117b] Het doel staat op één regel; een tik op de regel toont de hele tekst. */
+#view-team.hub-pas .nu-doelblok:not(.open) .nu-doel-tekst{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Krappe kaart (kleine telefoon): pasHubAan zet .nu-krap als de eerstvolgende
+   wedstrijd of training anders niet in beeld past. Doel en afmeldregel klappen in. */
+#view-team.hub-pas.nu-krap .nu-doelblok{ display:none; }
+#view-team.hub-pas.nu-krap .nu-blok,
+#view-team.hub-pas.nu-krap .nu-feiten,
+#view-team.hub-pas.nu-krap .nu-pres{ margin-top:var(--space-sm); }
+#view-team.hub-pas.nu-krap .nu-kaart{ padding-bottom:var(--space-sm); }
+#view-team.hub-pas.nu-krap .nu-kaart-kop{ margin-bottom:var(--space-xs); }
+#view-team.hub-pas.nu-krap .nu-acties{ margin-top:var(--space-xs); }
+#view-team.hub-pas.nu-krap .nu-blokje{ margin-top:var(--space-xs); }
+#view-team.hub-pas.nu-krap-2 .nu-blok-balk{ display:none; }
+#view-team.hub-pas.nu-krap-2 .nu-rij{ padding:var(--space-xs) 0; }
+#view-team.hub-pas.nu-krap-2 .nu-sectiekop{ margin-top:var(--space-xs); }
+#view-team.hub-pas.nu-krap .nu-pres{ grid-template-columns:minmax(0, 1fr) auto auto; grid-template-areas:"g k p"; }
+#view-team.hub-pas.nu-krap .nu-pres-af,
+#view-team.hub-pas.nu-krap .nu-pres .nu-zacht{ display:none; }
+#view-team.hub-pas.nu-krap .nu-pres-kort{ display:block; grid-area:k; font-size:var(--t-sm); font-weight:600; color:var(--warn); }
 .nu-agenda{ background:none; border:0; padding:var(--space-2xs) 0 var(--space-2xs) var(--space-sm); font-family:var(--font-body); font-size:var(--t-sm); font-weight:600; text-transform:none; color:var(--accent); cursor:pointer; }
 .nu-agenda[hidden]{ display:none; }
 #view-team.hub-pas .hub-alles-knop{
