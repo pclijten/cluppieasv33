@@ -17,7 +17,7 @@
 import { S, esc } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { afwezigRedenInfo, isoWeek } from './config.js?v=20261111g';
-import { bepaalNu, evenementen, kiesDaarna, losseEvenementen } from './nu-context.js?v=20261117b';
+import { bepaalNu, evenementen, kiesDaarna, losseEvenementen } from './nu-context.js?v=20261117c';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261111g';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
 import { effectieveSelectie, spelersOpWedstrijd, spelersOpTraining } from './uitleen-regels.js?v=20261111d';
@@ -365,13 +365,14 @@ function daarnaItem(e, nu){
     <div class="nu-d-paneel" id="nuD-${sleutel}"><div class="nu-d-in"${open ? '' : ' hidden'}><div class="nu-d-blok">${inhoud}</div></div></div>
   </div>`;
 }
-/* Een bijzondere dag uit de Planning (eigen dag, vrij, beker, inhaal): één tik opent de Planning. */
-const DAG_BADGE = { vrij: 'VRIJ', beker: 'BEKER', inhaal: 'INHAAL', eigen: 'EIGEN DAG' };
+/* Een bijzondere dag uit de Planning (eigen dag, clubactiviteit, vrij, beker, inhaal):
+   één tik opent de Planning. */
+const DAG_BADGE = { vrij: 'VRIJ', beker: 'BEKER', inhaal: 'INHAAL', eigen: 'EIGEN DAG', club: 'CLUB' };
 function dagItem(r, nu){
-  const it = r.item, type = DAG_BADGE[it.type] ? it.type : 'eigen';
+  const it = r.item, type = it.bron === 'club' ? 'club' : (DAG_BADGE[it.type] ? it.type : 'eigen');
   const vrij = type === 'vrij';
-  const titel = vrij && (!it.label || it.label === 'Vrij') ? 'Geen wedstrijd' : (it.label || 'Eigen dag');
-  const sub = it.opmerking || (vrij ? 'Vrij weekend (KNVB)' : type === 'eigen' ? '' : 'Nog geen wedstrijd ingelezen');
+  const titel = vrij && (!it.label || it.label === 'Vrij') ? 'Geen wedstrijd' : (it.label || (type === 'club' ? 'Clubactiviteit' : 'Eigen dag'));
+  const sub = it.opmerking || (vrij ? 'Vrij weekend (KNVB)' : (type === 'eigen' || type === 'club') ? '' : 'Nog geen wedstrijd ingelezen');
   return `<div class="nu-d-item nu-d-dagrij" data-nu-prio="${r.prio || 2}">
     <button type="button" class="nu-rij-d" data-nu-tab="planning">
       <span class="nu-d-dag">${esc(dagLabel(r.datum, nu))}</span>
@@ -452,9 +453,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261117b'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261117c'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261117b'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261117c'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
