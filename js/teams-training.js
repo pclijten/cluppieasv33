@@ -1212,6 +1212,10 @@ export function modalEigenDag(){
 /* ---------- Planning: KNVB-dag aanpassen/verbergen of eigen dag bewerken ---------- */
 export function modalPlanDag(it){
   const isEigen = it.bron === 'eigen';
+  /* [20261117a] Een KNVB-dag kan op een andere dag getoond worden dan in de
+     kalender staat (jeugd: zaterdag i.p.v. zondag). De aanpassing blijft
+     opgeslagen onder de kalenderdatum, zodat oude aanpassingen blijven werken. */
+  const knvbDatum = it.knvbDatum || it.datum;
   const typeOpties = [['wd','Wedstrijddag'],['beker','Beker'],['inhaal','Inhaal'],['vrij','Vrij'],['eigen','Eigen dag']];
   openPlanPaneel(`
     <h2>${datumNL(it.datum)}</h2>
@@ -1235,8 +1239,8 @@ export function modalPlanDag(it){
       if (isEigen){
         await updateDoc(doc(db,'teams',S.teamId,'planning',it.docId), {type, label, opmerking});
       } else {
-        await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+it.datum), {
-          bron:'knvb', datum: it.datum, type, label, opmerking, verborgen:false,
+        await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+knvbDatum), {
+          bron:'knvb', datum: knvbDatum, type, label, opmerking, verborgen:false,
           seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
         });
       }
@@ -1246,7 +1250,7 @@ export function modalPlanDag(it){
   const reset = $('#mPdReset');
   if (reset) reset.onclick = async () => {
     try {
-      await deleteDoc(doc(db,'teams',S.teamId,'planning','knvb_'+it.datum));
+      await deleteDoc(doc(db,'teams',S.teamId,'planning','knvb_'+knvbDatum));
       sluitModal(); meld('KNVB-dag hersteld');
     } catch(e){ meld('Mislukt: ' + (e.code || e.message)); }
   };
@@ -1260,8 +1264,8 @@ export function modalPlanDag(it){
     } else {
       if (!confirm('Deze KNVB-dag verbergen voor dit team?')) return;
       try {
-        await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+it.datum), {
-          bron:'knvb', datum: it.datum, verborgen:true,
+        await setDoc(doc(db,'teams',S.teamId,'planning','knvb_'+knvbDatum), {
+          bron:'knvb', datum: knvbDatum, verborgen:true,
           seizoen: S.huidigSeizoen || SEIZOEN_FALLBACK,
         });
         sluitModal(); meld('Verborgen');
