@@ -32,6 +32,17 @@
    De opzet (wie doet er mee, vorm, tijd, teams) is een lokaal concept in
    S._toernConcept en wordt pas bij "Start" een document.
 
+   [20261117f] Wijzigen: een gemaakt toernooitje gaat via dezelfde opzet-schermen
+   terug in een concept (concept.bewerk = { id }). Opslaan werkt het document bij:
+     - nog niet begonnen: alles vrij, het schema wordt opnieuw gemaakt;
+     - al begonnen: gespeelde rondes blijven staan, de rest wordt opnieuw
+       ingedeeld (vervolg()); wie niet meer meedoet blijft met uit:true in
+       deelnemers staan, zodat oude uitslagen en doelpunten hun naam houden;
+     - al begonnen én andere vorm of ander aantal teams: alleen door opnieuw te
+       beginnen (na bevestiging), want de stand kan dan niet mee.
+   Teamnamen: cfg.namen = { [teamId]: naam } overschrijft de hesjeskleur als naam,
+   ook bij opnieuw husselen en bij wisselende teams.
+
    "Eerlijk verdelen" gebruikt alleen de beoordelingen die het hele team ziet;
    de privé-rondebeoordelingen (prive:true) blijven erbuiten en het niveau wordt
    nergens getoond of opgeslagen.
@@ -87,7 +98,7 @@ export function toernooiBezig(){ try { return alle().some(t => t.status === 'bez
 /* Een "x" is het concept (x.spelers, met mee-vinkje) of een opgeslagen
    toernooitje (x.deelnemers). Deze twee hulpjes maken de rest gelijk. */
 const deelnemer = (x, id) => x.spelers ? x.spelers.find(p => p.id === id) || null : (x.deelnemers?.[id] ? { id, ...x.deelnemers[id] } : null);
-const meedoenIds = x => x.spelers ? x.spelers.filter(p => p.mee).map(p => p.id) : Object.keys(x.deelnemers || {});
+const meedoenIds = x => x.spelers ? x.spelers.filter(p => p.mee).map(p => p.id) : Object.keys(x.deelnemers || {}).filter(id => !x.deelnemers[id].uit);
 const naamVan = (x, id) => deelnemer(x, id)?.naam || '?';
 
 /* ==================== SCHEMA: IEDEREEN TEGEN IEDEREEN ==================== */
@@ -105,16 +116,21 @@ function rondeRobin(ids){
 /* Verdeelt de wedstrijden over rondes van maximaal `velden` wedstrijden. Past het
    aantal veldjes, dan blijven de rondes van het competitieschema heel; anders
    vullen we de rondes zo dat teams die het langst stilstaan eerst weer spelen. */
+const zetRonde = (paren, s, ids) => ({
+  wedstrijden: paren.map((p, k) => ({ a:p[0], b:p[1], veld:((k + s) % paren.length) + 1 })).sort((x, y) => x.veld - y.veld),
+  rust: ids.filter(i => !paren.some(p => p[0] === i || p[1] === i)),
+});
 function maakSchema(ids, velden, dubbel){
   let rr = rondeRobin(ids);
   if (dubbel) rr = rr.concat(rr.map(r => r.map(([x, y]) => [y, x])));
-  const perRonde = Math.floor(ids.length / 2), slots = [];
-  const zet = (paren, s) => ({
-    wedstrijden: paren.map((p, k) => ({ a:p[0], b:p[1], veld:((k + s) % paren.length) + 1 })).sort((x, y) => x.veld - y.veld),
-    rust: ids.filter(i => !paren.some(p => p[0] === i || p[1] === i)),
-  });
-  if (velden >= perRonde){ rr.forEach((paren, s) => slots.push(zet(paren, s))); return slots; }
-  const open = rr.flat().map((p, i) => ({ p, i }));
+  if (velden >= Math.floor(ids.length / 2)) return rr.map((paren, s) => zetRonde(paren, s, ids));
+  return pakIn(rr.flat(), ids, velden);
+}
+/* Een losse lijst wedstrijden over rondes verdelen (ook gebruikt om na een
+   wijziging alleen de nog te spelen wedstrijden opnieuw in te delen). */
+function pakIn(paren, ids, velden){
+  const slots = [];
+  const open = paren.map((p, i) => ({ p, i }));
   const gespeeld = Object.fromEntries(ids.map(i => [i, 0]));
   const laatst = Object.fromEntries(ids.map(i => [i, -9]));
   while (open.length){
@@ -128,7 +144,7 @@ function maakSchema(ids, velden, dubbel){
       kies.push(m); bezet.add(m.p[0]); bezet.add(m.p[1]);
     }
     kies.forEach(m => { open.splice(open.indexOf(m), 1); gespeeld[m.p[0]]++; gespeeld[m.p[1]]++; laatst[m.p[0]] = s; laatst[m.p[1]] = s; });
-    slots.push(zet(kies.map(m => m.p), s));
+    slots.push(zetRonde(kies.map(m => m.p), s, ids));
   }
   return slots;
 }
@@ -160,7 +176,8 @@ function plan(x){
 const teamGrootte = p => p.over ? `${p.klein} of ${p.klein + 1} spelers per team` : `${p.klein} spelers per team`;
 
 /* ==================== TEAMS VERDELEN ==================== */
-const legeTeams = n => Array.from({ length:n }, (_, i) => ({ id:'t' + i, naam:KLEUREN[i].naam, kleur:KLEUREN[i].k, spelers:[] }));
+const legeTeams = (n, namen) => Array.from({ length:n }, (_, i) => ({ id:'t' + i, naam:(namen && namen['t' + i]) || KLEUREN[i].naam, kleur:KLEUREN[i].k, spelers:[] }));
+const kleurNaam = id => KLEUREN[Number(String(id).slice(1))]?.naam || 'Team';
 /* Niveau (1–5) uit de nieuwste beoordeling die het hele team mag zien. Privé-
    rondebeoordelingen tellen niet mee. null = nog niet beoordeeld (of gast). */
 function niveauVan(pid){
@@ -178,7 +195,7 @@ const sigVan = c => c.cfg.teams + '|' + meedoenIds(c).join(',');
 /* 'hussel' = willekeurig; 'eerlijk' = op niveau gesorteerd en om-en-om (slang)
    uitgedeeld. Geeft false terug als er nog niets te wegen viel. */
 function verdeel(c, hoe){
-  const nT = c.cfg.teams, teams = legeTeams(nT);
+  const nT = c.cfg.teams, teams = legeTeams(nT, c.cfg.namen);
   let rij = schud(c.spelers.filter(p => p.mee)), gewogen = false;
   if (hoe === 'eerlijk'){
     const niv = Object.fromEntries(rij.map(p => [p.id, p.gast ? null : niveauVan(p.id)]));
@@ -198,7 +215,7 @@ function trekWissel(t, i){
   t.rondes.forEach((r, k) => { if (k !== i) (r.teams || []).forEach(tm => tm.spelers.forEach(a => tm.spelers.forEach(b => { if (a < b) tel[a + '|' + b] = (tel[a + '|' + b] || 0) + 1; }))); });
   let beste = null, besteScore = Infinity;
   for (let poging = 0; poging < 40; poging++){
-    const teams = legeTeams(nT); schud(ids).forEach((id, k) => teams[k % nT].spelers.push(id));
+    const teams = legeTeams(nT, t.cfg.namen); schud(ids).forEach((id, k) => teams[k % nT].spelers.push(id));
     let sc = 0; teams.forEach(tm => tm.spelers.forEach(a => tm.spelers.forEach(b => { if (a < b) sc += tel[a + '|' + b] || 0; })));
     if (sc < besteScore){ besteScore = sc; beste = teams; }
   }
@@ -270,6 +287,7 @@ const omschrijving = t => (t.cfg.vorm === 'vast' ? `${t.cfg.teams} teams` : 'Wis
    gewoon m.sa / m.sb / m.st / m.goals kan lezen. */
 function hydrateer(t){
   t.cfg = { ...CFG_STD, ...(t.cfg || {}) };
+  t.cfg.namen = t.cfg.namen && typeof t.cfg.namen === 'object' ? t.cfg.namen : {};
   t.rondes = Array.isArray(t.rondes) ? t.rondes : [];
   t.ri = Math.min(Math.max(0, Number(t.ri) || 0), Math.max(0, t.rondes.length - 1));
   t.klok = t.klok || { fase:'klaar', eindMs:0, restMs:(t.duurSec || 0) * 1000 };
@@ -309,10 +327,12 @@ const uitslagVeld = m => ({ sa:m.sa, sb:m.sb, st:m.st });
 
 /* ==================== OPZET (lokaal concept) ==================== */
 function leesCfg(){
-  try { const c = JSON.parse(localStorage.getItem(LS_CFG) || 'null'); if (c && typeof c === 'object') return { ...CFG_STD, ...c }; } catch(e){}
-  return { ...CFG_STD };
+  try { const c = JSON.parse(localStorage.getItem(LS_CFG) || 'null'); if (c && typeof c === 'object') return { ...CFG_STD, ...c, namen:{} }; } catch(e){}
+  return { ...CFG_STD, namen:{} };
 }
-function bewaarCfg(c){ try { localStorage.setItem(LS_CFG, JSON.stringify(c)); } catch(e){} }
+/* De laatste instellingen onthouden voor het volgende toernooitje; eigen
+   teamnamen horen bij één toernooitje en gaan niet mee. */
+function bewaarCfg(c){ try { const { namen, ...rest } = c; localStorage.setItem(LS_CFG, JSON.stringify(rest)); } catch(e){} }
 /* Voornaam; bij twee dezelfde voornamen de eerste letter van de achternaam erbij. */
 function voornamen(spelers){
   const eerste = n => String(n || '').trim().split(/\s+/)[0] || 'Speler';
@@ -334,6 +354,149 @@ function nieuwConcept(){
   S._toernOpen = 'nieuw';
   try { localStorage.removeItem(LS_OPEN); } catch(e){}
 }
+/* ==================== WIJZIGEN VAN EEN GEMAAKT TOERNOOITJE ==================== */
+const kopieTeams = teams => (teams || []).map(tm => ({ id:tm.id, naam:tm.naam, kleur:tm.kleur, spelers:[...tm.spelers] }));
+const isGestart = t => t.rondes.some(r => r.wedstrijden.some(m => m.st !== 'open'));
+/* Het toernooitje terug in de opzet-schermen: de selectie van nu, plus iedereen
+   die er al in stond (gastspelers, of een speler die intussen uit het team is). */
+function bewerkConcept(t){
+  const bron = (S.spelers || []).slice().sort((a, b) => (Number(a.nummer) || 99) - (Number(b.nummer) || 99) || String(a.naam).localeCompare(String(b.naam), 'nl'));
+  const vn = voornamen(bron), dn = t.deelnemers || {};
+  const spelers = bron.map(p => ({ id:p.id, naam:dn[p.id]?.naam || vn[p.id], nr:p.nummer ?? '', gast:false, mee:!!dn[p.id] && !dn[p.id].uit }));
+  const bekend = new Set(spelers.map(x => x.id));
+  Object.entries(dn).forEach(([id, d]) => { if (!bekend.has(id)) spelers.push({ id, naam:d.naam, nr:d.nr ?? '', gast:!!d.gast, mee:!d.uit }); });
+  const c = { stap:'wie', gastInvoer:'', spelers, cfg:{ ...t.cfg, namen:{ ...(t.cfg.namen || {}) } }, teams:kopieTeams(t.teams), teamSig:'', bewerk:{ id:t.id } };
+  c.teamSig = sigVan(c);
+  S._toernConcept = c; S._toernOpen = 'nieuw';
+}
+function stopBewerken(c){
+  S._toernConcept = null; S._toernTab = 'nu';
+  if (c?.bewerk?.id && vind(c.bewerk.id)){ zetOpen(c.bewerk.id); window.scrollTo(0, 0); API.renderTeam(); }
+  else { S._toernOpen = null; terugNaarOverzicht(); }
+}
+/* Bestaande teams bijwerken zonder opnieuw te verdelen: wie afvalt gaat eruit,
+   wie erbij komt gaat naar het kleinste team. */
+function werkTeamsBij(c){
+  const mee = meedoenIds(c), set = new Set(mee);
+  c.teams.forEach(tm => { tm.spelers = tm.spelers.filter(id => set.has(id)); });
+  const ingedeeld = new Set(c.teams.flatMap(tm => tm.spelers));
+  mee.forEach(id => { if (!ingedeeld.has(id)) c.teams.slice().sort((a, b) => a.spelers.length - b.spelers.length)[0].spelers.push(id); });
+  c.teamSig = sigVan(c);
+}
+/* Hoe gaat een al begonnen toernooitje verder met de gewijzigde opzet? Gespeelde
+   (en lopende) rondes blijven; de rest wordt opnieuw ingedeeld. Verandert niets
+   aan t: geeft alleen terug wat er zou gebeuren, voor het voorbeeld én het opslaan. */
+function vervolg(t, c){
+  const cfg = c.cfg, nu = Date.now(), stempel = nu.toString(36);
+  const keep = t.rondes.filter(r => r.wedstrijden.some(m => m.st !== 'open'));
+  const huidigGestart = keep.includes(t.rondes[t.ri]);
+  let rest = [];
+  if (cfg.vorm === 'vast'){
+    if (!keep.some(r => r.type === 'finale')){
+      const ids = c.teams.map(tm => tm.id), gehad = {}, open = [];
+      const sleutel = (a, b) => [a, b].sort().join('|');
+      keep.forEach(r => r.wedstrijden.forEach(m => { const k = sleutel(m.a, m.b); gehad[k] = (gehad[k] || 0) + 1; }));
+      // alles wat volgens de (nieuwe) opzet gespeeld moet worden, min wat er al gespeeld is
+      maakSchema(ids, 99, cfg.dubbel).forEach(r => r.wedstrijden.forEach(m => { const k = sleutel(m.a, m.b); if (gehad[k] > 0) gehad[k]--; else open.push([m.a, m.b]); }));
+      rest = pakIn(open, ids, cfg.velden).map((r, i) => ({ type:'groep', rust:r.rust, wedstrijden:r.wedstrijden.map((m, k) => nieuweWed(`h${stempel}r${i}m${k}`, m.veld, m.a, m.b)) }));
+      if (finaleKan(cfg)){
+        const w = [nieuweWed(`h${stempel}fin`, 1, null, null, { plek:1 })];
+        if (cfg.velden >= 2 && cfg.teams >= 4) w.push(nieuweWed(`h${stempel}p3`, 2, null, null, { plek:3 }));
+        rest.push({ type:'finale', rust:[], wedstrijden:w });
+      }
+    }
+  } else {
+    rest = Array.from({ length:Math.max(0, cfg.rondes - keep.length) }, () => ({ type:'wissel', rust:[], wedstrijden:[] }));
+  }
+  // tijd: de wedstrijdduur blijft zoals hij was, tenzij de tijd-instellingen of het
+  // aantal rondes dat nog komt veranderen. Bij "totale tijd" verdelen we dan wat er
+  // nog over is tot het geplande einde.
+  const wissel = cfg.wisselMin * 60, oud = t.cfg;
+  const start = huidigGestart ? (loopt(t) ? t.klok.eindMs : nu + (t.klok.restMs || 0)) + wissel * 1000 : nu;
+  const tijdAnders = cfg.tijdModus !== oud.tijdModus || cfg.totaalMin !== oud.totaalMin || cfg.perMin !== oud.perMin || cfg.wisselMin !== oud.wisselMin;
+  let duurSec = t.duurSec;
+  if (tijdAnders || rest.length !== t.rondes.length - keep.length){
+    duurSec = cfg.perMin * 60;
+    if (cfg.tijdModus === 'totaal'){
+      const einde = (t.gestartMs || nu) + cfg.totaalMin * 60000;
+      duurSec = rest.length ? Math.floor(((einde - start) / 1000 - (rest.length - 1) * wissel) / rest.length / 30) * 30 : t.duurSec;
+    }
+  }
+  const fout = rest.length && duurSec < 120 ? 'Er is te weinig tijd over voor de rondes die nog komen. Geef meer totale tijd, of kies zelf de wedstrijdduur.' : '';
+  const klaarMs = rest.length ? start + (rest.length * Math.max(0, duurSec) + (rest.length - 1) * wissel) * 1000 : (huidigGestart ? start - wissel * 1000 : nu);
+  return { keep, rest, huidigGestart, duurSec, fout, klaarMs, afsluiten:!rest.length && !huidigGestart };
+}
+/* Wat betekent opslaan voor dit concept? gestart = er is al gespeeld; herstart =
+   de wijziging kan alleen door opnieuw te beginnen; v = het vervolg (anders). */
+function bewerkInfo(c, t = vind(c.bewerk?.id)){
+  if (!t) return { gestart:false, herstart:false, v:null, fout:'' };
+  const gestart = isGestart(t);
+  const herstart = gestart && (c.cfg.vorm !== t.cfg.vorm || (c.cfg.vorm === 'vast' && c.cfg.teams !== t.cfg.teams));
+  if (!gestart || herstart) return { gestart, herstart, v:null, fout:plan(c).fout };
+  const v = vervolg(t, c), n = meedoenIds(c).length, nT = aantalTeams(c.cfg);
+  return { gestart, herstart, v, fout:n < nT * 2 ? `Met ${n} spelers heb je te weinig voor ${nT} teams.` : v.fout };
+}
+function bewaarWijziging(c){
+  const t = vind(c.bewerk.id);
+  if (!t || t.status !== 'bezig'){ meld('Dit toernooitje is intussen afgesloten of verwijderd'); stopBewerken(c); return; }
+  const info = bewerkInfo(c, t);
+  if (info.fout) return meld(info.fout);
+  const deelnemers = Object.fromEntries(c.spelers.filter(x => x.mee).map(x => [x.id, { naam:x.naam, nr:x.nr ?? '', gast:!!x.gast }]));
+  const teams = c.cfg.vorm === 'vast' ? kopieTeams(c.teams) : [];
+  let upd;
+  if (!info.gestart || info.herstart){
+    if (info.herstart && !confirm('Opnieuw beginnen met deze opzet? De uitslagen die al gespeeld zijn vervallen.')) return;
+    const p = plan(c), x = { cfg:{ ...c.cfg }, spelers:c.spelers, teams, rondes:[] };
+    bouwRondes(x);
+    Object.assign(t, { cfg:x.cfg, deelnemers, teams, rondes:x.rondes, uitslag:{}, goals:{}, ri:0, duurSec:p.duurSec, gestartMs:0,
+      klok:{ fase:'klaar', eindMs:0, restMs:p.duurSec * 1000 } });
+    upd = { cfg:t.cfg, deelnemers, teams, rondes:kaalRondes(t), uitslag:{}, goals:{}, ri:0, duurSec:t.duurSec, gestartMs:0, klok:t.klok };
+  } else {
+    const v = info.v;
+    // wie al meedeed blijft bekend (naam bij oude uitslagen en doelpunten), maar speelt niet meer mee
+    Object.entries(t.deelnemers || {}).forEach(([id, d]) => { if (!deelnemers[id]) deelnemers[id] = { naam:d.naam, nr:d.nr ?? '', gast:!!d.gast, uit:true }; });
+    Object.assign(t, { cfg:{ ...c.cfg }, deelnemers, teams, rondes:[...v.keep, ...v.rest], duurSec:v.duurSec });
+    // eigen teamnamen ook in de al gespeelde rondes van wisselende teams
+    t.rondes.forEach(r => (r.teams || []).forEach(tm => { tm.naam = t.cfg.namen?.[tm.id] || kleurNaam(tm.id); }));
+    upd = { cfg:t.cfg, deelnemers, teams, duurSec:t.duurSec };
+    if (v.afsluiten){
+      t.status = 'klaar'; t.klok = { fase:'klaar', eindMs:0, restMs:0 }; t.ri = Math.max(0, t.rondes.length - 1);
+      Object.assign(upd, { status:'klaar', klok:t.klok, klaarMs:Date.now(), ri:t.ri });
+    } else {
+      t.ri = v.huidigGestart ? v.keep.length - 1 : v.keep.length;
+      if (!v.huidigGestart){
+        const nw = t.rondes[t.ri];
+        if (nw.type === 'wissel') trekWissel(t, t.ri);
+        if (nw.type === 'finale') vulFinale(t, nw);
+        if (t.klok.fase !== 'wissel') t.klok = { fase:'klaar', eindMs:0, restMs:t.duurSec * 1000 };
+      }
+      Object.assign(upd, { ri:t.ri, klok:t.klok });
+    }
+    upd.rondes = kaalRondes(t);
+  }
+  bewaarCfg(c.cfg);
+  S._toernConcept = null; S._toernTab = 'nu';
+  zetOpen(t.id);
+  window.scrollTo(0, 0);
+  API.renderTeam();
+  schrijf(t, upd);
+  meld(info.herstart ? 'Opnieuw begonnen met de nieuwe opzet' : 'Toernooitje bijgewerkt');
+}
+/* Teamnaam: in het concept of direct in een lopend toernooitje. Leeg = terug
+   naar de hesjeskleur. */
+function hernoemTeam(teamId, naam){
+  const c = S._toernOpen === 'nieuw' ? concept() : null, t = c ? null : huidig();
+  const x = c || t; if (!x) return;
+  const nieuw = String(naam || '').trim().slice(0, 16);
+  x.cfg.namen = { ...(x.cfg.namen || {}) };
+  if (nieuw) x.cfg.namen[teamId] = nieuw; else delete x.cfg.namen[teamId];
+  const toon = nieuw || kleurNaam(teamId);
+  (x.teams || []).forEach(tm => { if (tm.id === teamId) tm.naam = toon; });
+  (x.rondes || []).forEach(r => (r.teams || []).forEach(tm => { if (tm.id === teamId) tm.naam = toon; }));
+  if (t) schrijf(t, { 'cfg.namen':x.cfg.namen, teams:kopieTeams(t.teams), rondes:kaalRondes(t) });
+  API.renderTeam();
+}
+
 function presentieVandaag(){ return (S.presentie || []).find(p => p.datum === vandaagIso()) || null; }
 function startToernooi(c){
   const p = plan(c);
@@ -426,11 +589,7 @@ function naarVolgende(t){
     t.ri++;
     const nw = t.rondes[t.ri];
     if (nw.type === 'wissel') trekWissel(t, t.ri);
-    if (nw.type === 'finale'){
-      const st = standTeams(t);
-      nw.wedstrijden.forEach(m => { m.a = st[m.plek - 1]?.id ?? null; m.b = st[m.plek]?.id ?? null; });
-      nw.rust = st.map(x => x.id).filter(id => !nw.wedstrijden.some(m => m.a === id || m.b === id));
-    }
+    if (nw.type === 'finale') vulFinale(t, nw);
     const w = t.cfg.wisselMin * 60000;
     t.klok = w > 0 ? { fase:'wissel', eindMs:Date.now() + w, restMs:w } : { fase:'klaar', eindMs:0, restMs:t.duurSec * 1000 };
     Object.assign(upd, { ri:t.ri, klok:t.klok, rondes:kaalRondes(t) });
@@ -438,6 +597,12 @@ function naarVolgende(t){
   S._toernTab = 'nu';
   window.scrollTo(0, 0);
   API.renderTeam(); schrijf(t, upd);
+}
+/* Finaleronde: nummer 1 tegen 2 (en 3 tegen 4) uit de poulestand van dit moment. */
+function vulFinale(t, nw){
+  const st = standTeams(t);
+  nw.wedstrijden.forEach(m => { m.a = st[m.plek - 1]?.id ?? null; m.b = st[m.plek]?.id ?? null; });
+  nw.rust = st.map(x => x.id).filter(id => !nw.wedstrijden.some(m => m.a === id || m.b === id));
 }
 function vindWed(t, id){ for (const r of t.rondes) for (const m of r.wedstrijden) if (m.id === id) return { r, m }; return null; }
 function zetGoal(t, m, kant, d, sp){
@@ -484,13 +649,15 @@ export function htmlToernooitjes(){
 
 /* ==================== OPZET: SCHERMEN ==================== */
 const wrap = (inhoud, live) => `<div class="tn" id="tnWortel"${live ? ' data-tn-live="1"' : ''}>${inhoud}</div>`;
-const stappen = n => `<div class="tn-stappen" aria-label="Stap ${n} van 3">${[1, 2, 3].map(i => `<i class="${i <= n ? 'aan' : ''}"></i>`).join('')}<span>Stap ${n} van 3</span><button class="tn-vorige" data-tn="vorige">${ico('navigation-back', 16)} Vorige</button></div>`;
+const stappen = (n, c) => { const tot = c.cfg.vorm === 'wissel' && n < 3 ? 2 : 3; return `<div class="tn-stappen" aria-label="Stap ${n} van ${tot}">${Array.from({ length:tot }, (_, i) => `<i class="${i < n ? 'aan' : ''}"></i>`).join('')}<span>Stap ${n} van ${tot}</span><button class="tn-vorige" data-tn="vorige">${ico('navigation-back', 16)} Vorige</button></div>`; };
 function hWie(c){
   const n = c.spelers.filter(p => p.mee).length;
   const eigen = c.spelers.filter(p => !p.gast), gasten = c.spelers.filter(p => p.gast);
   const knop = p => `<button class="tn-sp ${p.mee ? 'mee' : ''}" data-tn="speler" data-a="${esc(p.id)}" aria-pressed="${p.mee}">
       <span class="nr">${p.gast ? ico('team-player', 18) : esc(p.nr)}</span><span class="nm">${esc(p.naam)}</span>${p.gast ? '<span class="gast">gast</span>' : ''}<span class="vink">${ico('action-check', 14)}</span></button>`;
-  return stappen(1) + `
+  const begonnen = c.bewerk && bewerkInfo(c).gestart;
+  return stappen(1, c) + `
+    ${begonnen ? `<p class="tn-uitleg">Dit toernooitje is al begonnen. Gespeelde wedstrijden blijven staan; wie je uitvinkt speelt vanaf nu niet meer mee.</p>` : ''}
     ${presentieVandaag() ? `<button class="knop klein" data-tn="presentie">${ico('attendance-present', 16)} Neem presentie van vandaag over</button>` : ''}
     <div class="tn-kop">Selectie <span class="tel">${eigen.filter(p => p.mee).length} van ${eigen.length}</span></div>
     ${eigen.length ? `<div class="tn-spelers">${eigen.map(knop).join('')}</div>` : '<p class="tn-uitleg">Dit team heeft nog geen spelers. Voeg ze toe bij Spelers, of werk hier met gastspelers.</p>'}
@@ -507,7 +674,29 @@ function hOpzet(c){
       <span class="w">${k[sleutel]}${eenheid ? `<small>${eenheid}</small>` : ''}</span>
       <button data-tn="stap" data-a="${sleutel}" data-b="1" ${k[sleutel] >= max ? 'disabled' : ''} aria-label="Meer">+</button></div>`; };
   const schuif = sleutel => `<button class="tn-schuif ${k[sleutel] ? 'aan' : ''}" data-tn="schuif" data-a="${sleutel}" role="switch" aria-checked="${!!k[sleutel]}" aria-label="Aan of uit"></button>`;
-  return stappen(2) + `
+  const b = c.bewerk ? bewerkInfo(c) : null, verder = b && b.gestart && !b.herstart ? b.v : null;
+  const fout = b ? b.fout : p.fout;
+  const nRest = verder ? verder.rest.length : 0, nWed = verder ? verder.rest.reduce((n, r) => n + (r.type === 'wissel' ? k.velden : r.wedstrijden.length), 0) : 0;
+  const samenvatting = verder ? `
+      <div class="groot">${verder.afsluiten ? 'Geen rondes meer' : nRest ? `Nog ${nRest} ${nRest === 1 ? 'ronde' : 'rondes'} van ${duurTxt(Math.max(0, verder.duurSec))}` : 'Dit is de laatste ronde'}</div>
+      <ul>
+        <li>${ico('action-check', 16)}<span>${verder.keep.length} ${verder.keep.length === 1 ? 'ronde is' : 'rondes zijn'} al gespeeld of bezig. Die uitslagen blijven staan.</span></li>
+        ${nRest ? `<li>${ico('football-pitch', 16)}<span>${nWed} ${nWed === 1 ? 'wedstrijd' : 'wedstrijden'} te gaan op ${veldjes(k.velden)}, opnieuw ingedeeld</span></li>
+        <li>${ico('training-duration', 16)}<span>Klaar rond ${klokUur(verder.klaarMs)}</span></li>` : ''}
+        ${verder.afsluiten ? `<li>${ico('action-info', 16)}<span>Er valt niets meer te spelen: met Opslaan sluit je het toernooitje af en zie je de eindstand.</span></li>` : ''}
+      </ul>` : `
+      <div class="groot">${p.slots} rondes van ${duurTxt(Math.max(0, p.duurSec))}</div>
+      <ul>
+        <li>${ico('football-pitch', 16)}<span>${p.wed} wedstrijden op ${veldjes(k.velden)}${vast ? `, elk team speelt ${p.perTeamWed} keer${finaleKan(k) ? ' plus de finaleronde' : ''}` : ', iedereen speelt elke ronde'}</span></li>
+        <li>${ico('training-duration', 16)}<span>${Math.max(0, Math.round(p.totaalSec / 60))} minuten in totaal, klaar rond ${klokUur(Date.now() + Math.max(0, p.totaalSec) * 1000)} als je nu start</span></li>
+        <li>${ico('football-competition', 16)}<span>Winst 3 punten, gelijk 1. Bij gelijke stand telt het doelsaldo.</span></li>
+      </ul>`;
+  const opslaanTxt = b && b.herstart ? 'Opnieuw beginnen met deze opzet' : 'Opslaan';
+  const knop = vast
+    ? `<button class="knop fluo vol" data-tn="stapnaar" data-a="teams" ${fout ? 'disabled' : ''}>${b && !b.herstart ? 'Teams bekijken' : 'Teams maken'}</button>`
+    : `<button class="knop fluo vol" data-tn="${b ? 'opslaan' : 'start'}" ${fout ? 'disabled' : ''}>${b ? opslaanTxt : 'Start: husselen voor ronde 1'}</button>`;
+  return stappen(2, c) + `
+    ${b && b.gestart ? `<p class="tn-uitleg">Dit toernooitje is al begonnen. Gespeelde wedstrijden blijven staan; de rest wordt opnieuw ingedeeld.</p>` : ''}
     <div class="tn-vormen">
       <button class="tn-vorm ${vast ? 'aan' : ''}" data-tn="vorm" data-a="vast" aria-pressed="${vast}"><b>Vaste teams</b><span>Teams blijven bij elkaar en spelen tegen elkaar. Stand per team.</span></button>
       <button class="tn-vorm ${!vast ? 'aan' : ''}" data-tn="vorm" data-a="wissel" aria-pressed="${!vast}"><b>Wisselende teams</b><span>Elke ronde nieuwe teams. Elke speler spaart zijn eigen punten.</span></button>
@@ -536,35 +725,35 @@ function hOpzet(c){
     <div class="kaart tn-kaart">
       <div class="tn-rij"><span class="lab">Doelpuntenmakers bijhouden<small>Na elke goal tik je aan wie scoorde. Geeft een topscorerslijst.</small></span>${schuif('scorers')}</div>
     </div>
-    <div class="tn-kop">Zo ziet het eruit</div>
-    <div class="kaart tn-plan">
-      <div class="groot">${p.slots} rondes van ${duurTxt(Math.max(0, p.duurSec))}</div>
-      <ul>
-        <li>${ico('football-pitch', 16)}<span>${p.wed} wedstrijden op ${veldjes(k.velden)}${vast ? `, elk team speelt ${p.perTeamWed} keer${finaleKan(k) ? ' plus de finaleronde' : ''}` : ', iedereen speelt elke ronde'}</span></li>
-        <li>${ico('training-duration', 16)}<span>${Math.max(0, Math.round(p.totaalSec / 60))} minuten in totaal, klaar rond ${klokUur(Date.now() + Math.max(0, p.totaalSec) * 1000)} als je nu start</span></li>
-        <li>${ico('football-competition', 16)}<span>Winst 3 punten, gelijk 1. Bij gelijke stand telt het doelsaldo.</span></li>
-      </ul>
-      ${p.fout ? `<div class="tn-fout">${ico('action-warning', 18)}<span>${esc(p.fout)}</span></div>` : ''}
+    <div class="tn-kop">${verder ? 'Zo gaat het verder' : 'Zo ziet het eruit'}</div>
+    <div class="kaart tn-plan">${samenvatting}
+      ${b && b.herstart ? `<div class="tn-fout">${ico('action-warning', 18)}<span>Je wijzigt de vorm of het aantal teams van een toernooitje dat al begonnen is. Dat kan alleen door opnieuw te beginnen: de gespeelde uitslagen vervallen.</span></div>` : ''}
+      ${fout ? `<div class="tn-fout">${ico('action-warning', 18)}<span>${esc(fout)}</span></div>` : ''}
     </div>
-    <div class="tn-voet"><button class="knop fluo vol" data-tn="${vast ? 'stapnaar' : 'start'}" data-a="teams" ${p.fout ? 'disabled' : ''}>${vast ? 'Teams maken' : 'Start: husselen voor ronde 1'}</button></div>`;
+    <div class="tn-voet">${knop}</div>`;
 }
-function teamKaarten(x, teams, tikbaar){
+function teamKaarten(x, teams, tikbaar, hernoembaar = true){
   return teams.map(t => `<div class="kaart tn-team" style="--tk:${esc(t.kleur)}">
-      <div class="tn-team-kop">${bib(t.kleur)}<b>${esc(t.naam)}</b><span class="aantal">${t.spelers.length} spelers</span></div>
+      <div class="tn-team-kop">${bib(t.kleur)}${hernoembaar
+        ? `<button class="tn-naamknop" data-tn="hernoem" data-a="${esc(t.id)}" aria-label="Naam van team ${esc(t.naam)} aanpassen"><b>${esc(t.naam)}</b>${ico('admin-edit', 16)}</button>`
+        : `<b>${esc(t.naam)}</b>`}<span class="aantal">${t.spelers.length} spelers</span></div>
       <div class="tn-chips">${t.spelers.map(id => { const p = deelnemer(x, id); if (!p) return ''; const inh = esc(p.naam) + (p.gast ? ' <i>gast</i>' : '');
         return tikbaar ? `<button class="tn-chip" data-tn="verplaats" data-a="${esc(id)}">${inh}</button>` : `<span class="tn-chip vast">${inh}</span>`; }).join('') || '<span class="tn-uitleg">Nog geen spelers</span>'}</div>
     </div>`).join('');
 }
 function hTeams(c){
-  return stappen(3) + `
-    <p class="tn-uitleg">Tik op een speler om hem naar een ander team te verplaatsen.</p>
+  const b = c.bewerk ? bewerkInfo(c) : null;
+  return stappen(3, c) + `
+    <p class="tn-uitleg">Tik op een speler om hem naar een ander team te verplaatsen, of op een teamnaam om die aan te passen.</p>
     <div class="rij u-mb-sm">
       <button class="knop klein tn-half" data-tn="verdeel" data-a="hussel">${ico('action-sort', 16)} Husselen</button>
       <button class="knop klein tn-half" data-tn="verdeel" data-a="eerlijk">${ico('action-check', 16)} Eerlijk verdelen</button>
     </div>
     ${teamKaarten(c, c.teams, true)}
     <p class="tn-uitleg">Eerlijk verdelen maakt de teams even sterk met de beoordelingen die het hele team ziet. De niveaus zelf komen nergens in beeld en worden niet bewaard.</p>
-    <div class="tn-voet"><button class="knop fluo vol" data-tn="start">${ico('football-whistle', 20)} Start toernooitje</button></div>`;
+    <div class="tn-voet">${b
+      ? `<button class="knop fluo vol" data-tn="opslaan" ${b.fout ? 'disabled' : ''}>${b.herstart ? 'Opnieuw beginnen met deze teams' : 'Opslaan'}</button>`
+      : `<button class="knop fluo vol" data-tn="start">${ico('football-whistle', 20)} Start toernooitje</button>`}</div>`;
 }
 
 /* ==================== LIVE: SCHERMEN ==================== */
@@ -581,11 +770,14 @@ function hLive(t){
   if (tab === 'schema') inhoud = hSchema(t);
   if (tab === 'stand') inhoud = hStand(t);
   if (tab === 'teams') inhoud = t.cfg.vorm === 'vast'
-    ? `<p class="tn-uitleg">Komt er iemand later of valt er iemand uit? Tik op een speler om hem te verplaatsen.</p>` + teamKaarten(t, t.teams, true)
-    : `<p class="tn-uitleg">De teams van ${rondeNaam(r, t.ri).toLowerCase()}. Elke ronde wordt er opnieuw gehusseld.</p>` + teamKaarten(t, r.teams || [], false);
+    ? `<button class="knop klein vol u-mb-sm" data-tn="wijzig">${ico('admin-edit', 16)} Spelers of opzet wijzigen</button>
+       <p class="tn-uitleg">Tik op een speler om hem te verplaatsen, of op een teamnaam om die aan te passen.</p>` + teamKaarten(t, t.teams, true)
+    : `<button class="knop klein vol u-mb-sm" data-tn="wijzig">${ico('admin-edit', 16)} Spelers of opzet wijzigen</button>
+       <p class="tn-uitleg">De teams van ${rondeNaam(r, t.ri).toLowerCase()}. Elke ronde wordt er opnieuw gehusseld. Tik op een teamnaam om die aan te passen.</p>` + teamKaarten(t, r.teams || [], false);
   return `
     <div class="tn-balkje"><span class="info">${esc(omschrijving(t))} · ${duurTxt(t.duurSec)}</span>
       ${tab !== 'nu' ? `<span class="tn-klokmini" data-tn-klok>${mmss(klokRest(t))}</span>` : ''}
+      <button class="lj-menu" data-tn="wijzig" aria-label="Spelers of opzet wijzigen" title="Wijzigen">${ico('admin-edit', 20)}</button>
       <button class="lj-menu" data-tn="menu" aria-label="Meer opties">${ico('action-more', 20)}</button></div>
     <div class="segment tn-tabs">${tabs.map(([id, naam]) => `<button type="button" class="${tab === id ? 'actief' : ''}" data-tn="tab" data-a="${id}">${naam}</button>`).join('')}</div>
     ${inhoud}`;
@@ -628,6 +820,7 @@ function hNu(t){
       <div class="tijd" data-tn-klok>${mmss(rest)}</div>
       <div class="balk"><i id="tnKlokBalk" style="width:${k.fase === 'klaar' ? 0 : Math.min(100, 100 - rest / klokTotaal(t) * 100)}%"></i></div>
       ${knoppen}
+      ${!isGestart(t) ? `<button class="knop vol u-mt-sm" data-tn="wijzig">${ico('admin-edit', 18)} Spelers of opzet wijzigen</button>` : ''}
     </div>
     ${gelijkFinale}${husselKnop}${velden}${rust}${hierna}`;
 }
@@ -716,7 +909,8 @@ export function htmlToernooitje(){
 }
 export function toernooiTitel(){
   const c = concept();
-  if (S._toernOpen === 'nieuw' && c) return ({ wie:'Wie doet er mee?', opzet:'Opzet', teams:'Teams' })[c.stap] || 'Toernooitje';
+  if (S._toernOpen === 'nieuw' && c) return (c.bewerk ? { wie:'Spelers wijzigen', opzet:'Opzet wijzigen', teams:'Teams wijzigen' }
+    : { wie:'Wie doet er mee?', opzet:'Opzet', teams:'Teams' })[c.stap] || 'Toernooitje';
   const t = huidig();
   return t && t.status !== 'bezig' ? 'Eindstand' : 'Toernooitje';
 }
@@ -738,11 +932,12 @@ const OPZET_ACTIES = {
     setTimeout(() => $('#tnGastNaam')?.focus(), 30);
   },
   stapnaar(c, a){
-    if (a === 'teams' && c.teamSig !== sigVan(c)) verdeel(c, 'eerlijk');
+    // bij wijzigen met hetzelfde aantal teams: de teams bijwerken, niet opnieuw verdelen
+    if (a === 'teams' && c.teamSig !== sigVan(c)){ if (c.bewerk && c.teams.length === c.cfg.teams) werkTeamsBij(c); else verdeel(c, 'eerlijk'); }
     c.stap = a; bewaarCfg(c.cfg); window.scrollTo(0, 0);
   },
   vorige(c){
-    if (c.stap === 'wie'){ terugNaarOverzicht(); return false; }
+    if (c.stap === 'wie'){ if (c.bewerk) stopBewerken(c); else terugNaarOverzicht(); return false; }
     c.stap = c.stap === 'teams' ? 'opzet' : 'wie'; window.scrollTo(0, 0);
   },
   vorm(c, a){ c.cfg.vorm = a; },
@@ -754,14 +949,23 @@ const OPZET_ACTIES = {
     meld(a === 'hussel' ? 'Teams gehusseld' : gewogen ? 'Teams eerlijk verdeeld' : 'Nog geen beoordelingen: de teams zijn gehusseld');
   },
   verplaats(c, a){ modalVerplaats(a); return false; },
+  hernoem(c, a){ modalHernoem(a); return false; },
   start(c){
+    if (c.bewerk){ bewaarWijziging(c); return false; }
     if (c.cfg.vorm === 'vast' && c.teamSig !== sigVan(c)) verdeel(c, 'eerlijk');
     startToernooi(c); return false;
+  },
+  opslaan(c){
+    if (!c.bewerk) return false;
+    if (c.cfg.vorm === 'vast' && c.teamSig !== sigVan(c)){ if (c.teams.length === c.cfg.teams) werkTeamsBij(c); else verdeel(c, 'eerlijk'); }
+    bewaarWijziging(c); return false;
   },
 };
 const LIVE_ACTIES = {
   tab(t, a){ S._toernTab = a; window.scrollTo(0, 0); },
   menu(t){ modalMenu(t.id); return false; },
+  wijzig(t){ if (t.status !== 'bezig') return false; bewerkConcept(t); window.scrollTo(0, 0); },
+  hernoem(t, a){ if (t.status !== 'bezig') return false; modalHernoem(a); return false; },
   'klok-start'(t){ startRonde(t); return false; },
   'klok-pauze'(t){ t.klok = { fase:'pauze', eindMs:0, restMs:klokRest(t) }; schrijf(t, { klok:t.klok }); },
   'klok-verder'(t){ geluidAan(); schermAan(); t.klok = { fase:'spel', eindMs:Date.now() + (t.klok.restMs || 0), restMs:t.klok.restMs || 0 }; schrijf(t, { klok:t.klok }); },
@@ -802,9 +1006,13 @@ export function koppelToernooi(v, tab, api){
   /* Terugknop (toestel én de ‹ in de kop): binnen de opzet eerst één stap terug. */
   terugLaag('toernOpzet', {
     z:1,
-    open: () => S.teamTab === 'toernooitje' && S._toernOpen === 'nieuw' && !!concept() && concept().stap !== 'wie'
+    open: () => S.teamTab === 'toernooitje' && S._toernOpen === 'nieuw' && !!concept() && (concept().stap !== 'wie' || !!concept().bewerk)
       && !!document.querySelector('#view-team.actief #tnWortel'),
-    sluit: () => { const c = concept(); if (!c) return; c.stap = c.stap === 'teams' ? 'opzet' : 'wie'; window.scrollTo(0, 0); API.renderTeam(); },
+    sluit: () => {
+      const c = concept(); if (!c) return;
+      if (c.stap === 'wie'){ stopBewerken(c); return; }          // wijzigen afbreken: terug naar het toernooitje
+      c.stap = c.stap === 'teams' ? 'opzet' : 'wie'; window.scrollTo(0, 0); API.renderTeam();
+    },
   });
   if (w.hasAttribute('data-tn-live')){
     if (!_tik) _tik = setInterval(tik, 250);
@@ -833,6 +1041,20 @@ function modalVerplaats(spelerId){
     else schrijf(y, { teams:y.teams.map(tm => ({ id:tm.id, naam:tm.naam, kleur:tm.kleur, spelers:[...tm.spelers] })) });
     API.renderTeam();
   });
+}
+function modalHernoem(teamId){
+  const x = S._toernOpen === 'nieuw' ? concept() : huidig(); if (!x) return;
+  const tm = (x.teams || []).find(y => y.id === teamId) || (x.rondes || []).flatMap(r => r.teams || []).find(y => y.id === teamId);
+  if (!tm) return;
+  const eigen = x.cfg.namen?.[teamId] || '';
+  openModal(`<div class="tn-dialoog"><h3>${bib(tm.kleur)} Teamnaam</h3><p class="lj-msub">Hesjeskleur: ${esc(kleurNaam(teamId).toLowerCase())}. Laat leeg om de kleur als naam te gebruiken.</p>
+    <input class="invoer u-mb-sm" id="tnTeamNaam" type="text" maxlength="16" autocomplete="off" placeholder="${esc(kleurNaam(teamId))}" value="${esc(eigen)}" aria-label="Teamnaam">
+    <div class="rij"><button class="knop tn-half" data-tn-m="">Annuleren</button><button class="knop fluo tn-half" data-tn-m="ok">Opslaan</button></div></div>`, { vorm:'dialoog' });
+  const inp = $('#tnTeamNaam');
+  const klaar = () => { const naam = inp.value; sluitModal(); hernoemTeam(teamId, naam); };
+  setTimeout(() => { try { inp.focus(); inp.select(); } catch(e){} }, 40);
+  inp.onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); klaar(); } };
+  $$('#modalInhoud [data-tn-m]').forEach(b => b.onclick = () => { if (b.dataset.tnM === 'ok') klaar(); else sluitModal(); });
 }
 function modalScoorder(tid, wedId, kant){
   const t = vind(tid), w = t && vindWed(t, wedId); if (!w) return;
@@ -885,10 +1107,12 @@ function modalMenu(tid){
   const t = vind(tid); if (!t) return;
   const live = t.status === 'bezig';
   openModal(`<h2>Toernooitje</h2>
-    ${live ? `<button class="lj-mopt" data-tn-m="stop"><span>${ico('action-check', 20)}</span>Nu afsluiten en eindstand tonen</button>` : ''}
+    ${live ? `<button class="lj-mopt" data-tn-m="wijzig"><span>${ico('admin-edit', 20)}</span>Spelers of opzet wijzigen</button>
+    <button class="lj-mopt" data-tn-m="stop"><span>${ico('action-check', 20)}</span>Nu afsluiten en eindstand tonen</button>` : ''}
     <button class="lj-mopt gevaar" data-tn-m="weg"><span>${ico('admin-delete', 20)}</span>Toernooitje verwijderen</button>`);
   $$('#modalInhoud [data-tn-m]').forEach(b => b.onclick = async () => {
     const t2 = vind(tid); if (!t2){ sluitModal(); return; }
+    if (b.dataset.tnM === 'wijzig'){ sluitModal(); bewerkConcept(t2); window.scrollTo(0, 0); API.renderTeam(); return; }
     if (b.dataset.tnM === 'stop'){
       if (!confirm('Het toernooitje nu afsluiten? Rondes die nog niet gespeeld zijn vervallen.')) return;
       const upd = { status:'klaar', klok:{ fase:'klaar', eindMs:0, restMs:0 }, klaarMs:Date.now() };
