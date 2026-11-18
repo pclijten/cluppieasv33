@@ -28,11 +28,20 @@
    eigen namen bevatten (ouders, vrijwilligers). Opgeslagen als map met
    veldpaden (eigenRijen.<id>), zodat twee coaches tegelijk namen kunnen
    toevoegen. Mobiel toont lijsten met ≤3 korte kolommen (✓/✗, keuze, datum)
-   compact: naam en waarden op één regel, opmerking achter een potloodje. */
+   compact: naam en waarden op één regel, opmerking achter een potloodje.
+
+   [20261118a] Trainingshulp: vijfde startpunt, rijen = trainingen, ouders
+   schrijven zich via een link zelf in. Die lijst heeft een eigen weergave en
+   eigen opslag (hulpDeel/…): zie lijst-hulp.js. Hier staan alleen de haakjes:
+   overal waar isHulp(l) waar is, neemt lijst-hulp.js het over. */
 import { db, doc, collection, addDoc, updateDoc, deleteDoc, deleteField, onSnapshot } from './firebase.js?v=20261106r';
 import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { SEIZOEN_FALLBACK } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
+import {
+  isHulp, hulpSync, hulpStop, hulpVoortgang, hulpOpenBinnenkort, htmlHulpLijst, koppelHulpLijst,
+  modalNieuwHulp, hulpMenuHtml, hulpMenuActie, hulpOpruimen, hulpZetOpen, hulpZetTitel,
+} from './lijst-hulp.js?v=20261118a';
 
 /* ---------- Sjablonen ---------- */
 export const MATEN_STANDAARD = ['116','128','140','152','164','S','M','L','XL'];
@@ -66,6 +75,10 @@ const SJABLONEN = {
       { id:'r3',  naam:'Rijder 3', type:'tekst', alleenUit:true },
       { id:'was', naam:'Wassen',   type:'tekst' },
     ],
+  },
+  trainingshulp: {
+    naam:'Trainingshulp', sub:'Ouders schrijven zich in per training', ico:'team-trainer',
+    rijen:'trainingen', kolommen:[],
   },
   leeg: { naam:'Leeg', sub:'Zelf kolommen kiezen', ico:'attendance-fill', rijen:'spelers', kolommen:[] },
 };
@@ -137,26 +150,32 @@ function rijCompleet(l, r){
   return kols.every(k => { const v = waarde(l, r.id, k.id); return k.type === 'check' ? v === true || v === false : !!v; });
 }
 function voortgang(l){
+  if (isHulp(l)) return hulpVoortgang(l);
   const rijen = rijenVan(l, l.rijen !== 'wedstrijden');
   const c = rijen.filter(r => rijCompleet(l, r)).length;
   return { c, t:rijen.length };
 }
 /* Badge op de hub-tegel: aantal nog open invullingen over alle actieve lijsten. */
 export function lijstjesOpenTotaal(){
-  try { return actieveLijsten().reduce((n, l) => { const v = voortgang(l); return n + (v.t - v.c); }, 0); }
+  try { return actieveLijsten().reduce((n, l) => { if (isHulp(l)) return n + hulpOpenBinnenkort(l); const v = voortgang(l); return n + (v.t - v.c); }, 0); }
   catch(e){ return 0; }
 }
 
 /* ---------- Firestore ---------- */
 export function luisterLijsten(teamId, herteken, fout){
   S._lijsten = [];
-  return onSnapshot(collection(db, 'teams', teamId, 'lijsten'), snap => {
-    S._lijsten = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    // niet opnieuw tekenen terwijl de coach in een tekstveld van een lijst typt;
-    // bij het verlaten van dat veld tekenen we alsnog (zie koppelLijstjes)
-    if (document.activeElement?.matches?.('#view-team [data-lj-tekst]')){ S._ljUitgesteld = true; return; }
+  // niet opnieuw tekenen terwijl de coach in een tekstveld van een lijst typt;
+  // bij het verlaten van dat veld tekenen we alsnog (zie koppelLijstjes)
+  const rustig = () => {
+    if (document.activeElement?.matches?.('#view-team [data-lj-tekst], #view-team [data-lh-nieuw]')){ S._ljUitgesteld = true; return; }
     herteken();
+  };
+  const unsub = onSnapshot(collection(db, 'teams', teamId, 'lijsten'), snap => {
+    S._lijsten = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    hulpSync(S._lijsten, rustig);   // [20261118a] trainingshulp: eigen luisteraars per lijst
+    rustig();
   }, fout);
+  return () => { unsub(); hulpStop(); };
 }
 async function schrijf(id, velden){
   try { await updateDoc(lijstRef(id), { ...velden, bijgewerktMs:Date.now() }); return true; }
@@ -182,13 +201,13 @@ export function htmlLijstjes(){
     return `<button class="lj-item ${l.gearchiveerd ? 'arch' : ''}" data-lj-open="${esc(l.id)}">
       <span class="lj-ico">${ico(sj.ico, 24)}</span>
       <span class="lj-t"><span class="lj-titel">${esc(l.naam)}</span>
-        <span class="lj-meta">${l.datum ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg> ' + esc(datumKort(l.datum)) + '<span class="sep" aria-hidden="true"></span>' : ''}${v.c} van ${v.t} ${l.rijen === 'wedstrijden' ? 'wedstrijden rond' : 'ingevuld'}</span>
+        <span class="lj-meta">${l.datum ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg> ' + esc(datumKort(l.datum)) + '<span class="sep" aria-hidden="true"></span>' : ''}${v.c} van ${v.t} ${l.rijen === 'wedstrijden' ? 'wedstrijden rond' : isHulp(l) ? 'trainingen rond' : 'ingevuld'}</span>
         <span class="lj-balk"><i style="width:${pct}%"></i></span></span>
       <span class="lj-pijl">›</span></button>`;
   };
   return `
     <p class="lj-intro">Alleen zichtbaar voor de staf van dit team.</p>
-    ${act.length ? act.map(kaart).join('') : `<div class="kaart leeg">Nog geen lijstjes.<br>Maak er een voor een toernooi, kledingbestelling of rijschema.</div>`}
+    ${act.length ? act.map(kaart).join('') : `<div class="kaart leeg">Nog geen lijstjes.<br>Maak er een voor een toernooi, kledingbestelling, rijschema of hulp bij de training.</div>`}
     <button class="lj-nieuw" id="ljNieuw">+ Nieuwe lijst</button>
     ${arch.length ? `<button class="lj-archknop" id="ljArchToggle">${S._ljToonArchief ? 'Verberg' : 'Toon'} ${arch.length} gearchiveerd${arch.length === 1 ? 'e' : 'e'} lijst${arch.length === 1 ? '' : 'en'}</button>
       ${S._ljToonArchief ? arch.map(kaart).join('') : ''}` : ''}`;
@@ -336,6 +355,7 @@ function htmlTabel(l, rijen){
 export function htmlLijst(){
   const l = lijst(S._lijstOpen);
   if (!l) return `<div class="kaart leeg">Deze lijst bestaat niet meer.</div>`;
+  if (isHulp(l)) return htmlHulpLijst(l, { breed:isBreed(), filter:S._ljFilter, toonEerder:!!S._ljToonEerder });
   const wed = l.rijen === 'wedstrijden';
   let rijen = rijenVan(l, !wed || !!S._ljToonEerder);
   const eerderAantal = wed ? wedstrijdRijen(true).length - wedstrijdRijen(false).length : 0;
@@ -403,7 +423,8 @@ export function koppelLijstjes(v, tab, api){
   const dat = v.querySelector('#ljDatum'); if (dat) dat.onclick = () => modalDatum(l);
   const menu = v.querySelector('#ljMenu'); if (menu) menu.onclick = () => modalMenu(l);
   const deel = v.querySelector('#ljDeel'); if (deel) deel.onclick = () => modalDelen(l);
-  const herstel = v.querySelector('#ljHerstel'); if (herstel) herstel.onclick = async () => { if (await schrijf(l.id, { gearchiveerd:false })) meld('Lijst teruggezet'); };
+  const herstel = v.querySelector('#ljHerstel'); if (herstel) herstel.onclick = async () => { if (await schrijf(l.id, { gearchiveerd:false })) meld(isHulp(l) ? 'Lijst teruggezet. De inschrijflink staat nog uit.' : 'Lijst teruggezet'); };
+  if (isHulp(l)) return koppelHulpLijst(v, l, API);
   const rijPlus = v.querySelector('#ljRijPlus'); if (rijPlus) rijPlus.onclick = () => modalNamenToevoegen(l);
   // compact: potloodje klapt de opmerking-regel open
   v.querySelectorAll('[data-lj-notitie]').forEach(b => b.onclick = () => {
@@ -507,6 +528,11 @@ function modalSjabloon(){
     <div class="lj-sjgrid">${Object.entries(SJABLONEN).map(([id, s]) => `<button class="lj-sj" data-lj-sj="${id}">${ico(s.ico, 26)}<span class="st">${esc(s.naam)}</span><span class="ss">${esc(s.sub)}</span></button>`).join('')}</div>`);
   $$('#modalInhoud [data-lj-sj]').forEach(b => b.onclick = () => {
     const s = SJABLONEN[b.dataset.ljSj];
+    if (s.rijen === 'trainingen') return modalNieuwHulp({ klaar:(id, data) => {
+      // de luisteraar van luisterLijsten start zelf de trainingshulp-luisteraars
+      S._lijsten = [...alleLijsten().filter(x => x.id !== id), { id, ...data }];
+      sluitModal(); meld('Lijst gemaakt'); openLijst(id);
+    } });
     S._ljConcept = { sjabloon:b.dataset.ljSj, naam:s.naam === 'Leeg' ? '' : s.naam, rijen:s.rijen,
       kolommen:s.kolommen.map(k => ({ ...k, opties:k.opties ? [...k.opties] : undefined })), datum:'', tijd:'', inPlanning:true,
       rijKop:'', namen:'' };
@@ -666,25 +692,29 @@ function modalKolom(klaar, terug){
 /* ---------- Menu ⋯ ---------- */
 function modalMenu(l){
   openModal(`<h2>${esc(l.naam)}</h2>
-    <button class="lj-mopt" data-lj-m="kolommen"><span>▦</span>Kolommen beheren</button>
+    ${isHulp(l) ? hulpMenuHtml(l) : '<button class="lj-mopt" data-lj-m="kolommen"><span>▦</span>Kolommen beheren</button>'}
     ${isEigen(l) ? '<button class="lj-mopt" data-lj-m="namen"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg></span>Namen beheren</button>' : ''}
     <button class="lj-mopt" data-lj-m="naam"><span>✎</span>Naam wijzigen</button>
-    ${l.rijen !== 'wedstrijden' ? `<button class="lj-mopt" data-lj-m="datum"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg></span>${l.datum ? 'Datum wijzigen' : 'Datum toevoegen'}</button>` : ''}
+    ${l.rijen !== 'wedstrijden' && !isHulp(l) ? `<button class="lj-mopt" data-lj-m="datum"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><circle cx="12" cy="14.5" r="1.4" fill="currentColor" stroke="none"/></svg></span>${l.datum ? 'Datum wijzigen' : 'Datum toevoegen'}</button>` : ''}
     <button class="lj-mopt" data-lj-m="arch"><span></span>${l.gearchiveerd ? 'Terugzetten uit archief' : 'Archiveren'}</button>
     <button class="lj-mopt gevaar" data-lj-m="weg"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></span>Verwijderen</button>`);
   $$('#modalInhoud [data-lj-m]').forEach(b => b.onclick = async () => {
     const m = b.dataset.ljM;
+    if (isHulp(l) && hulpMenuActie(l, m, API)) return;
     if (m === 'kolommen') return modalKolommen(l);
     if (m === 'naam') return modalNaam(l);
     if (m === 'namen') return modalNamenBeheren(l);
     if (m === 'datum') return modalDatum(l);
     if (m === 'arch'){
       const naar = !l.gearchiveerd;
+      // [20261118a] trainingshulp: archiveren zet ook de inschrijflink uit
+      if (naar && isHulp(l)) await hulpZetOpen(l, false);
       if (await schrijf(l.id, { gearchiveerd:naar })){ sluitModal(); meld(naar ? 'Gearchiveerd: terug te vinden onderaan Lijstjes' : 'Lijst teruggezet'); if (naar) terugNaarOverzicht(); }
       return;
     }
     if (m === 'weg'){
       if (!confirm(`"${l.naam}" definitief verwijderen? Alle ingevulde gegevens gaan verloren.`)) return;
+      if (isHulp(l)) await hulpOpruimen(l);
       try { await deleteDoc(lijstRef(l.id)); S._lijsten = alleLijsten().filter(x => x.id !== l.id); sluitModal(); meld('Lijst verwijderd'); terugNaarOverzicht(); }
       catch(e){ meld('Verwijderen mislukt: ' + (e.code || e.message)); }
     }
@@ -695,7 +725,7 @@ function modalNaam(l){
     <button class="knop fluo vol" id="ljNaamOk">Opslaan</button>`);
   $('#ljNaamOk').onclick = async () => {
     const naam = $('#ljNaamInv').value.trim(); if (!naam) return meld('Geef een naam');
-    if (await schrijf(l.id, { naam })){ l.naam = naam; sluitModal(); API.renderTeam(); }
+    if (await schrijf(l.id, { naam })){ l.naam = naam; if (isHulp(l)) hulpZetTitel(l, naam); sluitModal(); API.renderTeam(); }
   };
 }
 function modalKolommen(l){
