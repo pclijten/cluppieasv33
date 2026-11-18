@@ -35,13 +35,13 @@
    eigen opslag (hulpDeel/…): zie lijst-hulp.js. Hier staan alleen de haakjes:
    overal waar isHulp(l) waar is, neemt lijst-hulp.js het over. */
 import { db, doc, collection, addDoc, updateDoc, deleteDoc, deleteField, onSnapshot } from './firebase.js?v=20261106r';
-import { S, $, $$, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
+import { S, $, $$, esc, meld, sluitModal } from './state.js?v=20261111g';
 import { SEIZOEN_FALLBACK } from './config.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import {
   isHulp, hulpSync, hulpStop, hulpVoortgang, hulpOpenBinnenkort, htmlHulpLijst, koppelHulpLijst,
-  modalNieuwHulp, hulpMenuHtml, hulpMenuActie, hulpOpruimen, hulpZetOpen, hulpZetTitel,
-} from './lijst-hulp.js?v=20261118a';
+  modalNieuwHulp, hulpMenuHtml, hulpMenuActie, hulpOpruimen, hulpZetOpen, hulpZetTitel, openPaneel,
+} from './lijst-hulp.js?v=20261118b';
 
 /* ---------- Sjablonen ---------- */
 export const MATEN_STANDAARD = ['116','128','140','152','164','S','M','L','XL'];
@@ -467,7 +467,7 @@ function modalKeuze(l, rij, kol, eigenFocus){
   const r = rijenVan(l).find(x => x.id === rij);
   const huidig = waarde(l, rij, kol);
   const opts = [...(k.opties || [])]; if (huidig && !opts.includes(huidig)) opts.push(huidig);
-  openModal(`<h2>${esc(k.naam)}</h2>
+  openPaneel(`<h2>${esc(k.naam)}</h2>
     <p class="lj-msub">${r ? esc(r.naam || r.tegen) + (r.nr !== undefined && r.nr !== '' ? '<span class="sep" aria-hidden="true"></span>#' + esc(r.nr) : '') : ''}</p>
     <div class="lj-opts">${opts.map(o => `<button class="lj-opt ${o === huidig ? 'gekozen' : ''}" data-lj-kies="${esc(o)}">${esc(o)}</button>`).join('')}
       <button class="lj-opt wis" data-lj-kies="">Wissen</button></div>
@@ -508,7 +508,7 @@ function leesDatumVelden(o){ o.datum = $('#ljDDatum')?.value || ''; o.tijd = $('
 function modalDatum(l){
   const o = { datum:l.datum || '', tijd:l.tijd || '', inPlanning:l.inPlanning !== false };
   const verplicht = l.sjabloon === 'aanwezig';
-  openModal(`<h2>Datum</h2><p class="lj-msub">${esc(l.naam)}</p>${datumVeldenHtml(o, verplicht)}
+  openPaneel(`<h2>Datum</h2><p class="lj-msub">${esc(l.naam)}</p>${datumVeldenHtml(o, verplicht)}
     <button class="knop fluo vol" id="ljDOk">Opslaan</button>
     ${l.datum && !verplicht ? '<button class="knop vol u-mt-xs" id="ljDWis" >Datum weghalen</button>' : ''}`);
   koppelDatumVelden(o);
@@ -524,7 +524,7 @@ function modalDatum(l){
 
 /* ---------- Nieuwe lijst ---------- */
 function modalSjabloon(){
-  openModal(`<h2>Nieuwe lijst</h2><p class="lj-msub">Kies een startpunt, kolommen pas je daarna aan.</p>
+  openPaneel(`<h2>Nieuwe lijst</h2><p class="lj-msub">Kies een startpunt, kolommen pas je daarna aan.</p>
     <div class="lj-sjgrid">${Object.entries(SJABLONEN).map(([id, s]) => `<button class="lj-sj" data-lj-sj="${id}">${ico(s.ico, 26)}<span class="st">${esc(s.naam)}</span><span class="ss">${esc(s.sub)}</span></button>`).join('')}</div>`);
   $$('#modalInhoud [data-lj-sj]').forEach(b => b.onclick = () => {
     const s = SJABLONEN[b.dataset.ljSj];
@@ -556,7 +556,7 @@ function modalNieuw(){
   const c = S._ljConcept; if (!c) return;
   const s = SJABLONEN[c.sjabloon];
   const wed = c.rijen === 'wedstrijden', eigen = c.rijen === 'eigen';
-  openModal(`<h2>${esc(s.naam)}</h2>
+  openPaneel(`<h2>${esc(s.naam)}</h2>
     <p class="lj-msub">${wed ? 'Rijen: alle wedstrijden van dit seizoen (Sportlink).' : eigen ? 'Rijen: de namen die je hieronder invult, later aan te vullen.' : 'Rijen: je hele selectie: nieuwe spelers komen er vanzelf bij.'}</p>
     <div class="veldgroep"><label>Naam</label><input class="invoer" id="ljNNaam" value="${esc(c.naam)}" placeholder="bv. Herfsttoernooi, Teamuitje" autocomplete="off" maxlength="60"></div>
     ${wed ? '' : `<div class="veldgroep"><label>Wie staat er in de lijst?</label>
@@ -614,7 +614,7 @@ function nieuweEigenRijen(tekst, start = Date.now()){
   return uit;
 }
 function modalNamenToevoegen(l){
-  openModal(`<h2>Namen toevoegen</h2><p class="lj-msub">${esc(l.naam)}<span class="sep" aria-hidden="true"></span>één naam per regel</p>
+  openPaneel(`<h2>Namen toevoegen</h2><p class="lj-msub">${esc(l.naam)}<span class="sep" aria-hidden="true"></span>één naam per regel</p>
     <div class="veldgroep"><textarea class="invoer lj-namen" id="ljRNamen" placeholder="Fam. de Wit&#10;Sandra"></textarea></div>
     <div class="avg-balk"><span class="slot"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg></span><span>${NAMEN_HINT}</span></div>
     <button class="knop fluo vol" id="ljROk">Toevoegen</button>`);
@@ -632,7 +632,7 @@ function modalNamenToevoegen(l){
 }
 function modalNamenBeheren(l){
   const rijen = eigenRijen(l);
-  openModal(`<h2>Namen beheren</h2><p class="lj-msub">Weghalen wist ook wat er bij die naam is ingevuld.</p>
+  openPaneel(`<h2>Namen beheren</h2><p class="lj-msub">Weghalen wist ook wat er bij die naam is ingevuld.</p>
     <div class="veldgroep"><label>Kop van de eerste kolom</label><input class="invoer" id="ljBKop" value="${esc(l.rijKop || 'Naam')}" maxlength="24" autocomplete="off"></div>
     <div class="lj-kollijst">${rijen.length ? rijen.map(r => `<div class="lj-kol lj-naamrij"><input class="lj-naaminv" value="${esc(r.naam)}" data-lj-rnaam="${esc(r.id)}" maxlength="40" autocomplete="off"><button data-lj-rweg="${esc(r.id)}" title="Weghalen">✕</button></div>`).join('') : '<div class="lj-kol leeg">Nog geen namen</div>'}</div>
     <button class="knop klein" id="ljBPlus">+ Namen toevoegen</button>`);
@@ -662,7 +662,7 @@ function modalKolom(klaar, terug){
   const d = { naam:'', type:'check', opties:'' };
   const teken = () => {
     const gevoelig = GEVOELIG.test(d.naam);
-    openModal(`<h2>Kolom toevoegen</h2>
+    openPaneel(`<h2>Kolom toevoegen</h2>
       <div class="veldgroep"><label>Naam</label><input class="invoer" id="ljKNaam" value="${esc(d.naam)}" placeholder="bv. Rugnummer, Betaald, Shirt" autocomplete="off" maxlength="30"></div>
       <div class="veldgroep"><label>Type</label><div class="segment">${['check', 'keuze', 'tekst', 'datum'].map(t => `<button type="button" class="${d.type === t ? 'actief' : ''}" data-lj-ktype="${t}">${TYPE_NAAM[t]}</button>`).join('')}</div></div>
       ${d.type === 'keuze' ? `<div class="veldgroep"><label>Opties (met komma's)</label><input class="invoer" id="ljKOpt" value="${esc(d.opties)}" placeholder="bv. ${MATEN_STANDAARD.join(', ')}" autocomplete="off"></div>` : ''}
@@ -691,7 +691,7 @@ function modalKolom(klaar, terug){
 
 /* ---------- Menu ⋯ ---------- */
 function modalMenu(l){
-  openModal(`<h2>${esc(l.naam)}</h2>
+  openPaneel(`<h2>${esc(l.naam)}</h2>
     ${isHulp(l) ? hulpMenuHtml(l) : '<button class="lj-mopt" data-lj-m="kolommen"><span>▦</span>Kolommen beheren</button>'}
     ${isEigen(l) ? '<button class="lj-mopt" data-lj-m="namen"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="2.8"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.3"/><path d="M15.5 13.4A4.8 4.8 0 0 1 20.5 18"/></svg></span>Namen beheren</button>' : ''}
     <button class="lj-mopt" data-lj-m="naam"><span>✎</span>Naam wijzigen</button>
@@ -721,7 +721,7 @@ function modalMenu(l){
   });
 }
 function modalNaam(l){
-  openModal(`<h2>Naam wijzigen</h2><div class="veldgroep"><label>Naam</label><input class="invoer" id="ljNaamInv" value="${esc(l.naam)}" maxlength="60" autocomplete="off"></div>
+  openPaneel(`<h2>Naam wijzigen</h2><div class="veldgroep"><label>Naam</label><input class="invoer" id="ljNaamInv" value="${esc(l.naam)}" maxlength="60" autocomplete="off"></div>
     <button class="knop fluo vol" id="ljNaamOk">Opslaan</button>`);
   $('#ljNaamOk').onclick = async () => {
     const naam = $('#ljNaamInv').value.trim(); if (!naam) return meld('Geef een naam');
@@ -730,7 +730,7 @@ function modalNaam(l){
 }
 function modalKolommen(l){
   const kols = kolommenVan(l);
-  openModal(`<h2>Kolommen</h2><p class="lj-msub">Tik op een kolom om hem te wijzigen. Weghalen wist ook wat er in die kolom is ingevuld.</p>
+  openPaneel(`<h2>Kolommen</h2><p class="lj-msub">Tik op een kolom om hem te wijzigen. Weghalen wist ook wat er in die kolom is ingevuld.</p>
     <div class="lj-kollijst">${kolLijstHtml(kols, true, true)}</div>
     <button class="knop klein" id="ljKolPlus">+ Kolom</button>`);
   $$('#modalInhoud [data-lj-kolbew]').forEach(b => b.onclick = () => modalKolomWijzig(l, Number(b.dataset.ljKolbew)));
@@ -772,7 +772,7 @@ function modalKolomWijzig(l, idx){
   const teken = () => {
     const gevoelig = GEVOELIG.test(d.naam);
     if (d.type === 'keuze' && !d.opties.length) d.opties.push({ oud:null, nieuw:'' });
-    openModal(`<h2>Kolom wijzigen</h2>
+    openPaneel(`<h2>Kolom wijzigen</h2>
       <div class="veldgroep"><label>Naam</label><input class="invoer" id="ljWNaam" value="${esc(d.naam)}" autocomplete="off" maxlength="30"></div>
       <div class="veldgroep"><label>Type</label>${typeVast
         ? `<div class="lj-kol"><span class="lj-kol-n">${TYPE_NAAM[d.type] || d.type}</span></div><p class="lj-msub u-mt-xs">Er is al iets ingevuld, daarom ligt het type vast. Ander type nodig? Haal de kolom weg en maak een nieuwe.</p>`
@@ -881,7 +881,7 @@ function modalDelen(l){
   const spelers = l.rijen === 'spelers';
   const heeftKeuze = kolommenVan(l).some(k => k.type === 'keuze' && o.kol.has(k.id));
   const tekst = waTekst(l, o);
-  openModal(`<h2>Delen via WhatsApp</h2><p class="lj-msub">Kies wat er in het bericht komt.</p>
+  openPaneel(`<h2>Delen via WhatsApp</h2><p class="lj-msub">Kies wat er in het bericht komt.</p>
     <div class="lj-wakies">${kolommenVan(l).map(k => `<button class="${o.kol.has(k.id) ? 'aan' : ''}" data-lj-wak="${esc(k.id)}">${o.kol.has(k.id) ? '✓ ' : ''}${esc(k.naam)}</button>`).join('')}</div>
     ${heeftKeuze ? `<div class="segment u-mb-sm"><button type="button" class="${!o.totalen ? 'actief' : ''}" data-lj-tot="0">${isEigen(l) ? 'Per naam' : 'Per speler'}</button><button type="button" class="${o.totalen ? 'actief' : ''}" data-lj-tot="1">Alleen totalen</button></div>` : ''}
     <div class="lj-watekst">${esc(tekst)}</div>

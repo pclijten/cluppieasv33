@@ -3,9 +3,9 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20261111g';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261118a';
-import { sluitWedstrijd } from './wedstrijd.js?v=20261118a';
-import { initChatbot } from './chatbot.js?v=20261118a';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261118b';
+import { sluitWedstrijd } from './wedstrijd.js?v=20261118b';
+import { initChatbot } from './chatbot.js?v=20261118b';
 
 /* [20260921] Training gedeeld met een ouder (?deel=<id>): volledig losse,
    sterk vereenvoudigde flow — geen normale login, geen navigatie, alleen de
@@ -23,14 +23,14 @@ if (_deelId){
   import('./deel-boot.js?v=20261111g').then(m => m.bootDeelPagina(_deelId));
 } else if (_hulpId){
   document.getElementById('opstart')?.remove();
-  import('./hulp-boot.js?v=20261118a').then(m => m.bootHulpPagina(_hulpId));
+  import('./hulp-boot.js?v=20261118b').then(m => m.bootHulpPagina(_hulpId));
 } else {
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —
    dynamisch laden scheelt elke jeugdcoach het downloaden/parsen van het
    hele adminscherm. Eén keer geladen blijft de module door de browser
    gecached, dus latere aanroepen zijn instant. */
-const openClubLazy = id => import('./club.js?v=20261118a').then(m => m.openClub(id));
+const openClubLazy = id => import('./club.js?v=20261118b').then(m => m.openClub(id));
 
 /* knoppen en modal-gedrag één keer registreren */
 initModalSluiten();
@@ -60,8 +60,8 @@ function verbergOpstart(){
 S._navRerender       = renderTeam;
 S._navTeamTabTerug   = teamTabTerug;
 S._navVerlaatTeam    = verlaatTeamView;
-S._navVerlaatClub    = () => import('./club.js?v=20261118a').then(m => m.verlaatClubView());
-S._navClubTerug      = () => import('./club.js?v=20261118a').then(m => m.clubTerugEen());
+S._navVerlaatClub    = () => import('./club.js?v=20261118b').then(m => m.verlaatClubView());
+S._navClubTerug      = () => import('./club.js?v=20261118b').then(m => m.clubTerugEen());
 S._navTerugWedstrijd = sluitWedstrijd;
 initTerugknop();
 
@@ -72,7 +72,7 @@ initTerugknop();
 const _deskMq = window.matchMedia('(min-width:1100px) and (min-height:520px)');
 function _laadDesktop(){
   if (!_deskMq.matches) return;
-  import('./desktop.js?v=20261118a')
+  import('./desktop.js?v=20261118b')
     .then(m => m.initDesktop(_deskMq))
     .catch(e => console.warn('[Cluppie] desktop-schil niet geladen', e));
 }
