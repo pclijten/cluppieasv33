@@ -7395,3 +7395,15 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .hp-voet svg{flex-shrink:0;margin-top:1px}
 .hp-melding{padding:var(--space-xl) var(--space-xs);text-align:center;color:var(--ink-2)}
 .hp-melding svg{width:28px;height:28px}
+
+/* ==================== [20261118c, uit cluppie.io] Videocategorieën (club, tabblad Video's) ==================== */
+.vcat-rij{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-xs);margin-bottom:var(--space-md)}
+.vcat{display:inline-flex;align-items:center;gap:var(--space-2xs);min-height:36px;padding:0 var(--space-sm);border-radius:var(--r-pill);border:1px solid var(--hair);background:var(--surface);color:var(--ink);font-size:var(--t-sm);font-weight:600;cursor:pointer}
+.vcat:hover{border-color:var(--hover-rand)}
+.vcat.actief{background:var(--accent-vlak);border-color:transparent;color:var(--accent-ink)}
+.vcat-tel{font-weight:500;opacity:.75}
+.vcat:focus-visible,.vcat-beheer:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.vcat-beheer{margin-left:auto}
+.vcat-bewerk{display:flex;align-items:center;gap:var(--space-xs);margin-bottom:var(--space-xs)}
+.vcat-bewerk .invoer{flex:1;min-width:0}
+
