@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261118c'); }
+async function teamsModule(){ return await import('./teams.js?v=20261118d'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261118c').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261118d').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1800,6 +1800,21 @@ function htmlClubTrainingen(teams, trainingen){
     ${lijst}`;
 }
 
+/* [20261118d] Uploaden en bewerken van trainingen, video's en documenten (en de videocategorieën)
+   openen als paneel: op desktop schuift het van rechts in en blijven de zijbalk en de lijst
+   zichtbaar (CSS .modal-achter[data-vorm="paneel"], zoals Lijstjes en Uitlenen). Op de
+   telefoon blijft het een volledig scherm. Esc sluit het paneel. */
+let _paneelEsc = false;
+function openPaneel(html){
+  openModal(html, { vorm:'paneel' });
+  if (_paneelEsc) return;
+  _paneelEsc = true;
+  document.addEventListener('keydown', e => {
+    const achter = document.getElementById('modalAchter');
+    if (e.key === 'Escape' && achter?.classList.contains('open') && achter.dataset.vorm === 'paneel' && !document.querySelector('.trw-lb.open')) sluitModal();
+  });
+}
+
 /* ---------- [20261118c, uit cluppie.io 20261116n] Videocategorieën: de clubbeheerder maakt ze zelf ----------
    clubs/{id}.videoCategorieen = [{ id, naam }]. Op de video staat categorie (id) en categorieNaam, zodat
    de lijst van een team (teams-training.js) kan groeperen zonder het clubdocument te lezen. */
@@ -1819,7 +1834,7 @@ function videoCatVelden(veldId){
 function modalVideoCategorieen(videos){
   let rijen = videoCats().map(c => ({ ...c }));
   const teken = () => {
-    openModal(`
+    openPaneel(`
       <h2>Videocategorieën</h2>
       <p class="u-t-sm u-zacht u-mb-sm">Verdeel de video's van de club in groepen, bijvoorbeeld oefenstof en uitleg over de app. Coaches zien de video's per categorie.</p>
       <div id="mVcLijst">${rijen.map((c, n) => `
@@ -3080,7 +3095,7 @@ function modalNieuweTraining(file, teams, voorBouw = null, batchMeta = null){
     ? `<div class="mm-samenv ok" style="margin:-2px 0 var(--space-sm)">Bestand ${batchMeta.batchInfo.huidig} van ${batchMeta.batchInfo.totaal}</div>` : '';
   const startTitel = batchMeta?.titel || `Week ${weekNr} - training 1`;
   const startWeek  = batchMeta?.week  || `Week ${weekNr}`;
-  openModal(`
+  openPaneel(`
     <h2>Training uploaden</h2>
     ${batchBanner}
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
@@ -3444,7 +3459,7 @@ function modalBewerkTraining(t, teams){
   // [20261116a] ingeplande training (blokplanning): de vaste weekStart bepaalt
   // bij coaches en de trainingscoördinator de week, niet het weeklabel.
   const ingepland = /^\d{4}-\d{2}-\d{2}$/.test(t.weekStart || '');
-  openModal(`
+  openPaneel(`
     <h2>Training aanpassen</h2>
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(t.bestandsnaam || t.titel)}</b>${t.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(t.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
     <div class="veldgroep"><label>Titel</label>
@@ -3685,7 +3700,7 @@ async function bewaarGroepen(groepen){
 
 function modalNieuweVideo(teams, voorBouw = null){
   const voor = voorBouw ? new Set(teams.filter(t => standaardBouwVoorStof(t) === voorBouw).map(t => t.id)) : new Set();
-  openModal(`
+  openPaneel(`
     <h2>YouTube-video toevoegen</h2>
     <div class="veldgroep"><label>YouTube-link</label>
       <input class="invoer" id="mVdUrl" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off"></div>
@@ -3730,7 +3745,7 @@ function modalNieuweVideo(teams, voorBouw = null){
 function modalBewerkVideo(vid, teams){
   const huidig = new Set(vid.teams || []);
   const upload = vid.bron === 'upload';
-  openModal(`
+  openPaneel(`
     <h2>Video aanpassen</h2>
     ${upload
       ? `<p class="u-t-sm u-zacht u-mb-sm">Geüploade video: <b>${esc(vid.bestandsnaam || vid.titel || 'clip.mp4')}</b>${vid.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(vid.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het videobestand zelf blijft ongewijzigd.</p>`
@@ -3780,7 +3795,7 @@ function modalUploadVideo(file, teams, voorBouw = null){
   if (file.size > MAX_VIDEO_MB * 1024 * 1024)
     return meld(`Bestand is te groot (max ${MAX_VIDEO_MB} MB). Comprimeer de clip eerst.`);
   const voor = voorBouw ? new Set(teams.filter(t => standaardBouwVoorStof(t) === voorBouw).map(t => t.id)) : new Set();
-  openModal(`
+  openPaneel(`
     <h2>Video uploaden</h2>
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>
     <div class="veldgroep"><label>Titel</label>
@@ -3837,7 +3852,7 @@ function modalUploadVideo(file, teams, voorBouw = null){
    leeftijdsgebonden is, maar omdat het gewoon de handigste manier is om snel
    teams terug te vinden in een lange lijst. */
 function modalNieuwDocument(file, teams, voorCategorie = null){
-  openModal(`
+  openPaneel(`
     <h2>Document uploaden</h2>
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024).toFixed(0)} KB)</p>
     <div class="veldgroep"><label>Titel</label>
@@ -3892,7 +3907,7 @@ function modalNieuwDocument(file, teams, voorCategorie = null){
    aanpassen — zonder het PDF-bestand opnieuw te uploaden. */
 function modalBewerkDocument(d, teams){
   const huidig = new Set(d.teams || []);
-  openModal(`
+  openPaneel(`
     <h2>Document aanpassen</h2>
     <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(d.bestandsnaam || d.titel)}</b>${d.url ? `<span class="sep" aria-hidden="true"></span><a href="${esc(d.url)}" target="_blank" style="color:var(--grass);font-weight:600">openen ↗</a>` : ''}<br>Het PDF-bestand zelf blijft ongewijzigd.</p>
     <div class="veldgroep"><label>Titel</label>
