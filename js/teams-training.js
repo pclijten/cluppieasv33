@@ -491,7 +491,16 @@ export function htmlTeamTrainingen(){
 export function htmlTeamVideos(){
   const lijst = S.videos.filter(t => (t.teams||[]).includes(S.teamId));
   if (!lijst.length) return `<div class="kaart leeg">Nog geen video's.<br>Vraag je clubadmin om video's te delen met dit team.</div>`;
-  return lijst.map(vid => {
+  /* [20261118c, uit cluppie.io 20261116n] per categorie van de clubbeheerder (categorieNaam staat op de video); zonder categorieën één lijst */
+  const groepen = new Map();
+  for (const vid of lijst){ const naam = vid.categorieNaam || ''; if (!groepen.has(naam)) groepen.set(naam, []); groepen.get(naam).push(vid); }
+  const namen = [...groepen.keys()].filter(Boolean).sort((a, b) => a.localeCompare(b, 'nl'));
+  if (!namen.length) return lijst.map(videoRijHtml).join('');
+  return namen.map(naam => `<h3 class="sectie-kop">${esc(naam)}</h3>${groepen.get(naam).map(videoRijHtml).join('')}`).join('')
+    + (groepen.has('') ? `<h3 class="sectie-kop">Overig</h3>${groepen.get('').map(videoRijHtml).join('')}` : '');
+}
+function videoRijHtml(vid){
+  {
     const upload = vid.bron === 'upload';
     const id = upload ? null : youtubeId(vid.url);
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
@@ -508,7 +517,7 @@ export function htmlTeamVideos(){
         <button title="Afspelen">▶</button>
       </div>
     </div>`;
-  }).join('');
+  }
 }
 
 /* [20260929b] Teamnaam en teamcode wijzigen mag alleen een beheerder: de
