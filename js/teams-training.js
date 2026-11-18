@@ -488,36 +488,50 @@ export function htmlTeamTrainingen(){
 }
 
 /* ---------- Tab: video's ---------- */
+/* [20261118e] Volgorde zoals de clubbeheerder die instelt: veld volgorde (oplopend); zonder dat veld
+   telt -gemaakt (nieuwste eerst). Dezelfde sleutel staat in club.js (videoSleutel). */
+const videoSleutel = (v) => Number.isFinite(v?.volgorde) ? v.volgorde : -(v?.gemaakt?.seconds || 0);
+const opVideoVolgorde = (a, b) => videoSleutel(a) - videoSleutel(b) || String(a.id).localeCompare(String(b.id));
 export function htmlTeamVideos(){
-  const lijst = S.videos.filter(t => (t.teams||[]).includes(S.teamId));
+  const lijst = S.videos.filter(t => (t.teams||[]).includes(S.teamId)).sort(opVideoVolgorde);
   if (!lijst.length) return `<div class="kaart leeg">Nog geen video's.<br>Vraag je clubadmin om video's te delen met dit team.</div>`;
-  /* [20261118c, uit cluppie.io 20261116n] per categorie van de clubbeheerder (categorieNaam staat op de video); zonder categorieën één lijst */
+  const rijen = (vids) => `<div class="tv-lijst">${vids.map((vid, i) => videoRijHtml(vid, i + 1)).join('')}</div>`;
+  /* per categorie van de clubbeheerder (categorieNaam en categorieVolgorde staan op de video) */
   const groepen = new Map();
   for (const vid of lijst){ const naam = vid.categorieNaam || ''; if (!groepen.has(naam)) groepen.set(naam, []); groepen.get(naam).push(vid); }
-  const namen = [...groepen.keys()].filter(Boolean).sort((a, b) => a.localeCompare(b, 'nl'));
-  if (!namen.length) return lijst.map(videoRijHtml).join('');
-  return namen.map(naam => `<h3 class="sectie-kop">${esc(naam)}</h3>${groepen.get(naam).map(videoRijHtml).join('')}`).join('')
-    + (groepen.has('') ? `<h3 class="sectie-kop">Overig</h3>${groepen.get('').map(videoRijHtml).join('')}` : '');
+  const plek = (naam) => Math.min(...groepen.get(naam).map(v => Number.isFinite(v.categorieVolgorde) ? v.categorieVolgorde : 999));
+  const namen = [...groepen.keys()].filter(Boolean).sort((a, b) => plek(a) - plek(b) || a.localeCompare(b, 'nl'));
+  if (!namen.length) return rijen(lijst);
+  /* [20261118e] één categorie tegelijk, te kiezen met de knoppen bovenaan; 'Alle' toont alles gegroepeerd */
+  const tabs = namen.map(naam => ({ id: 'c:' + naam, naam, vids: groepen.get(naam) }));
+  if (groepen.has('')) tabs.push({ id: '_overig', naam: 'Overig', vids: groepen.get('') });
+  const gekozen = S._videoCat === '_alle' || tabs.some(t => t.id === S._videoCat) ? S._videoCat : tabs[0].id;
+  const knop = (id, naam, n) => `<button type="button" class="vcat ${gekozen === id ? 'actief' : ''}" data-tvcat="${esc(id)}" aria-pressed="${gekozen === id}">${esc(naam)} <span class="vcat-tel">${n}</span></button>`;
+  const groep = (t) => `
+    <div class="tv-groep">
+      <div class="tv-kop"><h3>${esc(t.naam)}</h3><span>${t.vids.length} video${t.vids.length === 1 ? '' : "'s"}</span></div>
+      ${rijen(t.vids)}
+    </div>`;
+  return `
+    <div class="tv-cats" role="group" aria-label="Categorie">${tabs.map(t => knop(t.id, t.naam, t.vids.length)).join('')}${knop('_alle', 'Alle', lijst.length)}</div>
+    ${(gekozen === '_alle' ? tabs : tabs.filter(t => t.id === gekozen)).map(groep).join('')}`;
 }
-function videoRijHtml(vid){
-  {
-    const upload = vid.bron === 'upload';
-    const id = upload ? null : youtubeId(vid.url);
-    const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
-    const thumbInner = id
-      ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
-      : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
-    return `
+function videoRijHtml(vid, nr){
+  const upload = vid.bron === 'upload';
+  const id = upload ? null : youtubeId(vid.url);
+  const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
+  const thumbInner = id
+    ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
+    : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
+  return `
     <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
-      <div class="thumb">${thumbInner}</div>
+      <div class="thumb">${thumbInner}<span class="tv-nr">${nr}</span></div>
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
         <div class="v-meta">${vid.clubNaam ? esc(vid.clubNaam) : (upload ? 'Eigen video' : 'YouTube')}</div></div>
       <div class="acties">
         <button class="rij-wa" data-deel-video="${esc(href)}" data-deel-type="${upload ? 'upload' : 'youtube'}" data-deel-titel="${esc(vid.titel || 'Video')}" title="Delen via WhatsApp">${ico('action-whatsapp',18)}</button>
-        <button title="Afspelen">▶</button>
       </div>
     </div>`;
-  }
 }
 
 /* [20260929b] Teamnaam en teamcode wijzigen mag alleen een beheerder: de
