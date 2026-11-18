@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261118e'); }
+async function teamsModule(){ return await import('./teams.js?v=20261118f'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261118e').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261118f').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2008,8 +2008,8 @@ function htmlClubVideos(teams, videos){
 
   return `
     <button class="upload-knop" id="videoToevoegen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg> YouTube-video toevoegen voor één of meer teams</button>
-    <button class="upload-knop u-mt-xs" id="videoUpload" >Eigen video uploaden (mp4) voor één of meer teams
-      <input type="file" id="videoFile" accept="video/mp4,video/*" style="display:none"></button>
+    <button class="upload-knop u-mt-xs ${videoUpload ? 'bezig' : ''}" id="videoUpload" aria-live="polite">${videoUpload ? esc(videoUploadTekst()) : "Eigen video's uploaden (mp4) voor één of meer teams"}
+      <input type="file" id="videoFile" accept="video/mp4,video/*" multiple style="display:none"></button>
     ${segment}
     <div class="vindeling">
       ${kolom}
@@ -2588,10 +2588,10 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     const vUpKnop = v.querySelector('#videoUpload');
     const vUpInput = v.querySelector('#videoFile');
     if (vUpKnop && vUpInput){
-      vUpKnop.onclick = () => vUpInput.click();
+      vUpKnop.onclick = () => videoUpload ? meld('Wacht tot de upload klaar is') : vUpInput.click();
       vUpInput.onchange = e => {
-        const file = e.target.files[0]; if (!file) return;
-        modalUploadVideo(file, teams, S.clubVideoBouw);
+        const files = [...(e.target.files || [])]; if (!files.length) return;
+        modalUploadVideo(files, teams, S.clubVideoBouw);
       };
     }
     v.querySelectorAll('[data-vbewerk]').forEach(b => b.onclick = () => {
@@ -3911,16 +3911,39 @@ function modalBewerkVideo(vid, teams){
    de document-/training-upload, maar naar clubs/{clubId}/videos/ en met
    bron:'upload' zodat de weergave 'm inline afspeelt i.p.v. via YouTube. */
 const MAX_VIDEO_MB = 100;
-function modalUploadVideo(file, teams, voorBouw = null){
-  if (file.size > MAX_VIDEO_MB * 1024 * 1024)
-    return meld(`Bestand is te groot (max ${MAX_VIDEO_MB} MB). Comprimeer de clip eerst.`);
+/* [20261118f] Eén of meer video's tegelijk: per bestand een titel, categorie en teams gelden voor
+   allemaal. Het venster sluit en de bestanden gaan één voor één omhoog, in de volgorde van de lijst
+   (dus ook in die volgorde in de categorie). De voortgang staat in de uploadknop en overleeft een
+   hertekening van het scherm (videoUpload). */
+let videoUpload = null;   // { klaar, totaal, naam } zolang er een upload loopt
+const videoUploadTekst = () => videoUpload.totaal === 1
+  ? 'Uploaden: ' + videoUpload.naam + '…'
+  : `Uploaden: video ${videoUpload.klaar + 1} van ${videoUpload.totaal} (${videoUpload.naam})…`;
+const videoMb = (file) => (file.size / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
+function modalUploadVideo(files, teams, voorBouw = null){
+  if (videoUpload) return meld('Wacht tot de upload klaar is');
+  const teGroot = files.filter(f => f.size > MAX_VIDEO_MB * 1024 * 1024);
+  let rijen = files.filter(f => !teGroot.includes(f))
+    .sort((a, b) => a.name.localeCompare(b.name, 'nl', { numeric: true }))
+    .map(file => ({ file, titel: file.name.replace(/\.[^.]+$/, '') }));
+  if (!rijen.length)
+    return meld(teGroot.length === 1 ? `Bestand is te groot (max ${MAX_VIDEO_MB} MB). Comprimeer de clip eerst.` : `Alle bestanden zijn te groot (max ${MAX_VIDEO_MB} MB per video).`);
   const voor = voorBouw ? new Set(teams.filter(t => standaardBouwVoorStof(t) === voorBouw).map(t => t.id)) : new Set();
+  const htmlRijen = () => rijen.map((r, n) => `
+      <div class="vup-rij">
+        ${rijen.length > 1 ? `<span class="vup-nr">${n + 1}</span>` : ''}
+        <div class="vup-veld"><input class="invoer" data-vuptitel="${n}" value="${esc(r.titel)}" autocomplete="off" aria-label="Titel van video ${n + 1}">
+          <small>${esc(r.file.name)} · ${videoMb(r.file)}</small></div>
+        ${rijen.length > 1 ? `<button type="button" class="knop licht klein" data-vupweg="${n}" aria-label="${esc(r.file.name)} niet uploaden">Weg</button>` : ''}
+      </div>`).join('');
+  const knopTekst = () => rijen.length === 1 ? 'Uploaden en delen' : `${rijen.length} video's uploaden en delen`;
   openPaneel(`
-    <h2>Video uploaden</h2>
-    <p class="u-t-sm u-zacht u-mb-sm">Bestand: <b>${esc(file.name)}</b> (${(file.size/1024/1024).toFixed(1)} MB)</p>
-    <div class="veldgroep"><label>Titel</label>
-      <input class="invoer" id="mVuTitel" value="${esc(file.name.replace(/\.[^.]+$/,''))}" autocomplete="off"></div>
-    <div class="veldgroep"><label for="mVuCat">Categorie</label>
+    <h2>${rijen.length === 1 ? 'Video uploaden' : "Video's uploaden"}</h2>
+    ${teGroot.length ? `<p class="u-t-sm u-mb-sm" style="color:var(--uit)">Niet meegenomen, groter dan ${MAX_VIDEO_MB} MB: ${esc(teGroot.map(f => f.name).join(', '))}. Comprimeer ${teGroot.length === 1 ? 'deze clip' : 'deze clips'} eerst.</p>` : ''}
+    <div class="veldgroep"><label>${rijen.length === 1 ? 'Titel' : 'Titel per video'}</label>
+      <div id="mVuRijen">${htmlRijen()}</div>
+      ${rijen.length > 1 ? '<p class="u-t-sm u-zacht" style="margin:var(--space-xs) 0 0">De video\'s komen in deze volgorde in de lijst. Verplaatsen kan daarna met de pijlen.</p>' : ''}</div>
+    <div class="veldgroep"><label for="mVuCat">Categorie${rijen.length > 1 ? " voor alle video's" : ''}</label>
       ${videoCatKeuze('mVuCat', S.clubVideoCat && S.clubVideoCat !== '_geen' ? S.clubVideoCat : '')}</div>
     <div class="veldgroep"><label>Voor welke teams?</label>
       <div id="mVuTeams">${teams.length ? teamKeuzePerBouw(teams, voor) : '<p class="u-t-sm u-zacht">Maak eerst teams aan in deze club.</p>'}</div>
@@ -3929,40 +3952,67 @@ function modalUploadVideo(file, teams, voorBouw = null){
         <button class="knop licht klein" id="mVuGeen">Geen</button>
       </div>
     </div>
-    <button class="knop vol" id="mVuOk">Uploaden en delen</button>`);
+    <button class="knop vol" id="mVuOk">${knopTekst()}</button>`);
+  const leesTitels = () => $$('[data-vuptitel]').forEach(i => { rijen[Number(i.dataset.vuptitel)].titel = i.value; });
+  const koppelRijen = () => $$('[data-vupweg]').forEach(b => b.onclick = () => {
+    leesTitels();
+    rijen.splice(Number(b.dataset.vupweg), 1);
+    $('#mVuRijen').innerHTML = htmlRijen(); $('#mVuOk').textContent = knopTekst();
+    koppelRijen();
+  });
+  koppelRijen();
   const sync = () => $$('#mVuTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
   $$('#mVuTeams input').forEach(c => c.onchange = sync);
   $('#mVuAlle').onclick = () => { $$('#mVuTeams input').forEach(c => c.checked = true); sync(); };
   $('#mVuGeen').onclick = () => { $$('#mVuTeams input').forEach(c => c.checked = false); sync(); };
-  $('#mVuOk').onclick = async () => {
+  $('#mVuOk').onclick = () => {
     const gekozen = $$('#mVuTeams input').filter(c => c.checked).map(c => c.dataset.tid);
     if (!gekozen.length) return meld('Kies minstens één team');
-    const titel = $('#mVuTitel').value.trim() || file.name;
+    leesTitels();
     const catVelden = videoCatVelden('mVuCat');   /* nu lezen: het venster sluit vóór het uploaden */
-    const knop = $('.upload-knop');
-    if (knop){ knop.classList.add('bezig'); knop.textContent = 'Uploaden...'; }
     sluitModal();
+    uploadVideos(rijen.map(r => ({ file: r.file, titel: r.titel.trim() || r.file.name })), gekozen, catVelden);
+  };
+}
+async function uploadVideos(lijst, teamIds, catVelden){
+  const clubId = S.clubId, clubNaam = S.club.naam;
+  const hertekenen = () => { if (S.club && S.clubId === clubId && S.clubTab === 'videos') renderClub(); };
+  const nietWeg = e => { e.preventDefault(); e.returnValue = ''; };
+  window.addEventListener('beforeunload', nietWeg);
+  const mislukt = [];
+  videoUpload = { klaar: 0, totaal: lijst.length, naam: lijst[0].titel };
+  hertekenen();
+  for (const { file, titel } of lijst){
+    videoUpload.naam = titel;
+    const knop = document.getElementById('videoUpload');
+    if (knop && knop.firstChild) knop.firstChild.textContent = videoUploadTekst();
     try {
-      const ts = Date.now();
       const veiligeNaam = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const path = `clubs/${S.clubId}/videos/${ts}_${veiligeNaam}`;
+      const path = `clubs/${clubId}/videos/${Date.now()}_${veiligeNaam}`;
       const r = sRef(storage, path);
       await uploadBytes(r, file, {contentType: file.type || 'video/mp4'});
       const url = await getDownloadURL(r);
       await addDoc(collection(db,'videos'), {
-        club: S.clubId, clubNaam: S.club.naam,
+        club: clubId, clubNaam,
         bron: 'upload', url, path,
         titel, bestandsnaam: file.name, grootte: file.size,
-        teams: gekozen, ...catVelden, volgorde: Date.now(),
+        teams: teamIds, ...catVelden, volgorde: Date.now(),
         gemaakt: serverTimestamp(),
         door: S.user.displayName || S.user.email || '',
       });
-      meld('Video geüpload'); renderClub();
     } catch(e){
-      console.error(e); meld('Upload mislukt: staat Firebase Storage aan?');
-      if (knop){ knop.classList.remove('bezig'); knop.textContent = 'Eigen video uploaden (mp4) voor één of meer teams'; }
+      console.error(e); mislukt.push(titel);
     }
-  };
+    videoUpload.klaar++;
+    if (videoUpload.klaar < videoUpload.totaal) hertekenen();
+  }
+  window.removeEventListener('beforeunload', nietWeg);
+  const gelukt = lijst.length - mislukt.length;
+  videoUpload = null;
+  hertekenen();
+  if (!mislukt.length) meld(lijst.length === 1 ? 'Video geüpload' : `${gelukt} video's geüpload`);
+  else if (lijst.length === 1) meld('Upload mislukt: staat Firebase Storage aan?');
+  else meld(`${gelukt} van ${lijst.length} geüpload. Mislukt: ${mislukt.join(', ')}`);
 }
 
 /* ==================== DOCUMENTEN (KNVB, beleid, overig) ====================
