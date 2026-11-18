@@ -111,6 +111,8 @@ export function hulpSync(lijsten, herteken){
     _unsubs[id] = [
       onSnapshot(deelRef(id), snap => {
         const h = S._hulp?.[id]; if (!h) return;
+        // [20261118b] een lege cache-uitslag is geen "verwijderd": wachten op de server
+        if (!snap.exists() && snap.metadata?.fromCache) return;
         h.deel = snap.exists() ? snap.data() : null; h.geladen = true;
         h.fout = snap.exists() ? '' : 'weg';
         herteken();

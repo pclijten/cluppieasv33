@@ -23,7 +23,7 @@ if (_deelId){
   import('./deel-boot.js?v=20261111g').then(m => m.bootDeelPagina(_deelId));
 } else if (_hulpId){
   document.getElementById('opstart')?.remove();
-  import('./hulp-boot.js?v=20261118a').then(m => m.bootHulpPagina(_hulpId));
+  import('./hulp-boot.js?v=20261118b').then(m => m.bootHulpPagina(_hulpId));
 } else {
 
 /* club.js is alleen nodig voor club-admins die het clubdashboard openen —

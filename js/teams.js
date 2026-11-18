@@ -1188,6 +1188,7 @@ const UPDATES = [
     'Het aantal helpers pas je per training aan met − en +. Zelf een naam invullen of iemand weghalen kan ook.',
     'Ouders zien via de link alleen de trainingsdata en de voornamen van helpers, geen spelers en geen andere lijstjes. De link zet je uit via ⋯ en dan Inschrijflink.',
     'Op de computer openen de vensters van Lijstjes nu als paneel aan de rechterkant. De zijbalk en je lijst blijven zichtbaar.',
+    'Opgelost: bij een trage verbinding (bijvoorbeeld in de browser van WhatsApp) kreeg een ouder soms de melding dat de lijst verwijderd was. Nu wacht de pagina tot de verbinding er is.',
   ]},
   { datum:'2026-11-17', titel:'Toernooitje: achteraf wijzigen en eigen teamnamen', punten:[
     'Een toernooitje dat je al gemaakt hebt kun je nu aanpassen. Tik op het potloodje rechtsboven, of op Spelers of opzet wijzigen.',

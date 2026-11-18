@@ -63,6 +63,14 @@ export async function bootHulpPagina(deelId){
 
   onSnapshot(doc(db, 'hulpDeel', deelId), snap => {
     if (!snap.exists()){
+      /* [20261118b] Komt dit uit de lokale cache (trage of wegvallende verbinding,
+         of de ingebouwde browser van WhatsApp), dan weet de app nog niet of de
+         lijst bestaat. Niet "verwijderd" melden, maar wachten: Firestore probeert
+         het zelf opnieuw en tekent de lijst zodra de server antwoordt. */
+      if (snap.metadata?.fromCache){
+        if (!st.deel){ st.getekend = false; el.innerHTML = meldingHtml('Even geduld', 'We maken verbinding met Cluppie. Lukt het niet, controleer dan je internet of open de link in je gewone browser.'); }
+        return;
+      }
       st.getekend = false;
       el.innerHTML = meldingHtml('Deze link werkt niet (meer)', 'De lijst is verwijderd. Vraag de trainer om een nieuwe link.');
       return;
