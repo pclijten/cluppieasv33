@@ -11,7 +11,7 @@
 
    Deze module heeft alleen firebase.js nodig en houdt zijn eigen kleine
    hulpjes (esc, datums), zodat hij los staat van de rest van de app. */
-import { auth, db, signInAnonymously, onAuthStateChanged, doc, collection, setDoc, deleteDoc, onSnapshot } from './firebase.js?v=20261106r';
+import { auth, db, signInAnonymously, signOut, onAuthStateChanged, doc, collection, setDoc, deleteDoc, onSnapshot } from './firebase.js?v=20261106r';
 
 const NAAM_MAX = 24;
 const NAAM_SLEUTEL = 'cluppieHulpNaam';
@@ -36,6 +36,28 @@ function authKlaar(){
   return new Promise(klaar => { const stop = onAuthStateChanged(auth, () => { stop(); klaar(); }, () => klaar()); });
 }
 
+/* [20261118g] Een sessie die echt werkt. Op de telefoon van een ouder kan nog een oude
+   anonieme sessie staan, bijvoorbeeld van een gedeelde training weken geleden. Is die
+   intussen ongeldig, dan krijgt de database geen geldig bewijs mee en weigert hij alles:
+   de ouder zag dan "Deze inschrijflijst staat uit" (of bleef op "Even geduld" hangen),
+   terwijl de lijst gewoon aan stond. Daarom vragen we hier eerst een bewijs op (een
+   verlopen bewijs wordt daarbij ververst); lukt dat niet, dan beginnen we een nieuwe
+   anonieme sessie. Een echte gebruiker (een coach) loggen we nooit uit.
+   Valt alleen de verbinding even weg, dan laten we de sessie met rust: de database
+   probeert het zelf opnieuw en de pagina toont zolang "Even geduld".
+   forceer = true ververst het bewijs altijd (gebruikt na een weigering). */
+async function zorgVoorSessie(forceer){
+  const u = auth.currentUser;
+  if (u){
+    try { await u.getIdToken(!!forceer); return; }
+    catch(e){
+      if (e?.code === 'auth/network-request-failed') return;
+      if (auth.currentUser?.isAnonymous){ try { await signOut(auth); } catch(_){ /* dan maar zo */ } }
+    }
+  }
+  if (!auth.currentUser) await signInAnonymously(auth);
+}
+
 export async function bootHulpPagina(deelId){
   const el = document.getElementById('deel');
   if (!el) return;
@@ -44,42 +66,66 @@ export async function bootHulpPagina(deelId){
 
   try {
     await authKlaar();
-    if (!auth.currentUser) await signInAnonymously(auth);
+    await zorgVoorSessie(false);
   } catch(e){
     el.innerHTML = meldingHtml('Laden is niet gelukt', 'Controleer je verbinding en ververs de pagina.');
     return;
   }
-  const uid = auth.currentUser.uid;
-  const st = { deel:null, aanm:null, mijnNaam:'', bezig:false, getekend:false };
+  let uid = auth.currentUser.uid;
+  const st = { deel:null, aanm:null, mijnNaam:'', bezig:false, getekend:false, ronde:0, hersteld:false };
+  let stops = [];
   try { st.mijnNaam = (localStorage.getItem(NAAM_SLEUTEL) || '').slice(0, NAAM_MAX); } catch(e){ /* geen opslag: prima */ }
 
-  const stopFout = e => {
+  /* Een weigering van de database vangen we één keer op: bewijs verversen (of een nieuwe
+     anonieme sessie) en opnieuw luisteren. Pas als het daarna nog steeds geweigerd wordt,
+     staat de lijst echt uit. `ronde` zorgt dat een late fout van de vorige poging niets
+     meer doet (beide luisteraars melden dezelfde weigering). */
+  const stopFout = async (e, ronde) => {
+    if (ronde !== st.ronde) return;
     console.error('[Cluppie] trainingshulp', e);
-    st.getekend = false;
+    if (e?.code === 'permission-denied' && !st.hersteld){
+      st.hersteld = true; st.ronde++;
+      stops.forEach(u => { try { u(); } catch(_){ /* al gestopt */ } }); stops = [];
+      try {
+        await zorgVoorSessie(true);
+        uid = auth.currentUser.uid;
+        st.deel = null; st.aanm = null;
+        luister();
+        return;
+      } catch(_){ /* door naar de melding hieronder */ }
+    }
+    st.ronde++; st.getekend = false;
+    stops.forEach(u => { try { u(); } catch(_){ /* al gestopt */ } }); stops = [];
     el.innerHTML = e?.code === 'permission-denied'
       ? meldingHtml('Deze inschrijflijst staat uit', 'Vraag de trainer om een nieuwe link.')
       : meldingHtml('Laden is niet gelukt', 'Controleer je verbinding en ververs de pagina.');
   };
 
-  onSnapshot(doc(db, 'hulpDeel', deelId), snap => {
-    if (!snap.exists()){
-      /* [20261118b] Komt dit uit de lokale cache (trage of wegvallende verbinding,
-         of de ingebouwde browser van WhatsApp), dan weet de app nog niet of de
-         lijst bestaat. Niet "verwijderd" melden, maar wachten: Firestore probeert
-         het zelf opnieuw en tekent de lijst zodra de server antwoordt. */
-      if (snap.metadata?.fromCache){
-        if (!st.deel){ st.getekend = false; el.innerHTML = meldingHtml('Even geduld', 'We maken verbinding met Cluppie. Lukt het niet, controleer dan je internet of open de link in je gewone browser.'); }
+  function luister(){
+    const ronde = st.ronde;
+    stops.push(onSnapshot(doc(db, 'hulpDeel', deelId), snap => {
+      if (ronde !== st.ronde) return;
+      if (!snap.exists()){
+        /* [20261118b] Komt dit uit de lokale cache (trage of wegvallende verbinding,
+           of de ingebouwde browser van WhatsApp), dan weet de app nog niet of de
+           lijst bestaat. Niet "verwijderd" melden, maar wachten: Firestore probeert
+           het zelf opnieuw en tekent de lijst zodra de server antwoordt. */
+        if (snap.metadata?.fromCache){
+          if (!st.deel){ st.getekend = false; el.innerHTML = meldingHtml('Even geduld', 'We maken verbinding met Cluppie. Lukt het niet, controleer dan je internet of open de link in je gewone browser.'); }
+          return;
+        }
+        st.getekend = false;
+        el.innerHTML = meldingHtml('Deze link werkt niet (meer)', 'De lijst is verwijderd. Vraag de trainer om een nieuwe link.');
         return;
       }
-      st.getekend = false;
-      el.innerHTML = meldingHtml('Deze link werkt niet (meer)', 'De lijst is verwijderd. Vraag de trainer om een nieuwe link.');
-      return;
-    }
-    st.deel = snap.data(); teken();
-  }, stopFout);
-  onSnapshot(collection(db, 'hulpDeel', deelId, 'aanmeldingen'), snap => {
-    st.aanm = snap.docs.map(d => ({ id:d.id, ...d.data() })); teken();
-  }, stopFout);
+      st.deel = snap.data(); teken();
+    }, e => stopFout(e, ronde)));
+    stops.push(onSnapshot(collection(db, 'hulpDeel', deelId, 'aanmeldingen'), snap => {
+      if (ronde !== st.ronde) return;
+      st.aanm = snap.docs.map(d => ({ id:d.id, ...d.data() })); teken();
+    }, e => stopFout(e, ronde)));
+  }
+  luister();
 
   /* Komende trainingen waar hulp bij gevraagd is of al iemand helpt. */
   function rijen(){
