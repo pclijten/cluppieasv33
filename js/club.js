@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261118d'); }
+async function teamsModule(){ return await import('./teams.js?v=20261118e'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261118d').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261118e').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -131,8 +131,7 @@ async function clubTrainingenOphalen(){
 
 async function clubVideosOphalen(){
   const snap = await getDocs(query(collection(db,'videos'), where('club','==',S.clubId)));
-  return snap.docs.map(d => ({id:d.id, ...d.data()}))
-    .sort((a,b) => (b.gemaakt?.seconds||0) - (a.gemaakt?.seconds||0));
+  return snap.docs.map(d => ({id:d.id, ...d.data()})).sort(opVideoVolgorde);
 }
 
 async function clubDocumentenOphalen(){
@@ -1829,16 +1828,60 @@ function videoCatKeuze(veldId, huidig){
 /* de twee velden die op de video komen (leeg = geen categorie) */
 function videoCatVelden(veldId){
   const id = document.getElementById(veldId)?.value || '';
-  return { categorie: id || null, categorieNaam: videoCatNaam(id) || null };
+  const plek = videoCats().findIndex(c => c.id === id);
+  return { categorie: id || null, categorieNaam: videoCatNaam(id) || null, categorieVolgorde: plek >= 0 ? plek : null };
 }
-function modalVideoCategorieen(videos){
+
+/* ---------- [20261118e] Volgorde van video's en categorieën ----------
+   Video: veld volgorde (getal, oplopend). Zonder dat veld telt -gemaakt, dus oude video's blijven
+   nieuwste-eerst staan tot ze verplaatst worden; een nieuwe video krijgt Date.now() en komt achteraan.
+   Categorie: de volgorde van clubs/{id}.videoCategorieen; die plek staat ook op de video
+   (categorieVolgorde), zodat de lijst van een team kan sorteren zonder het clubdocument.
+   Dezelfde sleutel staat in teams-training.js (videoSleutel). */
+const videoSleutel = (v) => Number.isFinite(v?.volgorde) ? v.volgorde : -(v?.gemaakt?.seconds || 0);
+const opVideoVolgorde = (a, b) => videoSleutel(a) - videoSleutel(b) || String(a.id).localeCompare(String(b.id));
+/* oud = de getoonde lijst zoals hij stond, nieuw = dezelfde video's in de gewenste volgorde. De
+   sleutels van de lijst worden opnieuw verdeeld, zodat de plek tussen video's buiten deze lijst
+   (andere bouw of categorie) gelijk blijft. Alleen gewijzigde video's worden geschreven. */
+async function bewaarVideoVolgorde(oud, nieuw){
+  const sleutels = oud.map(videoSleutel);
+  for (let i = 1; i < sleutels.length; i++) if (sleutels[i] <= sleutels[i - 1]) sleutels[i] = sleutels[i - 1] + 0.001;
+  const batch = writeBatch(db); let n = 0;
+  nieuw.forEach((vid, i) => {
+    if (vid.volgorde === sleutels[i]) return;
+    batch.update(doc(db, 'videos', vid.id), { volgorde: sleutels[i] }); n++;
+  });
+  if (n) await batch.commit();
+}
+/* categorieën opslaan en de video's bijwerken waarvan naam of plek daardoor verandert */
+async function bewaarVideoCats(lijst, videos){
+  await updateDoc(doc(db, 'clubs', S.clubId), { videoCategorieen: lijst });
+  if (S.club) S.club.videoCategorieen = lijst;
+  const naamVan = Object.fromEntries(lijst.map(c => [c.id, c.naam]));
+  const plekVan = Object.fromEntries(lijst.map((c, i) => [c.id, i]));
+  const teDoen = videos.filter(v => v.categorie && ((naamVan[v.categorie] || null) !== (v.categorieNaam || null) || (plekVan[v.categorie] ?? null) !== (v.categorieVolgorde ?? null)));
+  for (let i = 0; i < teDoen.length; i += 400){
+    const batch = writeBatch(db);
+    for (const v of teDoen.slice(i, i + 400)){
+      const naam = naamVan[v.categorie] || null;
+      batch.update(doc(db, 'videos', v.id), naam ? { categorieNaam: naam, categorieVolgorde: plekVan[v.categorie] } : { categorie: null, categorieNaam: null, categorieVolgorde: null });
+    }
+    await batch.commit();
+  }
+  return naamVan;
+}
+const V_PIJL_OP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 15l6-6 6 6"/></svg>';
+const V_PIJL_NEER = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9l6 6 6-6"/></svg>';
+function modalVideoCategorieen(videos, focusNieuw = false){
   let rijen = videoCats().map(c => ({ ...c }));
   const teken = () => {
     openPaneel(`
       <h2>Videocategorieën</h2>
-      <p class="u-t-sm u-zacht u-mb-sm">Verdeel de video's van de club in groepen, bijvoorbeeld oefenstof en uitleg over de app. Coaches zien de video's per categorie.</p>
+      <p class="u-t-sm u-zacht u-mb-sm">Verdeel de video's van de club in groepen, bijvoorbeeld oefenstof en uitleg over de app. Coaches zien de categorieën in deze volgorde.</p>
       <div id="mVcLijst">${rijen.map((c, n) => `
         <div class="vcat-bewerk"><input class="invoer" data-vcnaam="${n}" value="${esc(c.naam)}" maxlength="40" aria-label="Naam van categorie ${n + 1}">
+          <button class="knop licht klein vcat-pijl" data-vcschuif="${n}" data-naar="${n - 1}" ${n === 0 ? 'disabled' : ''} aria-label="${esc(c.naam)} omhoog">${V_PIJL_OP}</button>
+          <button class="knop licht klein vcat-pijl" data-vcschuif="${n}" data-naar="${n + 1}" ${n === rijen.length - 1 ? 'disabled' : ''} aria-label="${esc(c.naam)} omlaag">${V_PIJL_NEER}</button>
           <button class="knop licht klein" data-vcweg="${n}" aria-label="Categorie ${esc(c.naam)} verwijderen">Verwijder</button></div>`).join('')
         || '<p class="u-t-sm u-zacht">Nog geen categorieën.</p>'}</div>
       <div class="veldgroep u-mt-sm"><label for="mVcNieuw">Nieuwe categorie</label>
@@ -1856,6 +1899,12 @@ function modalVideoCategorieen(videos){
       teken(); $('#mVcNieuw')?.focus();
     };
     $('#mVcPlus').onclick = plus;
+    $$('[data-vcschuif]').forEach(b => b.onclick = () => {
+      lees();
+      const i = Number(b.dataset.vcschuif), j = Number(b.dataset.naar);
+      if (j < 0 || j >= rijen.length) return;
+      [rijen[i], rijen[j]] = [rijen[j], rijen[i]]; teken();
+    });
     $('#mVcNieuw').onkeydown = e => { if (e.key === 'Enter'){ e.preventDefault(); plus(); } };
     $$('[data-vcweg]').forEach(b => b.onclick = () => {
       lees();
@@ -1872,19 +1921,7 @@ function modalVideoCategorieen(videos){
       const knop = $('#mVcOk'); knop.disabled = true; knop.textContent = 'Bezig...';
       try {
         const lijst = rijen.map(r => ({ id: r.id, naam: r.naam }));
-        await updateDoc(doc(db, 'clubs', S.clubId), { videoCategorieen: lijst });
-        if (S.club) S.club.videoCategorieen = lijst;
-        /* video's bijwerken waarvan de categorie hernoemd of verwijderd is */
-        const naamVan = Object.fromEntries(lijst.map(c => [c.id, c.naam]));
-        const teDoen = videos.filter(v => v.categorie && (naamVan[v.categorie] || null) !== (v.categorieNaam || null));
-        for (let i = 0; i < teDoen.length; i += 400){
-          const batch = writeBatch(db);
-          for (const v of teDoen.slice(i, i + 400)){
-            const naam = naamVan[v.categorie] || null;
-            batch.update(doc(db, 'videos', v.id), naam ? { categorieNaam: naam } : { categorie: null, categorieNaam: null });
-          }
-          await batch.commit();
-        }
+        const naamVan = await bewaarVideoCats(lijst, videos);
         if (S.clubVideoCat && S.clubVideoCat !== '_geen' && !naamVan[S.clubVideoCat]) S.clubVideoCat = '';
         sluitModal(); meld('Categorieën opgeslagen'); renderClub();
       } catch(e){
@@ -1894,6 +1931,7 @@ function modalVideoCategorieen(videos){
     };
   };
   teken();
+  if (focusNieuw) $('#mVcNieuw')?.focus();
 }
 
 function htmlClubVideos(teams, videos){
@@ -1902,16 +1940,31 @@ function htmlClubVideos(teams, videos){
   for (const vid of videos)
     for (const b of bouwenVanTraining(vid, teams)) telPerBouw[b]++;
   const inBouw = videos.filter(vid => bouwenVanTraining(vid, teams).has(actief));
+  /* [20261118e] links de categorieën (op de telefoon een rij knoppen), rechts de video's van één
+     categorie in de volgorde die coaches zien. Zonder categorieën: alle video's van de bouw. */
   const cats = videoCats(), bekend = new Set(cats.map(c => c.id));
   const catVan = (vid) => (vid.categorie && bekend.has(vid.categorie) ? vid.categorie : '_geen');
-  const catActief = S.clubVideoCat === '_geen' || bekend.has(S.clubVideoCat) ? S.clubVideoCat : '';
-  const zichtbaar = catActief ? inBouw.filter(vid => catVan(vid) === catActief) : inBouw;
   const telCat = (id) => inBouw.filter(vid => catVan(vid) === id).length;
-  const catKnop = (id, naam, n) => `<button type="button" class="vcat ${catActief === id ? 'actief' : ''}" data-vcat="${esc(id)}" aria-pressed="${catActief === id}">${esc(naam)} <span class="vcat-tel">${n}</span></button>`;
-  const catRij = `
-    <div class="vcat-rij">
-      ${cats.length ? catKnop('', 'Alle', inBouw.length) + cats.map(c => catKnop(c.id, c.naam, telCat(c.id))).join('') + (telCat('_geen') ? catKnop('_geen', 'Zonder categorie', telCat('_geen')) : '') : '<span class="u-t-sm u-zacht">Verdeel video\'s in groepen, bijvoorbeeld oefenstof en uitleg over de app.</span>'}
-      <button type="button" class="knop licht klein vcat-beheer" id="videoCatBeheer">Categorieën beheren</button>
+  const heeftGeen = cats.length > 0 && telCat('_geen') > 0;
+  const catActief = !cats.length ? '' : ((S.clubVideoCat === '_geen' && heeftGeen) || bekend.has(S.clubVideoCat) ? S.clubVideoCat : cats[0].id);
+  S.clubVideoCat = catActief;
+  const zichtbaar = cats.length ? inBouw.filter(vid => catVan(vid) === catActief) : inBouw;
+  const catRij = (id, naam, n, i) => `
+      <div class="vkol-rij ${catActief === id ? 'actief' : ''}">
+        <button type="button" class="vkol-naam" data-vcat="${esc(id)}" aria-pressed="${catActief === id}"><span>${esc(naam)}</span><span class="vcat-tel">${n}</span></button>
+        ${i >= 0 ? `<button type="button" class="vkol-pijl" data-vcplek="${i}" data-naar="${i - 1}" ${i === 0 ? 'disabled' : ''} aria-label="Categorie ${esc(naam)} omhoog">${V_PIJL_OP}</button>
+        <button type="button" class="vkol-pijl" data-vcplek="${i}" data-naar="${i + 1}" ${i === cats.length - 1 ? 'disabled' : ''} aria-label="Categorie ${esc(naam)} omlaag">${V_PIJL_NEER}</button>` : ''}
+      </div>`;
+  const kolom = `
+    <div class="vkol">
+      <div class="vkol-kop">Categorieën</div>
+      ${cats.length
+        ? `<div class="vkol-lijst">${cats.map((c, i) => catRij(c.id, c.naam, telCat(c.id), i)).join('')}${heeftGeen ? catRij('_geen', 'Zonder categorie', telCat('_geen'), -1) : ''}</div>`
+        : `<p class="u-t-sm u-zacht" style="margin:0">Verdeel video's in groepen, bijvoorbeeld oefenstof en uitleg over de app.</p>`}
+      <div class="vkol-knoppen">
+        <button type="button" class="vkol-plus" id="videoCatNieuw">+ Categorie</button>
+        ${cats.length ? '<button type="button" class="vkol-beheer" id="videoCatBeheer">Hernoemen of verwijderen</button>' : ''}
+      </div>
     </div>`;
 
   const segment = `
@@ -1919,37 +1972,49 @@ function htmlClubVideos(teams, videos){
       ${BOUWEN.map(b => `<button data-vbouw="${b.id}" class="${actief===b.id?'actief':''}">${b.kort}${telPerBouw[b.id]?` <span style="opacity:.6">(${telPerBouw[b.id]})</span>`:''}</button>`).join('')}
     </div>`;
 
-  const lijst = zichtbaar.length ? zichtbaar.map(vid => {
+  const lijst = zichtbaar.length ? zichtbaar.map((vid, i) => {
     const teamNamen = (vid.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
     const upload = vid.bron === 'upload';
     const id = upload ? null : youtubeId(vid.url);
     const href = upload ? vid.url : (youtubeWatch(id) || vid.url);
     const thumbInner = id
-      ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
+      ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy" draggable="false"><span class="play">▶</span>`
       : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
+    const titel = esc(vid.titel || 'Video');
     return `
-      <div class="video-rij">
-        <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener">${thumbInner}</a>
-        <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
-          <div class="v-meta">${esc([catVan(vid) !== '_geen' ? videoCatNaam(vid.categorie) : '', teamNamen || '—'].filter(Boolean).join(', '))}</div></div>
+      <div class="video-rij vsort" data-vid="${vid.id}" draggable="true">
+        <span class="vsort-greep" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+        <span class="vsort-nr">${i + 1}</span>
+        <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener" draggable="false">${thumbInner}</a>
+        <div class="v"><div class="v-titel">${titel}</div>
+          <div class="v-meta">${esc(teamNamen || '—')}</div></div>
         <div class="acties">
+          <button data-vschuif="${vid.id}" data-stap="-1" ${i === 0 ? 'disabled' : ''} aria-label="${titel} omhoog" title="Omhoog">${V_PIJL_OP}</button>
+          <button data-vschuif="${vid.id}" data-stap="1" ${i === zichtbaar.length - 1 ? 'disabled' : ''} aria-label="${titel} omlaag" title="Omlaag">${V_PIJL_NEER}</button>
           <button data-vbewerk="${vid.id}" title="Titel, categorie en teams wijzigen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15.4 4.8 19.2 8.6 9 18.8l-4 1.2 1.2-4z"/><path d="M13.4 6.8 17.2 10.6"/></svg></button>
           <button data-vshare="${vid.id}" title="Delen naar WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 21h14"/></svg></button>
           <button data-vweg="${vid.id}" title="Verwijderen" style="color:var(--uit)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5.4 7.4h13.2"/><path d="M7.4 7.4 8.3 20h7.4l.9-12.6"/><path d="M9.6 4.4h4.8l.6 3H9z"/><path d="M10.6 11v5.4M13.4 11v5.4"/></svg></button>
         </div>
       </div>`;
   }).join('')
-  : (catActief && inBouw.length
+  : (cats.length && inBouw.length
     ? `<div class="kaart leeg">Geen video's in deze categorie voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Kies bij een video het potlood om hem hier in te delen.</div>`
     : `<div class="kaart leeg">Nog geen video's voor de ${esc(bouwNaam(actief).toLowerCase())}.<br>Plak een YouTube-link of upload een eigen clip en koppel hem aan een team.</div>`);
+
+  const kopNaam = !cats.length ? 'Alle video\'s' : (catActief === '_geen' ? 'Zonder categorie' : videoCatNaam(catActief));
+  const kop = `
+      <div class="vsort-kop"><h3>${esc(kopNaam)}</h3><span>${zichtbaar.length} video${zichtbaar.length === 1 ? '' : "'s"}</span></div>
+      ${zichtbaar.length > 1 ? `<p class="vsort-uitleg">Verplaats een video met de pijlen<span class="vsort-sleeptekst"> of door te slepen</span>. Coaches zien de video's in deze volgorde.</p>` : ''}`;
 
   return `
     <button class="upload-knop" id="videoToevoegen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="13" height="12" rx="2.2"/><path d="M16 10l5-3v10l-5-3z"/></svg> YouTube-video toevoegen voor één of meer teams</button>
     <button class="upload-knop u-mt-xs" id="videoUpload" >Eigen video uploaden (mp4) voor één of meer teams
       <input type="file" id="videoFile" accept="video/mp4,video/*" style="display:none"></button>
     ${segment}
-    ${catRij}
-    ${lijst}`;
+    <div class="vindeling">
+      ${kolom}
+      <div class="vsort-lijst" id="videoSortLijst">${kop}${lijst}</div>
+    </div>`;
 }
 
 function htmlClubDocumenten(teams, documenten){
@@ -2464,6 +2529,61 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
     v.querySelectorAll('[data-vcat]').forEach(b => b.onclick = () => { S.clubVideoCat = b.dataset.vcat; renderClub(); });
     const vCatKnop = v.querySelector('#videoCatBeheer');
     if (vCatKnop) vCatKnop.onclick = () => modalVideoCategorieen(videos);
+    const vCatNieuw = v.querySelector('#videoCatNieuw');
+    if (vCatNieuw) vCatNieuw.onclick = () => modalVideoCategorieen(videos, true);
+    /* [20261118e] categorie een plek omhoog of omlaag (kolom op de computer) */
+    v.querySelectorAll('[data-vcplek]').forEach(b => b.onclick = async () => {
+      const lijst = (S.club?.videoCategorieen || []).filter(c => c && c.id && c.naam).map(c => ({ id: c.id, naam: c.naam }));
+      const i = Number(b.dataset.vcplek), j = Number(b.dataset.naar);
+      if (j < 0 || j >= lijst.length) return;
+      [lijst[i], lijst[j]] = [lijst[j], lijst[i]];
+      b.disabled = true;
+      try { await bewaarVideoCats(lijst, videos); }
+      catch(e){ meld('Opslaan mislukt: ' + (e.code || e.message)); }
+      renderClub();
+    });
+    /* [20261118e] volgorde van de video's in de getoonde lijst: pijlen of slepen */
+    const vLijst = v.querySelector('#videoSortLijst');
+    const getoond = () => [...(vLijst?.querySelectorAll('[data-vid]') || [])].map(r => videos.find(x => x.id === r.dataset.vid)).filter(Boolean);
+    let vBezig = false;
+    const verplaats = async (oud, nieuw) => {
+      if (vBezig) return; vBezig = true;
+      try { await bewaarVideoVolgorde(oud, nieuw); }
+      catch(e){ meld('Volgorde opslaan mislukt: ' + (e.code || e.message)); }
+      renderClub();
+    };
+    v.querySelectorAll('[data-vschuif]').forEach(b => b.onclick = () => {
+      const oud = getoond(), i = oud.findIndex(x => x.id === b.dataset.vschuif), j = i + Number(b.dataset.stap);
+      if (i < 0 || j < 0 || j >= oud.length) return;
+      const nieuw = oud.slice(); [nieuw[i], nieuw[j]] = [nieuw[j], nieuw[i]];
+      verplaats(oud, nieuw);
+    });
+    let sleepId = null;
+    const wisMarkering = () => vLijst?.querySelectorAll('.sleep-boven,.sleep-onder').forEach(x => x.classList.remove('sleep-boven', 'sleep-onder'));
+    (vLijst?.querySelectorAll('[data-vid]') || []).forEach(r => {
+      r.addEventListener('dragstart', e => {
+        sleepId = r.dataset.vid; r.classList.add('sleept');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', sleepId); } catch {}
+      });
+      r.addEventListener('dragend', () => { sleepId = null; r.classList.remove('sleept'); wisMarkering(); });
+      r.addEventListener('dragover', e => {
+        if (!sleepId || sleepId === r.dataset.vid) return;
+        e.preventDefault();
+        const rect = r.getBoundingClientRect(), onder = e.clientY > rect.top + rect.height / 2;
+        wisMarkering(); r.classList.add(onder ? 'sleep-onder' : 'sleep-boven');
+      });
+      r.addEventListener('drop', e => {
+        if (!sleepId || sleepId === r.dataset.vid) return;
+        e.preventDefault();
+        const onder = r.classList.contains('sleep-onder');
+        const oud = getoond(), van = oud.findIndex(x => x.id === sleepId);
+        if (van < 0) return;
+        const nieuw = oud.slice(); const [item] = nieuw.splice(van, 1);
+        nieuw.splice(nieuw.findIndex(x => x.id === r.dataset.vid) + (onder ? 1 : 0), 0, item);
+        wisMarkering(); verplaats(oud, nieuw);
+      });
+    });
     v.querySelector('#videoToevoegen').onclick = () => modalNieuweVideo(teams, S.clubVideoBouw);
     const vUpKnop = v.querySelector('#videoUpload');
     const vUpInput = v.querySelector('#videoFile');
@@ -3730,7 +3850,7 @@ function modalNieuweVideo(teams, voorBouw = null){
     try {
       await addDoc(collection(db,'videos'), {
         club: S.clubId, clubNaam: S.club.naam,
-        url, titel, teams: gekozen, ...videoCatVelden('mVdCat'),
+        url, titel, teams: gekozen, ...videoCatVelden('mVdCat'), volgorde: Date.now(),
         gemaakt: serverTimestamp(),
         door: S.user.displayName || S.user.email || '',
       });
@@ -3833,7 +3953,7 @@ function modalUploadVideo(file, teams, voorBouw = null){
         club: S.clubId, clubNaam: S.club.naam,
         bron: 'upload', url, path,
         titel, bestandsnaam: file.name, grootte: file.size,
-        teams: gekozen, ...catVelden,
+        teams: gekozen, ...catVelden, volgorde: Date.now(),
         gemaakt: serverTimestamp(),
         door: S.user.displayName || S.user.email || '',
       });

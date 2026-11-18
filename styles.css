@@ -7407,3 +7407,66 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .vcat-bewerk{display:flex;align-items:center;gap:var(--space-xs);margin-bottom:var(--space-xs)}
 .vcat-bewerk .invoer{flex:1;min-width:0}
 
+
+/* ==================== [20261118e] Video's: categoriekolom, volgorde en teamweergave ==================== */
+/* Club: links de categorieën (telefoon: een rij knoppen), rechts de video's van één categorie */
+.vindeling{display:flex;flex-direction:column;gap:var(--space-md)}
+.vkol{display:flex;flex-direction:column;gap:var(--space-xs);min-width:0}
+.vkol-kop{display:none}
+.vkol-lijst{display:flex;gap:var(--space-xs);overflow-x:auto;padding-bottom:var(--space-2xs)}
+.vkol-rij{display:flex;align-items:center;flex-shrink:0;border-radius:var(--r-pill);border:1px solid var(--hair);background:var(--surface)}
+.vkol-rij.actief{background:var(--accent-vlak);border-color:transparent}
+.vkol-naam{display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs);flex:1;min-width:0;min-height:40px;padding:0 var(--space-sm);border-radius:inherit;color:var(--ink);font-size:var(--t-sm);font-weight:600;white-space:nowrap;text-align:left}
+.vkol-rij.actief .vkol-naam,.vkol-rij.actief .vkol-pijl{color:var(--accent-ink)}
+.vkol-pijl{display:none}
+.vkol-knoppen{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-xs)}
+.vkol-plus{min-height:40px;padding:0 var(--space-sm);border:1px dashed var(--hover-rand);border-radius:10px;color:var(--ink);font-size:var(--t-sm);font-weight:600}
+.vkol-beheer{min-height:40px;padding:0 var(--space-xs);color:var(--ink-2);font-size:var(--t-sm);font-weight:600;text-decoration:underline}
+.vkol-naam:focus-visible,.vkol-pijl:focus-visible,.vkol-plus:focus-visible,.vkol-beheer:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.vsort-lijst{min-width:0}
+.vsort-kop{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-xs);margin-bottom:var(--space-2xs)}
+.vsort-kop h3{margin:0;font-family:var(--font-display);font-size:var(--t-3xl);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink)}
+.vsort-kop span,.vsort-uitleg{font-size:var(--t-sm);color:var(--ink-2)}
+.vsort-uitleg{margin:0 0 var(--space-sm)}
+.vsort-sleeptekst,.vsort-greep{display:none}
+.vsort-nr{flex:0 0 20px;text-align:center;font-size:var(--t-md);font-weight:700;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.video-rij.vsort .acties button{display:inline-flex;align-items:center;justify-content:center}
+.video-rij.vsort .acties button:disabled{opacity:.3;cursor:not-allowed}
+.video-rij.vsort.sleept{opacity:.45}
+.video-rij.vsort.sleep-boven{box-shadow:0 -3px 0 var(--accent) !important}
+.video-rij.vsort.sleep-onder{box-shadow:0 3px 0 var(--accent) !important}
+.vcat-pijl{display:inline-flex;align-items:center;justify-content:center;min-width:36px;padding-left:0;padding-right:0}
+@media (max-width:1099px){
+  .video-rij.vsort{flex-wrap:wrap}
+  .video-rij.vsort .acties{width:100%;justify-content:flex-end}
+  .video-rij.vsort .acties button{width:40px;height:40px}
+}
+@media (min-width:1100px) and (min-height:520px){
+  html.desk #view-club.actief:has(.vindeling){max-width:1084px}
+  html.desk .vindeling{flex-direction:row;align-items:flex-start;gap:var(--space-lg)}
+  html.desk .vkol{flex:0 0 270px;padding:var(--space-sm);border-radius:var(--radius);background:var(--surface);border:1px solid var(--line-d)}
+  html.desk .vkol-kop{display:block;padding:var(--space-2xs) var(--space-xs);font-size:var(--t-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+  html.desk .vkol-lijst{flex-direction:column;gap:var(--space-2xs);overflow:visible;padding:0}
+  html.desk .vkol-rij{border-radius:10px;border-color:transparent;background:transparent}
+  html.desk .vkol-rij:hover{background:var(--op-vlak)}
+  html.desk .vkol-rij.actief,html.desk .vkol-rij.actief:hover{background:var(--accent-vlak)}
+  html.desk .vkol-naam{min-height:44px;white-space:normal}
+  html.desk .vkol-pijl{display:flex;align-items:center;justify-content:center;flex:0 0 28px;height:44px;color:var(--ink-2)}
+  html.desk .vkol-pijl:disabled{opacity:.3;cursor:not-allowed}
+  html.desk .vkol-knoppen{flex-direction:column;align-items:stretch;margin-top:var(--space-xs)}
+  html.desk .vsort-lijst{flex:1}
+  html.desk .vsort-sleeptekst{display:inline}
+  html.desk .dk-na-videos .tv-lijst{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--space-sm)}
+  html.desk .dk-na-videos .tv-lijst .video-rij{display:flex;width:auto;margin:0}
+  html.desk .vsort-greep{display:flex;align-items:center;justify-content:center;flex:0 0 20px;height:44px;color:var(--ink-2);cursor:grab}
+}
+/* Team → Video's: categorieknoppen, grotere thumbnail met volgnummer */
+.tv-cats{display:flex;gap:var(--space-xs);overflow-x:auto;padding-bottom:var(--space-xs);margin-bottom:var(--space-xs)}
+.tv-cats .vcat{flex-shrink:0;min-height:40px;white-space:nowrap}
+.tv-groep{margin-bottom:var(--space-md)}
+.tv-kop{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-xs);margin-bottom:var(--space-xs)}
+.tv-kop h3{margin:0;font-family:var(--font-display);font-size:var(--t-2xl);font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink)}
+.tv-kop span{font-size:var(--t-sm);color:var(--ink-2)}
+.tv-lijst .video-rij .thumb{width:112px;height:64px;border-radius:9px}
+.tv-lijst .video-rij .v-titel{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}
+.tv-nr{position:absolute;left:5px;top:5px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:var(--r-pill);background:var(--zwart);color:var(--wit);font-size:var(--t-xs);font-weight:700;display:flex;align-items:center;justify-content:center}
