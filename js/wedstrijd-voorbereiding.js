@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261118g';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261118h';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -594,7 +594,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261118g');
+      const m = await import('./wedstrijd.js?v=20261118h');
       m.openWedstrijd(id);
       return;
     }
@@ -653,13 +653,23 @@ function koppel(body){
 }
 
 /* Openen vanuit het Nu-blok. ctx = { zetTeamTab } uit teams.js. */
+let _escAan = false;
 export function openVoorbereiding(wid, ctx){
   const w = (S.wedstrijden || []).find(x => x.id === wid);
   if (!w) return meld('Wedstrijd niet gevonden');
   _ctx = ctx || null; _wid = wid;
   if (S._vbWid !== wid){ S._vbTab = 'tegenstander'; S._vbWid = wid; }
   S._vbTab ||= 'tegenstander';
-  openModal('<h2>Wedstrijdvoorbereiding</h2><div></div>');
+  /* [20261118h] Vorm 'paneel': op desktop schuift het van rechts in en blijft de
+     zijbalk zichtbaar; op de telefoon is het gewoon een volledig scherm. */
+  openModal('<h2>Wedstrijdvoorbereiding</h2><div></div>', { vorm:'paneel' });
+  if (!_escAan){
+    _escAan = true;
+    document.addEventListener('keydown', e => {
+      const achter = document.getElementById('modalAchter');
+      if (e.key === 'Escape' && achter?.classList.contains('open') && achter.dataset.vorm === 'paneel' && achter.querySelector('.vb-body')) sluitModal();
+    });
+  }
   const body = document.querySelector('#modalInhoud .modal-body');
   if (!body) return;
   body.classList.add('vb-body');

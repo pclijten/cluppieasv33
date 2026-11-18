@@ -6625,6 +6625,8 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, input:focu
     animation:ulPaneelIn var(--dur-long) var(--ease-out); }
   .modal-achter[data-vorm="paneel"] .modal-kop{ padding:var(--space-lg) var(--space-lg) var(--space-md); }
   .modal-achter[data-vorm="paneel"] .modal-body{ padding:var(--space-lg) var(--space-lg) 20px; }
+  /* [20261118h] Wedstrijdvoorbereiding: iets breder paneel, de tabbladen en kaarten krijgen ruimte */
+  .modal-achter[data-vorm="paneel"] .modal:has(.vb-body){ width:min(720px, 100vw); max-width:720px; }
   .modal-achter[data-vorm="paneel"] .ul-voet{ margin-left:calc(var(--space-lg) * -1); margin-right:calc(var(--space-lg) * -1); padding-left:var(--space-lg); padding-right:var(--space-lg); }
   .modal-achter[data-vorm="paneel"] .ul-form{ gap:var(--space-md); }
   .modal-achter[data-vorm="paneel"] .ul-kop{ margin-top:var(--space-sm); }
