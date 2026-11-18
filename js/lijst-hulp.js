@@ -57,6 +57,21 @@ const I_PLUS = svg('<path d="M6 12h12M12 6v12"/>');
 const I_X = svg('<path d="M6 6l12 12M18 6L6 18"/>');
 const I_LINK = svg('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>', 18, 1.8);
 const I_SLOT = svg('<rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/>', 20, 1.8);
+/* [20261118b] Lijstjes-pop-ups als paneel: op desktop schuift het van rechts
+   over het scherm en blijven de zijbalk en de lijst erachter zichtbaar
+   (CSS: .modal-achter[data-vorm="paneel"], zoals bij uitlenen). Op de
+   telefoon blijft het een volledig scherm. Esc sluit het paneel. */
+let _escAan = false;
+export function openPaneel(html){
+  openModal(html, { vorm:'paneel' });
+  if (_escAan) return;
+  _escAan = true;
+  document.addEventListener('keydown', e => {
+    const achter = document.getElementById('modalAchter');
+    if (e.key === 'Escape' && achter?.classList.contains('open') && achter.dataset.vorm === 'paneel') sluitModal();
+  });
+}
+
 const AVG_LINK = 'Wie de link heeft, ziet alleen de trainingsdata en de voornamen van helpers. Geen spelers, geen andere lijstjes.';
 
 /* ---------- Firestore ---------- */
@@ -303,14 +318,14 @@ function waTekst(l){
 function modalLink(l, api){
   const h = hulpVan(l); if (!h?.deel) return;
   if (h.deel.open !== true){
-    openModal(`<h2>Inschrijflink</h2>
+    openPaneel(`<h2>Inschrijflink</h2>
       <p class="lj-msub">De inschrijflink staat uit. Ouders kunnen de lijst niet openen, alleen de staf vult namen in.</p>
       <button class="knop fluo vol" id="lhMAan">Inschrijflink aanzetten</button>`);
     $('#lhMAan').onclick = async () => { if (await hulpZetOpen(l, true)){ api.renderTeam(); modalLink(l, api); } };
     return;
   }
   const tekst = waTekst(l);
-  openModal(`<h2>Inschrijflink</h2>
+  openPaneel(`<h2>Inschrijflink</h2>
     <p class="lj-msub">Ouders schrijven zich hiermee zelf in, zonder account. Plak het bericht in de groepsapp.</p>
     <div class="lj-watekst">${esc(tekst)}</div>
     <div class="avg-balk"><span class="slot">${I_SLOT}</span><span>${AVG_LINK}</span></div>
@@ -343,7 +358,7 @@ function modalTrainingen(l, api){
   const h = hulpVan(l); if (!h?.deel) return;
   const id = l.hulpDeelId;
   const komend = rijen(l, false);
-  openModal(`<h2>Trainingen</h2><p class="lj-msub">Weghalen wist ook wie zich voor die training heeft ingeschreven.</p>
+  openPaneel(`<h2>Trainingen</h2><p class="lj-msub">Weghalen wist ook wie zich voor die training heeft ingeschreven.</p>
     <div class="lj-kollijst">${komend.length ? komend.map(r => `<div class="lj-kol"><span class="lj-kol-n">${esc(datumKort(r.datum))}${tijdTekst(r) ? '<span class="sep" aria-hidden="true"></span>' + esc(tijdTekst(r)) : ''}</span><span class="lj-kt">${r.helpers.length}/${r.nodig}</span><button data-lh-tweg="${esc(r.id)}" title="Weghalen" aria-label="${esc(datumKort(r.datum))} weghalen">✕</button></div>`).join('') : '<div class="lj-kol leeg">Geen komende trainingen</div>'}</div>
     <div class="rij">
       <div class="veldgroep" style="flex:1.4"><label for="lhTDatum">Training toevoegen</label><input type="date" class="invoer" id="lhTDatum" min="${vandaag()}"></div>
@@ -414,7 +429,7 @@ export function modalNieuwHulp(api){
   };
   const teken = () => {
     const n = datums().length;
-    openModal(`<h2>Trainingshulp</h2>
+    openPaneel(`<h2>Trainingshulp</h2>
       <p class="lj-msub">${vast.length
         ? 'Rijen: de trainingen van je team in de gekozen periode. De dagen en tijden komen uit de trainingstijden van het team.'
         : 'Rijen: de trainingen in de gekozen periode. Dit team heeft nog geen trainingstijden, kies daarom zelf de dagen.'}</p>
