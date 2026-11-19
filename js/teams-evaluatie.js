@@ -15,10 +15,10 @@ import {
   TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teLeeftijd, teCriteriaVoor, teCriterium, teZichtbaar, teZinnen, teFaseLabel,
   teScores, teIsNieuw, teGem, teGroepWaarden, teCritGemiddelden, teLaagste, teKleur, teCijfer, teBlokVoorDatum,
   htmlTeNieuwMelding, koppelTeNieuwMelding, openTeNaslag
-} from './team-evaluatie-criteria.js?v=20261119d';
+} from './team-evaluatie-criteria.js?v=20261119e';
 import { ico } from './icons.js?v=20261106r';
 
-import { htmlStats } from './wedstrijd.js?v=20261119e';
+import { htmlStats } from './wedstrijd.js?v=20261119w';
 import { telGebruik } from './tracker.js?v=20261111g';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)

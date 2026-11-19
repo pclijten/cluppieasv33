@@ -299,12 +299,13 @@ export function openTeNaslag(lft = 99){
     ['Noem één moment', 'Eén voorbeeld maakt je oordeel controleerbaar en bespreekbaar. Wat je niet zag, sla je over.'],
     ['Schrijf op wat opviel', 'In je eigen woorden, voor de volgende training of teambespreking.'],
   ];
+  /* [20261119e] Zonder namen van onderzoekers: een icoon en een eigen titel. */
   const bronnen = [
-    ['2007', 'Hattie & Timperley', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Stap 1 en 2 gaan over de eerste twee; de derde neem je mee naar de training.'],
-    ['2005', 'Leahy, Lyon, Thompson & Wiliam', 'Formatief evalueren begint met duidelijke leerdoelen en succescriteria. Het blokdoel is het leerdoel; de zinnen per niveau zijn de succescriteria. Spelers laten meebeoordelen past bij hun strategie van eigenaarschap.'],
-    ['1986', 'Franks & Miller · Laird & Waters (2008)', 'Coaches herinneren zich na een wedstrijd maar een deel van de belangrijke momenten; ook gediplomeerde coaches missen er ongeveer vier op de tien.'],
-    ['2015', 'Lefgren, Platt & Price', 'Coaches veranderen na een nipte nederlaag vaker hun aanpak dan na een nipte overwinning, terwijl zo’n uitslag weinig zegt. Daarom beoordelen we het spel, niet de stand.'],
-    ['KNVB', 'Teamtaken per moment', 'Met de bal, zonder de bal en bij het wisselen van balbezit, met het resultaat ondergeschikt aan de ontwikkeling. Ook jonge spelers leren al snel weer meedoen na balverlies of balwinst.'],
+    ['communication-chat', 'Doel, terugblik, volgende stap', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Stap 1 en 2 gaan over de eerste twee; de derde neem je mee naar de training.'],
+    ['training-completed', 'Vooraf weten wat goed is', 'Leren gaat beter als vooraf duidelijk is wat het doel is en waaraan je ziet dat het lukt. Het wedstrijd- of blokdoel is dat doel; de zinnen per niveau laten zien waaraan je het ziet. Spelers laten meebeoordelen maakt ze eigenaar van hun eigen leren.'],
+    ['tag-insight', 'Wat je onthoudt van een wedstrijd', 'Coaches herinneren zich na een wedstrijd maar een deel van de belangrijke momenten; ook ervaren coaches missen er ongeveer vier op de tien. Kijken naar één doel en één moment noteren helpt daartegen.'],
+    ['match-score', 'De uitslag kleurt je oordeel', 'Coaches veranderen na een nipte nederlaag vaker hun aanpak dan na een nipte overwinning, terwijl zo’n uitslag weinig zegt. Daarom beoordelen we het spel, niet de stand.'],
+    ['football-tactics', 'Met de bal, zonder de bal, omschakelen', 'Het spel bestaat uit wat je doet met de bal, zonder de bal en bij het wisselen van balbezit. Het resultaat is ondergeschikt aan de ontwikkeling. Ook jonge spelers leren al snel weer meedoen na balverlies of balwinst.'],
   ];
   const ladder = TE_FOCUS_LADDER.slice(1).map((z, i) => `<div class="vb-ladder-rij"><span class="vb-chip kn${i + 1}">${TE_NIV[i + 1]}</span><span class="tx">${esc(z)}</span></div>`).join('');
   el.querySelector('.vb-popup-inhoud').innerHTML = `
@@ -313,7 +314,7 @@ export function openTeNaslag(lft = 99){
     ${regels.map(([t, u], i) => `<div class="te-ns-rij"><span class="n">${i + 1}</span><div><b>${esc(t)}</b><span>${esc(u)}</span></div></div>`).join('')}
     <div class="vb-ladder-kop">De ladder bij het blokdoel</div>${ladder}
     <div class="vb-ladder-kop">Waarom zo</div>
-    ${bronnen.map(([j, w, u]) => `<div class="te-ns-bron"><span class="jr">${esc(j)}</span><div><b>${esc(w)}</b><span>${esc(u)}</span></div></div>`).join('')}
+    ${bronnen.map(([ic, w, u]) => `<div class="te-ns-bron"><span class="jr">${ico(ic, 20)}</span><div><b>${esc(w)}</b><span>${esc(u)}</span></div></div>`).join('')}
     <div class="vb-ladder-kop">Omschakelen per leeftijd</div>
     <p>Tot en met O11 kijk je of de speler meteen weer meedoet, bij O12 en O13 of het team samen reageert. Vanaf O14 beoordeel je omschakelen na balverlies en na balwinst apart, zoals in de leercurve.${lft < 99 ? ` Dit team: O${lft}.` : ''}</p>`;
   el.classList.add('toon');
