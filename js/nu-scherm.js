@@ -101,7 +101,11 @@ export function presentieWedstrijd(w){
   const basis = spelersOpWedstrijd(S.spelers, w).lijst;
   const afwezig = basis.filter(p => !sel.has(p.id) && redenen[p.id]).map(p => p.id);
   const nietMeeIds = basis.filter(p => !sel.has(p.id) && !redenen[p.id]).map(p => p.id);
-  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja: sel.size, totaal: basis.length, nietMee: nietMeeIds.length, nietMeeIds };
+  /* Tel alleen spelers die nu bij deze wedstrijd horen: de opgeslagen selectie kan
+     een verwijderde of uitgeleende speler bevatten (gaf "15 van 14"). Zelfde telling
+     als het wedstrijdscherm (teams-hub.js). */
+  const ja = basis.filter(p => sel.has(p.id)).length;
+  return { afwezig, redenen, laat: (w.telaat || []).filter(id => sel.has(id)), ja, totaal: basis.length, nietMee: nietMeeIds.length, nietMeeIds };
 }
 function nietMeeTekst(p){
   const namen = (p.nietMeeIds || []).map(naamVan).filter(Boolean).map(esc);
@@ -453,9 +457,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119b'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261119a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261119b'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
