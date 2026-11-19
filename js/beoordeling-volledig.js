@@ -23,7 +23,7 @@
    versie-cascade geeft. */
 import { ico } from './icons.js?v=20261106r';
 import { SKILLS, leeftijdVanCategorie } from './config.js?v=20261111g';
-import { teRadarSvg } from './team-evaluatie-criteria.js?v=20261119e';
+import { teRadarSvg } from './team-evaluatie-criteria.js?v=20261119f';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const domIco = id => SKILLS.find(s => s.id === id)?.ico || 'stats-bars';

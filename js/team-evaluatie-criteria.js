@@ -256,8 +256,9 @@ export function teMeldingActief(vandaag){
 }
 const gelezen = () => { try { return localStorage.getItem(MELD_KEY) === '1'; } catch(e){ return false; } };
 export function htmlTeNieuwMelding(){
-  if (!teMeldingActief()) return '';
-  const open = !gelezen();
+  /* [20261119f] Na "Begrepen" verdwijnt de melding; de uitleg blijft bereikbaar via "Zo evalueren we". */
+  if (!teMeldingActief() || gelezen()) return '';
+  const open = true;
   return `<div class="te-nieuw${open ? ' open' : ''}" id="teNieuw">
     <button type="button" class="te-nieuw-kop" data-te-nieuw-klap aria-expanded="${open}">
       <span class="te-nieuw-ic">${ico('action-info', 20)}</span><span class="te-nieuw-t"><b>Evalueren gaat vanaf nu anders</b><small>Kijk naar het doel en naar wat je zag</small></span><span class="te-chevron">${ico('navigation-forward', 16)}</span></button>
@@ -276,7 +277,7 @@ export function koppelTeNieuwMelding(root){
   });
   el.querySelector('[data-te-nieuw-ok]')?.addEventListener('click', () => {
     try { localStorage.setItem(MELD_KEY, '1'); } catch(e){}
-    el.classList.remove('open'); el.querySelector('[data-te-nieuw-klap]').setAttribute('aria-expanded', 'false');
+    el.remove();
   });
 }
 
@@ -299,9 +300,9 @@ export function openTeNaslag(lft = 99){
     ['Noem één moment', 'Eén voorbeeld maakt je oordeel controleerbaar en bespreekbaar. Wat je niet zag, sla je over.'],
     ['Schrijf op wat opviel', 'In je eigen woorden, voor de volgende training of teambespreking.'],
   ];
-  /* [20261119e] Zonder namen van onderzoekers: een icoon en een eigen titel. */
+  /* [20261119f] Zonder namen van onderzoekers: een icoon en een eigen titel. */
   const bronnen = [
-    ['communication-chat', 'Doel, terugblik, volgende stap', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Stap 1 en 2 gaan over de eerste twee; de derde neem je mee naar de training.'],
+    ['communication-chat', 'Doel, terugblik, volgende stap', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Stap 1 gaat over de eerste twee; de derde neem je mee naar de training.'],
     ['training-completed', 'Vooraf weten wat goed is', 'Leren gaat beter als vooraf duidelijk is wat het doel is en waaraan je ziet dat het lukt. Het wedstrijd- of blokdoel is dat doel; de zinnen per niveau laten zien waaraan je het ziet. Spelers laten meebeoordelen maakt ze eigenaar van hun eigen leren.'],
     ['tag-insight', 'Wat je onthoudt van een wedstrijd', 'Coaches herinneren zich na een wedstrijd maar een deel van de belangrijke momenten; ook ervaren coaches missen er ongeveer vier op de tien. Kijken naar één doel en één moment noteren helpt daartegen.'],
     ['match-score', 'De uitslag kleurt je oordeel', 'Coaches veranderen na een nipte nederlaag vaker hun aanpak dan na een nipte overwinning, terwijl zo’n uitslag weinig zegt. Daarom beoordelen we het spel, niet de stand.'],

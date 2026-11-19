@@ -15,10 +15,10 @@ import {
   TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teLeeftijd, teCriteriaVoor, teCriterium, teZichtbaar, teZinnen, teFaseLabel,
   teScores, teIsNieuw, teGem, teGroepWaarden, teCritGemiddelden, teLaagste, teKleur, teCijfer, teBlokVoorDatum,
   htmlTeNieuwMelding, koppelTeNieuwMelding, openTeNaslag
-} from './team-evaluatie-criteria.js?v=20261119e';
+} from './team-evaluatie-criteria.js?v=20261119f';
 import { ico } from './icons.js?v=20261106r';
 
-import { htmlStats } from './wedstrijd.js?v=20261119e';
+import { htmlStats } from './wedstrijd.js?v=20261119f';
 import { telGebruik } from './tracker.js?v=20261111g';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
@@ -27,7 +27,7 @@ function deelnemer(){
   return { uid: S.user.uid, naam: (S.team.ledenInfo?.[S.user.uid]?.naam) || S.user.displayName || S.user.email || '' };
 }
 
-/* [20261119c] Teamevaluatie in vijf stappen (zie team-evaluatie-criteria.js).
+/* [20261119c] Teamevaluatie in stappen (zie team-evaluatie-criteria.js).
    Oude evaluaties openen in dit formulier met hun scores vertaald naar de
    nieuwe criteria; pas bij opslaan wordt het document versie 2. */
 const teamLft = () => teLeeftijd(S.team?.categorie);
@@ -56,21 +56,24 @@ export function modalTeamEvaluatie(wedstrijdId){
   else if (eerder) focus = { tekst:eerder.tekst, bron:eerder.bron || 'Blokdoel', niveau:0, bewijs:'' };
   if (focus && eerder && String(eerder.tekst).toLowerCase() === focus.tekst.toLowerCase()){ focus.niveau = Number(eerder.niveau) || 0; focus.bewijs = eerder.bewijs || ''; }
 
-  const schaal = (sleutel, gekozen) => `<div class="vb-schaal te-schaal" data-te-schaal="${esc(sleutel)}" role="radiogroup">${[1,2,3,4,5].map(n =>
-    `<button type="button" data-niv="${n}" class="kn${n}${gekozen === n ? ' gekozen' : ''}" aria-label="${TE_NIV[n]}"></button>`).join('')}</div>`;
-  const anker = (n, zin, leeg) => n ? `<b style="color:var(--n${n})">${TE_NIV[n]}</b> · ${esc(zin)}` : `<i>${leeg}</i>`;
+  /* [20261119f] Elke kleur draagt zijn woord eronder (geen losse legenda meer);
+     de zin van het gekozen niveau staat in een vlak in dezelfde kleur. */
+  const schaal = (sleutel, gekozen, naam) => `<div class="te-schaal" data-te-schaal="${esc(sleutel)}" role="radiogroup" aria-label="${esc(naam)}">${[1,2,3,4,5].map(n =>
+    `<button type="button" data-niv="${n}" role="radio" aria-checked="${gekozen === n}"${gekozen === n ? ' class="gekozen"' : ''}><span class="vlak"></span><span class="lb">${TE_NIV[n]}</span></button>`).join('')}</div>`;
+  const anker = (sleutel, n, zin, leeg = '') => `<div class="te-anker${n ? '' : ' leeg'}" data-te-anker="${esc(sleutel)}"${n ? ` style="--k:var(--n${n})"` : ''} aria-live="polite">${n ? esc(zin) : leeg}</div>`;
+  const FOCUS_LEEG = 'Tik de kleur die past. Je leest dan wat dat niveau betekent.';
 
   const htmlBlokKop = () => {
     if (!blok) return '';
     const balk = blok.week && blok.weken && blok.weken <= 16
       ? `<div class="nu-blok-balk" role="img" aria-label="Week ${blok.week} van ${blok.weken}" style="--n:${blok.weken}">${Array.from({ length: blok.weken }, (_, i) =>
           `<span class="${i + 1 < blok.week ? 'af' : i + 1 === blok.week ? 'nu' : ''}"></span>`).join('')}</div>` : '';
-    return `<div class="te-blok-naam">${esc(blok.naam)}</div>${blok.week && blok.weken ? `<div class="te-blok-wk">week ${blok.week} van ${blok.weken}</div>` : ''}${balk}`;
+    return `<div class="te-blokregel"><span class="nm">${esc(blok.naam)}</span>${blok.week && blok.weken ? `<span class="wk">week ${blok.week} van ${blok.weken}</span>` : ''}</div>${balk}`;
   };
   const htmlStap1 = () => {
-    if (wedDoel) return `${htmlBlokKop()}
-      <div class="te-doel aan vast"><span class="vk">${teDoelIco(16)}</span><span class="t">${esc(wedDoel)}<span class="bron">Wedstrijddoel</span></span></div>
-      <div class="te-hint">Dit doel gaf je de wedstrijd mee. Aanpassen kan via “Wijzig opzet” op het wedstrijdscherm.</div>`;
+    if (wedDoel) return `<div class="te-doeltekst"><span class="ic">${teDoelIco(20)}</span><span>${esc(wedDoel)}</span></div>
+      ${htmlBlokKop()}
+      <div class="te-hint">Dit is het wedstrijddoel. Aanpassen kan via “Wijzig opzet” op het wedstrijdscherm.</div>`;
     return `${htmlBlokKop()}
       <div class="te-geen">Er is geen wedstrijddoel aangegeven.${blokOpties.length ? ' Kies het blokdoel waar je naar keek.' : ''}</div>
       ${blokOpties.length ? `<div id="mTeDoelen" role="radiogroup">${blokOpties.map((o, i) => { const aan = focus && focus.tekst.toLowerCase() === o.tekst.toLowerCase();
@@ -78,14 +81,15 @@ export function modalTeamEvaluatie(wedstrijdId){
         : `<div class="te-hint">Er is ook geen blok met doelen geüpload. Sla deze stap over, of geef de volgende wedstrijd een doel mee via “Wijzig opzet”.</div>`}`;
   };
   const htmlFocus = () => {
-    if (!focus) return `<p class="te-hint u-mt-0">${wedDoel || blokOpties.length ? 'Kies bij stap 1 het doel.' : 'Geen doel om te beoordelen. Ga door naar stap 3.'}</p>`;
+    if (!focus) return wedDoel || blokOpties.length ? `<p class="te-hint">Kies hierboven het doel. Daarna geef je aan of je het terugzag.</p>` : `<p class="te-hint">Geen doel om te beoordelen. Ga door naar stap 2.</p>`;
     const spoor = blok ? spoorVan(focus.tekst, blok.planId, wedstrijdId) : [];
     return `<div class="te-focus">
-        <div class="te-focus-t"><span class="ic">${teDoelIco(17)}</span><span>${esc(focus.tekst)}</span></div>
+        <div class="te-vraag">Zagen we het terug?</div>
         ${spoor.length ? `<div class="te-spoor"><span>Eerder dit blok</span>${spoor.map(s => `<i style="background:var(--n${s.niveau})" title="${esc(s.label)}"></i>`).join('')}</div>` : ''}
-        ${schaal('f0', focus.niveau)}
-        <div class="vb-anker toon te-anker" data-te-anker="f0">${anker(focus.niveau, TE_FOCUS_LADDER[focus.niveau] || '', 'Tik een kleur. De zin eronder zegt wat die betekent.')}</div>
-        <textarea class="invoer" rows="2" id="mTeBewijs" placeholder="Eén moment dat je zag. Bijv. 12e min: keeper speelt in op 3, die draait open en speelt 6 aan">${esc(focus.bewijs)}</textarea>
+        ${schaal('f0', focus.niveau, 'Zagen we het doel terug?')}
+        ${anker('f0', focus.niveau, TE_FOCUS_LADDER[focus.niveau] || '', FOCUS_LEEG)}
+        <label class="te-veldkop" for="mTeBewijs">Eén moment dat je zag <span class="te-opt">(optioneel)</span></label>
+        <textarea class="invoer" rows="2" id="mTeBewijs" placeholder="Bijv. 12e min: keeper speelt in op 3, die draait open en speelt 6 aan">${esc(focus.bewijs)}</textarea>
       </div>`;
   };
   const htmlGroepen = () => TE_GROEPEN.map(g => {
@@ -94,9 +98,9 @@ export function modalTeamEvaluatie(wedstrijdId){
       <div class="te-hint">In de leercurve vanaf O${Math.min(...g.crit.map(c => c.vanaf))}. Bij deze leeftijd nog niet beoordelen.</div></div>`;
     return `<div class="kaart te-groep"><div class="te-groep-kop"><span class="gs-stip" style="background:${g.kleur}"></span><div><div class="gn">${esc(g.naam)}</div><div class="gs">${esc(g.sub)}</div></div></div>
       ${items.map(c => { const n = scores[c.id] || 0; return `<div class="te-crit">
-        <div class="te-crit-naam"><span>${esc(c.naam)}</span>${c.label ? `<span class="vb-badge te-lc">${esc(c.label)}</span>` : ''}${c.fase ? `<span class="vb-badge">${esc(teFaseLabel(lft))}</span>` : ''}<span class="te-overslaan" data-te-over="${c.id}">${n ? '' : 'overslaan mag'}</span></div>
-        ${schaal(c.id, n)}
-        <div class="vb-anker toon te-anker" data-te-anker="${c.id}">${anker(n, n ? teZinnen(c, lft)[n - 1] : '', 'Niet gezien? Sla over.')}</div>
+        <div class="te-crit-naam"><span>${esc(c.naam)}</span>${c.label ? `<span class="vb-badge te-lc">${esc(c.label)}</span>` : ''}${c.fase ? `<span class="vb-badge">${esc(teFaseLabel(lft))}</span>` : ''}</div>
+        ${schaal(c.id, n, c.naam)}
+        ${anker(c.id, n, n ? teZinnen(c, lft)[n - 1] : '')}
         ${c.fase ? `<div class="te-hint">Vanaf O14 in tweeën: na balverlies en na balwinst (leercurve).</div>` : ''}</div>`; }).join('')}
     </div>`;
   }).join('');
@@ -111,26 +115,24 @@ export function modalTeamEvaluatie(wedstrijdId){
         <div class="pos">${datumNL(w.datum)}${w.thuis!=null?(w.thuis?'<span class="sep" aria-hidden="true"></span>Thuis':'<span class="sep" aria-hidden="true"></span>Uit'):''}</div></div>
     </div>
     ${htmlTeNieuwMelding()}
-    <button type="button" class="vb-naslag-link compact" data-te-naslag><span class="ic">${ico('training-plan', 18)}</span><span class="tx">Zo evalueren we<small>Eerst het doel, dan wat je zag</small></span><span class="vb-pijl">${ico('navigation-forward', 16)}</span></button>
     ${bestaande && !teIsNieuw(bestaande) ? `<div class="te-oud">Deze evaluatie is gemaakt met de oude vragen. De scores staan alvast bij de nieuwe onderdelen; controleer ze voor je opslaat.</div>` : ''}
-    <div class="te-voortgang" id="mTeVoortgang"></div>
 
-    <div class="kaart te-blok"><div class="te-stapkop"><span class="te-stap">1</span><span class="vb-veldlabel">Waar werkten we aan?</span></div><div id="mTeStap1">${htmlStap1()}</div></div>
-    <div class="kaart"><div class="te-stapkop"><span class="te-stap">2</span><span class="vb-veldlabel">Zagen we het terug?</span></div><div id="mTeFocus">${htmlFocus()}</div></div>
-    <div class="kaart"><div class="te-stapkop"><span class="te-stap">3</span><span class="vb-veldlabel">Wat zag je per moment?</span><span class="vb-aantal" id="mTeCritTel"></span></div>
-      <p class="te-hint u-mt-0">Tik een kleur en lees de zin eronder: klopt die met wat je zag? Niet gezien of geen tijd? Sla het over.</p>
-      <div class="vb-legenda"><span>AAND</span><span>OP WEG</span><span>PRIMA</span><span>STERK</span><span>UITBL</span></div></div>
+    <div class="kaart te-doelkaart"><div class="te-stapkop"><span class="te-stap">1</span><span class="te-staptitel">Het doel van deze wedstrijd</span></div>
+      <div id="mTeStap1">${htmlStap1()}</div><div id="mTeFocus">${htmlFocus()}</div></div>
+    <div class="te-sectie"><div class="te-stapkop"><span class="te-stap">2</span><span class="te-staptitel">Wat zag je per moment?</span><span class="vb-aantal" id="mTeCritTel"></span></div>
+      <p class="te-hint">Kies per onderdeel de kleur die past bij wat je zag. Niet gezien of geen tijd? Sla het over. <button type="button" class="te-link" data-te-naslag>Zo evalueren we</button></p></div>
     ${htmlGroepen()}
-    <div class="kaart"><button type="button" class="te-uitklap" data-te-klap aria-expanded="${stemOpen}"><span class="te-stap stil">4</span><span class="vb-veldlabel">Wat vonden de spelers? <span class="te-opt">(optioneel)</span></span><span class="te-chevron">${ico('navigation-forward', 16)}</span></button>
+    <div class="kaart"><button type="button" class="te-uitklap" data-te-klap aria-expanded="${stemOpen}"><span class="te-stap stil">3</span><span class="te-staptitel">Wat vonden de spelers? <span class="te-opt">(optioneel)</span></span><span class="te-chevron">${ico('navigation-forward', 16)}</span></button>
       <div class="te-uitklap-in${stemOpen ? ' open' : ''}">
         <p class="te-hint u-mt-xs" id="mTeVraag">${vraag()}</p>
         <div class="te-stem">${TE_STEM.map(o => `<div><div class="e" style="color:${o.kleur}">${ico(o.ico, 22)}<small>${o.label}</small></div><div class="tel"><button type="button" data-te-stem="${o.id}" data-d="-1" aria-label="${o.label} min één">−</button><b data-te-stemval="${o.id}">${spelers[o.id] || 0}</b><button type="button" data-te-stem="${o.id}" data-d="1" aria-label="${o.label} plus één">+</button></div></div>`).join('')}</div>
         <div class="te-hint">Wijkt hun oordeel af van het jouwe? Dat is een mooi begin van de volgende teambespreking.</div></div></div>
 
-    <div class="kaart"><div class="vb-veldlabel u-mb-xs">Opvallend (optioneel)</div>
+    <div class="kaart"><label class="te-staptitel te-los" for="mTeOpvallend">Opvallend <span class="te-opt">(optioneel)</span></label>
       <textarea class="invoer" id="mTeOpvallend" rows="3" placeholder="Wat viel je op? Bijv. sterke tweede helft, de druk vooraan leverde balwinst op">${esc(bestaande?.opvallend || '')}</textarea></div>
 
-    <button class="knop vol fluo u-mt-sm" id="mTeOk">${bestaande?'Bijwerken':'Opslaan'}</button>
+    <div class="te-voortgang" id="mTeVoortgang"></div>
+    <button class="knop vol fluo" id="mTeOk">${bestaande?'Bijwerken':'Opslaan'}</button>
     ${bestaande?`<button class="knop vol gevaar u-mt-xs" id="mTeWeg">Verwijderen</button>`:''}
     <p class="u-t-xs u-zacht u-mt-sm u-lh-ruim">Alleen zichtbaar voor coaches. De uitslag staat bewust niet op dit scherm.</p>
   `);
@@ -141,9 +143,11 @@ export function modalTeamEvaluatie(wedstrijdId){
     const k = criteria.filter(c => scores[c.id]).length;
     const ct = $('#mTeCritTel'); if (ct) ct.textContent = `${k} van ${criteria.length}`;
     const v = $('#mTeVoortgang');
-    if (v) v.innerHTML = `Doel <b>${focus?.niveau ? 'beoordeeld' : focus ? 'nog kiezen' : 'geen'}</b><span class="sep" aria-hidden="true"></span>Momenten <b>${k} van ${criteria.length}</b>`;
+    if (v) v.innerHTML = `Doel <b>${focus?.niveau ? 'beoordeeld' : focus ? 'nog niet beoordeeld' : 'geen'}</b><span class="sep" aria-hidden="true"></span>Momenten <b>${k} van ${criteria.length}</b>`;
     const vr = $('#mTeVraag'); if (vr) vr.innerHTML = vraag();
   };
+  const kies = (knop, niveau) => knop.parentElement.querySelectorAll('[data-niv]').forEach(x => {
+    const aan = Number(x.dataset.niv) === niveau; x.classList.toggle('gekozen', aan); x.setAttribute('aria-checked', aan); });
   const bewaarBewijs = () => { const t = $('#mTeBewijs'); if (t && focus) focus.bewijs = t.value; };
 
   root.addEventListener('click', e => {
@@ -163,15 +167,14 @@ export function modalTeamEvaluatie(wedstrijdId){
       if (sl === 'f0'){
         if (!focus) return;
         focus.niveau = focus.niveau === n ? 0 : n;
-        b.parentElement.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', Number(x.dataset.niv) === focus.niveau));
-        root.querySelector('[data-te-anker="f0"]').innerHTML = anker(focus.niveau, TE_FOCUS_LADDER[focus.niveau] || '', 'Tik een kleur. De zin eronder zegt wat die betekent.');
+        kies(b, focus.niveau);
+        root.querySelector('[data-te-anker="f0"]').outerHTML = anker('f0', focus.niveau, TE_FOCUS_LADDER[focus.niveau] || '', FOCUS_LEEG);
       } else {
         const c = criteria.find(x => x.id === sl); if (!c) return;
         if (scores[sl] === n) delete scores[sl]; else scores[sl] = n;
         const m = scores[sl] || 0;
-        b.parentElement.querySelectorAll('[data-niv]').forEach(x => x.classList.toggle('gekozen', Number(x.dataset.niv) === m));
-        root.querySelector(`[data-te-anker="${sl}"]`).innerHTML = anker(m, m ? teZinnen(c, lft)[m - 1] : '', 'Niet gezien? Sla over.');
-        const o = root.querySelector(`[data-te-over="${sl}"]`); if (o) o.textContent = m ? '' : 'overslaan mag';
+        kies(b, m);
+        root.querySelector(`[data-te-anker="${sl}"]`).outerHTML = anker(sl, m, m ? teZinnen(c, lft)[m - 1] : '');
       }
       tel(); return;
     }
