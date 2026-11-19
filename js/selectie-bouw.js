@@ -27,8 +27,9 @@
    getDoc per verhuizing (vers spelerdocument). */
 import { S, esc, meld } from './state.js?v=20261111g';
 import { db, doc, collection, getDoc, writeBatch, serverTimestamp } from './firebase.js?v=20261106r';
-import { bouwLeenSnapshot } from './teams-spelers.js?v=20261119b';
-import { SKILLS, POSITIE_GROEPEN, TEAM_CATEGORIEEN } from './config.js?v=20261111g';
+import { bouwLeenSnapshot } from './teams-spelers.js?v=20261119c';
+import { SKILLS, POSITIE_GROEPEN } from './config.js?v=20261111g';
+import { teLeeftijd, teCriteriaVoor, teScores } from './team-evaluatie-criteria.js?v=20261119c';
 import { analyseWedstrijd, speeltijdReserve } from './analyse.js?v=20261111g';
 import { opkomstVoor } from './opkomst.js?v=20261106r';
 
@@ -233,21 +234,23 @@ export function teamRadar(ctx, team){
   return { laatste: dom(laatsten), gem: dom(vol), aantal: laatsten.length, spelers: (d.spelers || []).length, datum: vol[vol.length - 1].datum || '' };
 }
 /* ---------- [20260928h] radar van de wedstrijdevaluaties (teamevaluaties) ----------
-   Los van de spelersbeoordelingen hierboven: de 8 categorieën die de coach
+   Los van de spelersbeoordelingen hierboven: de onderdelen die de coach
    na elke wedstrijd invult (Evaluatie wedstrijden). Laatste = de meest
    recente geëvalueerde wedstrijd, gemiddelde = alle wedstrijden dit seizoen.
    De data zit al in de hub-context (teamevaluaties) — geen extra reads. */
-const TEAM_KORT = { inzet:'Inzet', samenwerking:'Samenwerking', taken:'Taken', opbouw:'Opbouw', omschakeling:'Omschakelen', druk:'Druk zetten', plezier:'Plezier', coachbaar:'Coachbaar' };
+/* [20261119c] Assen = de criteria van de nieuwe teamevaluatie bij de leeftijd
+   van het team (6 tot 10); oude evaluaties tellen mee via teScores(). */
 export function wedRadar(ctx, team){
   const d = ctx.data.get(team.id) || {};
   const ev = (d.teamevaluaties || []).filter(e => e.scores);
+  const lft = teLeeftijd(team.categorie), assen = teCriteriaVoor(lft);
   if (!ev.length) return null;
   const wed = new Map((d.wedstrijden || []).map(w => [w.id, w]));
   const datum = e => e.datum || wed.get(e.wedstrijdId)?.datum || '';
   const lijst = [...ev].sort((a, b) => datum(a).localeCompare(datum(b)));
   const laatsteE = lijst[lijst.length - 1];
-  const dom = l => TEAM_CATEGORIEEN.map(c => { const v = l.map(e => Number(e.scores?.[c.id])).filter(Boolean); return v.length ? gem(v) : null; });
-  return { laatste: dom([laatsteE]), gem: dom(lijst), aantal: lijst.length, tegen: wed.get(laatsteE.wedstrijdId)?.tegenstander || '', datum: datum(laatsteE) };
+  const dom = l => assen.map(c => { const v = l.map(e => Number(teScores(e, lft)[c.id])).filter(Boolean); return v.length ? gem(v) : null; });
+  return { assen, laatste: dom([laatsteE]), gem: dom(lijst), aantal: lijst.length, tegen: wed.get(laatsteE.wedstrijdId)?.tegenstander || '', datum: datum(laatsteE) };
 }
 /* Radar-SVG voor n assen. maat: 5 domeinen (korte codes) of 8 categorieën (woorden). */
 function radarSvg(laatste, gemid, assen, breed = false){
@@ -289,16 +292,16 @@ function spelersRadar(ctx, team){
 function wedstrijdRadar(ctx, team){
   const r = wedRadar(ctx, team);
   if (!r) return { kop:'', html:'<p class="sbw-leeg">Nog geen wedstrijden geëvalueerd.</p>' };
-  const rijen = TEAM_CATEGORIEEN.map((c, i) => {
+  const rijen = r.assen.map((c, i) => {
     const l = r.laatste[i], g = r.gem[i];
     const dd = l != null && g != null ? pctVan(l) - pctVan(g) : null;
-    return `<div class="sbw-dom"><span class="d">${esc(TEAM_KORT[c.id] || c.naam)}</span>
+    return `<div class="sbw-dom"><span class="d" style="color:${c.groepKleur}">${esc(c.kort)}</span>
       <i><b style="width:${(l || 0) / 5 * 100}%;background:var(--accent)"></b>${g ? `<em style="left:calc(${g / 5 * 100}% - 1px)"></em>` : ''}</i>
       <span class="g">${g ? pctVan(g) : '–'}</span><span class="l">${l ? pctVan(l) : '–'}</span>${trendHtml(dd)}</div>`;
   }).join('');
   return {
     kop: `${r.aantal} wedstrijd${r.aantal === 1 ? '' : 'en'} geëvalueerd`,
-    html: `<div class="sbw-radar breed">${radarSvg(r.laatste, r.gem, TEAM_CATEGORIEEN.map(c => ({ label:TEAM_KORT[c.id] || c.naam, kleur:'var(--ink-2)', stip:'var(--accent)' })), true)}<div class="sbw-radarinfo">
+    html: `<div class="sbw-radar breed">${radarSvg(r.laatste, r.gem, r.assen.map(c => ({ label:c.kort, kleur:c.groepKleur, stip:c.groepKleur })), true)}<div class="sbw-radarinfo">
       <div class="sbw-leg"><span><i class="l"></i>laatste: ${esc(r.tegen || 'wedstrijd')}${r.datum ? '<span class="sep" aria-hidden="true"></span>' + esc(Number(r.datum.slice(8, 10)) + ' ' + maandKort(r.datum)) : ''}</span><span><i class="g"></i>gemiddelde seizoen</span></div>
       ${rijen}<div class="sbw-meta">Teamscore in %: <span style="color:var(--elf2)">gemiddeld</span><span class="sep" aria-hidden="true"></span><b>laatst</b><span class="sep" aria-hidden="true"></span>verschil</div></div></div>`,
   };

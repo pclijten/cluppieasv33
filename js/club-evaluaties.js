@@ -7,14 +7,11 @@
 import { db, collection, getDocs, query, where } from './firebase.js?v=20261106r';
 import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
 import { S, esc, meld, openModal } from './state.js?v=20261111g';
-import { TEAM_CATEGORIEEN, SKILLS } from './config.js?v=20261111g';
-
-/* korte kolomkoppen voor de heatmap — TEAM_CATEGORIEEN.naam is te lang voor
-   een tabelkop; alleen hier lokaal gebruikt, config.js blijft de brontekst. */
-const KORT_LABEL = {
-  inzet:'Inzet', samenwerking:'Samen-werking', taken:'Taken', opbouw:'Opbouw',
-  omschakeling:'Omscha-keling', druk:'Druk', plezier:'Plezier', coachbaar:'Coach-baar',
-};
+import { SKILLS } from './config.js?v=20261111g';
+import { TE_CRITERIA, TE_NIV, teLeeftijd, teZichtbaar, teScores, teCritGemiddelden, teLaagste, teIsNieuw } from './team-evaluatie-criteria.js?v=20261119c';
+/* [20261119c] Kolommen = de onderdelen van de nieuwe teamevaluatie. Per team
+   tellen alleen de onderdelen die bij de leeftijd horen; oude evaluaties
+   tellen mee via teScores(). Geen totaalcijfer meer. */
 
 /* dark-theme kleurschaal (zelfde 5 tinten als --n1..--n5 in styles.css) */
 const KLEUR_SCHAAL = ['#F0565B','#F59C4A','#F2C94C','#7DCB6A','#35C47A'];
@@ -69,25 +66,18 @@ export async function clubEvaluatiesOphalen(teams){
   }));
 }
 
-/* per-categorie gemiddelde over de laatste 5 evaluaties van één team */
-function teamCatGemiddelden(evals){
-  const laatste5 = evals.slice(-5);
-  const vorige5 = evals.slice(-10,-5);
-  const nu = {}, was = {};
-  for (const c of TEAM_CATEGORIEEN){
-    nu[c.id] = gemiddelde(laatste5.map(e => e.scores?.[c.id]).filter(Boolean));
-    was[c.id] = gemiddelde(vorige5.map(e => e.scores?.[c.id]).filter(Boolean));
-  }
-  return {nu, was, aantal:laatste5.length};
+/* per onderdeel het gemiddelde over de laatste 5 evaluaties van één team */
+function teamCatGemiddelden(evals, lft){
+  const laatste5 = evals.slice(-5), vorige5 = evals.slice(-10,-5);
+  return { nu: teCritGemiddelden(laatste5, lft), was: teCritGemiddelden(vorige5, lft), aantal: laatste5.length };
 }
-function evalLaagsteCategorie(ev){
-  let laagste = null;
-  for (const c of TEAM_CATEGORIEEN){
-    const s = ev.scores?.[c.id]; if (!s) continue;
-    if (!laagste || s < laagste.score) laagste = {id:c.id, score:s};
-  }
-  return laagste;
+/* trend: hoeveel onderdelen stegen min hoeveel daalden (> 0,15) */
+function trendTeam(nu, was){
+  let op = 0, neer = 0;
+  for (const id of Object.keys(nu)){ const a = nu[id], b = was[id]; if (a == null || b == null) continue; if (a - b > 0.15) op++; else if (b - a > 0.15) neer++; }
+  return op > neer ? {sym:'↗', cls:'op'} : neer > op ? {sym:'↘', cls:'neer'} : {sym:'→', cls:''};
 }
+const laatsteFocus = evals => { for (let i = evals.length - 1; i >= 0; i--){ const f = (evals[i].focus || []).find(x => x.niveau); if (f) return f; } return null; };
 
 /* ==================== RENDER ==================== */
 export function htmlClubEvaluaties(teamsData){
@@ -113,18 +103,13 @@ function htmlClubEvalTeams(teamsData){
   }
 
   const rijen = metData.map(d => {
-    const {nu, was, aantal} = teamCatGemiddelden(d.evals);
-    const alleWaarden = Object.values(nu).filter(v => v != null);
-    const gemTotaal = gemiddelde(alleWaarden);
-    const vorigeWaarden = Object.values(was).filter(v => v != null);
-    const gemVorige = gemiddelde(vorigeWaarden);
-    const trend = (gemTotaal==null || gemVorige==null) ? {sym:'→', cls:''}
-      : gemTotaal - gemVorige > 0.15 ? {sym:'↗', cls:'op'}
-      : gemTotaal - gemVorige < -0.15 ? {sym:'↘', cls:'neer'} : {sym:'→', cls:''};
-    return {team:d.team, nu, aantal, trend};
+    const lft = teLeeftijd(d.team.categorie);
+    const {nu, was, aantal} = teamCatGemiddelden(d.evals, lft);
+    return {team:d.team, lft, nu, aantal, trend: trendTeam(nu, was), focus: laatsteFocus(d.evals)};
   });
 
-  const cellen = (r) => TEAM_CATEGORIEEN.map(c => {
+  const cellen = (r) => TE_CRITERIA.map(c => {
+    if (!teZichtbaar(c, r.lft)) return `<td><div class="heat-cel nvt" title="Hoort niet bij deze leeftijd">·</div></td>`;
     const v = r.nu[c.id];
     const kleur = kleurVoorGemiddelde(v);
     return `<td>${v!=null
@@ -135,27 +120,28 @@ function htmlClubEvalTeams(teamsData){
   const heatTabel = `
     <div class="heat-wrap">
       <table class="heat-tabel">
-        <tr><th class="teamkop">Team</th>${TEAM_CATEGORIEEN.map(c => `<th>${esc(KORT_LABEL[c.id]||c.naam)}</th>`).join('')}<th>Trend</th></tr>
+        <tr><th class="teamkop">Team</th>${TE_CRITERIA.map(c => `<th style="color:${c.groepKleur}">${esc(c.kort)}</th>`).join('')}<th>Trend</th><th>Blokdoel</th></tr>
         ${rijen.map(r => `
           <tr>
             <td class="teamnaam">${esc(r.team.naam)}<span class="n">${r.aantal} wedstr.</span></td>
             ${cellen(r)}
             <td class="heat-trend ${r.trend.cls}">${r.trend.sym}</td>
+            <td>${r.focus ? `<div class="heat-cel" style="background:${KLEUR_SCHAAL[r.focus.niveau-1]}" title="${esc(r.focus.tekst)}">${esc(TE_NIV[r.focus.niveau].slice(0,4))}</div>` : '<div class="heat-cel leeg">—</div>'}</td>
           </tr>`).join('')}
       </table>
     </div>
     <div class="heat-legenda">
       ${[1,2,3,4,5].map(n => `<span><span class="stip" style="background:${KLEUR_SCHAAL[n-1]}"></span>${n}</span>`).join('')}
-      <span class="u-ml-auto">Tik een vakje voor details →</span>
+      <span class="u-ml-auto">· = hoort niet bij de leeftijd<span class="sep" aria-hidden="true"></span>Tik een vakje voor details →</span>
     </div>`;
 
   /* clubbrede signalen: welke categorie is het vaakst de laagste van een team? */
   const tellingen = {}, teamsPerCat = {};
   for (const d of metData){
-    const laatste4 = d.evals.slice(-4);
+    const laatste4 = d.evals.slice(-4), lft = teLeeftijd(d.team.categorie);
     const perTeamTelling = {};
     for (const ev of laatste4){
-      const l = evalLaagsteCategorie(ev); if (!l) continue;
+      const l = teLaagste(teScores(ev, lft), lft); if (!l) continue;
       perTeamTelling[l.id] = (perTeamTelling[l.id]||0) + 1;
     }
     // per team telt de vaakst-laagste categorie mee als "signaal" voor dat team
@@ -166,7 +152,7 @@ function htmlClubEvalTeams(teamsData){
     }
   }
   const signalen = Object.entries(tellingen).filter(([,n]) => n >= 2).sort((a,b)=>b[1]-a[1])
-    .map(([id,n]) => ({cat: TEAM_CATEGORIEEN.find(c=>c.id===id), n, teams: teamsPerCat[id]}));
+    .map(([id,n]) => ({cat: TE_CRITERIA.find(c=>c.id===id), n, teams: teamsPerCat[id]}));
 
   return `
     <div class="kaart">
@@ -180,7 +166,7 @@ function htmlClubEvalTeams(teamsData){
           <div class="sig-stip" style="background:var(--warn)"></div>
           <div class="u-flex-1">
             <div class="sig-titel">${esc(s.cat.naam)}</div>
-            <div class="sig-sub">Vaakst de zwakste categorie bij <b>${s.n} van de ${metData.length}</b> teams.</div>
+            <div class="sig-sub">Vaakst het zwakste onderdeel bij <b>${s.n} van de ${metData.length}</b> teams.</div>
             <div class="sig-teams">${s.teams.map(t=>`<span>${esc(t)}</span>`).join('')}</div>
           </div>
         </div>`).join('') : `<p class="u-t-sm u-zacht">Geen duidelijk clubbreed patroon deze periode.</p>`}
@@ -278,27 +264,25 @@ export async function exportClubEvaluaties(teamsData, knop){
     const ws1 = wb.addWorksheet('Teamevaluaties');
     ws1.columns = [
       {header:'Team', key:'team', width:16},
-      ...TEAM_CATEGORIEEN.map(c => ({header:c.naam, key:c.id, width:20})),
-      {header:'Gemiddelde', key:'gem', width:12},
+      ...TE_CRITERIA.map(c => ({header:c.naam, key:c.id, width:20})),
       {header:'Trend', key:'trend', width:8},
+      {header:'Laatste blokdoel', key:'doel', width:36},
+      {header:'Niveau blokdoel', key:'doelniv', width:14},
       {header:'Wedstrijden', key:'n', width:12},
     ];
     ws1.getRow(1).font = {bold:true};
     for (const d of teamsData){
       if (!d.evals.length) continue;
-      const {nu, was, aantal} = teamCatGemiddelden(d.evals);
-      const gemTotaal = gemiddelde(Object.values(nu).filter(v=>v!=null));
-      const gemVorige = gemiddelde(Object.values(was).filter(v=>v!=null));
-      const trend = (gemTotaal==null||gemVorige==null) ? '→' : gemTotaal-gemVorige>0.15?'↗':gemTotaal-gemVorige<-0.15?'↘':'→';
-      const rij = {team:d.team.naam, gem: gemTotaal!=null?Number(gemTotaal.toFixed(2)):null, trend, n:aantal};
-      TEAM_CATEGORIEEN.forEach(c => { rij[c.id] = nu[c.id]!=null ? Number(nu[c.id].toFixed(2)) : null; });
+      const lft = teLeeftijd(d.team.categorie);
+      const {nu, was, aantal} = teamCatGemiddelden(d.evals, lft);
+      const f = laatsteFocus(d.evals);
+      const rij = {team:d.team.naam, trend: trendTeam(nu, was).sym, n:aantal, doel: f?.tekst || '', doelniv: f ? TE_NIV[f.niveau] : ''};
+      TE_CRITERIA.forEach(c => { rij[c.id] = teZichtbaar(c, lft) && nu[c.id]!=null ? Number(nu[c.id].toFixed(2)) : null; });
       const row = ws1.addRow(rij);
-      TEAM_CATEGORIEEN.forEach(c => {
-        const kleur = kleurVoorGemiddelde(nu[c.id]);
+      TE_CRITERIA.forEach(c => {
+        const kleur = teZichtbaar(c, lft) ? kleurVoorGemiddelde(nu[c.id]) : null;
         if (kleur) row.getCell(c.id).fill = {type:'pattern', pattern:'solid', fgColor:{argb:hexNaarArgb(kleur)}};
       });
-      const gemKleur = kleurVoorGemiddelde(gemTotaal);
-      if (gemKleur) row.getCell('gem').fill = {type:'pattern', pattern:'solid', fgColor:{argb:hexNaarArgb(gemKleur)}};
     }
 
     /* --- Tabblad 2: spelersbeoordelingen (laatste volledige meting per speler) --- */
@@ -328,16 +312,22 @@ export async function exportClubEvaluaties(teamsData, knop){
       {header:'Team', key:'team', width:14},
       {header:'Datum', key:'datum', width:12},
       {header:'Tegenstander', key:'tegenstander', width:20},
-      {header:'Categorie', key:'categorie', width:32},
+      {header:'Onderdeel', key:'categorie', width:40},
       {header:'Score', key:'score', width:10},
+      {header:'Bron', key:'bron', width:22},
     ];
     ws3.getRow(1).font = {bold:true};
     for (const d of teamsData){
+      const lft = teLeeftijd(d.team.categorie);
       for (const ev of d.evals){
-        for (const c of TEAM_CATEGORIEEN){
-          const score = ev.scores?.[c.id];
+        const bron = teIsNieuw(ev) ? 'nieuwe evaluatie' : 'oud, vertaald';
+        for (const f of (ev.focus || [])) if (f.niveau)
+          ws3.addRow({team:d.team.naam, datum:ev.datum, tegenstander:ev.tegenstander||'', categorie:'Blokdoel: ' + f.tekst, score:f.niveau, bron});
+        const sc = teScores(ev, lft);
+        for (const c of TE_CRITERIA){
+          const score = sc[c.id];
           if (score == null) continue;
-          ws3.addRow({team:d.team.naam, datum:ev.datum, tegenstander:ev.tegenstander||'', categorie:c.naam, score});
+          ws3.addRow({team:d.team.naam, datum:ev.datum, tegenstander:ev.tegenstander||'', categorie:c.naam, score:Number(score.toFixed(2)), bron});
         }
       }
     }
