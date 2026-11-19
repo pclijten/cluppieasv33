@@ -13,11 +13,17 @@
    (houding). De snelle beoordeling krijgt één algemene ladder.
    [20261119a] Naslagteksten (Verdieping) nagelopen op de bronnen: Articulatie,
    de samenvoeging bij Bloom, Organiseren en de herkomst van de fases.
+   [20261119c] Omschakelen telt bij alle leeftijden mee (was: vanaf O14), met
+   een lat per fase in de uitleg; zelfde keuze als bij de teamevaluatie.
+   Spelersradar (htmlSpelerRadar): vergelijken met vorige beoordeling, begin
+   seizoen of team, niet afgerond, en per domein de criteria vorig → nu.
 
-   Deze module is een blad: ze importeert alleen icons.js en config.js, zodat
-   een wijziging hier geen grote versie-cascade geeft. */
+   Deze module is een blad: ze importeert alleen icons.js, config.js en de
+   radar uit team-evaluatie-criteria.js, zodat een wijziging hier geen grote
+   versie-cascade geeft. */
 import { ico } from './icons.js?v=20261106r';
 import { SKILLS, leeftijdVanCategorie } from './config.js?v=20261111g';
+import { teRadarSvg } from './team-evaluatie-criteria.js?v=20261119c';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const domIco = id => SKILLS.find(s => s.id === id)?.ico || 'stats-bars';
@@ -37,7 +43,7 @@ export const VB_DOMEINEN = [
     {naam:'Verdedigen van voorzet', uitleg:'Verdedigt een voorzet: kiest positie ten opzichte van de tegenstander in het strafschopgebied en de timing van inspringen.', beleid:'Verdedigen van voorzet', vanaf:11, skill4:'Aanvallend/verdedigend spel'},
     {naam:'Aanvallen', uitleg:'Zoekt de vrije ruimte op, biedt zich aan, maakt het speelveld groot.', beleid:'Bundelt Positiespel opbouw, Dieptespel opbouw en Aanvallen met voorzet (§3.3)', skill4:'Aanvallend/verdedigend spel'},
     {naam:'Samenspel / oog voor medespeler', uitleg:'Ziet een vrijstaande medespeler en speelt de bal op tijd over.', skill4:'De juiste keuze maken'},
-    {naam:'Omschakelen (bij balwinst/-verlies)', uitleg:'Schakelt direct van aanvallen naar verdedigen en andersom, zodra de bal van bezit wisselt.', beleid:'Omschakelen balwinst + Omschakelen balverlies', vanaf:14, skill4:'De juiste keuze maken'},
+    {naam:'Omschakelen (bij balwinst/-verlies)', uitleg:'Schakelt direct om zodra de bal van bezit wisselt. Tot en met O11: doet meteen weer mee, terug naar de bal of na balwinst eerst vooruit kijken. O12 en O13: schakelt samen met het team om. Vanaf O14: volgens de teamafspraken bij balverlies en balwinst.', beleid:'Omschakelen balwinst + Omschakelen balverlies (thema vanaf O14; snel weer meedoen bij alle leeftijden, KNVB)', skill4:'De juiste keuze maken'},
   ]},
   {id:'FY', naam:'Fysiek', omschrijving:'Snelheid, actiesnelheid, duelkracht, fitheid', criteria:[
     {naam:'Duelkracht', uitleg:'Houdt stand in een fysiek duel, wint de bal terug in een twee-strijd.', skill4:'Kracht'},
@@ -438,4 +444,83 @@ export function openNaslag({ lft = 99, eersteKeer = false, daarna = null } = {})
 /* Eerste keer een beoordelingsscherm open? Dan de naslag er direct overheen. */
 export function naslagEersteKeer(lft){
   if (!naslagAlGezien()) openNaslag({ lft, eersteKeer: true });
+}
+
+/* ==================== SPELERSRADAR (groei) ====================
+   [20261119c] Gedeeld door het spelersprofiel in de app, het desktop-paspoort en
+   de mobiele bouwomgeving. Waarden zijn het ECHTE gemiddelde van de criteria
+   (bijv. 2,6), zodat kleine groei zichtbaar wordt; opgeslagen scores, kaartcijfer
+   en kleuren blijven hele niveaus. Klikken (vergelijk, domein) handelt deze
+   module zelf af via één gedelegeerde listener, dus de schermen hoeven niets te
+   koppelen. metingen = volledige beoordelingen van één speler, oud → nieuw. */
+const SR = new Map();
+let srListener = false;
+const nlCijfer = v => v == null ? '–' : v.toFixed(1).replace('.', ',');
+const datumKortNl = iso => { try { return new Date(iso + 'T12:00').toLocaleDateString('nl-NL', { day:'numeric', month:'short' }); } catch(e){ return iso || ''; } };
+export function domeinWaardenEcht(b, lft){
+  return VB_DOMEINEN.map(d => {
+    const w = d.criteria.map((c, i) => critZichtbaar(c, lft) ? Number(b?.criteria?.[critSleutel(d.id, i)]) : null).filter(n => n >= 1 && n <= 5);
+    if (w.length) return w.reduce((a, x) => a + x, 0) / w.length;
+    const o = Number(b?.scores?.[d.id]); return o >= 1 && o <= 5 ? o : null;
+  });
+}
+function srOpties(st){
+  const m = st.metingen, o = [];
+  if (m.length > 1) o.push({ id:'vorige', label:'Vorige', b:m[m.length - 2] });
+  if (m.length > 2) o.push({ id:'begin', label:'Begin', b:m[0] });
+  if ((st.teamGem || []).some(v => v)) o.push({ id:'team', label:'Team', b:null });
+  return o;
+}
+function srInhoud(id){
+  const st = SR.get(id); if (!st) return '';
+  const m = st.metingen, nuB = m[m.length - 1]; if (!nuB) return '';
+  const opties = srOpties(st);
+  if (!opties.some(o => o.id === st.vgl)) st.vgl = opties[0]?.id || null;
+  const keuze = opties.find(o => o.id === st.vgl) || null;
+  const nu = domeinWaardenEcht(nuB, st.lft);
+  const vgl = !keuze ? null : keuze.id === 'team' ? st.teamGem : domeinWaardenEcht(keuze.b, st.lft);
+  const vglLabel = !keuze ? '' : keuze.id === 'team' ? 'gemiddelde team' : `${keuze.id === 'begin' ? 'eerste' : 'vorige'} beoordeling, ${datumKortNl(keuze.b.datum)}`;
+  const radar = teRadarSvg(nu.map(v => v || 0), vgl ? vgl.map(v => v || 0) : null, SKILLS.map(s => s.id), SKILLS.map(s => s.kleur), { klikbaar:true, R:100, klasse:'sr-radar' });
+  const doms = SKILLS.map((s, i) => {
+    const d = nu[i] != null && vgl?.[i] != null ? nu[i] - vgl[i] : null;
+    const pijl = d == null ? '' : Math.abs(d) < 0.05 ? '<em class="gelijk">=</em>' : `<em class="${d > 0 ? 'op' : 'neer'}">${d > 0 ? '+' : '−'}${nlCijfer(Math.abs(d))}</em>`;
+    return `<button type="button" data-sr-dom="${i}" class="${st.open === i ? 'aan' : ''}"><small>${s.id}</small><b style="color:${s.kleur}">${nlCijfer(nu[i])}</b>${pijl}</button>`;
+  }).join('');
+  let detail = '';
+  if (st.open != null){
+    const d = VB_DOMEINEN[st.open], vb = keuze && keuze.id !== 'team' ? keuze.b : null;
+    const rijen = d.criteria.map((c, i) => ({ c, i })).filter(x => critZichtbaar(x.c, st.lft)).map(({ c, i }) => {
+      const k = critSleutel(d.id, i), a = Number(vb?.criteria?.[k]) || null, b = Number(nuB.criteria?.[k]) || null;
+      const chip = n => n ? `<span class="vb-chip kn${n}">${NIV_LABEL[n]}</span>` : '<span class="vb-chip te-cl">–</span>';
+      return `<div class="sr-crit"><span class="nm">${esc(c.naam)}</span><span class="van">${vb ? `${chip(a)}<i>→</i>` : ''}${chip(b)}</span></div>`;
+    }).join('');
+    detail = `<div class="sr-detail"><div class="vb-veldlabel" style="color:${SKILLS[st.open].kleur}">${d.id} · ${esc(d.naam)}</div>${rijen}
+      ${!nuB.criteria ? '<p class="sr-hint">Deze beoordeling is nog per domein ingevuld; er zijn geen losse criteria.</p>' : ''}
+      ${keuze?.id === 'team' ? '<p class="sr-hint">Bij “Team” is er geen eigen vorige stand. Kies Vorige of Begin om de groei per criterium te zien.</p>' : ''}</div>`;
+  }
+  return `${opties.length > 1 ? `<div class="sr-vgl" role="group" aria-label="Vergelijk met">${opties.map(o => `<button type="button" data-sr-vgl="${o.id}" class="${o.id === st.vgl ? 'aan' : ''}">${o.label}</button>`).join('')}</div>` : ''}
+    ${radar}
+    <div class="sr-leg"><span><i class="l"></i>${esc(datumKortNl(nuB.datum))}</span>${vglLabel ? `<span><i class="g"></i>${esc(vglLabel)}</span>` : ''}</div>
+    <div class="sr-doms">${doms}</div>
+    ${detail || '<p class="sr-hint u-tc">Tik een domein voor de criteria erachter.</p>'}`;
+}
+export function htmlSpelerRadar(id, { metingen = [], teamGem = null, lft = 99, vgl = null } = {}){
+  const lijst = [...metingen].filter(b => b && (b.criteria || b.scores)).sort((a, b) => (a.datum || '').localeCompare(b.datum || '') || (a.gemaaktMs || 0) - (b.gemaaktMs || 0));
+  if (!lijst.length) return '';
+  const oud = SR.get(id);
+  SR.set(id, { metingen:lijst, teamGem, lft, vgl: oud?.vgl || vgl || 'vorige', open: oud?.open ?? null });
+  if (!srListener){
+    srListener = true;
+    document.addEventListener('click', e => {
+      const blok = e.target.closest('.sr-blok[data-sr-id]'); if (!blok) return;
+      const st = SR.get(blok.dataset.srId); if (!st) return;
+      const v = e.target.closest('[data-sr-vgl]'), dm = e.target.closest('[data-sr-dom]'), as = e.target.closest('[data-radar-as]');
+      if (v) st.vgl = v.dataset.srVgl;
+      else if (dm || as){ const i = Number((dm || as).dataset.srDom ?? as.dataset.radarAs); st.open = st.open === i ? null : i; }
+      else return;
+      e.stopPropagation();
+      blok.innerHTML = srInhoud(blok.dataset.srId);
+    });
+  }
+  return `<div class="sr-blok" data-sr-id="${esc(id)}">${srInhoud(id)}</div>`;
 }

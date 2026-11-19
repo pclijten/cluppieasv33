@@ -7479,3 +7479,140 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .vup-veld{flex:1;min-width:0}
 .vup-veld small{display:block;margin-top:var(--space-3xs);font-size:var(--t-xs);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vup-rij > .knop{margin-top:var(--space-2xs)}
+
+/* ==================== [20261119c] Teamevaluatie met blokdoel ==================== */
+.te-nieuw{background:color-mix(in srgb,var(--accent) 10%,var(--card));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--hair));border-radius:12px;margin:0 0 12px;overflow:hidden}
+.te-nieuw-kop{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;text-align:left;color:var(--ink);background:none;border:0}
+.te-nieuw-ic{font-size:18px;flex-shrink:0}
+.te-nieuw-t{flex:1;font-size:var(--t-sm);line-height:1.35}
+.te-nieuw-t small{display:block;font-size:var(--t-2xs);color:var(--ink-2);font-weight:400}
+.te-nieuw-pijl{color:var(--ink-2);transition:transform var(--dur-short)}
+.te-nieuw.open .te-nieuw-pijl{transform:rotate(180deg)}
+.te-nieuw-in{display:none;padding:0 12px 12px}
+.te-nieuw.open .te-nieuw-in{display:block}
+.te-nieuw-in p{font-size:var(--t-sm);line-height:1.5;color:var(--ink-2);margin:0 0 8px}
+.te-nieuw-in p b{color:var(--ink)}
+.te-nieuw-knoppen{display:flex;gap:8px;justify-content:flex-end}
+.te-oud{font-size:var(--t-xs);color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:8px 11px;margin:0 0 12px;line-height:1.45}
+.te-voortgang{font-size:var(--t-xs);color:var(--ink-2);margin:0 0 10px}
+.te-voortgang b{color:var(--ink)}
+.te-stapkop{display:flex;align-items:center;gap:7px;margin-bottom:10px}
+.te-stap{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent-vlak);color:var(--wit);font-size:11px;font-weight:700;flex-shrink:0}
+.te-stap.stil{background:var(--surface-2);color:var(--ink-2)}
+.te-hint{font-size:var(--t-2xs);color:var(--ink-2);line-height:1.45;margin-top:6px}
+.te-blok{background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 14%,var(--card)),var(--card) 70%);border-color:color-mix(in srgb,var(--accent) 28%,var(--hair))}
+.te-blok-naam{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);text-transform:uppercase;line-height:1.1}
+.te-blok-wk{font-size:var(--t-xs);color:var(--ink-2);margin:3px 0 9px}
+.te-blok .nu-blok-balk{margin-bottom:12px}
+.te-doel{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:10px 11px;border-radius:11px;background:var(--surface);border:1.5px solid var(--hair);margin-bottom:7px;color:var(--ink)}
+.te-doel .vk{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--ink-2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:transparent;margin-top:1px}
+.te-doel .t{flex:1;font-size:var(--t-sm);line-height:1.4}
+.te-doel .bron{display:block;font-size:10.5px;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.te-doel.aan{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.te-doel.aan .vk{background:var(--accent);border-color:var(--accent);color:var(--wit)}
+.te-focus{border-top:1px solid var(--hair);padding-top:12px;margin-top:12px}
+.te-focus:first-child{border-top:0;padding-top:0;margin-top:0}
+.te-focus-t{display:flex;gap:8px;font-size:var(--t-md);font-weight:600;line-height:1.4;margin-bottom:8px}
+.te-focus-t .ic{color:var(--accent)}
+.te-spoor{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-2);margin:0 0 8px}
+.te-spoor i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.te-anker{min-height:34px}
+.te-anker i{font-style:italic;opacity:.85}
+.te-schaal button{height:34px}
+.te-groep-kop{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.te-groep-kop .gn{font-family:var(--font-display);font-weight:700;font-size:var(--t-lg);text-transform:uppercase;letter-spacing:.2px;line-height:1.1}
+.te-groep-kop .gs{font-size:var(--t-2xs);color:var(--ink-2)}
+.gs-stip{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-right:6px;vertical-align:0}
+.te-groep-kop .gs-stip{width:12px;height:12px;margin:0}
+.te-crit{margin-bottom:16px}
+.te-crit:last-child{margin-bottom:2px}
+.te-crit-naam{display:flex;align-items:center;flex-wrap:wrap;gap:5px;font-size:var(--t-sm);font-weight:600;margin-bottom:7px;color:var(--ink)}
+.te-crit-naam .vb-badge{margin-left:0}
+.vb-badge.te-lc{background:color-mix(in srgb,var(--accent) 20%,var(--surface-2));color:var(--accent)}
+.te-overslaan{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-2)}
+.te-keuze{display:flex;flex-direction:column;gap:7px}
+.te-keuze button{display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 11px;border-radius:11px;background:var(--surface);border:1.5px solid var(--hair);color:var(--ink)}
+.te-keuze button .e{font-size:16px;line-height:1.2}
+.te-keuze button b{display:block;font-size:var(--t-sm)}
+.te-keuze button small{display:block;font-size:var(--t-2xs);color:var(--ink-2);margin-top:2px;line-height:1.4}
+.te-keuze button.aan{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.te-uitklap{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:none;border:0;color:var(--ink);padding:0}
+.te-opt{text-transform:none;font-weight:500}
+.te-pijl{margin-left:auto;color:var(--ink-2);transition:transform var(--dur-short)}
+.te-uitklap[aria-expanded="true"] .te-pijl{transform:rotate(180deg)}
+.te-uitklap-in{display:none}.te-uitklap-in.open{display:block}
+.te-stem{display:flex;gap:8px;margin-top:6px}
+.te-stem>div{flex:1;background:var(--surface);border:1px solid var(--hair);border-radius:11px;padding:8px 6px;text-align:center}
+.te-stem .e{font-size:20px}
+.te-stem .tel{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:5px}
+.te-stem .tel button{width:26px;height:26px;border-radius:50%;background:var(--surface-2);color:var(--ink);font-weight:700;border:0}
+.te-stem .tel b{min-width:14px;font-size:15px}
+.te-ns-rij,.te-ns-bron{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--hair)}
+.te-ns-rij .n{width:24px;height:24px;border-radius:50%;background:var(--surface-2);color:var(--accent);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.te-ns-bron .jr{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--accent);width:44px;flex-shrink:0}
+.te-ns-rij b,.te-ns-bron b{display:block;font-size:14px;margin-bottom:2px;color:var(--ink)}
+.te-ns-rij span:not(.n),.te-ns-bron span:not(.jr){font-size:13px;color:var(--ink-2);line-height:1.5}
+/* dashboard */
+.te-spiegel-rij{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--hair);font-size:var(--t-sm)}
+.te-spiegel-rij:first-of-type{border-top:0}
+.te-spiegel-rij .nm{flex:1;line-height:1.35;min-width:0}
+.te-spiegel-rij .nm small{display:block;font-size:11px;color:var(--ink-2)}
+.te-stippen{display:flex;gap:4px;align-items:center;flex-shrink:0}
+.te-stippen i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.te-stippen i.te-l{background:var(--surface-2)}
+.te-stippen i.te-o{background:transparent;border:1.5px dashed var(--ink-2)}
+.te-trend{font-weight:700;width:16px;text-align:center;flex-shrink:0}
+.te-crit-rij{display:flex;align-items:center;gap:8px;padding:var(--space-xs) 0;border-bottom:1px solid var(--hair)}
+.te-balk{width:72px;height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;flex-shrink:0}
+.te-balk span{display:block;height:100%;border-radius:4px}
+.te-cijfer{width:30px;text-align:right;font-family:var(--font-display);font-weight:700;font-size:var(--t-base)}
+.te-sig{display:flex;align-items:flex-start;gap:var(--space-sm);padding:var(--space-xs) 0;border-bottom:1px solid var(--hair)}
+.te-sig .gs-stip{margin-top:5px}
+.te-hist-doel{font-size:16px;color:var(--zwart)}
+/* samenvatting (desktop, coördinatoren) */
+.te-sam-kop{font-family:var(--font-display);font-weight:700;text-transform:uppercase;font-size:var(--t-lg);margin:0 0 8px}
+.te-sam-focus{background:var(--surface);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+.te-sam-focus .t{font-weight:600;font-size:var(--t-sm);margin-bottom:5px}
+.te-sam-focus .r{display:flex;align-items:center;gap:8px;font-size:var(--t-xs);color:var(--ink-2)}
+.te-sam-focus .b{font-size:var(--t-xs);color:var(--ink);margin-top:6px;font-style:italic}
+.te-sam-groep{margin:10px 0}
+.te-sam-gn{display:flex;align-items:center;font-size:var(--t-xs);font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2);margin-bottom:4px}
+.te-sam-rij{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;font-size:var(--t-sm)}
+.te-sam-zin{font-size:var(--t-2xs);color:var(--ink-2);line-height:1.4;margin:-2px 0 6px}
+.vb-chip.te-cl{background:var(--surface-2);color:var(--ink-2)}
+.te-radar-svg,.sr-radar{display:block;width:100%;max-width:340px;margin:0 auto}
+.te-leg,.sr-leg{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--ink-2);margin:4px 0 10px}
+.te-leg span,.sr-leg span{display:flex;align-items:center;gap:6px}
+.te-leg i,.sr-leg i{width:16px;height:9px;border-radius:2px;display:inline-block}
+.te-leg i.l,.sr-leg i.l{background:color-mix(in srgb,var(--accent) 35%,transparent);border:1.5px solid var(--accent)}
+.te-leg i.g,.sr-leg i.g{border:1.5px dashed var(--ink-2)}
+.te-groepchips{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;font-size:11.5px;color:var(--ink-2)}
+.te-groepchips span{display:flex;align-items:center;gap:5px}
+.te-groepchips i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.te-groepchips b{font-family:var(--font-display);font-size:14px}
+.te-gchips{display:flex;gap:6px;flex-wrap:wrap}
+.te-gchip{display:inline-flex;align-items:center;gap:4px}
+.te-gchip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.te-gchip b{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;border-radius:6px;color:#12140f;font-size:11px;font-weight:800;padding:0 5px}
+.dk-pill.te-pill{color:#12140f}
+.heat-cel.nvt{background:transparent;color:var(--ink-2);opacity:.5}
+/* spelersradar met groei */
+.sr-blok{margin:4px 0 12px}
+.sr-vgl{display:flex;background:var(--surface);border-radius:10px;padding:3px;margin-bottom:6px}
+.sr-vgl button{flex:1;padding:7px;border-radius:8px;font-size:var(--t-xs);font-weight:600;color:var(--ink-2);background:none;border:0}
+.sr-vgl button.aan{background:var(--surface-2);color:var(--ink)}
+.sr-doms{display:flex;gap:5px}
+.sr-doms button{flex:1;background:var(--surface);border:1.5px solid var(--hair);border-radius:10px;padding:6px 2px;text-align:center;color:var(--ink)}
+.sr-doms button.aan{border-color:var(--accent)}
+.sr-doms small{display:block;font-size:10px;color:var(--ink-2);font-weight:700}
+.sr-doms b{display:block;font-family:var(--font-display);font-size:18px;line-height:1.1}
+.sr-doms em{display:block;font-style:normal;font-size:10.5px;font-weight:700}
+.sr-doms em.op{color:var(--ok)}.sr-doms em.neer{color:var(--warn)}.sr-doms em.gelijk{color:var(--ink-2)}
+.sr-detail{background:var(--surface);border-radius:11px;padding:10px 12px;margin-top:10px}
+.sr-crit{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--hair);font-size:var(--t-xs)}
+.sr-crit:first-of-type{border-top:0}
+.sr-crit .nm{flex:1;line-height:1.35}
+.sr-crit .van{display:flex;align-items:center;gap:4px}
+.sr-crit .van i{font-style:normal;color:var(--ink-2)}
+.sr-crit .vb-chip{width:auto;min-width:58px;padding:3px 6px}
+.sr-hint{font-size:var(--t-2xs);color:var(--ink-2);margin:8px 0 0}

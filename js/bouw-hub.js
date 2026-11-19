@@ -25,10 +25,11 @@ import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
 import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
-import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, TEAM_CATEGORIEEN, niveauKleur } from './config.js?v=20261111g';
+import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, niveauKleur, TEAM_TAGS } from './config.js?v=20261111g';
+import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, teVervolg, teLeeftijd, teCriteriaVoor, teScores, teIsNieuw, teGroepWaarden, teKleur, teCijfer, teZinnen } from './team-evaluatie-criteria.js?v=20261119c';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261119b';
-import { openUitleenForm } from './uitleen-form.js?v=20261119b';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261119c';
+import { openUitleenForm } from './uitleen-form.js?v=20261119c';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111d';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { analyseWedstrijd } from './analyse.js?v=20261111g';
@@ -212,7 +213,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261119b'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261119c'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -530,29 +531,22 @@ export function teamEvalStatsTeam(team){
   const d = huidigeContext.data.get(team.id);
   const evals = d.teamevaluaties || [];
   if (!evals.length) return null;
+  const lft = teLeeftijd(team.categorie);
   const laatste = [...evals].sort((a,b) => (a.datum||'').localeCompare(b.datum||'')).pop();
-  const gemPerCat = TEAM_CATEGORIEEN.map(c => {
-    const vals = evals.map(e => e.scores?.[c.id]).filter(v => v != null);
-    return vals.length ? vals.reduce((s,x)=>s+x,0)/vals.length : null;
-  }).filter(v => v != null);
-  const gemiddeld = gemPerCat.length ? gemPerCat.reduce((s,x)=>s+x,0)/gemPerCat.length : null;
-  const laatsteVals = Object.values(laatste.scores||{});
-  const laatsteGem = laatsteVals.length ? laatsteVals.reduce((s,x)=>s+x,0)/laatsteVals.length : null;
-  return { count: evals.length, gemiddeld, laatsteGem, laatsteTegenstander: laatste.tegenstander||'', laatsteDatum: laatste.datum||'' };
+  const focus = (laatste.focus || []).find(f => f.niveau) || null;
+  return { count: evals.length, groepen: teGroepWaarden(teScores(laatste, lft), lft), lft, focus, laatsteTegenstander: laatste.tegenstander||'', laatsteDatum: laatste.datum||'' };
 }
 
-// Korte assenlabels voor de 8-categorieën teamevaluatie-radar — TEAM_CATEGORIEEN
-// zelf heeft alleen de volledige naam (te lang voor 8 assen op een kleine radar).
-const TEAM_CAT_KORT = {
-  inzet:'Inzet', samenwerking:'Samen', taken:'Taken', opbouw:'Opbouw',
-  omschakeling:'Omschak.', druk:'Druk', plezier:'Plezier', coachbaar:'Coachb.',
-};
-function teamEvalRadarWaarden(evals){
-  return TEAM_CATEGORIEEN.map(c => {
-    const vals = evals.map(e => e.scores?.[c.id]).filter(v => v != null);
+/* [20261119c] Radar na de wedstrijd: assen = criteria bij de leeftijd van het
+   team; oude evaluaties tellen mee via teScores(). */
+function teamEvalRadarWaarden(evals, lft){
+  return teCriteriaVoor(lft).map(c => {
+    const vals = evals.map(e => teScores(e, lft)[c.id]).filter(v => v != null);
     return vals.length ? vals.reduce((s,x)=>s+x,0)/vals.length : 0;
   });
 }
+const groepChips = (groepen, lft) => TE_GROEPEN.filter(g => teCriteriaVoor(lft).some(c => c.groep === g.id)).map(g =>
+  `<span class="te-gchip" title="${esc(g.naam)}"><i style="background:${g.kleur}"></i><b style="background:${teKleur(groepen[g.id])}">${teCijfer(groepen[g.id])}</b></span>`).join('');
 
 function uitleningenVoorTeam(teamId){
   return huidigeContext.uitleningen.filter(u => u.vanTeam === teamId || u.naarTeam === teamId).map(u => ({
@@ -617,7 +611,7 @@ function radarSVGAssen(values, asLabels, {size=150, labels=true, color='var(--ac
 // Bestaande 5-domeinen speler-radar blijft z'n eigen naam/aanroepvorm houden
 // (overal elders al zo gebruikt) — is nu gewoon een dunne laag bovenop de
 // generieke functie hierboven, die ook de 8-categorieën teamevaluatie-radar
-// bedient (zie TEAM_CAT_KORT/radarTeamEval verderop).
+// bedient (zie teamEvalRadarWaarden verderop).
 function radarSVG(values, opts={}){
   return radarSVGAssen(values, DOM.map(d => DOM_LABEL[d]), opts);
 }
@@ -739,17 +733,14 @@ function renderDashboard(){
         : `<div class="u-tc u-zacht u-t-xs" style="padding:var(--space-xs) 0">Nog geen evaluaties met domeinscores</div>`) : '';
 
       const teStats = w.teamEval ? teamEvalStatsTeam(t) : null;
-      const teKleur = teStats?.laatsteGem ? niveauKleur(Math.max(1, Math.round(teStats.laatsteGem))) : 'var(--surface-2)';
       const teamEvalHtml = w.teamEval ? (teStats ? `
         <button type="button" data-bh-team-eval="${t.id}" style="display:block;width:100%;text-align:left;background:none;border:none;padding:0;margin-top:var(--space-sm);padding-top:var(--space-sm);border-top:1px solid var(--surface-2);cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <span class="u-t-2xs u-zacht">Teamevaluaties<span class="sep" aria-hidden="true"></span>na de wedstrijd</span>
             <span class="u-t-2xs u-zacht">${teStats.count}× ›</span>
           </div>
-          <div class="u-mt-2xs" style="display:flex;align-items:center;gap:var(--space-xs)">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:${teKleur};color:#12140f;font-weight:800;font-size:calc(12px * var(--fs))">${teStats.laatsteGem?teStats.laatsteGem.toFixed(1).replace('.',','):'–'}</span>
-            <span class="u-t-xs u-zacht">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.gemiddeld?`, gemiddeld ${teStats.gemiddeld.toFixed(1).replace('.',',')}`:''}</span>
-          </div>
+          <div class="u-mt-2xs te-gchips">${groepChips(teStats.groepen, teStats.lft)}</div>
+          <div class="u-t-xs u-zacht u-mt-2xs">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.focus ? `<span class="sep" aria-hidden="true"></span>◎ ${esc(teStats.focus.tekst)}: <b style="color:var(--n${teStats.focus.niveau})">${esc(TE_NIV[teStats.focus.niveau])}</b>` : ''}</div>
         </button>` : `
         <div class="u-mt-sm u-zacht u-t-xs" style="padding-top:var(--space-sm);border-top:1px solid var(--surface-2)">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
 
@@ -880,7 +871,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261119c');
+      const m = await import('./teams.js?v=20261119d');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1166,22 +1157,23 @@ function renderEvaluatieTeamDetail(teamId){
 
   const evals = d.teamevaluaties || [];
   const evalsChron = [...evals].sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
-  const teGem = evals.length ? teamEvalRadarWaarden(evals) : null;
-  const teLaatste = evalsChron.length ? teamEvalRadarWaarden([evalsChron[evalsChron.length-1]]) : null;
-  const teAsLabels = TEAM_CATEGORIEEN.map(c => TEAM_CAT_KORT[c.id] || c.naam.slice(0,6));
+  const teLft = teLeeftijd(team?.categorie);
+  const teGem = evals.length ? teamEvalRadarWaarden(evals, teLft) : null;
+  const teLaatste = evalsChron.length ? teamEvalRadarWaarden([evalsChron[evalsChron.length-1]], teLft) : null;
+  const teAsLabels = teCriteriaVoor(teLft).map(c => c.kort);
   const teRadarHtml = teLaatste
     ? `<div class="u-tc">${radarSVGAssen(teLaatste, teAsLabels, {size:170, compare:teGem})}${radarLegende('laatste wedstrijd','gemiddelde')}</div>`
     : `<div class="u-zacht u-t-sm u-tc" style="padding:20px 0">Nog geen teamevaluatie na een wedstrijd.</div>`;
   const teHistorieHtml = evalsChron.length ? `
     <div class="sectie-kop">Historie: na de wedstrijd</div>
     ${[...evalsChron].reverse().map(ev => {
-      const vals = Object.values(ev.scores||{});
-      const gem = vals.length ? (vals.reduce((s,x)=>s+x,0)/vals.length) : null;
+      const f = (ev.focus || []).find(x => x.niveau);
       return `<button class="lijst-item" data-bh-open-teameval="${ev.wedstrijdId||''}">
-        <div class="team-shirt" style="background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
+        <div class="team-shirt" style="background:${f ? `var(--n${f.niveau})` : 'var(--surface-2)'};color:#12140f" title="${f ? 'Blokdoel' : ''}">${f ? '◎' : (teIsNieuw(ev) ? '–' : 'oud')}</div>
         <div class="li-tekst">
           <div class="titel">${esc(ev.tegenstander||'Onbekend')}</div>
-          <div class="meta">${esc(ev.datum||'')}</div>
+          <div class="meta">${esc(ev.datum||'')}${f ? `<span class="sep" aria-hidden="true"></span>${esc(f.tekst)}` : ''}</div>
+          <div class="te-gchips u-mt-2xs">${groepChips(teGroepWaarden(teScores(ev, teLft), teLft), teLft)}</div>
         </div>
         <span class="pijl">›</span>
       </button>`;
@@ -1240,32 +1232,31 @@ function renderTeamEvaluatieDetail(teamId, ev){
   zetKop(ev?.tegenstander || 'Teamevaluatie', () => renderEvaluatieTeamDetail(teamId));
   const inhoud = laag.querySelector('#bouwhubInhoud');
   if (!ev){ inhoud.innerHTML = `<div class="kaart leeg">Deze evaluatie kon niet gevonden worden.</div>`; return; }
-  const vals = Object.values(ev.scores||{});
-  const gem = vals.length ? (vals.reduce((s,x)=>s+x,0)/vals.length) : null;
-
+  /* [20261119c] Blokdoel, criteria met hun zin, vervolg en spelersstem.
+     Oude evaluaties: vertaald naar de nieuwe onderdelen (zonder zin). */
+  const team = huidigeContext.teams.find(t => t.id === teamId);
+  const lft = Number(ev.lft) || teLeeftijd(team?.categorie), sc = teScores(ev, lft), nieuw = teIsNieuw(ev);
+  const chip = n => n ? `<span class="vb-chip kn${n}">${TE_NIV[n]}</span>` : '<span class="vb-chip te-cl">–</span>';
+  const focus = (ev.focus || []).filter(f => f.niveau || f.bewijs);
+  const vv = teVervolg(ev.vervolg), sp = ev.spelers;
   inhoud.innerHTML = `
     <div class="kaart">
-      <div class="u-mb-xs" style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div class="u-fw-7 u-t-base">${esc(ev.tegenstander||'Onbekend')}</div>
-          <div class="u-zacht u-t-xs">${esc(ev.datum||'')}</div>
-        </div>
-        <div style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:${gem?niveauKleur(Math.round(gem)):'var(--surface-2)'};color:#12140f;font-weight:800">${gem?gem.toFixed(1).replace('.',','):'–'}</div>
-      </div>
+      <div class="u-fw-7 u-t-base">${esc(ev.tegenstander||'Onbekend')}</div>
+      <div class="u-zacht u-t-xs">${esc(ev.datum||'')}${ev.blok ? `<span class="sep" aria-hidden="true"></span>${esc(ev.blok.naam || 'Blok')}${ev.blok.week ? ', week ' + ev.blok.week : ''}` : ''}</div>
+      <div class="te-gchips u-mt-xs">${groepChips(teGroepWaarden(sc, lft), lft)}</div>
+      ${!nieuw ? '<p class="te-hint">Gemaakt met de vragen van vóór 19 november; vertaald naar de nieuwe onderdelen.</p>' : ''}
     </div>
-    <div class="sectie-kop">Per categorie</div>
-    <div class="kaart">
-      ${TEAM_CATEGORIEEN.map(c => {
-        const s = ev.scores?.[c.id];
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-xs) 0;border-bottom:1px solid var(--surface-2)">
-          <span class="u-t-sm">${esc(c.naam)}</span>
-          <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:7px;background:${s?niveauKleur(s):'var(--surface-2)'};color:#12140f;font-weight:700;font-size:calc(12px * var(--fs))">${s||'–'}</span>
-        </div>`;
-      }).join('')}
-    </div>
-    ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:var(--space-xs)">${ev.tags.map(t => `<span class="tag aan">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${focus.length ? `<div class="sectie-kop">Blokdoel</div><div class="kaart">${focus.map(f => `<div class="te-sam-focus"><div class="t">◎ ${esc(f.tekst)}</div>
+      ${f.niveau ? `<div class="r">${chip(f.niveau)}<span>${esc(TE_FOCUS_LADDER[f.niveau])}</span></div>` : ''}${f.bewijs ? `<div class="b">“${esc(f.bewijs)}”</div>` : ''}</div>`).join('')}</div>` : ''}
+    <div class="sectie-kop">Per onderdeel</div>
+    <div class="kaart">${TE_GROEPEN.map(g => { const items = g.crit.filter(c => sc[c.id] != null);
+      return items.length ? `<div class="te-sam-groep"><div class="te-sam-gn"><span class="gs-stip" style="background:${g.kleur}"></span>${esc(g.naam)}</div>
+        ${items.map(c => { const n = Math.round(sc[c.id]); return `<div class="te-sam-rij"><span class="nm">${esc(c.naam)}</span>${chip(n)}</div>${nieuw ? `<div class="te-sam-zin">${esc(teZinnen(c, lft)[n - 1] || '')}</div>` : ''}`; }).join('')}</div>` : ''; }).join('') || '<p class="u-t-sm u-zacht">Geen onderdelen ingevuld.</p>'}</div>
+    ${vv ? `<div class="sectie-kop">Vervolg</div><div class="kaart u-t-sm">${vv.ico} ${esc(vv.titel)}</div>` : ''}
+    ${sp ? `<div class="sectie-kop">Spelers</div><div class="kaart u-t-sm">👍 ${sp.ja || 0} · 👌 ${sp.half || 0} · 👎 ${sp.nee || 0}</div>` : ''}
+    ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:var(--space-xs)">${ev.tags.map(t => `<span class="tag aan">${esc(TEAM_TAGS.find(x => x.id === t)?.label || t)}</span>`).join('')}</div>` : ''}
     ${ev.notitieGoed ? `<div class="sectie-kop">Wat ging het beste?</div><div class="kaart u-t-sm">${esc(ev.notitieGoed)}</div>` : ''}
-    ${ev.notitieAandacht ? `<div class="sectie-kop">Aandachtspunt</div><div class="kaart u-t-sm">${esc(ev.notitieAandacht)}</div>` : ''}
+    ${ev.notitieAandacht ? `<div class="sectie-kop">Mee naar de training</div><div class="kaart u-t-sm">${esc(ev.notitieAandacht)}</div>` : ''}
   `;
 }
 

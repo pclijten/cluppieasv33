@@ -19,7 +19,7 @@
 import { S, $, esc, speler, modAan, meld } from './state.js?v=20261111g';
 import { db, doc, setDoc, addDoc, updateDoc, deleteDoc, collection, serverTimestamp } from './firebase.js?v=20261106r';
 import { SKILLS, NIVEAUS, niveauKleur, LEERCURVE, leercurveRelevant, bouwSlots, periodeNrs, isoWeek,
-  TEAM_CATEGORIEEN, TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK, POSITIE_GROEPEN } from './config.js?v=20261111g';
+  TEAM_TAGS, AFWEZIG_REDENEN, afwezigRedenInfo, SEIZOEN_FALLBACK, POSITIE_GROEPEN } from './config.js?v=20261111g';
 import { analyseWedstrijd, speeltijdReserve, kwartGespeeld } from './analyse.js?v=20261111g';
 import { teltMee } from './opkomst.js?v=20261106r';
 import { vastOp, vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
@@ -27,10 +27,12 @@ import { magUitlenen } from './uitleen-rechten.js?v=20261111g';
 import { leenOmschrijving, leenActief, spelersOpTraining, effectieveSelectie } from './uitleen-regels.js?v=20261111d';
 import { ico } from './icons.js?v=20261106r';
 import { logTrainingGeopend } from './training-log.js?v=20261112a';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261119c';
-import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20261119b';
-import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261119b';
-import { bewaarTeamEvaluatie } from './teams-evaluatie.js?v=20261119b';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261119d';
+import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20261119c';
+import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261119c';
+import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, teVervolg, teLeeftijd, teCriteriaVoor, teZinnen, teScores, teIsNieuw, teGroepWaarden,
+  teCritGemiddelden, teKleur, teCijfer, teWedRadar } from './team-evaluatie-criteria.js?v=20261119c';
+import { htmlSpelerRadar, domeinWaardenEcht, leeftijdTeam } from './beoordeling-volledig.js?v=20261119c';
 import { oefHtml, bronHtml } from './training-weergave.js?v=20261111g';
 import { rondesVoorTeam, rondeTelling, datumKort } from './evaluatierondes.js?v=20261113v';
 import { laadPdfJs } from './pdf-viewer.js?v=20261111g';
@@ -43,6 +45,7 @@ let klassiekTab = null;          // tabblad waarvoor de coach "Gewone weergave" 
 let klassiekProfiel = null;      // speler-id waarvoor het volledige (oude) profiel open staat
 let laatsteSig = '';
 let selWedstrijd = null, selTraining = null, selThema = null, spFilter = 'Alle';
+let meekijk = false;           // [20261119c] htmlMeekijk tekent alleen-lezen: geen Evalueren-knop
 let spPositie = { pid:null, pos:'' };
 let selDoc = null, evSel = null, evConcept = null, awOpen = null, planMaand = null, planFilter = 'alles';
 
@@ -405,7 +408,7 @@ export function htmlMobielTeam(soort, team, d, keuze = {}){
       const k = kaart(p), st = statsVan(p.id), tg = teamGemiddelde();
       return `<div class="mb-strook">${spelers.map(x => `<button class="mb-chip ${x.id === pid ? 'aan' : ''}" data-mb="speler" data-id="${esc(x.id)}">${esc(x.nummer ?? '')} ${esc(voornaam(x))}</button>`).join('')}</div>
         <div class="mb-kaart mb-pas"><div class="mb-groot">${esc(voornaam(p))}<small>${k.ovr != null ? 'Kaart ' + k.ovr + (k.snel ? ', snel' : '') : 'nog niet beoordeeld'}</small></div>
-          ${k.niv.some(Boolean) ? `<div class="mb-radar">${radarSvg(k.niv, tg)}</div>
+          ${k.niv.some(Boolean) ? `<div class="mb-radar">${spelerRadarDk(p)}</div>
             <div class="mb-dom">${SKILLS.map((dm, i) => `<span><b style="color:${dm.kleur}">${k.niv[i] ? cijfer(k.niv[i]) : '\u2013'}</b><small>${dm.id}</small></span>`).join('')}</div>`
             : `<p class="mb-leeg">${k.snel ? 'Alleen een snelle beoordeling (' + esc(k.snelLabel) + '). Voor de radar per domein is een volledige beoordeling nodig.' : 'Nog geen beoordeling.'}</p>`}</div>
         <div class="mb-tegels"><span><b>${st.wedstrijden}</b><small>WEDSTR.</small></span><span><b>${st.pctSpeeltijd != null ? st.pctSpeeltijd + '%' : '\u2013'}</b><small>SPEELTIJD</small></span><span><b>${st.pctReserve != null ? st.pctReserve + '%' : '\u2013'}</b><small>RESERVE</small></span><span><b>${st.goals}</b><small>GOALS</small></span></div>
@@ -418,27 +421,9 @@ export function htmlMobielTeam(soort, team, d, keuze = {}){
       const w = lijst.find(x => x.id === wid);
       if (!w) return '<p class="mb-leeg">Nog geen gespeelde wedstrijden.</p>';
       const e = S.teamEvaluaties.find(x => x.wedstrijdId === w.id);
-      const vals = Object.values(e?.scores || {}).map(Number).filter(Boolean);
-      const pct = vals.length ? Math.round(gem(vals) / 5 * 100) : null;
       return `<div class="mb-strook">${lijst.map(x => { const st = stand(x); return `<button class="mb-wl ${x.id === wid ? 'aan' : ''}" data-mb="wedstrijd" data-id="${esc(x.id)}"><b>${esc(String(Number((x.datum || '').slice(8, 10)) || ''))}<small>${esc(datumMooi(x.datum, { month:'short' }))}</small></b><span>${esc(x.tegenstander || '')}<small>${st.links}\u2013${st.rechts}</small></span></button>`; }).join('')}</div>
-        <div class="mb-kaart mb-evkop"><div class="mb-ring" style="--p:${pct ?? 0}"><span>${pct ?? '\u2013'}</span></div><p>${e ? `Teamscore ${esc(w.tegenstander || '')} ${stand(w).links}\u2013${stand(w).rechts}.` : 'Deze wedstrijd is nog niet ge\u00ebvalueerd.'}</p></div>
-        ${(() => {
-          /* [20260923g] Radar: seizoensgemiddelde van alle geëvalueerde wedstrijden
-             (grijze stippellijn) met de gekozen wedstrijd in kleur. */
-          const evals = S.teamEvaluaties.filter(x => x.scores);
-          if (!evals.length) return '';
-          const gemVals = TEAM_CATEGORIEEN.map(c => { const v = evals.map(x => Number(x.scores[c.id])).filter(Boolean); return v.length ? gem(v) : 0; });
-          const huidig = TEAM_CATEGORIEEN.map(c => Number(e?.scores?.[c.id]) || 0);
-          const kort = c => ({ 'Inzet & concentratie':'Inzet', 'Samenwerking & communicatie':'Samenwerking', 'Taakuitvoering per linie':'Taken', 'Opbouw van achteruit':'Opbouw',
-            'Omschakeling bij balverlies/-winst':'Omschakelen', 'Druk zetten & veroveren':'Druk zetten', 'Spelplezier':'Plezier', 'Coachbaarheid':'Coachbaar' }[c.naam] || c.naam.split(/[ &\/]/)[0]);
-          return `<div class="mb-kaart"><div class="mb-lbl">Radar<span>${evals.length} geëvalueerde wedstrijd${evals.length === 1 ? '' : 'en'}</span></div>
-            <div class="mb-radar mb-radar-ev">${radarN(e ? huidig : gemVals, e ? gemVals : null, TEAM_CATEGORIEEN.map(kort), TEAM_CATEGORIEEN.map((c, i) => e && huidig[i] ? niveauKleur(huidig[i]) : 'var(--ink-2)'))}</div>
-            <div class="mb-leg"><span><i style="background:#e2342f"></i>${e ? esc(w.tegenstander || 'deze wedstrijd') : 'seizoensgemiddelde'}</span>${e ? '<span><i style="background:transparent;border:1.5px dashed var(--ink-2)"></i>gemiddelde alle wedstrijden</span>' : ''}</div></div>`;
-        })()}
-        ${e ? `<div class="mb-kaart">${TEAM_CATEGORIEEN.map(c => { const v = Number(e.scores?.[c.id]) || 0;
-          return `<div class="mb-cat">${esc(c.naam)}</div><div class="mb-kb">${NIVEAUS.slice(1).map(n => `<span style="${v === n.n ? 'background:' + niveauKleur(n.n) + ';color:#161a1f' : ''}">${esc(n.label.slice(0, 6))}</span>`).join('')}</div>`; }).join('')}
-          ${(e.tags || []).length ? `<div class="mb-tags">${e.tags.map(tid => { const t = TEAM_TAGS.find(x => x.id === tid); return t ? `<span>${esc(t.label)}</span>` : ''; }).join('')}</div>` : ''}
-          ${e.notitieGoed ? `<p class="mb-noot"><b>Ging goed:</b> ${esc(e.notitieGoed)}</p>` : ''}${e.notitieAandacht ? `<p class="mb-noot"><b>Aandacht:</b> ${esc(e.notitieAandacht)}</p>` : ''}</div>` : ''}`;
+        ${htmlEvalRadarBlok(w, e, 'mb')}
+        ${e ? `<div class="mb-kaart">${htmlEvalSamenvatting(e)}</div>` : '<div class="mb-kaart"><p class="mb-leeg">Deze wedstrijd is nog niet geëvalueerd.</p></div>'}`;
     }
     if (soort === 'stat'){
       const rij = spelers.map(p => ({ p, st: statsVan(p.id) }));
@@ -463,6 +448,7 @@ export function htmlMeekijk(soort, team, d, keuze = {}){
   const bewaar = { team:S.team, teamId:S.teamId, spelers:S.spelers, wedstrijden:S.wedstrijden, presentie:S.presentie, beoordelingen:S.beoordelingen,
     teamEvaluaties:S.teamEvaluaties, profiel:S._beoordeelProfiel, modus:S._dkModus, uitUit:S.uitleningenUit, evSel, evConcept, spFilter };
   try {
+    meekijk = true;
     S.team = team; S.teamId = team.id; S.spelers = d.spelers || []; S.wedstrijden = d.wedstrijden || []; S.presentie = d.presentie || [];
     S.beoordelingen = [...(d.beoordelingen || [])].sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.gemaaktMs || 0) - (a.gemaaktMs || 0));
     S.teamEvaluaties = d.teamevaluaties || []; S.uitleningenUit = []; spFilter = 'Alle';
@@ -476,22 +462,11 @@ export function htmlMeekijk(soort, team, d, keuze = {}){
     S.team = bewaar.team; S.teamId = bewaar.teamId; S.spelers = bewaar.spelers; S.wedstrijden = bewaar.wedstrijden; S.presentie = bewaar.presentie;
     S.beoordelingen = bewaar.beoordelingen; S.teamEvaluaties = bewaar.teamEvaluaties; S._beoordeelProfiel = bewaar.profiel; S._dkModus = bewaar.modus;
     S.uitleningenUit = bewaar.uitUit; evSel = bewaar.evSel; evConcept = bewaar.evConcept; spFilter = bewaar.spFilter;
+    meekijk = false;
   }
 }
 
 /* ==================== PASPOORT (spelerprofiel) ==================== */
-function radarSvg(niv, teamGem){
-  const cx = 210, cy = 200, R = 158;
-  const pnt = w => w.map((v, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / 5, r = R * (v || 0) / 5; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
-  const pp = a => a.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
-  return `<svg viewBox="0 0 420 400" class="dk-radar-svg" aria-hidden="true">
-    ${[1, 2, 3, 4, 5].map(v => `<polygon points="${pp(pnt(Array(5).fill(v)))}" fill="none" style="stroke:var(--line-d)" ${v === 5 ? 'stroke-width="1.5"' : ''}/>`).join('')}
-    ${pnt(Array(5).fill(5.85)).map(([x, y], i) => `<text x="${x.toFixed(1)}" y="${(y + 7).toFixed(1)}" text-anchor="middle" fill="${SKILLS[i].kleur}" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="22">${SKILLS[i].id}</text>`).join('')}
-    ${teamGem.every(x => x) ? `<polygon points="${pp(pnt(teamGem))}" fill="none" style="stroke:var(--ink-2)" stroke-width="1.5" stroke-dasharray="4 4"/>` : ''}
-    ${niv.some(Boolean) ? `<polygon points="${pp(pnt(niv))}" style="fill:color-mix(in srgb,var(--accent) 28%,transparent);stroke:var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
-      ${pnt(niv).map(([x, y], i) => niv[i] ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${SKILLS[i].kleur}" style="stroke:var(--bg)" stroke-width="2.5"/>` : '').join('')}` : ''}
-  </svg>`;
-}
 function sparkline(t){
   if (t.length < 2) return '<svg viewBox="0 0 64 24"></svg>';
   const mn = Math.min(...t) - 2, mx = Math.max(...t) + 2;
@@ -530,8 +505,8 @@ function htmlPaspoort(){
         <h1 class="dk-groot dk-naam">${esc(p.naam || '')}<span class="dk-omlijnd">${esc(p.nummer != null && p.nummer !== '' ? '#' + p.nummer : '')}${p.positie ? ', ' + esc(p.positie) : ''}</span></h1>
         <div class="dk-pills">${p.nummer != null && p.nummer !== '' ? `<span class="dk-pill">#${esc(p.nummer)}${p.positie ? ', ' + esc(p.positie) : ''}</span>` : p.positie ? `<span class="dk-pill">${esc(p.positie)}</span>` : ''}
           ${k.ovr != null ? `<span class="dk-pill ${k.stijging >= 5 ? 'rood' : 'groen'}">Kaart ${k.ovr}${k.stijging ? ` (${k.stijging > 0 ? '+' : ''}${k.stijging})` : ''}</span>` : '<span class="dk-pill">Nog geen volledige beoordeling</span>'}
-          <span class="dk-pill">${min}\u2032 dit seizoen</span><span class="dk-pill">Stippellijn = teamgemiddelde</span></div>
-        ${k.niv.some(Boolean) ? `<div class="dk-radar">${radarSvg(k.niv, tg)}
+          <span class="dk-pill">${min}\u2032 dit seizoen</span></div>
+        ${k.niv.some(Boolean) ? `<div class="dk-radar">${spelerRadarDk(p)}
           <div class="dk-legenda">${SKILLS.map((d, i) => `<div><b style="color:${d.kleur}">${k.niv[i] ? cijfer(k.niv[i]) : '–'}</b><span><strong>${esc(d.kort)}</strong>${k.niv[i] ? esc(NIVEAUS[k.niv[i]]?.label || '') : 'niet beoordeeld'}${k.niv[i] && k.nivVorig[i] && k.niv[i] > k.nivVorig[i] ? ', gestegen' : ''}</span></div>`).join('')}</div></div>` : `<div class="dk-blok dk-geenradar"><b>${k.snel ? 'Alleen een snelle beoordeling: ' + esc(k.snelLabel) : 'Nog geen beoordeling'}</b>
           <p>${k.snel ? `Het kaartcijfer gebruikt dat niveau (${k.ovr}). Voor de radar per domein is een volledige beoordeling nodig.` : 'Vul een volledige beoordeling in om de radar per domein te zien.'}</p>
           ${knop('Volledige beoordeling', 'beoordeel', 'rood', 'attendance-evaluatie')}</div>`}
@@ -746,51 +721,79 @@ async function tekenPdfs(v){
   }
 }
 
-/* ==================== EVALUATIE (team, per wedstrijd) ==================== */
-function evGemiddelde(scores){ const w = Object.values(scores || {}).map(Number).filter(Boolean); return w.length ? gem(w) : 0; }
-function radarN(vals, gemVals, labels, kleuren){
-  const n = vals.length, cx = 200, cy = 190, R = 140;
-  const pt = (v, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, r = R * (v || 0) / 5; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
-  const pp = a => a.map(p => p.map(x => x.toFixed(1)).join(',')).join(' ');
-  return `<svg class="dk-radar-svg" viewBox="0 0 400 380">${[1, 2, 3, 4, 5].map(l => `<polygon points="${pp(vals.map((_, i) => pt(l, i)))}" fill="none" style="stroke:var(--line-d)"/>`).join('')}
-    ${labels.map((l, i) => { const [x, y] = pt(6.2, i); return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" style="fill:${kleuren[i]}">${esc(l)}</text>`; }).join('')}
-    ${gemVals && gemVals.some(Boolean) ? `<polygon points="${pp(gemVals.map(pt))}" fill="none" style="stroke:var(--ink-2)" stroke-width="1.5" stroke-dasharray="4 4"/>` : ''}
-    <polygon points="${pp(vals.map(pt))}" fill="rgba(226,52,47,.26)" stroke="#e2342f" stroke-width="2.4" stroke-linejoin="round"/>
-    ${vals.map((v, i) => { const [x, y] = pt(v, i); return v ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" style="fill:${kleuren[i]}"/>` : ''; }).join('')}</svg>`;
+/* ==================== EVALUATIE (team, per wedstrijd) ====================
+   [20261119c] Invullen gebeurt in het gedeelde venster (modalTeamEvaluatie):
+   blokdoel, criteria per leeftijd met een zin per niveau, vervolg. Dit scherm
+   toont per wedstrijd de samenvatting en de radar (criteria bij de leeftijd,
+   tegenover het gemiddelde van het blok of anders het seizoen). Oude
+   evaluaties tellen mee via teScores(). */
+const evLft = () => teLeeftijd(S.team?.categorie);
+const evAlle = () => (S.teamEvaluaties || []).filter(e => e.scores || e.focus).sort((a, b) => (a.datum || '').localeCompare(b.datum || '') || (a.gemaaktMs || 0) - (b.gemaaktMs || 0));
+function evPill(e){
+  if (!e) return '<span class="dk-pill rood">evalueren</span>';
+  const f = (e.focus || []).find(x => x.niveau);
+  return f ? `<span class="dk-pill te-pill" style="background:var(--n${f.niveau})">${esc(TE_NIV[f.niveau])}</span>` : `<span class="dk-pill groen">${teIsNieuw(e) ? 'klaar' : 'oud'}</span>`;
+}
+function htmlEvalSamenvatting(e){
+  const lft = Number(e.lft) || evLft(), sc = teScores(e, lft);
+  const chip = (n, v) => n ? `<span class="vb-chip kn${n}">${TE_NIV[n]}</span>` : '';
+  const focus = (e.focus || []).filter(f => f.niveau || f.bewijs);
+  const vv = teVervolg(e.vervolg), sp = e.spelers;
+  return `${!teIsNieuw(e) ? '<p class="te-hint u-mt-0">Gemaakt met de vragen van vóór 19 november; hieronder vertaald naar de nieuwe onderdelen.</p>' : ''}
+    ${e.blok ? `<div class="te-sam-kop">${esc(e.blok.naam || 'Blok')}${e.blok.week ? `<span class="sep" aria-hidden="true"></span>week ${e.blok.week}${e.blok.weken ? ' van ' + e.blok.weken : ''}` : ''}</div>` : ''}
+    ${focus.map(f => `<div class="te-sam-focus"><div class="t">◎ ${esc(f.tekst)}</div>${f.niveau ? `<div class="r">${chip(f.niveau)}<span>${esc(TE_FOCUS_LADDER[f.niveau])}</span></div>` : ''}${f.bewijs ? `<div class="b">“${esc(f.bewijs)}”</div>` : ''}</div>`).join('')}
+    ${TE_GROEPEN.map(g => { const items = g.crit.filter(c => sc[c.id] != null && (teIsNieuw(e) ? true : teCriteriaVoor(lft).some(x => x.id === c.id)));
+      return items.length ? `<div class="te-sam-groep"><div class="te-sam-gn"><span class="gs-stip" style="background:${g.kleur}"></span>${esc(g.naam)}</div>
+        ${items.map(c => { const n = Math.round(sc[c.id]); return `<div class="te-sam-rij"><span class="nm">${esc(c.naam)}</span>${chip(n)}</div>${teIsNieuw(e) ? `<div class="te-sam-zin">${esc(teZinnen(c, lft)[n - 1] || '')}</div>` : ''}`; }).join('')}</div>` : ''; }).join('')}
+    ${vv ? `<div class="te-sam-rij"><span class="nm"><b>Vervolg:</b> ${esc(vv.titel)}</span></div>` : ''}
+    ${sp ? `<div class="te-sam-rij"><span class="nm"><b>Spelers:</b> 👍 ${sp.ja || 0} · 👌 ${sp.half || 0} · 👎 ${sp.nee || 0}</span></div>` : ''}
+    ${(e.tags || []).length ? `<div class="mb-tags">${e.tags.map(tid => { const t = TEAM_TAGS.find(x => x.id === tid); return t ? `<span>${esc(t.label)}</span>` : ''; }).join('')}</div>` : ''}
+    ${e.notitieGoed ? `<p class="mb-noot"><b>Ging goed:</b> ${esc(e.notitieGoed)}</p>` : ''}${e.notitieAandacht ? `<p class="mb-noot"><b>Mee naar de training:</b> ${esc(e.notitieAandacht)}</p>` : ''}`;
+}
+function htmlEvalRadarBlok(w, e, vorm = 'dk'){
+  const lft = evLft(), alle = evAlle();
+  if (!alle.length) return '';
+  const planId = e?.blok?.planId;
+  const vglLijst = (planId ? alle.filter(x => x.blok?.planId === planId) : alle).filter(x => x !== e);
+  const vgl = vglLijst.length ? teCritGemiddelden(vglLijst, lft) : null;
+  const nu = e ? teScores(e, lft) : teCritGemiddelden(alle, lft);
+  const opts = vorm === 'dk' ? { breed:400, hoog:370, R:128, klasse:'dk-radar-svg' } : { klasse:'te-radar-svg' };
+  const groep = teGroepWaarden(nu, lft);
+  return `<div class="${vorm === 'dk' ? 'dk-blok' : 'mb-kaart'}">${vorm === 'dk' ? `<h3 class="dk-label">Radar<span>${teCriteriaVoor(lft).length} onderdelen bij O${lft < 99 ? lft : '+'}</span></h3>` : `<div class="mb-lbl">Radar<span>${alle.length} geëvalueerd</span></div>`}
+    ${teWedRadar(nu, vgl, lft, opts)}
+    <div class="te-leg"><span><i class="l"></i>${e ? esc(w?.tegenstander || 'deze wedstrijd') : 'gemiddelde'}</span>${e && vgl ? `<span><i class="g"></i>${planId ? 'gemiddelde blok' : 'gemiddelde seizoen'}</span>` : ''}</div>
+    <div class="te-groepchips">${TE_GROEPEN.filter(g => g.crit.some(c => teCriteriaVoor(lft).includes(c) || teCriteriaVoor(lft).some(x => x.id === c.id))).map(g => `<span><i style="background:${g.kleur}"></i>${esc(g.naam)}<b style="color:${teKleur(groep[g.id])}">${teCijfer(groep[g.id])}</b></span>`).join('')}</div></div>`;
 }
 function htmlEvaluatie(){
   if (!modAan('evaluaties')) return null;
   const lijst = afgelopen();
   if (!lijst.find(w => w.id === evSel)) evSel = (lijst.find(w => !(S.teamEvaluaties || []).some(e => e.wedstrijdId === w.id)) || lijst[0])?.id || null;
   const w = lijst.find(x => x.id === evSel);
-  if (w && evConcept?.wid !== w.id){
-    const b = (S.teamEvaluaties || []).find(e => e.wedstrijdId === w.id);
-    evConcept = { wid: w.id, scores: { ...(b?.scores || {}) }, tags: new Set(b?.tags || []), goed: b?.notitieGoed || '', aandacht: b?.notitieAandacht || '', bestaat: !!b };
-  }
-  const evals = (S.teamEvaluaties || []).filter(e => e.scores);
-  const seizoen = TEAM_CATEGORIEEN.map(c => { const v = evals.map(e => Number(e.scores[c.id])).filter(Boolean); return v.length ? gem(v) : 0; });
-  const vals = TEAM_CATEGORIEEN.map(c => Number(evConcept?.scores[c.id]) || 0);
-  const pct = Math.round(evGemiddelde(evConcept?.scores) / 5 * 100);
-  const verloop = evals.filter(e => e.datum).sort((a, b) => a.datum.localeCompare(b.datum)).map(e => evGemiddelde(e.scores));
-  const item = x => { const e = (S.teamEvaluaties || []).find(t => t.wedstrijdId === x.id), st = stand(x);
+  const e = w ? (S.teamEvaluaties || []).find(x => x.wedstrijdId === w.id) : null;
+  const metFocus = evAlle().filter(x => (x.focus || []).some(f => f.niveau));
+  const item = x => { const ex = (S.teamEvaluaties || []).find(t => t.wedstrijdId === x.id), st = stand(x);
     return `<button class="dk-li ${x.id === evSel ? 'actief' : ''}" data-dk="evsel" data-id="${esc(x.id)}">
       <span class="dk-li-dt">${esc(String(Number((x.datum || '').slice(8, 10)) || ''))}<small>${esc(datumMooi(x.datum, { month:'short' }))}</small></span>
-      <span class="dk-li-t"><b>${esc(x.tegenstander || 'Tegenstander')}</b><small>${st.links}\u2013${st.rechts}<span class="sep" aria-hidden="true"></span>${x.thuis ? 'thuis' : 'uit'}</small></span>
-      ${e ? `<span class="dk-pill groen">${Math.round(evGemiddelde(e.scores) / 5 * 100)}%</span>` : '<span class="dk-pill rood">evalueren</span>'}</button>`; };
+      <span class="dk-li-t"><b>${esc(x.tegenstander || 'Tegenstander')}</b><small>${st.links}–${st.rechts}<span class="sep" aria-hidden="true"></span>${x.thuis ? 'thuis' : 'uit'}</small></span>
+      ${evPill(ex)}</button>`; };
   return `<div class="dk-scherm">
-    ${kop('Evaluatie wedstrijden', w ? knop(evConcept.bestaat ? 'Bijwerken' : 'Opslaan', 'evsave', 'rood', 'action-check') : '')}
+    ${kop('Evaluatie wedstrijden', w && !meekijk ? knop(e ? 'Bijwerken' : 'Evalueren', 'evopen', 'rood', 'action-check') : '')}
     <div class="dk-drie dk-drie-ev">
       <aside class="dk-kol dk-lijstkol">${lijst.length ? lijst.map(item).join('') : '<p class="dk-leeg">Nog geen gespeelde wedstrijden.</p>'}</aside>
-      <section class="dk-kol dk-scroll dk-evform">${w ? `<h3 class="dk-label">${esc(w.tegenstander || '')}<span class="sep" aria-hidden="true"></span>${stand(w).links}\u2013${stand(w).rechts}<span>tik een niveau; nog eens tikken = overslaan</span></h3>
-        ${TEAM_CATEGORIEEN.map(c => `<div class="dk-evcat"><b>${esc(c.naam)}</b><div class="dk-kb">${NIVEAUS.slice(1).map(n => { const aan = Number(evConcept.scores[c.id]) === n.n;
-          return `<button data-dk="evniv" data-id="${esc(c.id)}" data-n="${n.n}" class="${aan ? 'aan' : ''}" style="${aan ? 'background:' + niveauKleur(n.n) : ''}">${esc(n.label)}</button>`; }).join('')}</div></div>`).join('')}
-        <div class="dk-evcat"><b>Opvallend</b><div class="dk-tags">${TEAM_TAGS.map(t => `<button data-dk="evtag" data-id="${esc(t.id)}" class="${evConcept.tags.has(t.id) ? 'aan' : ''}">${t.ico ? ico(t.ico, 15) : t.emoji} ${esc(t.label)}</button>`).join('')}</div></div>
-        <textarea class="dk-ta" data-dkin="goed" rows="2" placeholder="Wat ging het beste? (optioneel)">${esc(evConcept.goed)}</textarea>
-        <textarea class="dk-ta" data-dkin="aandacht" rows="2" placeholder="Aandachtspunt voor de volgende training (optioneel)">${esc(evConcept.aandacht)}</textarea>` : '<p class="dk-leeg">Kies een wedstrijd.</p>'}</section>
-      <aside class="dk-kol dk-evradar">${w ? `<div class="dk-evkop"><div class="dk-ring" style="--p:${pct}"><span>${pct || '\u2013'}</span></div><p>Teamscore van deze wedstrijd.<br>Stippellijn = seizoensgemiddelde.</p></div>
-        ${radarN(vals, seizoen, TEAM_CATEGORIEEN.map(c => c.naam.split(/[ &\/]/)[0]), TEAM_CATEGORIEEN.map(c => Number(evConcept.scores[c.id]) ? niveauKleur(Number(evConcept.scores[c.id])) : 'var(--ink-2)'))}
-        ${verloop.length > 1 ? `<div class="dk-blok"><h3 class="dk-label">Seizoensverloop<span>${verloop.length} evaluaties</span></h3>${sparkGroot(verloop)}</div>` : ''}` : ''}</aside>
+      <section class="dk-kol dk-scroll dk-evform">${w ? `<h3 class="dk-label">${esc(w.tegenstander || '')}<span>${esc(datumMooi(w.datum, { day:'numeric', month:'long' }))}</span></h3>
+        ${e ? htmlEvalSamenvatting(e) : `<p class="dk-leeg">Deze wedstrijd is nog niet geëvalueerd.${meekijk ? '' : ' Kies <b>Evalueren</b> rechtsboven: je begint bij het blokdoel, kiest per onderdeel de zin die past bij wat je zag en sluit af met de volgende stap.'}</p>`}` : '<p class="dk-leeg">Kies een wedstrijd.</p>'}</section>
+      <aside class="dk-kol dk-evradar">${w ? htmlEvalRadarBlok(w, e, 'dk') : ''}
+        ${metFocus.length > 1 ? `<div class="dk-blok"><h3 class="dk-label">Verloop blokdoel<span>${metFocus.length} wedstrijden</span></h3>${sparkGroot(metFocus.map(x => Math.max(...x.focus.filter(f => f.niveau).map(f => Number(f.niveau)))))}</div>` : ''}</aside>
     </div></div>`;
+}
+/* [20261119c] Spelersradar met groei (gedeeld met het spelersprofiel). */
+function spelerRadarDk(p){
+  const lft = leeftijdTeam(S.team?.categorie);
+  const perSpeler = new Map();
+  for (const b of S.beoordelingen) if (b.soort === 'volledig' && !perSpeler.has(b.spelerId)) perSpeler.set(b.spelerId, b);
+  const waarden = [...perSpeler.values()].map(b => domeinWaardenEcht(b, lft));
+  const teamGem = SKILLS.map((_, i) => { const v = waarden.map(x => x[i]).filter(x => x != null); return v.length ? gem(v) : null; });
+  return htmlSpelerRadar((meekijk ? 'mk-' : 'dk-') + p.id, { metingen: volledigen(p.id), teamGem, lft });
 }
 function sparkGroot(t){
   const W = 300, H = 70, mn = 1, mx = 5;
@@ -973,11 +976,11 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261119c'); m.openWedstrijd(id); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261119d'); m.openWedstrijd(id); return; }
   /* [20261118h] Wedstrijdvoorbereiding (Sportlink, uitslagen, locatie, weer, plan) ook op desktop;
      opent daar als paneel van rechts, de zijbalk blijft zichtbaar. */
-  if (a === 'voorbereiding'){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119b'); m.openVoorbereiding(id, { zetTeamTab }); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261119c'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'voorbereiding'){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119c'); m.openVoorbereiding(id, { zetTeamTab }); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261119d'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
   if (a === 'presentie'){ const m = await import('./teams-training.js?v=20261118e'); m.modalPresentie(); return; }
   if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20261118e'); m.modalPresentie(null, { startAnder:true }); return; }
@@ -986,12 +989,12 @@ async function actie(b){
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261119b'); m.startRondeFlow(b.dataset.id); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261119b'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalSpeler(null); return; }
+  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261119c'); m.startRondeFlow(b.dataset.id); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261119c'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftal'){ S._elftalFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftaltoew'){ modalElftalToewijzen(renderTeam); return; }
@@ -1001,8 +1004,8 @@ async function actie(b){
   /* [20260923a] */
   if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
-  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261119b');
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261119c');
     if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
   if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
   if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
@@ -1011,18 +1014,15 @@ async function actie(b){
     renderTeam(); return; }
   if (a === 'stofpdf'){ const t = S.trainingen.find(x => x.id === id); if (!t?.url) return; const { openPdfViewer } = await import('./pdf-viewer.js?v=20261111g'); openPdfViewer({ url: t.url, titel: t.titel || 'Training', meta: t.week || '' }); return; }
   if (a === 'evsel'){ evSel = id; renderTeam(); return; }
-  if (a === 'evniv'){ const n = Number(b.dataset.n); if (Number(evConcept.scores[id]) === n) delete evConcept.scores[id]; else evConcept.scores[id] = n; renderTeam(); return; }
-  if (a === 'evtag'){ evConcept.tags.has(id) ? evConcept.tags.delete(id) : evConcept.tags.add(id); renderTeam(); return; }
-  if (a === 'evsave'){ const ok = await bewaarTeamEvaluatie(evConcept.wid, { scores: evConcept.scores, tags: [...evConcept.tags], notitieGoed: evConcept.goed.trim(), notitieAandacht: evConcept.aandacht.trim() });
-    if (ok){ evConcept.bestaat = true; setTimeout(() => renderTeam(), 400); } return; }
+  if (a === 'evopen'){ if (evSel) modalTeamEvaluatie(evSel); return; }
   if (a === 'sppos'){ spPositie.pos = spPositie.pos === b.dataset.pos && !b.textContent.startsWith('Overnemen') ? '' : b.dataset.pos;
     const bewaard = { naam: $('#dkSpNaam')?.value, nr: $('#dkSpNr')?.value, achter: $('#dkSpAchter')?.value, notitie: $('#dkSpNotitie')?.value };
     renderTeam();
     if ($('#dkSpNaam')){ $('#dkSpNaam').value = bewaard.naam ?? ''; $('#dkSpNr').value = bewaard.nr ?? ''; $('#dkSpAchter').value = bewaard.achter ?? ''; $('#dkSpNotitie').value = bewaard.notitie ?? ''; }
     return; }
   if (a === 'spopslaan'){ await bewaarSpelerDesk(); return; }
-  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261119b'); m.modalUitlenen(S._beoordeelProfiel); return; }
-  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261119b'); await m.trekUitleningIn(id); renderTeam(); return; }
+  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalUitlenen(S._beoordeelProfiel); return; }
+  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261119c'); await m.trekUitleningIn(id); renderTeam(); return; }
   if (a === 'sphis'){ S._dkModus = null; S._profielTab = 'historie'; renderTeam(); return; }
   if (a === 'spweg'){ const p = speler(S._beoordeelProfiel); if (!p) return;
     if (p._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen, zet hem terug naar het bronteam');
@@ -1036,7 +1036,7 @@ async function actie(b){
     renderTeam(); return; }
   if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20261118e'); m.modalEigenDag(); return; }
   if (a === 'plandag'){ const { datum, bron, doc: did } = b.dataset;
-    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261119c'); m.openWedstrijd(did); return; }
+    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261119d'); m.openWedstrijd(did); return; }
     if (bron === 'training'){ selTraining = datum; zetTeamTab('presentietraining'); return; }
     if (bron === 'lijst' && did){ S._lijstOpen = did; S._ljFilter = 'alle'; S._ljToonEerder = false; zetTeamTab('lijst'); return; }
     if (bron === 'club'){ const it = planningItems().find(x => x.datum === datum && x.bron === 'club' && x.label === b.dataset.label); if (it?.url) window.open(it.url, '_blank', 'noopener'); return; }

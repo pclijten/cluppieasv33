@@ -27,7 +27,7 @@ import { rondesVoorTeam, rondeSpelers, datumKort } from './evaluatierondes.js?v=
 import { toonThemaInfo } from './teams-leerlijn.js?v=20261111g';
 import { bouwVanTeam, eigenBouwenVanTeam } from './bouw-indeling.js?v=20261111g';
 import { htmlVolledigFormulier, koppelVolledigFormulier, koppelInfo, htmlSamenvatting, htmlNaslagLink, htmlSnelAnker,
-  domeinScores, leeftijdTeam, naslagEersteKeer } from './beoordeling-volledig.js?v=20261119a';
+  domeinScores, leeftijdTeam, naslagEersteKeer, htmlSpelerRadar, domeinWaardenEcht } from './beoordeling-volledig.js?v=20261119c';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { opkomstVoor, teltMee } from './opkomst.js?v=20261106r';
 import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=20261111g';
@@ -37,7 +37,7 @@ import { heeftElftallen, filterOpElftal, elftalPillen } from './elftallen.js?v=2
    import). Dynamic import() binnen de aanroepende functie is het patroon
    dat de rest van de app ook al gebruikt (zie club.js/wedstrijd.js). */
 async function herrenderTeam(){
-  const m = await import('./teams.js?v=20261119c');
+  const m = await import('./teams.js?v=20261119d');
   m.renderTeam();
 }
 
@@ -217,6 +217,17 @@ export function meestGespeeldePosities(pid){
 
 function laatsteVolledig(pid){
   return S.beoordelingen.find(b => b.spelerId === pid && b.soort === 'volledig') || null;
+}
+/* [20261119c] Groeiradar in het profiel: vergelijkt standaard met de vorige
+   volledige beoordeling; teamgemiddelde = laatste volledige van elke speler. */
+function spelerRadarProfiel(p){
+  const lft = leeftijdTeam(S.team?.categorie);
+  const metingen = S.beoordelingen.filter(b => b.spelerId === p.id && b.soort === 'volledig');
+  const perSpeler = new Map();
+  for (const b of S.beoordelingen) if (b.soort === 'volledig' && !perSpeler.has(b.spelerId)) perSpeler.set(b.spelerId, b);
+  const waarden = [...perSpeler.values()].map(b => domeinWaardenEcht(b, lft));
+  const teamGem = SKILLS.map((_, i) => { const w = waarden.map(x => x[i]).filter(v => v != null); return w.length ? w.reduce((a, b) => a + b, 0) / w.length : null; });
+  return htmlSpelerRadar('profiel-' + p.id, { metingen, teamGem, lft });
 }
 
 function tipsBalk(score){
@@ -588,6 +599,7 @@ export function htmlProfiel(){
 
       ${evalAan ? `<div class="kaart">
         <div class="veldlabel u-mt-0">Ontwikkelprofiel${vol ? `, ${datumNL(vol.datum)}` : ''}</div>
+        ${vol ? spelerRadarProfiel(p) : ''}
         ${vol ? SKILLS.map(d => `
           <div class="tips-rij">
             <div class="tips-letter">${d.id}</div>
@@ -1413,7 +1425,7 @@ export async function modalUitlenen(spelerId){
      Uitgebreid) en mag alleen door coördinatoren en de clubadmin. */
   const team = { ...S.team, id: S.teamId };
   if (!magUitlenen(team)) return meld('Uitlenen regelt de coördinator van de bouw');
-  const m = await import('./uitleen-form.js?v=20261119b');
+  const m = await import('./uitleen-form.js?v=20261119c');
   m.openUitleenForm({ clubId, vanTeam: team, speler: p });
 }
 
@@ -1421,7 +1433,7 @@ export async function modalUitlenen(spelerId){
 export async function wijzigUitlening(u, clubIdOverride, naOpslaan){
   const clubId = clubIdOverride || S.team?.club;
   if (!clubId || !u) return meld('Uitlening niet gevonden');
-  const m = await import('./uitleen-form.js?v=20261119b');
+  const m = await import('./uitleen-form.js?v=20261119c');
   m.openUitleenForm({ clubId, vanTeam: { id: u.vanTeam, naam: u.vanTeamNaam }, speler: { id: u.spelerId, naam: u.snapshot?.naam || 'Speler' }, bestaand: u, naOpslaan });
 }
 
