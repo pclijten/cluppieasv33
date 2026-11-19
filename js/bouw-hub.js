@@ -26,10 +26,10 @@ import {
 } from './firebase.js?v=20261106r';
 import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, niveauKleur, TEAM_TAGS } from './config.js?v=20261111g';
-import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, teVervolg, teLeeftijd, teCriteriaVoor, teScores, teIsNieuw, teGroepWaarden, teKleur, teCijfer, teZinnen } from './team-evaluatie-criteria.js?v=20261119c';
+import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teVervolg, teLeeftijd, teCriteriaVoor, teScores, teIsNieuw, teGroepWaarden, teKleur, teCijfer, teZinnen } from './team-evaluatie-criteria.js?v=20261119d';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261119c';
-import { openUitleenForm } from './uitleen-form.js?v=20261119c';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261119d';
+import { openUitleenForm } from './uitleen-form.js?v=20261119d';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111d';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { analyseWedstrijd } from './analyse.js?v=20261111g';
@@ -213,7 +213,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261119c'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261119d'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -740,7 +740,7 @@ function renderDashboard(){
             <span class="u-t-2xs u-zacht">${teStats.count}× ›</span>
           </div>
           <div class="u-mt-2xs te-gchips">${groepChips(teStats.groepen, teStats.lft)}</div>
-          <div class="u-t-xs u-zacht u-mt-2xs">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.focus ? `<span class="sep" aria-hidden="true"></span>◎ ${esc(teStats.focus.tekst)}: <b style="color:var(--n${teStats.focus.niveau})">${esc(TE_NIV[teStats.focus.niveau])}</b>` : ''}</div>
+          <div class="u-t-xs u-zacht u-mt-2xs">laatste${teStats.laatsteTegenstander?' vs '+esc(teStats.laatsteTegenstander):''}${teStats.focus ? `<span class="sep" aria-hidden="true"></span>${teDoelIco(13)} ${esc(teStats.focus.tekst)}: <b style="color:var(--n${teStats.focus.niveau})">${esc(TE_NIV[teStats.focus.niveau])}</b>` : ''}</div>
         </button>` : `
         <div class="u-mt-sm u-zacht u-t-xs" style="padding-top:var(--space-sm);border-top:1px solid var(--surface-2)">Nog geen teamevaluaties na een wedstrijd</div>`) : '';
 
@@ -871,7 +871,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261119d');
+      const m = await import('./teams.js?v=20261119e');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });
@@ -1169,7 +1169,7 @@ function renderEvaluatieTeamDetail(teamId){
     ${[...evalsChron].reverse().map(ev => {
       const f = (ev.focus || []).find(x => x.niveau);
       return `<button class="lijst-item" data-bh-open-teameval="${ev.wedstrijdId||''}">
-        <div class="team-shirt" style="background:${f ? `var(--n${f.niveau})` : 'var(--surface-2)'};color:#12140f" title="${f ? 'Blokdoel' : ''}">${f ? '◎' : (teIsNieuw(ev) ? '–' : 'oud')}</div>
+        <div class="team-shirt" style="background:${f ? `var(--n${f.niveau})` : 'var(--surface-2)'};color:#12140f" title="${f ? 'Doel' : ''}">${f ? teDoelIco(18) : (teIsNieuw(ev) ? '–' : 'oud')}</div>
         <div class="li-tekst">
           <div class="titel">${esc(ev.tegenstander||'Onbekend')}</div>
           <div class="meta">${esc(ev.datum||'')}${f ? `<span class="sep" aria-hidden="true"></span>${esc(f.tekst)}` : ''}</div>
@@ -1246,15 +1246,16 @@ function renderTeamEvaluatieDetail(teamId, ev){
       <div class="te-gchips u-mt-xs">${groepChips(teGroepWaarden(sc, lft), lft)}</div>
       ${!nieuw ? '<p class="te-hint">Gemaakt met de vragen van vóór 19 november; vertaald naar de nieuwe onderdelen.</p>' : ''}
     </div>
-    ${focus.length ? `<div class="sectie-kop">Blokdoel</div><div class="kaart">${focus.map(f => `<div class="te-sam-focus"><div class="t">◎ ${esc(f.tekst)}</div>
+    ${focus.length ? `<div class="sectie-kop">Doel</div><div class="kaart">${focus.map(f => `<div class="te-sam-focus"><div class="t">${teDoelIco(15)} ${esc(f.tekst)}${f.bron ? ` <small class="u-zacht">(${esc(f.bron.toLowerCase())})</small>` : ''}</div>
       ${f.niveau ? `<div class="r">${chip(f.niveau)}<span>${esc(TE_FOCUS_LADDER[f.niveau])}</span></div>` : ''}${f.bewijs ? `<div class="b">“${esc(f.bewijs)}”</div>` : ''}</div>`).join('')}</div>` : ''}
     <div class="sectie-kop">Per onderdeel</div>
     <div class="kaart">${TE_GROEPEN.map(g => { const items = g.crit.filter(c => sc[c.id] != null);
       return items.length ? `<div class="te-sam-groep"><div class="te-sam-gn"><span class="gs-stip" style="background:${g.kleur}"></span>${esc(g.naam)}</div>
         ${items.map(c => { const n = Math.round(sc[c.id]); return `<div class="te-sam-rij"><span class="nm">${esc(c.naam)}</span>${chip(n)}</div>${nieuw ? `<div class="te-sam-zin">${esc(teZinnen(c, lft)[n - 1] || '')}</div>` : ''}`; }).join('')}</div>` : ''; }).join('') || '<p class="u-t-sm u-zacht">Geen onderdelen ingevuld.</p>'}</div>
-    ${vv ? `<div class="sectie-kop">Vervolg</div><div class="kaart u-t-sm">${vv.ico} ${esc(vv.titel)}</div>` : ''}
-    ${sp ? `<div class="sectie-kop">Spelers</div><div class="kaart u-t-sm">👍 ${sp.ja || 0} · 👌 ${sp.half || 0} · 👎 ${sp.nee || 0}</div>` : ''}
+    ${vv ? `<div class="sectie-kop">Vervolg</div><div class="kaart u-t-sm">${esc(vv.titel)}</div>` : ''}
+    ${sp ? `<div class="sectie-kop">Spelers</div><div class="kaart u-t-sm">${TE_STEM.map(o => `<span class="te-stemtel" style="color:${o.kleur}">${ico(o.ico, 15)}${sp[o.id] || 0}</span>`).join(' ')}</div>` : ''}
     ${ev.tags?.length ? `<div class="sectie-kop">Opvallend</div><div class="kaart" style="display:flex;flex-wrap:wrap;gap:var(--space-xs)">${ev.tags.map(t => `<span class="tag aan">${esc(TEAM_TAGS.find(x => x.id === t)?.label || t)}</span>`).join('')}</div>` : ''}
+    ${ev.opvallend ? `<div class="sectie-kop">Opvallend</div><div class="kaart u-t-sm">${esc(ev.opvallend)}</div>` : ''}
     ${ev.notitieGoed ? `<div class="sectie-kop">Wat ging het beste?</div><div class="kaart u-t-sm">${esc(ev.notitieGoed)}</div>` : ''}
     ${ev.notitieAandacht ? `<div class="sectie-kop">Mee naar de training</div><div class="kaart u-t-sm">${esc(ev.notitieAandacht)}</div>` : ''}
   `;
