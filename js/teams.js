@@ -22,7 +22,7 @@ import { doSignOut, joinMetCode, zorgClubLidmaatschap } from './auth.js?v=202611
 import { tekenPwaBanner } from './pwa.js?v=20261106r';
 import {
   openWedstrijd, modalNieuweWedstrijd, renderWedstrijd, koppelStatsBlad, exportStatsExcel
-} from './wedstrijd.js?v=20261119b';
+} from './wedstrijd.js?v=20261119c';
 import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v=20261119b';
 
 /* ---------- Submodules (teams.js-modulaire split) ----------
@@ -35,7 +35,7 @@ import { openSjabloonScherm, luisterSjablonen } from './opstelling-sjabloon.js?v
    Let op: deze submodules importeren NOOIT statisch terug vanuit teams.js
    (dat zou een circulaire import geven) — voor de enkele keren dat zij
    toch iets uit de hub nodig hebben (bv. opnieuw renderen na een actie)
-   gebruiken ze `import('./teams.js?v=20261119b')` binnen de aanroepende functie,
+   gebruiken ze `import('./teams.js?v=20261119c')` binnen de aanroepende functie,
    hetzelfde patroon dat club.js en wedstrijd.js al gebruikten. */
 import {
   htmlSpelers, htmlProfiel,
@@ -71,7 +71,7 @@ import { htmlBerichtBalk, koppelBerichtBalk, htmlBerichtenArchief, ongelezenBeri
 import { zetClubModus, kiesEigenThema, zetLettergrootte } from './thema.js?v=20261106r';
 
 /* Publieke re-exports: consumenten van teams.js (main.js, wedstrijd.js, ...)
-   importeren deze twee nog altijd via './teams.js?v=20261119b' — ze wonen nu fysiek in
+   importeren deze twee nog altijd via './teams.js?v=20261119c' — ze wonen nu fysiek in
    een submodule, maar de buitenkant van de app verandert niet. */
 export { afgelastDatumTekst, modalTeamEvaluatie };
 
@@ -184,7 +184,7 @@ export function startTeams(){
       openTeam(doelTeam.id, herstelTab);
       // een openstaande wedstrijd herstellen (indien die bij dit team hoort)
       if (positie && positie.teamId === doelTeam.id && positie.wedstrijdId){
-        import('./wedstrijd.js?v=20261119b').then(m => m.openWedstrijd(positie.wedstrijdId));
+        import('./wedstrijd.js?v=20261119c').then(m => m.openWedstrijd(positie.wedstrijdId));
       }
     }
     if (!S.teamId && !S.clubId) renderTeams();
@@ -1182,6 +1182,11 @@ export function verlaatTeamView(){
    Coach-vriendelijk overzicht van wat er nieuw is in de app. Nieuwste bovenaan.
    Voeg een nieuwe release toe door bovenaan UPDATES een item te plaatsen. */
 const UPDATES = [
+  { datum:'2026-11-19', titel:'Eén wedstrijdscherm voor iedereen', punten:[
+    'Het nieuwe wedstrijdscherm is nu voor iedereen het standaardscherm: klok, kwarten en stand in één blok, wisselen stap voor stap en zelden gebruikte acties in het Menu.',
+    'Het oude wedstrijdscherm is uitgezet. Je wedstrijden, wissels en speeltijden blijven gewoon bewaard.',
+    'Startscherm op de telefoon: het paneel onder "Alles" veeg je nu ook met je duim omlaag om het te sluiten. De terugknop werkt zoals altijd.'
+  ]},
   { datum:'2026-11-18', titel:'Wedstrijdvoorbereiding nu ook op de computer', punten:[
     'Op het Dashboard en bij Wedstrijden staat een knop Voorbereiding, naast Start wedstrijd of Wedstrijd openen.',
     'Je ziet daar hetzelfde als op de telefoon: de tegenstander met stand en uitslagen uit Sportlink, praktische zaken als locatie en weer, en je plan.',
@@ -2426,6 +2431,42 @@ async function deelDocument(d){
   }
 }
 
+/* [20261119c] Paneel van onderen ("Alles" op het startscherm) omlaag vegen om te
+   sluiten. Alleen als de inhoud bovenaan staat, anders scrolt de lijst gewoon.
+   Ver genoeg of snel genoeg omlaag = dicht, anders veert het paneel terug. */
+function koppelSheetSwipe(sheet, sluit){
+  if (!sheet) return;
+  let startY = 0, startT = 0, dy = 0, volg = false, slepen = false;
+  sheet.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { volg = false; return; }
+    startY = e.touches[0].clientY; startT = Date.now(); dy = 0; slepen = false;
+    volg = sheet.scrollTop <= 0;
+  }, { passive:true });
+  sheet.addEventListener('touchmove', e => {
+    if (!volg) return;
+    dy = e.touches[0].clientY - startY;
+    if (!slepen){
+      if (dy < -4 || sheet.scrollTop > 0){ volg = false; return; }   // omhoog: gewoon scrollen
+      if (dy < 8) return;
+      slepen = true;
+      sheet.style.transition = 'none';
+    }
+    e.preventDefault();
+    sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
+  }, { passive:false });
+  const los = () => {
+    if (!slepen){ volg = false; return; }
+    const snel = dy / Math.max(1, Date.now() - startT) > 0.5;
+    const ver = dy > Math.min(140, sheet.offsetHeight * 0.25);
+    volg = slepen = false;
+    sheet.style.transition = '';
+    sheet.style.transform = '';                 // CSS neemt het over: terug naar boven of (bij sluiten) naar beneden
+    if (dy > 0 && (snel || ver)) sluit();
+  };
+  sheet.addEventListener('touchend', los);
+  sheet.addEventListener('touchcancel', () => { dy = 0; los(); });
+}
+
 /* ---------- Afgelasting (clubbreed) ----------
    De beheerder schrijft de afgelasting weg naar ALLE team-documenten van de club
    (zie modalClubAflasten in club.js). Elk team toont 'm hier zolang de datum geldig is.
@@ -2457,6 +2498,8 @@ function koppelTeamTab(v, tab){
       sheetAchter.addEventListener('click', e => {
         if (e.target === sheetAchter || e.target.closest('.hub-tegel, .hub-updates-link')) zetSheet(false);
       });
+      // [20261119c] Omlaag vegen sluit het paneel ook; de terugknop blijft via terugLaag werken
+      koppelSheetSwipe(sheetAchter.querySelector('.hub-sheet'), () => zetSheet(false));
     } else if (allesKnop) allesKnop.onclick = () => {
       const lijst = v.querySelector('#hubAlles'), open = lijst.hidden;
       lijst.hidden = !open;

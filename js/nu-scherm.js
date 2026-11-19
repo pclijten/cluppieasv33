@@ -459,7 +459,7 @@ export function koppelNu(v, ctx){
     const vb = ev.target.closest('[data-nu-voorbereiding]');
     if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119b'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261119b'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261119c'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

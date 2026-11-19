@@ -3,8 +3,8 @@ import { S, $, initModalSluiten, meld, initTerugknop, initGlobaleFoutafhandeling
 import {
   initAuthUI, checkUitnodiging, handelPendingJoin, verwerkDeeplink, registreerLogin
 } from './auth.js?v=20261111g';
-import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261119b';
-import { sluitWedstrijd } from './wedstrijd.js?v=20261119b';
+import { startTeams, openTeam, renderTeam, verlaatTeamView, teamTabTerug } from './teams.js?v=20261119c';
+import { sluitWedstrijd } from './wedstrijd.js?v=20261119c';
 import { initChatbot } from './chatbot.js?v=20261119b';
 
 /* [20260921] Training gedeeld met een ouder (?deel=<id>): volledig losse,
