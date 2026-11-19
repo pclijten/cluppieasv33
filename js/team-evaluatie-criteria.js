@@ -15,8 +15,13 @@
    vertaalt ze bij het lezen naar de nieuwe criteria, zodat ze meetellen in
    radars, trends en cluboverzichten.
 
-   Deze module is een blad: geen imports, zodat wijzigingen hier geen grote
+   [20261119d] Bijgeschaafd: geen emoji maar iconen, stap 1 gaat uit van het
+   wedstrijddoel (anders kies je één blokdoel), "Hoe verder" en de tags zijn
+   uit het venster; één vrij veld "Opvallend" (opvallend). Meldingstekst herschreven.
+
+   Deze module is een blad: alleen icons.js, zodat wijzigingen hier geen grote
    versie-cascade geven. */
+import { ico } from './icons.js?v=20261106r';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const TE_NIV = [null,'Aandacht','Op weg','Prima','Sterk','Uitblinker'];
@@ -127,11 +132,20 @@ export const TE_FOCUS_LADDER = [null,
   'Regelmatig en uit zichzelf, zolang er weinig druk was.',
   'Vaak, ook tegen een tegenstander die druk zette.',
   'Ging vanzelf; spelers wezen elkaar erop.'];
+/* Vervolg (stap "Hoe verder?") staat sinds 20261119d niet meer in het venster;
+   evaluaties van 19 november kunnen het veld nog hebben, dus lezen blijft. */
 export const TE_VERVOLG = [
-  {id:'door',  ico:'➡️', titel:'Doel zit erin, door naar de volgende stap', sub:'De volgende training in het blok mag een stap verder.'},
-  {id:'druk',  ico:'🔁', titel:'Zelfde doel, met meer weerstand', sub:'Blijven oefenen, maar met een tegenstander die druk zet.'},
-  {id:'basis', ico:'↩️', titel:'Terug naar de basis', sub:'Eerst zonder druk laten lukken.'},
+  {id:'door',  titel:'Doel zit erin, door naar de volgende stap'},
+  {id:'druk',  titel:'Zelfde doel, met meer weerstand'},
+  {id:'basis', titel:'Terug naar de basis'},
 ];
+/* Spelersstem (optioneel): iconen uit de app in plaats van emoji. */
+export const TE_STEM = [
+  {id:'ja',   label:'Ja',    ico:'attendance-present', kleur:'var(--ok)'},
+  {id:'half', label:'Deels', ico:'attendance-maybe',   kleur:'var(--warn)'},
+  {id:'nee',  label:'Nee',   ico:'attendance-absent',  kleur:'var(--accent)'},
+];
+export const teDoelIco = (g = 16) => ico('football-goal', g);
 export const teVervolg = id => TE_VERVOLG.find(v => v.id === id) || null;
 
 /* ---------- Oude evaluaties lezen in de nieuwe criteria ----------
@@ -193,13 +207,23 @@ export function teBlokVoorDatum(trainingen, teamId, datum){
   /* Laatste oefenstof meer dan een week vóór de wedstrijdweek: geen lopend blok meer. */
   const dagen = (new Date(ma + 'T12:00') - new Date(laatste.weekStart + 'T12:00')) / 864e5;
   if (dagen > 13) return null;
-  const gezien = new Set(), doelen = [];
-  eigen.filter(t => t.plan?.id === plan.id).sort((a, b) => (b.blokWeek || 0) - (a.blokWeek || 0) || (a.trainingNr || 0) - (b.trainingNr || 0))
-    .forEach(t => (Array.isArray(t.doelen) ? t.doelen : []).forEach(d => {
-      const tekst = doelTekst(d), k = tekst.toLowerCase();
-      if (tekst && !gezien.has(k)){ gezien.add(k); doelen.push({ tekst, week: Number(t.blokWeek) || null }); }
-    }));
-  return { planId: plan.id, naam: plan.naam || (plan.blok ? `Blok ${plan.blok}` : 'Blok'), blok: plan.blok || null, week, weken, doelen };
+  const gezien = new Map(), doelen = [];
+  const inBlok = eigen.filter(t => t.plan?.id === plan.id).sort((a, b) => (b.blokWeek || 0) - (a.blokWeek || 0) || (a.trainingNr || 0) - (b.trainingNr || 0));
+  inBlok.forEach(t => (Array.isArray(t.doelen) ? t.doelen : []).forEach(d => {
+    const tekst = doelTekst(d), k = tekst.toLowerCase(); if (!tekst) return;
+    if (!gezien.has(k)){ const o = { tekst, week: Number(t.blokWeek) || null, n: 0 }; gezien.set(k, o); doelen.push(o); }
+    gezien.get(k).n++;
+  }));
+  /* Blokdoelen: er is geen apart blokdoel in de oefenstof. Neem de doelen die in
+     meerdere trainingen van het blok terugkomen (de rode draad, max. 3). Komt
+     niets terug, dan de samenvatting van het doel van de trainingen van deze
+     week (één regel per training, max. 3). */
+  let kern = doelen.filter(d => d.n >= 2).sort((a, b) => b.n - a.n).slice(0, 3).map(d => d.tekst);
+  if (!kern.length){
+    const ditWk = inBlok.filter(t => Number(t.blokWeek) === week);
+    kern = [...new Set(ditWk.map(t => doelTekst(t.doelSamenvatting?.tekst) || doelTekst((t.doelen || [])[0])).filter(Boolean))].slice(0, 3);
+  }
+  return { planId: plan.id, naam: plan.naam || (plan.blok ? `Blok ${plan.blok}` : 'Blok'), blok: plan.blok || null, week, weken, doelen, kern };
 }
 
 /* ---------- Radar met een variabel aantal assen (gedeeld door alle schermen) ---------- */
@@ -236,10 +260,10 @@ export function htmlTeNieuwMelding(){
   const open = !gelezen();
   return `<div class="te-nieuw${open ? ' open' : ''}" id="teNieuw">
     <button type="button" class="te-nieuw-kop" data-te-nieuw-klap aria-expanded="${open}">
-      <span class="te-nieuw-ic">✨</span><span class="te-nieuw-t"><b>Evalueren gaat vanaf nu anders</b><small>Doel eerst, dan wat je zag, dan de volgende stap</small></span><span class="te-nieuw-pijl">▾</span></button>
+      <span class="te-nieuw-ic">${ico('action-info', 20)}</span><span class="te-nieuw-t"><b>Evalueren gaat vanaf nu anders</b><small>Kijk naar het doel en naar wat je zag</small></span><span class="te-chevron">${ico('navigation-forward', 16)}</span></button>
     <div class="te-nieuw-in">
-      <p><b>Wat is er anders?</b> Je begint bij het blokdoel of wedstrijddoel waar het team aan werkt. Daarna kies je per onderdeel de zin die past bij wat je zag. De kleur volgt uit die zin. Je sluit af met de volgende stap voor de training.</p>
-      <p><b>Waarom?</b> Een kleur zonder uitleg betekent voor iedere coach iets anders. Goede feedback beantwoordt drie vragen: waar werken we aan, hoe ging het, en wat is de volgende stap (Hattie &amp; Timperley). Coaches onthouden na een wedstrijd maar een deel van de belangrijke momenten, en de uitslag kleurt wat je onthoudt. Daarom kijk je naar één doel, noem je één moment en staat de uitslag niet op dit scherm.</p>
+      <p><b>Wat is er anders?</b> Je kijkt eerst of het wedstrijddoel terugkwam in het spel. Is er geen wedstrijddoel, dan kies je het blokdoel. Daarna kies je per onderdeel de zin die past bij wat je zag; de kleur hoort bij die zin. Welke onderdelen je krijgt, hangt af van de leeftijd van je team.</p>
+      <p><b>Waarom?</b> Een kleur zonder uitleg betekent voor iedere coach iets anders. Met een vaste zin per niveau evalueren we meer op dezelfde manier en kun je je oordeel uitleggen. Na een wedstrijd onthoud je maar een deel van wat er gebeurde, en de uitslag kleurt wat je onthoudt. Daarom kijk je naar één doel, noem je één moment en staat de uitslag niet op dit scherm.</p>
       <p><b>Wat blijft?</b> Je oude evaluaties blijven bewaard en tellen mee in de radars en trends. Overslaan mag nog steeds.</p>
       <div class="te-nieuw-knoppen"><button type="button" class="knop klein licht" data-te-naslag>Zo evalueren we</button><button type="button" class="knop klein" data-te-nieuw-ok>Begrepen</button></div>
     </div></div>`;
@@ -269,14 +293,14 @@ function popup(){
 export function openTeNaslag(lft = 99){
   const el = popup();
   const regels = [
-    ['Begin bij het doel', 'Waar werkte het team deze weken aan? Kies het blokdoel of wedstrijddoel waar je naar keek.'],
+    ['Begin bij het doel', 'Het wedstrijddoel, of als dat er niet is het blokdoel: waar werkte het team aan?'],
     ['Kijk naar wat je zag, niet naar de uitslag', 'Een wedstrijd van 1-0 kan slecht gespeeld zijn, een 0-3 juist goed. Daarom staat de uitslag niet op het scherm.'],
     ['Een kleur is een zin', 'Elk niveau heeft een vaste beschrijving. Kies de zin die het beste past bij wat je zag.'],
     ['Noem één moment', 'Eén voorbeeld maakt je oordeel controleerbaar en bespreekbaar. Wat je niet zag, sla je over.'],
-    ['Eindig met de volgende stap', 'Door, nog eens met meer weerstand, of terug naar de basis. Dat stuurt de volgende training.'],
+    ['Schrijf op wat opviel', 'In je eigen woorden, voor de volgende training of teambespreking.'],
   ];
   const bronnen = [
-    ['2007', 'Hattie & Timperley', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Dat zijn stap 1, 2 en 4.'],
+    ['2007', 'Hattie & Timperley', 'Goede feedback beantwoordt drie vragen: waar gaan we heen, hoe gaat het, en wat is de volgende stap? Stap 1 en 2 gaan over de eerste twee; de derde neem je mee naar de training.'],
     ['2005', 'Leahy, Lyon, Thompson & Wiliam', 'Formatief evalueren begint met duidelijke leerdoelen en succescriteria. Het blokdoel is het leerdoel; de zinnen per niveau zijn de succescriteria. Spelers laten meebeoordelen past bij hun strategie van eigenaarschap.'],
     ['1986', 'Franks & Miller · Laird & Waters (2008)', 'Coaches herinneren zich na een wedstrijd maar een deel van de belangrijke momenten; ook gediplomeerde coaches missen er ongeveer vier op de tien.'],
     ['2015', 'Lefgren, Platt & Price', 'Coaches veranderen na een nipte nederlaag vaker hun aanpak dan na een nipte overwinning, terwijl zo’n uitslag weinig zegt. Daarom beoordelen we het spel, niet de stand.'],

@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20261119c';
+import { onboardingHerstartBlok } from './onboarding.js?v=20261119d';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -248,18 +248,17 @@ export function htmlHandleiding(){
     <div class="tip"><b>Privacy:</b> beoordelingen en leerpunten zijn <b>coach-only</b>. Spelers en ouders zien deze nooit. Verwijder je een speler, dan gaan zijn beoordelingen mee weg.</div>
     </section>
 
-    <section class="hl-sec" data-zoek="team evalueren na de wedstrijd blokdoel wedstrijddoel zagen we het terug moment bewijs per moment wij hebben de bal zij hebben de bal omschakelen snel weer meedoen team en beleving opbouwen kansen creëren en scoren storen en veroveren doelpunten voorkomen na balverlies na balwinst inzet en weerbaarheid samenspel en communicatie afspraken uitvoeren plezier en sportiviteit hoe verder door meer weerstand terug naar de basis spelers duimen zo evalueren we uitslag oude evaluaties">
+    <section class="hl-sec" data-zoek="team evalueren na de wedstrijd wedstrijddoel blokdoel zagen we het terug moment bewijs per moment wij hebben de bal zij hebben de bal omschakelen snel weer meedoen team en beleving opbouwen kansen creëren en scoren storen en veroveren doelpunten voorkomen na balverlies na balwinst inzet en weerbaarheid samenspel en communicatie afspraken uitvoeren plezier en sportiviteit spelers ja deels nee opvallend zo evalueren we uitslag oude evaluaties">
     <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team evalueren na de wedstrijd</h3>
     <p>Naast de beoordeling per speler kun je na elke wedstrijd ook het <b>hele team</b> evalueren. Onderaan het wedstrijdscherm, onder het wedstrijdverslag, staat de knop <b><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Team evalueren</b>. Al ingevuld? Dan heet hij <b>✓ Teamevaluatie bijwerken</b>.</p>
-    <p>Sinds 19 november evalueer je in vijf stappen:</p>
+    <p>Sinds 19 november evalueer je zo:</p>
     <ol>
-      <li><b>Waar werkten we aan?</b> De doelen van het blok uit de oefenstof en het wedstrijddoel. Kies er één of twee.</li>
-      <li><b>Zagen we het terug?</b> Per doel een kleur met een vaste zin (van “niet teruggezien” tot “ging vanzelf”) en één moment dat je zag.</li>
+      <li><b>Waar werkten we aan?</b> Het wedstrijddoel dat je de wedstrijd meegaf. Geen wedstrijddoel? Dan kies je het blokdoel: de paar doelen die in de trainingen van het blok terugkomen.</li>
+      <li><b>Zagen we het terug?</b> Een kleur met een vaste zin (van “niet teruggezien” tot “ging vanzelf”) en één moment dat je zag.</li>
       <li><b>Wat zag je per moment?</b> Vier groepen: <i>wij hebben de bal</i>, <i>zij hebben de bal</i>, <i>omschakelen</i> en <i>team en beleving</i>. Onder elke kleur staat een zin die zegt wat je ziet. Welke onderdelen je krijgt, hangt af van de leeftijd: omschakelen is er bij elke leeftijd (tot en met O13 als “snel weer meedoen”), vanaf O14 apart na balverlies en na balwinst.</li>
-      <li><b>Hoe verder?</b> Door naar de volgende stap, zelfde doel met meer weerstand, of terug naar de basis. Met een tekstveld voor wat je meeneemt naar de training.</li>
-      <li><b>Wat vonden de spelers?</b> Optioneel: tel de duimen in de kleedkamer.</li>
+      <li><b>Wat vonden de spelers?</b> Optioneel: laat ze kiezen tussen ja, deels of nee en tel mee.</li>
     </ol>
-    <p>De uitslag staat bewust niet op het scherm: je beoordeelt het spel, niet de stand. Achtergrond en bronnen staan onder <b>Zo evalueren we</b> bovenaan het venster.</p>
+    <p>Onderaan staat één vrij veld <b>Opvallend</b> voor wat je verder opviel. De uitslag staat bewust niet op het scherm: je beoordeelt het spel, niet de stand. Achtergrond en bronnen staan onder <b>Zo evalueren we</b> bovenaan het venster.</p>
     <div class="tip"><b>Oude evaluaties</b> blijven bewaard. Ze tellen mee in radars en trends, vertaald naar de nieuwe onderdelen. Overslaan mag nog steeds: alleen één kleur is nodig, bij het doel of bij een onderdeel.</div>
     </section>
 
@@ -267,9 +266,9 @@ export function htmlHandleiding(){
     <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19V10"/><path d="M11 19V5"/><path d="M18 19v-7"/></svg> Teamevaluaties terugkijken</h3>
     <p>Onder <b>Wedstrijden → Evaluatie</b> komen alle teamevaluaties samen:</p>
     <ul>
-      <li><b>Blokspiegel</b>: per blokdoel een vakje per week van het blok, in de kleur die je gaf. Zo zie je of het doel erin komt.</li>
+      <li><b>Blokspiegel</b>: per doel een vakje per week van het blok, in de kleur die je gaf. Zo zie je of het doel erin komt.</li>
       <li><b>Per moment</b>: de vier groepen over de laatste vijf wedstrijden, met een pijltje voor de trend. Er is bewust geen totaalcijfer: verdedigen en plezier zijn geen optelsom.</li>
-      <li><b>Historie</b>: elke wedstrijd met de kleur van het blokdoel en een strookje per onderdeel.</li>
+      <li><b>Historie</b>: elke wedstrijd met de kleur van het doel en een strookje per onderdeel.</li>
       <li><b>Onderdelen, aandachtspunten en trainingsthema</b>: het gemiddelde per onderdeel, terugkerende zwakke plekken en een leercurve-thema voor de volgende training.</li>
     </ul>
     <div class="tip"><b>Radar:</b> op de computer en voor coördinatoren laat de radar de onderdelen bij de leeftijd zien, tegenover het gemiddelde van het blok (of anders het seizoen).</div>
