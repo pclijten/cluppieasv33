@@ -7632,3 +7632,4 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .te-stemtel{display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-weight:700}
 .te-hist-doel svg{display:block;margin:auto}
 .te-sam-focus .t svg{vertical-align:-3px;color:var(--accent)}
+.te-ns-bron .jr{display:flex;align-items:flex-start;padding-top:1px;width:28px}
