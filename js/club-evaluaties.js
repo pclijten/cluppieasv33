@@ -8,7 +8,7 @@ import { db, collection, getDocs, query, where } from './firebase.js?v=20261106r
 import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
 import { S, esc, meld, openModal } from './state.js?v=20261111g';
 import { SKILLS } from './config.js?v=20261111g';
-import { TE_CRITERIA, TE_NIV, teLeeftijd, teZichtbaar, teScores, teCritGemiddelden, teLaagste, teIsNieuw } from './team-evaluatie-criteria.js?v=20261119c';
+import { TE_CRITERIA, TE_NIV, teLeeftijd, teZichtbaar, teScores, teCritGemiddelden, teLaagste, teIsNieuw } from './team-evaluatie-criteria.js?v=20261119d';
 /* [20261119c] Kolommen = de onderdelen van de nieuwe teamevaluatie. Per team
    tellen alleen de onderdelen die bij de leeftijd horen; oude evaluaties
    tellen mee via teScores(). Geen totaalcijfer meer. */

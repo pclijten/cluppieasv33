@@ -7616,3 +7616,19 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .sr-crit .van i{font-style:normal;color:var(--ink-2)}
 .sr-crit .vb-chip{width:auto;min-width:58px;padding:3px 6px}
 .sr-hint{font-size:var(--t-2xs);color:var(--ink-2);margin:8px 0 0}
+/* [20261119d] iconen i.p.v. emoji, één doel in stap 1 */
+.te-nieuw-ic{display:flex;color:var(--accent)}
+.te-chevron{display:flex;color:var(--ink-2);margin-left:auto;transform:rotate(90deg);transition:transform var(--dur-short)}
+.te-nieuw.open .te-chevron,.te-uitklap[aria-expanded="true"] .te-chevron{transform:rotate(-90deg)}
+.te-doel .vk svg{display:block}
+.te-doel.vast{cursor:default}
+.te-doel.vast .vk{border:0;background:none;color:var(--accent);width:auto}
+.te-doel.radio .vk{border-radius:50%}
+.te-doel.radio.aan .vk{background:var(--card);border:6px solid var(--accent)}
+.te-geen{font-size:var(--t-sm);color:var(--ink);background:var(--surface);border:1px dashed var(--hair);border-radius:10px;padding:9px 11px;margin:0 0 9px;line-height:1.45}
+.te-focus-t .ic{display:flex;align-items:center}
+.te-stem .e{display:flex;flex-direction:column;align-items:center;gap:2px}
+.te-stem .e small{font-size:var(--t-2xs);font-weight:700;color:var(--ink-2)}
+.te-stemtel{display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-weight:700}
+.te-hist-doel svg{display:block;margin:auto}
+.te-sam-focus .t svg{vertical-align:-3px;color:var(--accent)}

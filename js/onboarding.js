@@ -86,7 +86,7 @@ function naarTab(tab){
       // Onderbalk niet in beeld (bv. wedstrijdscherm of teamsoverzicht):
       // zet de tab direct, render en toon de team-view expliciet.
       S.teamTab = tab;
-      import('./teams.js?v=20261119c').then(m => { m.renderTeam?.(); toon('team'); });
+      import('./teams.js?v=20261119d').then(m => { m.renderTeam?.(); toon('team'); });
     }
     const t0 = performance.now();
     (function wacht(){
@@ -159,7 +159,7 @@ async function zorgWedstrijdOpen(){
   const eersteId = (S.wedstrijden[0]||{}).id;
   if (!eersteId) return false;
   let m;
-  try { m = await import('./wedstrijd.js?v=20261119c'); }
+  try { m = await import('./wedstrijd.js?v=20261119d'); }
   catch(e){ console.warn('[ob] kon wedstrijd.js niet laden', e); return false; }
   m.openWedstrijd?.(eersteId);
   await wachtOpElement(() => document.querySelector('#view-wedstrijd.actief'), 2000);
@@ -171,7 +171,7 @@ async function zorgWedstrijdOpen(){
 async function verlaatWedstrijd(){
   if (!wedstrijdOpen()) return;
   try {
-    const m = await import('./wedstrijd.js?v=20261119c');
+    const m = await import('./wedstrijd.js?v=20261119d');
     m.sluitWedstrijd?.('wedstrijden');
   } catch(e){
     console.warn('[ob] sluitWedstrijd faalde, val terug op terugknop', e);
@@ -203,7 +203,7 @@ export const ONBOARDING_STAPPEN = [
     opdracht:'Open een team',
     voor:async () => {
       if (!document.querySelector('#view-teams.actief')){
-        try { const t = await import('./teams.js?v=20261119c'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
+        try { const t = await import('./teams.js?v=20261119d'); t.startTeams?.(); } catch(e){ console.warn('[ob] teams.js laadfout', e); }
         await wachtOpElement(() => document.querySelector('#view-teams.actief'));
       }
     },
@@ -304,7 +304,7 @@ export const ONBOARDING_STAPPEN = [
   {
     hfd:'opstelling', hfdNaam:'Wedstrijd', emoji:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>', rollen:['coach'], modKey:'evaluaties',
     titel:'Team evalueren',
-    tekst:'Direct na de wedstrijd kijk je terug op het blokdoel: zag je het terug, wat zag je per moment, en wat is de volgende stap? Deze teamevaluaties verzamelen zich onder <b>Evaluatie</b>.',
+    tekst:'Direct na de wedstrijd kijk je terug: kwam het wedstrijddoel terug, en wat zag je per moment? Deze teamevaluaties verzamelen zich onder <b>Evaluatie</b>.',
     voor:async () => { await zorgWedstrijdOpen(); },
     doel:() => document.querySelector('#view-wedstrijd #teamEvalKnop'),
     optioneelAls:() => !wedstrijdOpen() || !document.querySelector('#view-wedstrijd #teamEvalKnop'),
@@ -459,7 +459,7 @@ export const ONBOARDING_STAPPEN = [
     hfd:'instellingen', hfdNaam:'Uitnodigen', emoji:'📲', rollen:['coach'],
     titel:'Coaches uitnodigen',
     tekst:'Hier vind je de <b>teamcode</b> en een <b>uitnodigingslink</b>. Deel die via WhatsApp en collega-coaches sluiten met één tik aan.',
-    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261119c'); m.renderTeam?.();
+    voor:async () => { S.teamTab = 'instellingen'; const m = await import('./teams.js?v=20261119d'); m.renderTeam?.();
       await wachtOpElement(() => document.querySelector('#view-team #deelLink, #view-team #deelCode')); },
     doel:() => document.querySelector('#view-team #deelLink, #view-team #deelCode'),
     optioneelAls:() => !document.querySelector('#view-team #deelLink, #view-team #deelCode'),

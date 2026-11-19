@@ -27,12 +27,12 @@ import { magUitlenen } from './uitleen-rechten.js?v=20261111g';
 import { leenOmschrijving, leenActief, spelersOpTraining, effectieveSelectie } from './uitleen-regels.js?v=20261111d';
 import { ico } from './icons.js?v=20261106r';
 import { logTrainingGeopend } from './training-log.js?v=20261112a';
-import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261119c';
-import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20261119c';
-import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261119c';
-import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, teVervolg, teLeeftijd, teCriteriaVoor, teZinnen, teScores, teIsNieuw, teGroepWaarden,
-  teCritGemiddelden, teKleur, teCijfer, teWedRadar } from './team-evaluatie-criteria.js?v=20261119c';
-import { htmlSpelerRadar, domeinWaardenEcht, leeftijdTeam } from './beoordeling-volledig.js?v=20261119c';
+import { renderTeam, zetTeamTab, modalTeamEvaluatie, planningItems } from './teams.js?v=20261119d';
+import { evaluatieOpen, presWedstrijdKeuzes } from './teams-hub.js?v=20261119d';
+import { spelerStats, meestGespeeldePosities } from './teams-spelers.js?v=20261119d';
+import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teVervolg, teLeeftijd, teCriteriaVoor, teZinnen, teScores, teIsNieuw, teGroepWaarden,
+  teCritGemiddelden, teKleur, teCijfer, teWedRadar } from './team-evaluatie-criteria.js?v=20261119d';
+import { htmlSpelerRadar, domeinWaardenEcht, leeftijdTeam } from './beoordeling-volledig.js?v=20261119d';
 import { oefHtml, bronHtml } from './training-weergave.js?v=20261111g';
 import { rondesVoorTeam, rondeTelling, datumKort } from './evaluatierondes.js?v=20261113v';
 import { laadPdfJs } from './pdf-viewer.js?v=20261111g';
@@ -741,12 +741,13 @@ function htmlEvalSamenvatting(e){
   const vv = teVervolg(e.vervolg), sp = e.spelers;
   return `${!teIsNieuw(e) ? '<p class="te-hint u-mt-0">Gemaakt met de vragen van vóór 19 november; hieronder vertaald naar de nieuwe onderdelen.</p>' : ''}
     ${e.blok ? `<div class="te-sam-kop">${esc(e.blok.naam || 'Blok')}${e.blok.week ? `<span class="sep" aria-hidden="true"></span>week ${e.blok.week}${e.blok.weken ? ' van ' + e.blok.weken : ''}` : ''}</div>` : ''}
-    ${focus.map(f => `<div class="te-sam-focus"><div class="t">◎ ${esc(f.tekst)}</div>${f.niveau ? `<div class="r">${chip(f.niveau)}<span>${esc(TE_FOCUS_LADDER[f.niveau])}</span></div>` : ''}${f.bewijs ? `<div class="b">“${esc(f.bewijs)}”</div>` : ''}</div>`).join('')}
+    ${focus.map(f => `<div class="te-sam-focus"><div class="t">${teDoelIco(15)} ${esc(f.tekst)}</div>${f.niveau ? `<div class="r">${chip(f.niveau)}<span>${esc(TE_FOCUS_LADDER[f.niveau])}</span></div>` : ''}${f.bewijs ? `<div class="b">“${esc(f.bewijs)}”</div>` : ''}</div>`).join('')}
     ${TE_GROEPEN.map(g => { const items = g.crit.filter(c => sc[c.id] != null && (teIsNieuw(e) ? true : teCriteriaVoor(lft).some(x => x.id === c.id)));
       return items.length ? `<div class="te-sam-groep"><div class="te-sam-gn"><span class="gs-stip" style="background:${g.kleur}"></span>${esc(g.naam)}</div>
         ${items.map(c => { const n = Math.round(sc[c.id]); return `<div class="te-sam-rij"><span class="nm">${esc(c.naam)}</span>${chip(n)}</div>${teIsNieuw(e) ? `<div class="te-sam-zin">${esc(teZinnen(c, lft)[n - 1] || '')}</div>` : ''}`; }).join('')}</div>` : ''; }).join('')}
     ${vv ? `<div class="te-sam-rij"><span class="nm"><b>Vervolg:</b> ${esc(vv.titel)}</span></div>` : ''}
-    ${sp ? `<div class="te-sam-rij"><span class="nm"><b>Spelers:</b> 👍 ${sp.ja || 0} · 👌 ${sp.half || 0} · 👎 ${sp.nee || 0}</span></div>` : ''}
+    ${sp ? `<div class="te-sam-rij"><span class="nm"><b>Spelers:</b> ${TE_STEM.map(o => `<span class="te-stemtel" style="color:${o.kleur}">${ico(o.ico, 15)}${sp[o.id] || 0}</span>`).join(' ')}</span></div>` : ''}
+    ${e.opvallend ? `<p class="mb-noot"><b>Opvallend:</b> ${esc(e.opvallend)}</p>` : ''}
     ${(e.tags || []).length ? `<div class="mb-tags">${e.tags.map(tid => { const t = TEAM_TAGS.find(x => x.id === tid); return t ? `<span>${esc(t.label)}</span>` : ''; }).join('')}</div>` : ''}
     ${e.notitieGoed ? `<p class="mb-noot"><b>Ging goed:</b> ${esc(e.notitieGoed)}</p>` : ''}${e.notitieAandacht ? `<p class="mb-noot"><b>Mee naar de training:</b> ${esc(e.notitieAandacht)}</p>` : ''}`;
 }
@@ -976,11 +977,11 @@ async function actie(b){
   const a = b.dataset.dk, id = b.dataset.id;
   if (a === 'klassiek'){ klassiekTab = S.teamTab; if (S.teamTab === 'spelers' && S._beoordeelProfiel) klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
   if (a === 'tab'){ S._beoordeelProfiel = null; zetTeamTab(b.dataset.tab); return; }
-  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261119c'); m.openWedstrijd(id); return; }
+  if (a === 'openw'){ const m = await import('./wedstrijd.js?v=20261119d'); m.openWedstrijd(id); return; }
   /* [20261118h] Wedstrijdvoorbereiding (Sportlink, uitslagen, locatie, weer, plan) ook op desktop;
      opent daar als paneel van rechts, de zijbalk blijft zichtbaar. */
-  if (a === 'voorbereiding'){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119c'); m.openVoorbereiding(id, { zetTeamTab }); return; }
-  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261119c'); m.modalNieuweWedstrijd(); return; }
+  if (a === 'voorbereiding'){ const m = await import('./wedstrijd-voorbereiding.js?v=20261119d'); m.openVoorbereiding(id, { zetTeamTab }); return; }
+  if (a === 'nieuwew'){ const m = await import('./wedstrijd.js?v=20261119d'); m.modalNieuweWedstrijd(); return; }
   if (a === 'evalueer'){ modalTeamEvaluatie(id); return; }
   if (a === 'presentie'){ const m = await import('./teams-training.js?v=20261118e'); m.modalPresentie(); return; }
   if (a === 'presentieander'){ const m = await import('./teams-training.js?v=20261118e'); m.modalPresentie(null, { startAnder:true }); return; }
@@ -989,12 +990,12 @@ async function actie(b){
   if (a === 'profiel'){ klassiekProfiel = null; S._beoordeelProfiel = id; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'terugsel'){ S._dkModus = null; S._beoordeelProfiel = null; renderTeam(); return; }
   if (a === 'volprofiel'){ klassiekProfiel = S._beoordeelProfiel; renderTeam(); return; }
-  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261119c'); m.startRondeFlow(b.dataset.id); return; }
-  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalLeerpunt(S._beoordeelProfiel); return; }
-  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalLeerpunt(id, selThema); return; }
-  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261119c'); m.startSnelRonde(); return; }
-  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalSpeler(null); return; }
+  if (a === 'ronde'){ const m = await import('./teams-spelers.js?v=20261119d'); m.startRondeFlow(b.dataset.id); return; }
+  if (a === 'beoordeel'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalVolledigeBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'leerpunt'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalLeerpunt(S._beoordeelProfiel); return; }
+  if (a === 'lpthema'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalLeerpunt(id, selThema); return; }
+  if (a === 'snelronde'){ const m = await import('./teams-spelers.js?v=20261119d'); m.startSnelRonde(); return; }
+  if (a === 'nieuwsp'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalSpeler(null); return; }
   if (a === 'filter'){ spFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftal'){ S._elftalFilter = b.dataset.f; renderTeam(); return; }
   if (a === 'elftaltoew'){ modalElftalToewijzen(renderTeam); return; }
@@ -1004,8 +1005,8 @@ async function actie(b){
   /* [20260923a] */
   if (a === 'openprofiel'){ S._dkModus = null; S._beoordeelProfiel = id; S._profielTab = 'overzicht'; if (S.teamTab !== 'spelers') zetTeamTab('spelers'); else renderTeam(); return; }
   if (a === 'evmodus'){ S._dkModus = 'evaluatie'; S._beoordeelProfiel = S._beoordeelProfiel || eersteSpeler(); renderTeam(); return; }
-  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
-  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261119c');
+  if (a === 'snel'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalSnelBeoordeling(S._beoordeelProfiel); return; }
+  if (a === 'evopen'){ const bo = S.beoordelingen.find(x => x.id === id); if (!bo) return; const m = await import('./teams-spelers.js?v=20261119d');
     if (bo.soort === 'snel') m.modalSnelBeoordeling(bo.spelerId, bo); else m.modalVolledigeBeoordeling(bo.spelerId, bo); return; }
   if (a === 'awopen'){ awOpen = awOpen === id ? null : id; renderTeam(); return; }
   if (a === 'awzet'){ const pid = id, reden = b.dataset.r || null; awOpen = null;
@@ -1021,8 +1022,8 @@ async function actie(b){
     if ($('#dkSpNaam')){ $('#dkSpNaam').value = bewaard.naam ?? ''; $('#dkSpNr').value = bewaard.nr ?? ''; $('#dkSpAchter').value = bewaard.achter ?? ''; $('#dkSpNotitie').value = bewaard.notitie ?? ''; }
     return; }
   if (a === 'spopslaan'){ await bewaarSpelerDesk(); return; }
-  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261119c'); m.modalUitlenen(S._beoordeelProfiel); return; }
-  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261119c'); await m.trekUitleningIn(id); renderTeam(); return; }
+  if (a === 'spuitleen'){ const m = await import('./teams-spelers.js?v=20261119d'); m.modalUitlenen(S._beoordeelProfiel); return; }
+  if (a === 'spterug'){ const m = await import('./teams-spelers.js?v=20261119d'); await m.trekUitleningIn(id); renderTeam(); return; }
   if (a === 'sphis'){ S._dkModus = null; S._profielTab = 'historie'; renderTeam(); return; }
   if (a === 'spweg'){ const p = speler(S._beoordeelProfiel); if (!p) return;
     if (p._ingeleend) return meld('Een ingeleende speler kun je niet verwijderen, zet hem terug naar het bronteam');
@@ -1036,7 +1037,7 @@ async function actie(b){
     renderTeam(); return; }
   if (a === 'eigendag'){ const m = await import('./teams-training.js?v=20261118e'); m.modalEigenDag(); return; }
   if (a === 'plandag'){ const { datum, bron, doc: did } = b.dataset;
-    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261119c'); m.openWedstrijd(did); return; }
+    if (bron === 'wedstrijd' && did){ const m = await import('./wedstrijd.js?v=20261119d'); m.openWedstrijd(did); return; }
     if (bron === 'training'){ selTraining = datum; zetTeamTab('presentietraining'); return; }
     if (bron === 'lijst' && did){ S._lijstOpen = did; S._ljFilter = 'alle'; S._ljToonEerder = false; zetTeamTab('lijst'); return; }
     if (bron === 'club'){ const it = planningItems().find(x => x.datum === datum && x.bron === 'club' && x.label === b.dataset.label); if (it?.url) window.open(it.url, '_blank', 'noopener'); return; }
