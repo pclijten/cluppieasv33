@@ -11,6 +11,8 @@
                                          bouw-dashboards) lezen dit veld ongewijzigd.
    Ladders: TE/FY = Dave (motorisch leren), TA = Bloom (denken), ME/GE = Krathwohl
    (houding). De snelle beoordeling krijgt één algemene ladder.
+   [20261119a] Naslagteksten (Verdieping) nagelopen op de bronnen: Articulatie,
+   de samenvoeging bij Bloom, Organiseren en de herkomst van de fases.
 
    Deze module is een blad: ze importeert alleen icons.js en config.js, zodat
    een wijziging hier geen grote versie-cascade geeft. */
@@ -117,7 +119,8 @@ export const SNEL_LADDER = [null,
   'Was een voorbeeld voor anderen.'];
 export const ladderVan = domId => Object.values(LADDERS).find(l => l.domeinen.includes(domId));
 
-/* Fases uit het opleidingsmodel (Meulensteen/KNVB), gekoppeld aan de leeftijd van het team. */
+/* Fases uit het opleidingsmodel van Meulensteen, gekoppeld aan de leeftijd van het team.
+   De leerstap per fase (`stap`/`kort`) is onze eigen koppeling met de ladder van Bloom. */
 const FASES = [
   {tot:9,  naam:'Basisfase',      leeft:'O6–O9',   nadruk:'Techniek', stap:'Aanleren: nadoen en begrijpen. Lage scores op TA en ME zijn hier normaal.', kort:['Aanleren','nadoen en begrijpen']},
   {tot:12, naam:'Herhalingsfase', leeft:'O10–O12', nadruk:'Tactiek',  stap:'Toepassen: technieken tactisch inzetten en zelf keuzes leren maken.', kort:['Toepassen','techniek inzetten in het spel']},
@@ -311,18 +314,18 @@ const NS = {
   dave: { iconen:['football-ball','tag-effort'], vraag:'Hoe goed beheerst de speler de beweging?',
     voorbeeld:'Lukt de pass alleen in een oefening zonder tegenstander? Dan is het <b>Op weg</b>. Lukt hij ook in de partij met druk erop? Dan is het <b>Sterk</b>.',
     persoon:'Ravindra Dave', jaar:'1970', over:'Indiase onderwijskundige. Beschreef hoe je een beweging leert: van nadoen tot vanzelf.',
-    diep:'Dave vulde in 1970 het motorische deel aan bij de taxonomie van Bloom. Een vaardigheid groeit van nadoen, via op instructie en zuiver, naar aanpassen aan de situatie, tot het vanzelf gaat. Kijk bij techniek en fysiek dus: onder welke omstandigheden lukt het nog?',
-    stappen:['Imitatie (nadoen)','Manipulatie (op instructie)','Precisie (zuiver)','Articulatie (aanpassen)','Naturalisatie (vanzelf)'] },
+    diep:'Dave werkte in 1970 het motorische deel uit dat bij de taxonomie van Bloom nog ontbrak. Een beweging groeit van nadoen, via uitvoeren op instructie en zuiver uitvoeren, naar combineren en aanpassen, tot het vanzelf gaat. Wij vertalen dat naar het veld: onder welke omstandigheden lukt het nog?',
+    stappen:['Imitatie (nadoen)','Manipulatie (op instructie)','Precisie (zuiver)','Articulatie (combineren)','Naturalisatie (vanzelf)'] },
   bloom: { iconen:['tag-insight'], vraag:'Hoe goed begrijpt de speler het spel en maakt hij keuzes?',
     voorbeeld:'Zakt terug als jij "terug!" roept? Dan is het <b>Op weg</b>. Zet zelf direct druk op de bal en wijst een medespeler zijn man aan? Dan is het <b>Uitblinker</b>.',
     persoon:'Benjamin Bloom', jaar:'1956, herzien 2001', over:'Amerikaanse onderwijspsycholoog. Ordende denken in stappen: van onthouden tot zelf iets bedenken.',
-    diep:'Bloom ordende in 1956 het denken in stappen. In 2001 herzagen Anderson en Krathwohl die tot: onthouden, begrijpen, toepassen, analyseren, evalueren en creëren. In voetbal is dat spelinzicht. Wij voegen de laatste twee samen, zodat de ladder op onze vijf niveaus past.',
+    diep:'Bloom ordende in 1956 het denken in stappen. In 2001 herzagen Anderson en Krathwohl die tot: onthouden, begrijpen, toepassen, analyseren, evalueren en creëren. In voetbal is dat spelinzicht. Onthouden laten we weg: ons laagste niveau is dat de speler de situatie nog niet herkent. De laatste twee voegen we samen. Zo past de ladder op onze vijf niveaus.',
     stappen:['Nog niet herkennen','Begrijpen','Toepassen','Analyseren','Evalueren en creëren'] },
   krathwohl: { iconen:['tag-strong-second','tag-handshake'], vraag:'Hoe sterk laat de speler deze houding zelf zien?',
     voorbeeld:'Laat na een fout de schouders hangen, maar pakt het op als jij aanmoedigt? Dan is het <b>Op weg</b>. Peppt na een tegengoal zelf het team op? Dan is het <b>Uitblinker</b>.',
     persoon:'David Krathwohl', jaar:'1964', over:'Amerikaanse onderwijskundige en collega van Bloom. Beschreef hoe een houding groeit: van horen tot een voorbeeld zijn.',
-    diep:'Krathwohl schreef in 1964 met Bloom en Masia het deel over houding. Een houding groeit van iets horen, via meedoen als het gevraagd wordt, naar het zelf willen, tot het bij je hoort. Kijk bij mentaliteit en gedrag dus: komt het uit de speler zelf?',
-    stappen:['Ontvangen (luisteren)','Reageren (meedoen)','Waarderen (zelf willen)','Organiseren (eigen doelen)','Karakteriseren (hoort bij je)'] },
+    diep:'Krathwohl schreef in 1964 met Bloom en Masia het deel over houding. Een houding groeit van iets aanhoren, via meedoen als het gevraagd wordt en het zelf willen, naar er voorrang aan geven, tot het bij je hoort. Kijk bij mentaliteit en gedrag dus: komt het uit de speler zelf?',
+    stappen:['Ontvangen (luisteren)','Reageren (meedoen)','Waarderen (zelf willen)','Organiseren (voorrang)','Karakteriseren (hoort bij je)'] },
 };
 const nsIconen = (lijst, g = 16) => `<span class="iconen">${lijst.map(n => ico(n, g)).join('')}</span>`;
 const nsKop = (icoon, label) => `<div class="vb-dom-kop"><span class="vb-dom-ic">${ico(icoon, 17)}</span><span class="vb-veldlabel">${label}</span></div>`;
@@ -365,13 +368,13 @@ function naslagHtml(lft){
     </div>
     <div class="ns-deel" data-ns-deel="diep">
       <div class="ns-kaart">${nsKop('navigation-help', 'Waarom vaste niveaus')}
-        <p class="ns-p">Een kleur zonder uitleg betekent voor iedere coach iets anders. De één geeft snel Sterk, de ander bijna nooit. Met een vaste beschrijving per niveau scoren alle coaches op dezelfde manier.</p>
-        <p class="ns-p">Dat telt, want beoordelingen wegen mee bij de teamindeling. En een score die je kunt onderbouwen, kun je ook uitleggen aan speler en ouders.</p></div>
+        <p class="ns-p">Een kleur zonder uitleg betekent voor iedere coach iets anders. De één geeft snel Sterk, de ander bijna nooit. Met een vaste beschrijving per niveau beoordelen coaches veel meer op dezelfde manier.</p>
+        <p class="ns-p">Dat telt, want beoordelingen wegen mee bij de teamindeling. En een beoordeling die je kunt onderbouwen, kun je ook toelichten in een gesprek met speler en ouders.</p></div>
       <div class="ns-kaart">${nsKop('stats-bars', 'Hoofd, handen en hart')}
         <p class="ns-p zacht">Drie bekende ladders uit het onderwijs, elk voor een ander soort leren. Zo vertalen wij hun stappen naar onze vijf niveaus.</p></div>
       ${nsModel('dave')}${nsModel('bloom')}${nsModel('krathwohl')}
       <div class="ns-kaart">${nsKop('planning-calendar', 'Fases in het opleidingsmodel')}
-        <p class="ns-p zacht">Meulensteen/KNVB delen de jeugd in vier fases. Elke fase legt de nadruk op één pijler.</p>
+        <p class="ns-p zacht">René Meulensteen deelt de jeugdopleiding in vier fases. Elke fase legt de nadruk op één pijler. De leerstap per fase is onze eigen koppeling met Bloom.</p>
         <div class="ns-fases">${FASES.map(x => `<div class="ns-fase${x === f ? ' nu' : ''}"><div class="lft"><span>${x.leeft} · nadruk ${x.nadruk.toLowerCase()}</span>${x === f ? `<span class="ic" title="Dit team">${ico('team-player', 15)}</span>` : ''}</div><div class="nm">${x.naam}</div><div class="tx">${x.stap}</div></div>`).join('')}</div></div>
       <div class="ns-kaart">${nsKop('communication-chat', 'Coachvragen per stap')}
         <p class="ns-p zacht">Een vraag bij de volgende stap daagt de speler uit net iets verder te denken.</p>
