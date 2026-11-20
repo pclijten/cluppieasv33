@@ -7,8 +7,9 @@
        een knop met een kaarticoon. Die opent een luchtfoto van het sportpark
        met het veld (of het deelveld, bv. "2a voor") rood gemarkeerd.
      • Praktisch in de wedstrijdvoorbereiding toont dezelfde kaart klein.
-     • Uitwedstrijd en het veld is nog niet bekend: de coach tikt de plek aan
-       op de luchtfoto. Dat geldt daarna voor alle teams van de club.
+     • Uitwedstrijd en het veld is nog niet bekend: clubbeheer (of de
+       eindbaas) wijst het aan. [20261120g] Coaches wijzen niets aan; zij
+       sturen een melding.
      • "Klopt er iets niet?" stuurt een melding naar clubbeheer.
    Wat clubbeheer ziet (Club → Sportpark)
      • Het eigen sportpark: velden als rechthoek op de luchtfoto (verschuiven,
@@ -45,7 +46,7 @@
      adres      PDOK Locatieserver (alleen het adres van het sportpark)
      clubnaam   OpenStreetMap Nominatim (alleen de zoektekst, bij Zoek)
    Geen GPS of locatie van de gebruiker. */
-import { db, doc, getDoc, setDoc, addDoc, updateDoc, collection, getDocs, query, where, serverTimestamp } from './firebase.js?v=20261106r';
+import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from './firebase.js?v=20261106r';
 import { S, esc, meld, isBeheerder } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik } from './tracker.js?v=20261111g';
@@ -171,7 +172,10 @@ function parkSleutel(w){
     : w.locatie ? `${w.locatie} ${w.plaats || ''}`
     /* [20261120f] niets bekend: op de club van de tegenstander, zodat je hem kunt zoeken */
     : w.tegenstander ? `club ${String(w.tegenstander).replace(/\s+(JO|MO|O)\d.*$/i, '')}` : '';
-  const k = basis.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+  return sleutelVan(basis);
+}
+export function sleutelVan(tekst){
+  const k = String(tekst || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   return k ? 'p-' + k : '';
 }
 export function infoVan(w, team){
@@ -331,22 +335,61 @@ class Kaart {
     el.querySelectorAll('[data-vk-z]').forEach(b => b.onclick = e => { e.stopPropagation(); this.zoom(+b.dataset.vkZ); });
     const mijKnop = el.querySelector('[data-vk-mij]');
     if (mijKnop) mijKnop.onclick = e => { e.stopPropagation(); this.wisselLocatie(mijKnop); };
-    let start = null;
-    const llVan = e => { const r = el.getBoundingClientRect(); return this.ll(e.clientX - r.left, e.clientY - r.top); };
+    /* [20261120g] Vingers: één vinger schuift (of pakt een greepje), twee
+       vingers knijpen om te zoomen. Tijdens het knijpen schaalt de kaart
+       vloeiend mee; bij loslaten springt hij naar het dichtstbijzijnde
+       tegelniveau, met het punt tussen de vingers op dezelfde plek. */
+    const vingers = new Map();               // pointerId → {x, y} in px binnen de kaart
+    let start = null, knijp = null, naKnijp = false;
+    const rel = e => { const r = el.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; };
+    const llVan = e => { const p = rel(e); return this.ll(p.x, p.y); };
+    const tweeVingers = () => { const [a, b] = [...vingers.values()]; return { d:Math.hypot(a.x - b.x, a.y - b.y) || 1, m:{ x:(a.x + b.x) / 2, y:(a.y + b.y) / 2 } }; };
+    const stopKnijp = () => {
+      if (!knijp) return;
+      const k = knijp; knijp = null;
+      this.schuif.style.transform = ''; this.schuif.style.transformOrigin = '';
+      const dz = Math.max(ZMIN - this.z, Math.min(ZMAX - this.z, Math.round(Math.log2(k.s || 1))));
+      /* het punt dat onder het begin-midden lag, komt onder het eind-midden */
+      const punt = naarLL(this.x0 + k.m0.x, this.y0 + k.m0.y, this.z);
+      const z = this.z + dz, p = naarPx(punt.lat, punt.lon, z);
+      const W = el.clientWidth, H = el.clientHeight;
+      const c = naarLL(p.x - k.m.x + W / 2, p.y - k.m.y + H / 2, z);
+      this.lat = c.lat; this.lon = c.lon; this.z = z; this.teken();
+    };
     el.addEventListener('pointerdown', e => {
       if (e.target.closest('button')) return;
+      vingers.set(e.pointerId, rel(e));
+      try { el.setPointerCapture(e.pointerId); } catch {}
+      if (vingers.size === 2){
+        /* tweede vinger: schuiven of greepje stoppen, knijpen begint */
+        if (start?.greep) start.greep.eind(start.bewogen);
+        start = null; this.schuif.style.transform = '';
+        const t = tweeVingers();
+        knijp = { d0:t.d, m0:t.m, m:t.m, s:1 };
+        this.schuif.style.transformOrigin = `${t.m.x}px ${t.m.y}px`;
+        naKnijp = true;
+        return;
+      }
+      if (vingers.size > 2) return;
+      naKnijp = false;
       /* greepjes (draaien, maat, verslepen) gaan voor het schuiven van de kaart */
       const g = this.grijp ? this.grijp(e, this) : null;
       if (g){
         e.preventDefault();
         start = { id:e.pointerId, greep:g, x:e.clientX, y:e.clientY, bewogen:false };
-        try { el.setPointerCapture(e.pointerId); } catch {}
         return;
       }
       start = { x:e.clientX, y:e.clientY, id:e.pointerId, bewogen:false };
-      try { el.setPointerCapture(e.pointerId); } catch {}
     });
     el.addEventListener('pointermove', e => {
+      if (vingers.has(e.pointerId)) vingers.set(e.pointerId, rel(e));
+      if (knijp && vingers.size >= 2){
+        const t = tweeVingers();
+        const sMin = 2 ** (ZMIN - this.z - 0.5), sMax = 2 ** (ZMAX - this.z + 0.5);
+        knijp.s = Math.min(sMax, Math.max(sMin, t.d / knijp.d0)); knijp.m = t.m;
+        this.schuif.style.transform = `translate(${t.m.x - knijp.m0.x}px,${t.m.y - knijp.m0.y}px) scale(${knijp.s})`;
+        return;
+      }
       if (!start || e.pointerId !== start.id) return;
       if (start.greep){
         if (!start.bewogen && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 3) return;
@@ -358,20 +401,25 @@ class Kaart {
       this.schuif.style.transform = `translate(${dx}px,${dy}px)`;
     });
     const eind = e => {
-      if (!start || e.pointerId !== start.id) return;
+      const had = vingers.delete(e.pointerId);
+      if (knijp){ if (vingers.size < 2) stopKnijp(); return; }
+      if (!had && !start) return;
+      if (!start || e.pointerId !== start.id){ if (!vingers.size) naKnijp = false; return; }
       const s = start; start = null;
       if (s.greep){ s.greep.eind(s.bewogen); return; }
       this.schuif.style.transform = '';
       if (s.bewogen){
         const c = naarPx(this.lat, this.lon, this.z), n = naarLL(c.x - (e.clientX - s.x), c.y - (e.clientY - s.y), this.z);
         this.lat = n.lat; this.lon = n.lon; this.teken();
-      } else if (e.type === 'pointerup' && this.onTik){
-        const r = el.getBoundingClientRect();
-        this.onTik(this.ll(e.clientX - r.left, e.clientY - r.top));
+      } else if (e.type === 'pointerup' && this.onTik && !naKnijp){
+        const p = rel(e);
+        this.onTik(this.ll(p.x, p.y));
       }
+      if (!vingers.size) naKnijp = false;
     };
     el.addEventListener('pointerup', eind);
     el.addEventListener('pointercancel', eind);
+    /* muiswiel en knijpen op een touchpad (ctrl + wiel) */
     let wielTijd = 0;
     el.addEventListener('wheel', e => {
       e.preventDefault();
@@ -547,11 +595,13 @@ function bronHtml(i, b, admin){
   if (b.doel){
     const v = b.doel.veld;
     if (i.thuis || b.park?.eigen) return `<p class="vk-ok">${ico('action-check', 16)}Plattegrond van het eigen sportpark, ingesteld door clubbeheer</p>`;
-    return `<p class="vk-ok">${ico('action-check', 16)}Aangewezen door ${esc(v.door?.team || 'een coach')}${v.ms ? ` · ${esc(datumKort(v.ms))}` : ''}</p>`;
+    return `<p class="vk-ok">${ico('action-check', 16)}Ingetekend door clubbeheer${v.ms ? ` · ${esc(datumKort(v.ms))}` : ''}</p>`;
   }
   if (!i.veld) return `<p class="vk-zacht">Het veldnummer is nog niet bekend. Sportlink vult het meestal een paar dagen voor de wedstrijd in.</p>`;
   if (i.thuis) return `<p class="vk-let">${ico('action-info', 18)}<span>${esc(veld)} staat nog niet op de plattegrond van het eigen sportpark.${admin ? ' Zet het erop bij Club → Sportpark.' : ' Meld het, dan zet clubbeheer het erop.'}</span></p>`;
-  return `<div class="vk-let">${ico('action-info', 18)}<span>We weten nog niet waar ${esc(veld)} ligt. Ben je er geweest? Wijs het aan, dan ziet iedereen het de volgende keer.</span></div>`;
+  return admin
+    ? `<div class="vk-let">${ico('action-info', 18)}<span>${esc(veld)} staat nog niet op de kaart. Wijs het aan, dan ziet iedereen het de volgende keer.</span></div>`
+    : `<div class="vk-let">${ico('action-info', 18)}<span>${esc(veld)} staat nog niet op de kaart. Weet jij waar het ligt? Laat het clubbeheer weten met "Meld het" hieronder.</span></div>`;
 }
 
 export async function openVeldkaart(i){
@@ -567,26 +617,29 @@ export async function openVeldkaart(i){
   else {
     /* [20261120f] Adres onbekend: zoek het sportpark op clubnaam. */
     const club = String(i.tegen || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim();
-    vak.outerHTML = `<div class="vk-let">${ico('action-info', 18)}<span>Het adres van dit sportpark is niet bekend. Zoek het op clubnaam, dan staat het voortaan voor iedereen op de kaart.</span></div>
-      <div data-vk-zoekvak>${zoekHtml('vkZoekUit', [club, i.plaats].filter(Boolean).join(' '))}</div>`;
-    koppelZoek(body.querySelector('[data-vk-zoekvak]'), async r => {
+    /* [20261120g] alleen clubbeheer en eindbaas zetten iets op de kaart; een coach meldt het */
+    vak.outerHTML = admin ? `<div class="vk-let">${ico('action-info', 18)}<span>Het adres van dit sportpark is niet bekend. Zoek het op clubnaam, dan staat het voortaan voor iedereen op de kaart.</span></div>
+      <div data-vk-zoekvak>${zoekHtml('vkZoekUit', [club, i.plaats].filter(Boolean).join(' '))}</div>`
+      : `<div class="vk-let">${ico('action-info', 18)}<span>Het adres van dit sportpark is (nog) niet bekend, dus er is geen luchtfoto. Clubbeheer kan het opzoeken; laat het weten met "Meld het" hieronder.</span></div>`;
+    if (admin) koppelZoek(body.querySelector('[data-vk-zoekvak]'), async r => {
       if (await bewaarPark(i.club, i.park, { naam:i.naam || r.naam, adres:i.adres || '', plaats:i.plaats || '', lat:rond(r.lat), lon:rond(r.lon), zoom:17, eigen:false })) openVeldkaart(i);
     });
   }
   const route = !i.thuis ? routeNaar(i) : '';
-  const magAanwijzen = !i.thuis && i.veld && b.midden && b.fout !== 'permission-denied';
+  const magAanwijzen = admin && !i.thuis && i.veld && b.midden && b.fout !== 'permission-denied';
   const kleedRegel = i.kleed && b.kleed ? `<p class="vk-zacht">${plekIco('kleedkamer', 16)}${esc(/^\d/.test(i.kleed) ? 'Kleedkamer ' + i.kleed : i.kleed)} zit in ${esc(b.kleed.naam)} (rood op de kaart)</p>` : '';
   onder.innerHTML = `${bronHtml(i, b, admin)}${kleedRegel}
     ${b.midden && navigator.geolocation ? `<p class="vk-zacht">${svgI('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/>', 16)}Op het sportpark? Tik op het rondje rechtsboven om te zien waar je staat.</p>` : ''}
     <div class="vk-acties">
       ${route ? `<a class="knop vol fluo" href="${esc(route)}" target="_blank" rel="noopener">${ico('match-departure', 20)}Navigeer</a>` : ''}
       ${magAanwijzen ? `<button type="button" class="knop vol licht" data-vk-aanwijzen>${ico('admin-edit', 20)}${b.doel && !b.doel.deelOnbekend ? 'Opnieuw aanwijzen' : 'Veld aanwijzen'}</button>` : ''}
-      ${i.thuis && admin ? `<button type="button" class="knop vol licht" data-vk-beheer>${ico('navigation-settings', 20)}Sportpark inrichten</button>` : ''}
+      ${admin ? `<button type="button" class="knop vol licht" data-vk-beheer>${ico('navigation-settings', 20)}Sportpark inrichten</button>` : ''}
     </div>
     <button type="button" class="vk-meld-link" data-vk-melden>${ico('action-warning', 16)}Klopt er iets niet? Meld het</button>`;
   onder.querySelector('[data-vk-aanwijzen]')?.addEventListener('click', () => openAanwijzen(i, b));
-  onder.querySelector('[data-vk-beheer]')?.addEventListener('click', () => openSportparkBeheer(i.club));
-  onder.querySelector('[data-vk-melden]').addEventListener('click', () => openMelden(i));
+  onder.querySelector('[data-vk-beheer]')?.addEventListener('click', () => openSportparkBeheer(i.club, 'velden', i.park,
+    i.thuis ? null : { naam:i.naam || `Sportpark van ${String(i.tegen || '').replace(/\s+(JO|MO|O)\d.*$/i, '')}`, plaats:i.plaats, adres:i.adres, ...(b.midden ? { lat:rond(b.midden.lat), lon:rond(b.midden.lon), zoom:17 } : {}) }));
+  onder.querySelector('[data-vk-melden]').addEventListener('click', () => openMelden(i, !b.doel && i.veld ? 'ontbreekt' : ''));
 }
 
 /* ---------- klein in Praktisch (wedstrijd-voorbereiding.js) ---------- */
@@ -612,7 +665,8 @@ export async function vulVeldkaarten(root){
 }
 
 /* ==================== AANWIJZEN (coach, sportpark van de tegenstander) ==================== */
-function openAanwijzen(i, b){
+async function openAanwijzen(i, b){
+  if (!(await isClubAdmin(i.club))) return meld('Alleen clubbeheer kan velden aanwijzen. Stuur een melding als iets niet klopt.');
   const naam = metVeld(i.veld);
   let gekozen = null;
   let midden = { ...b.midden };
@@ -664,7 +718,7 @@ function openAanwijzen(i, b){
 
 /* ==================== FOUT MELDEN ==================== */
 const REDENEN = [
-  ['veld', 'Verkeerd veld aangewezen'], ['indeling', 'Veld is anders ingedeeld'],
+  ['ontbreekt', 'Veld staat nog niet op de kaart'], ['veld', 'Verkeerd veld aangewezen'], ['indeling', 'Veld is anders ingedeeld'],
   ['plek', 'Sportpark ligt ergens anders'], ['kleedkamer', 'Kleedkamer klopt niet'], ['anders', 'Iets anders'],
 ];
 export const redenTekst = r => (REDENEN.find(([k]) => k === r) || [, 'Melding'])[1];
@@ -676,7 +730,7 @@ async function adminMail(club){
   }
   return '';
 }
-async function openMelden(i){
+async function openMelden(i, voorkeur = ''){
   let reden = '';
   const plek = `${metVeld(i.veld) || 'Het veld'} · ${i.thuis ? 'eigen sportpark' : (i.naam || 'sportpark tegenstander')}`;
   const body = toonLaag('Wat klopt er niet?', `<p class="vk-uitleg">Over ${esc(plek)}. Je melding gaat naar clubbeheer.</p>
@@ -684,9 +738,10 @@ async function openMelden(i){
       `<button type="button" role="radio" aria-checked="false" class="vk-reden" data-vk-reden="${k}"><span class="vk-radio"></span>${esc(t)}</button>`).join('')}</div>
     <label class="vk-label" for="vkToel">Toelichting (optioneel)</label>
     <textarea id="vkToel" class="invoer" rows="2" maxlength="500" placeholder="Bijvoorbeeld: we speelden op het achterste deel"></textarea>
-    <p class="vk-zacht">${ico('map', 16)}De wedstrijd en het veld gaan automatisch mee.</p>
+    <p class="vk-zacht">${ico('match-location', 16)}De wedstrijd en het veld gaan automatisch mee.</p>
     <div class="vk-acties"><button type="button" class="knop vol fluo" data-vk-stuur disabled>Kies eerst wat er niet klopt</button></div>
     <div data-vk-mail></div>`);
+  if (voorkeur) setTimeout(() => body.querySelector(`[data-vk-reden="${voorkeur}"]`)?.click(), 0);
   body.querySelectorAll('[data-vk-reden]').forEach(b => b.onclick = () => {
     reden = b.dataset.vkReden;
     body.querySelectorAll('[data-vk-reden]').forEach(x => { const aan = x === b; x.classList.toggle('aan', aan); x.setAttribute('aria-checked', String(aan)); });
@@ -702,7 +757,7 @@ async function openMelden(i){
     knop.disabled = true;
     try {
       await addDoc(meldCol(i.club), {
-        park:i.park, parkNaam:i.thuis ? 'Eigen sportpark' : (i.naam || i.adres || ''), thuis:i.thuis, veld:i.veld, reden,
+        park:i.park, parkNaam:i.thuis ? 'Eigen sportpark' : (i.naam || i.adres || ''), parkPlaats:i.plaats || '', parkAdres:i.adres || '', thuis:i.thuis, veld:i.veld, reden,
         toelichting:String(body.querySelector('#vkToel').value || '').trim().slice(0, 500),
         datum:i.datum, tegenstander:i.tegen, wid:i.wid, teamId:i.teamId, teamNaam:i.team,
         door:S.user?.uid || '', ms:Date.now(), status:'open',
@@ -727,33 +782,100 @@ const kopie = o => JSON.parse(JSON.stringify(o));
 const gekozenVeld = () => B.park.velden.find(x => x.id === B.sel) || null;
 const gekozenPlek = () => B.park.plekken.find(x => x.id === B.sel) || null;
 
-export async function openSportparkBeheer(club, tab){
+export async function openSportparkBeheer(club, tab, parkId = 'eigen', nieuw = null){
   if (!club) return;
-  if (!(await isClubAdmin(club))) return meld('Alleen clubbeheer kan het sportpark inrichten.');
-  const body = toonLaag('Sportpark', laden('Sportpark laden…'), true);
-  const p = await laadPark(club, 'eigen', true);
+  if (!(await isClubAdmin(club))) return meld('Alleen clubbeheer kan sportparken inrichten.');
+  const body = toonLaag('Sportparken', laden('Sportpark laden…'), true);
+  const p = await laadPark(club, parkId, true);
   if (!body.isConnected) return;
   const c = await laadClub(club);
-  B = { club, park:p && !p.fout ? kopie(p) : { naam:c?.naam ? `Sportpark ${c.naam}` : 'Eigen sportpark', velden:[], eigen:true }, sel:null, modus:'kijk', tab:tab || 'velden', slNamen:null, fout:p?.fout || '', zoek:false, niveau:'heel', clubNaam:c?.naam || '' };
+  const leeg = parkId === 'eigen' ? { naam:c?.naam ? `Sportpark ${c.naam}` : 'Eigen sportpark', velden:[], eigen:true } : { naam:'', velden:[], eigen:false, ...(nieuw || {}) };
+  B = { club, parkId, park:p && !p.fout ? kopie(p) : leeg, sel:null, modus:'kijk', tab:tab || 'velden', slNamen:B?.club === club ? B.slNamen : null,
+        fout:p?.fout || '', zoek:false, niveau:'heel', clubNaam:c?.naam || '' };
   B.park.velden ||= [];
   B.park.plekken ||= [];
   tekenBeheer();
+}
+/* ---------- [20261120g] alle sportparken (eigen + tegenstanders) ---------- */
+async function haalParken(club){
+  const snap = await getDocs(collection(db, 'clubs', club, 'sportparken'));
+  return snap.docs.map(d => ({ id:d.id, ...d.data() }));
+}
+async function tekenParken(paneel){
+  paneel.innerHTML = laden('Sportparken laden…');
+  let parken = [];
+  try { parken = await haalParken(B.club); }
+  catch (e){ paneel.innerHTML = `<p class="vk-let">${ico('action-warning', 18)}<span>${e?.code === 'permission-denied' ? 'Geen rechten om sportparken te lezen (Firestore-regels).' : 'Sportparken laden mislukt. Controleer je verbinding.'}</span></p>`; return; }
+  if (!B.slNamen) B.slNamen = sportlinkNamen(B.club);
+  const { parken:uitProgramma } = await B.slNamen;
+  if (!paneel.isConnected) return;
+  const bekend = new Map(parken.map(p => [p.id, p]));
+  const rijPark = p => {
+    const v = (p.velden || []).length, pl = (p.plekken || []).length;
+    return `<div class="vk-parkrij${p.id === B.parkId ? ' aan' : ''}">
+      <button type="button" class="vk-parkrij-hoofd" data-vk-park="${esc(p.id)}">${ico('match-location', 20)}<span><b>${esc(p.id === 'eigen' ? (p.naam || 'Eigen sportpark') + ' (eigen)' : p.naam || p.id)}</b>
+        <small>${esc([p.plaats, `${v} veld${v === 1 ? '' : 'en'}`, pl ? `${pl} plek${pl === 1 ? '' : 'ken'}` : ''].filter(Boolean).join(' · '))}${p.lat == null ? ' · nog niet op de kaart' : ''}</small></span></button>
+      ${p.id === 'eigen' ? '' : `<button type="button" class="knop gevaar klein" data-vk-parkweg="${esc(p.id)}" aria-label="${esc(p.naam || p.id)} verwijderen">${ico('admin-delete', 16)}</button>`}</div>`;
+  };
+  const eigen = bekend.get('eigen') || { id:'eigen', naam:'Eigen sportpark', velden:[] };
+  const anderen = parken.filter(p => p.id !== 'eigen').sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl'));
+  const nieuwUit = uitProgramma.filter(x => !bekend.has(x.id));
+  paneel.innerHTML = `
+    <div class="vk-label">Sportparken op de kaart</div>
+    ${rijPark(eigen)}${anderen.map(rijPark).join('') || ''}
+    ${nieuwUit.length ? `<div class="vk-label">Uit het wedstrijdprogramma, nog niet op de kaart</div>
+      <p class="vk-zacht">Zo heten ze in Sportlink. Tik er een aan om de velden en plekken in te tekenen; bij die wedstrijden staat het dan meteen goed.</p>
+      ${nieuwUit.map((x, n) => `<button type="button" class="vk-zoekrij" data-vk-uitprog="${n}">${ico('match-away', 18)}<span><b>${esc(x.naam)}</b><small>${esc([x.plaats, x.tegen, `${x.keer}× in het programma`].filter(Boolean).join(' · '))}</small></span></button>`).join('')}` : ''}
+    <div class="vk-label">Zelf een sportpark toevoegen</div>
+    <form class="vk-nieuwpark" data-vk-nieuwpark>
+      <label class="vk-label" for="vkPnaam">Naam (zoals in Sportlink)</label><input id="vkPnaam" class="invoer" required maxlength="60" placeholder="Bijv. Sportpark De Hoef">
+      <label class="vk-label" for="vkPplaats">Plaats</label><input id="vkPplaats" class="invoer" maxlength="40" placeholder="Bijv. Beek en Donk">
+      <div class="vk-acties"><button type="submit" class="knop fluo">${ico('action-add', 20)}Toevoegen en intekenen</button></div>
+    </form>`;
+  paneel.querySelectorAll('[data-vk-park]').forEach(b => b.onclick = () => openSportparkBeheer(B.club, 'velden', b.dataset.vkPark));
+  paneel.querySelectorAll('[data-vk-uitprog]').forEach(b => b.onclick = () => {
+    const x = nieuwUit[+b.dataset.vkUitprog];
+    openSportparkBeheer(B.club, 'velden', x.id, { naam:x.naam, plaats:x.plaats || '', adres:x.adres || '' });
+  });
+  paneel.querySelector('[data-vk-nieuwpark]').onsubmit = e => {
+    e.preventDefault();
+    const naam = paneel.querySelector('#vkPnaam').value.trim(), plaats = paneel.querySelector('#vkPplaats').value.trim();
+    const id = sleutelVan(`${naam} ${plaats}`);
+    if (!id || id === 'eigen') return meld('Vul de naam van het sportpark in.');
+    if (bekend.has(id)) return openSportparkBeheer(B.club, 'velden', id);
+    openSportparkBeheer(B.club, 'velden', id, { naam, plaats });
+  };
+  paneel.querySelectorAll('[data-vk-parkweg]').forEach(b => b.onclick = async () => {
+    const p = bekend.get(b.dataset.vkParkweg);
+    if (!p || !confirm(`${p.naam || 'Dit sportpark'} met alle velden en plekken verwijderen?`)) return;
+    try {
+      await deleteDoc(parkRef(B.club, p.id));
+      _park.delete(B.club + '/' + p.id);
+      meld('Sportpark verwijderd');
+      if (B.parkId === p.id) return openSportparkBeheer(B.club, 'parken');
+      tekenParken(paneel);
+    } catch (err){ meld('Verwijderen mislukt: ' + (err?.code || err?.message || 'onbekende fout')); }
+  });
 }
 function tekenBeheer(){
   const el = document.querySelector('#vkLaag .vk-body');
   if (!el || !B) return;
   for (const k of [..._kaarten]) if (el.contains(k.el)) k.opruimen();
-  const seg = `<div class="segment vk-seg" role="tablist">${[['velden', 'Velden en plekken'], ['meldingen', 'Meldingen']].map(([id, n]) =>
+  const seg = `<div class="segment vk-seg" role="tablist">${[['velden', 'Velden en plekken'], ['parken', 'Sportparken'], ['meldingen', 'Meldingen']].map(([id, n]) =>
     `<button type="button" role="tab" aria-selected="${B.tab === id}" class="${B.tab === id ? 'actief' : ''}" data-vk-tab="${id}">${n}<span data-vk-tel="${id}"></span></button>`).join('')}</div>`;
   el.innerHTML = seg + `<div data-vk-paneel></div>`;
   el.querySelectorAll('[data-vk-tab]').forEach(b => b.onclick = () => { B.tab = b.dataset.vkTab; tekenBeheer(); });
   telMeldingen(B.club).then(n => { const t = el.querySelector('[data-vk-tel="meldingen"]'); if (t && n) t.innerHTML = ` <em class="vk-tel">${n}</em>`; });
   const paneel = el.querySelector('[data-vk-paneel]');
   if (B.tab === 'meldingen') return tekenMeldingen(paneel);
+  if (B.tab === 'parken') return tekenParken(paneel);
+  paneel.insertAdjacentHTML('beforeend', `<div class="vk-parkkop"><span>${ico('match-location', 18)}<b>${esc(B.parkId === 'eigen' ? 'Eigen sportpark' : B.park.naam || 'Sportpark')}</b>${B.park.plaats ? `<small>${esc(B.park.plaats)}</small>` : ''}</span>
+    <button type="button" class="knop licht klein" data-vk-wissel>Ander sportpark</button></div>`);
+  paneel.querySelector('[data-vk-wissel]').onclick = () => { B.tab = 'parken'; tekenBeheer(); };
   if (B.fout === 'permission-denied') paneel.insertAdjacentHTML('beforeend', `<p class="vk-let">${ico('action-warning', 18)}<span>Geen rechten om het sportpark te lezen. Publiceer eerst de Firestore-regels uit VELDKAART-RULES.md.</span></p>`);
   if (B.park.lat == null){
     paneel.insertAdjacentHTML('beforeend', `<p class="vk-uitleg"><b>Zoek het sportpark.</b> Typ de clubnaam, de naam van het sportpark of het adres. Daarna zet je de velden op de luchtfoto.</p>
-      <div data-vk-zoekvak>${zoekHtml('vkZoek', B.clubNaam, 'Bijv. clubnaam, sportpark of adres')}</div>`);
+      <div data-vk-zoekvak>${zoekHtml('vkZoek', B.parkId === 'eigen' ? B.clubNaam : [B.park.adres || B.park.naam, B.park.plaats].filter(Boolean).join(' '), 'Bijv. clubnaam, sportpark of adres')}</div>`);
     koppelZoek(paneel.querySelector('[data-vk-zoekvak]'), r => { Object.assign(B.park, { lat:rond(r.lat), lon:rond(r.lon), zoom:17, adres:B.park.adres || r.naam }); tekenBeheer(); });
     return;
   }
@@ -954,7 +1076,8 @@ async function bewaarBeheer(){
   });
   const plekken = B.park.plekken.map(p => ({ id:p.id, soort:PLEK[p.soort] ? p.soort : 'overig', naam:String(p.naam || '').trim().slice(0, 40) || PLEK[p.soort]?.naam || 'Plek', lat:p.lat, lon:p.lon }));
   const c = B.kaart ? { lat:rond(B.kaart.lat), lon:rond(B.kaart.lon), zoom:B.kaart.z } : {};
-  if (await bewaarPark(B.club, 'eigen', { naam:B.park.naam || 'Eigen sportpark', adres:B.park.adres || '', eigen:true, ...c, velden, plekken })){
+  const eigen = B.parkId === 'eigen';
+  if (await bewaarPark(B.club, B.parkId, { naam:B.park.naam || (eigen ? 'Eigen sportpark' : 'Sportpark'), adres:B.park.adres || '', plaats:B.park.plaats || '', eigen, ...c, velden, plekken })){
     telGebruik('veldkaart_sportpark');
     meld('Sportpark opgeslagen');
   }
@@ -965,13 +1088,18 @@ async function bewaarBeheer(){
 async function sportlinkNamen(club){
   const grens = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
   const teams = (S.clubTeams || []).filter(t => !t.club || t.club === club).slice(0, 60);
-  const velden = new Map(), kleed = new Map();
+  const velden = new Map(), kleed = new Map(), parken = new Map();
   const tel = (m, n, sleutel) => { const o = m.get(sleutel); if (o) o.keer++; else m.set(sleutel, { naam:n, keer:1 }); };
   await Promise.all(teams.map(async t => {
     try {
       const snap = await getDocs(query(collection(db, 'teams', t.id, 'wedstrijden'), where('datum', '>=', grens)));
       snap.forEach(d => {
-        const w = d.data(); if (!w.thuis) return;
+        const w = d.data();
+        if (!w.thuis){
+          const id = parkSleutel(w), acc = w.slAccommodatie || {};
+          if (id){ const o = parken.get(id); if (o) o.keer++; else parken.set(id, { id, keer:1, naam:acc.naam || w.locatie || `Sportpark van ${String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '')}`, plaats:acc.plaats || w.plaats || '', adres:acc.adres || w.adres || '', tegen:String(w.tegenstander || '').replace(/\s+(JO|MO|O)\d.*$/i, '') }); }
+          return;
+        }
         const v = String(w.slVeld || w.veld || '').trim(), k = String(w.slKleedkamer || w.kleedkamer || '').trim();
         if (v) tel(velden, v, veldNorm(v));
         if (k) tel(kleed, k, k.toLowerCase().replace(/[^a-z0-9]+/g, ''));
@@ -979,11 +1107,12 @@ async function sportlinkNamen(club){
     } catch { /* geen leesrecht op dit team: overslaan */ }
   }));
   const sorteer = m => [...m.values()].sort((a, b) => a.naam.localeCompare(b.naam, 'nl', { numeric:true }));
-  return { velden:sorteer(velden), kleed:sorteer(kleed) };
+  return { velden:sorteer(velden), kleed:sorteer(kleed), parken:sorteer(parken) };
 }
 function tekenSl(){
   const vak = document.querySelector('#vkLaag [data-vk-sl]');
   if (!vak) return;
+  if (B.parkId !== 'eigen'){ vak.innerHTML = ''; return; }   /* Sportlink-namen gelden voor thuiswedstrijden */
   if (!B.slNamen){
     vak.innerHTML = laden('Namen uit Sportlink ophalen…');
     B.slNamen = sportlinkNamen(B.club);
@@ -1024,15 +1153,14 @@ async function tekenMeldingen(paneel){
       <p>${esc(metVeld(m.veld) || 'Veld onbekend')} · ${esc(m.parkNaam || '')}${m.toelichting ? ` · “${esc(m.toelichting)}”` : ''}</p>
       <p class="vk-zacht">${esc(m.teamNaam || 'Coach')} · ${esc(datumKort(m.ms))}${m.tegenstander ? ` · ${m.thuis ? 'tegen' : 'bij'} ${esc(m.tegenstander)}` : ''}</p>
       ${m.status === 'opgelost' ? '' : `<div class="vk-acties vk-rij">
-        <button type="button" class="knop licht klein" data-vk-bekijk="${esc(m.id)}">${ico('map', 16)}Bekijk op kaart</button>
+        <button type="button" class="knop licht klein" data-vk-bekijk="${esc(m.id)}">${ico('match-location', 16)}Bekijk en pas aan</button>
         <button type="button" class="knop licht klein" data-vk-klaar="${esc(m.id)}">${ico('action-check', 16)}Opgelost</button></div>`}
     </div>`;
   paneel.innerHTML = `${open.length ? open.map(kaart).join('') : '<p class="vk-zacht">Geen open meldingen.</p>'}
     ${klaar.length ? `<div class="vk-label">Afgehandeld</div>${klaar.map(kaart).join('')}` : ''}`;
   paneel.querySelectorAll('[data-vk-bekijk]').forEach(b => b.onclick = () => {
     const m = lijst.find(x => x.id === b.dataset.vkBekijk); if (!m) return;
-    if (m.park === 'eigen'){ B.tab = 'velden'; tekenBeheer(); return; }
-    openVeldkaart({ club:B.club, park:m.park, thuis:false, veld:m.veld, kleed:'', naam:m.parkNaam, adres:'', plaats:'', datum:m.datum, tegen:m.tegenstander, wid:m.wid, teamId:m.teamId, team:m.teamNaam });
+    openSportparkBeheer(B.club, 'velden', m.park || 'eigen', m.park === 'eigen' ? null : { naam:m.parkNaam || '', plaats:m.parkPlaats || '', adres:m.parkAdres || '' });
   });
   paneel.querySelectorAll('[data-vk-klaar]').forEach(b => b.onclick = () => {
     const m = lijst.find(x => x.id === b.dataset.vkKlaar); if (!m) return;
