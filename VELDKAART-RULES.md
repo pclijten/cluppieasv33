@@ -8,11 +8,13 @@ Sinds release `20261120e` kan een coach bij een wedstrijd een luchtfoto van het 
 
 | pad | inhoud | wie schrijft |
 | --- | --- | --- |
-| `clubs/{clubId}/sportparken/eigen` | eigen sportpark: `naam`, `adres`, `lat`, `lon`, `zoom`, `eigen: true`, `velden` (per veld naam, middelpunt, lengte, breedte, hoek, indeling en namen van de delen) | alleen clubbeheer (`clubs.admins`) |
+| `clubs/{clubId}/sportparken/eigen` | eigen sportpark: `naam`, `adres`, `lat`, `lon`, `zoom`, `eigen: true`, `velden` (per veld naam, middelpunt, lengte, breedte, hoek, `splits: { half, kwart }` en namen van de delen), `plekken` (kantine, kleedkamers, ingang, parkeren: soort, naam, punt) | alleen clubbeheer (`clubs.admins`) |
 | `clubs/{clubId}/sportparken/p-<naam-plaats>` | sportpark van een tegenstander: zelfde velden, maar per veld alleen een stip met `door: { uid, team }` | elke coach van de club (`clubs.leden`) |
 | `clubs/{clubId}/veldmeldingen/{id}` | melding: `park`, `parkNaam`, `veld`, `reden`, `toelichting` (max. 500 tekens), wedstrijddatum, tegenstander, `teamId`, `teamNaam`, `door` (uid), `ms`, `status` | aanmaken: elke coach; lezen en afhandelen: clubbeheer |
 
-Er staan geen spelersgegevens in. Naar buiten (PDOK) gaat alleen het adres van het sportpark en de kaarttegels; geen locatie van de gebruiker.
+Er staan geen spelersgegevens in. Naar buiten gaan alleen het adres of de zoektekst (PDOK, OpenStreetMap Nominatim) en de kaarttegels. De knop "Mijn plek" gebruikt de locatie alleen op het toestel; die wordt nergens opgeslagen of verstuurd.
+
+Release `20261120f` (plekken, half/kwart veld per team) verandert niets aan de regels: alles staat in hetzelfde sportpark-document.
 
 ## 1. Regels toevoegen (Firebase-console → Firestore → Rules)
 
