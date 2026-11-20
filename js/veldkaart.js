@@ -584,6 +584,14 @@ const datumKort = ms => ms ? new Date(ms).toLocaleDateString('nl-NL', { day:'num
    Sportlink, ook als de plaats anders is geschreven. */
 const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekken || []).length));
 const parkNaamNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/sportpark|sportcomplex|sportvelden/g, '').replace(/[^a-z0-9]+/g, '');
+/* [20261120l] "neul" past bij "Sportpark De Neul", "Bokt" bij "Sportpark Bokt Eindhoven".
+   Het kortste deel moet minstens 4 tekens hebben, anders past alles op alles. */
+export function naamPast(parkNaam, sportlinkNaam){
+  const a = parkNaamNorm(parkNaam), b = parkNaamNorm(sportlinkNaam);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  return Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a));
+}
 const _alle = new Map();
 function alleParken(club){
   if (!_alle.has(club)) _alle.set(club, binnen(10000, haalParken(club), 'Sportparken laden').catch(e => { console.warn('[veldkaart] sportparken laden', e); _alle.delete(club); return []; }));
@@ -600,13 +608,8 @@ async function zoekPark(i){
   const park = await laadPark(i.club, i.park);
   if (park?.fout || heeftInhoud(park)) return park;
   const alle = (await alleParken(i.club)).filter(heeftInhoud);
-  const n = parkNaamNorm(i.naam);
-  if (n.length > 2){
-    const m = alle.find(x => parkNaamNorm(x.naam) === n)
-      || alle.find(x => { const y = parkNaamNorm(x.naam); return y.length > 4 && n.length > 4 && (y.includes(n) || n.includes(y)); });
-    if (m) return m;
-  }
-  return park;
+  const m = alle.find(x => parkNaamNorm(x.naam) === parkNaamNorm(i.naam)) || alle.find(x => naamPast(x.naam, i.naam));
+  return m || park;
 }
 async function bepaal(i){
   const park = await zoekPark(i);
@@ -872,7 +875,8 @@ async function tekenParken(paneel){
   };
   const eigen = bekend.get('eigen') || { id:'eigen', naam:'Eigen sportpark', velden:[] };
   const anderen = parken.filter(p => p.id !== 'eigen').sort((a, b) => String(a.naam || '').localeCompare(String(b.naam || ''), 'nl'));
-  const nieuwUit = uitProgramma.filter(x => !bekend.has(x.id));
+  /* al ingetekend onder een (iets) andere naam? dan niet nog eens aanbieden */
+  const nieuwUit = uitProgramma.filter(x => !bekend.has(x.id) && !parken.some(p => p.id !== 'eigen' && naamPast(p.naam, x.naam)));
   paneel.innerHTML = `
     <div class="vk-label">Sportparken op de kaart</div>
     ${rijPark(eigen)}${anderen.map(rijPark).join('') || ''}
@@ -938,6 +942,14 @@ function tekenBeheer(){
   paneel.insertAdjacentHTML('beforeend', `<div class="vk-parkkop"><span>${ico('match-location', 18)}<b>${esc(B.parkId === 'eigen' ? 'Eigen sportpark' : B.park.naam || 'Sportpark')}</b>${B.park.plaats ? `<small>${esc(B.park.plaats)}</small>` : ''}</span>
     <button type="button" class="knop licht klein" data-vk-wissel>Ander sportpark</button></div>`);
   paneel.querySelector('[data-vk-wissel]').onclick = () => { B.tab = 'parken'; tekenBeheer(); };
+  /* [20261120l] naam en plaats van een sportpark van een tegenstander aanpassen */
+  if (B.parkId !== 'eigen'){
+    paneel.insertAdjacentHTML('beforeend', `<div class="vk-parknaam">
+      <label><span class="vk-label">Naam</span><input class="invoer" data-vk-pn="naam" value="${esc(B.park.naam || '')}" maxlength="60" placeholder="Bijv. Sportpark De Neul"></label>
+      <label><span class="vk-label">Plaats</span><input class="invoer" data-vk-pn="plaats" value="${esc(B.park.plaats || '')}" maxlength="40" placeholder="Bijv. Rhode"></label>
+      <p class="vk-zacht">Gebruik de naam zoals Sportlink hem noemt; dan vindt elke wedstrijd hier dit sportpark. Opslaan met Sportpark opslaan.</p></div>`);
+    paneel.querySelectorAll('[data-vk-pn]').forEach(inp => inp.oninput = () => { B.park[inp.dataset.vkPn] = inp.value.trim(); });
+  }
   if (B.fout === 'permission-denied') paneel.insertAdjacentHTML('beforeend', `<p class="vk-let">${ico('action-warning', 18)}<span>Geen rechten om het sportpark te lezen. Publiceer eerst de Firestore-regels uit VELDKAART-RULES.md.</span></p>`);
   if (B.park.lat == null){
     paneel.insertAdjacentHTML('beforeend', `<p class="vk-uitleg"><b>Zoek het sportpark.</b> Typ de clubnaam, de naam van het sportpark of het adres. Daarna zet je de velden op de luchtfoto.</p>
