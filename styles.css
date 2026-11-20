@@ -7764,3 +7764,121 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .oa-bron.uit{opacity:.45}
 .oa-avg{display:flex;gap:var(--space-xs);font-size:var(--t-2xs);color:var(--ink-2);line-height:1.45;margin:var(--space-2xs) 2px var(--space-sm)}
 .oa-avg svg{flex-shrink:0}
+
+/* ==================== [20261120e] VELDKAART (veldkaart.js) ==================== */
+.hub-badge[hidden]{display:none}
+.nu-plek-pil.vk-pil{gap:var(--space-2xs);cursor:pointer;border-color:color-mix(in srgb, var(--accent) 55%, transparent);background:color-mix(in srgb, var(--accent-vlak) 16%, var(--surface))}
+.nu-plek-pil.vk-pil svg{color:var(--accent);flex-shrink:0}
+.nu-plek-pil.vk-pil:hover{border-color:var(--accent)}
+.nu-plek-pil.vk-pil:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* venster: onderaan op de telefoon, gecentreerd op desktop; boven het gewone modal (50) */
+.vk-laag{position:fixed;inset:0;z-index:75;background:color-mix(in srgb, var(--zwart) 60%, transparent);display:none;align-items:flex-end;justify-content:center}
+.vk-laag.toon{display:flex}
+.vk-doos{background:var(--card);color:var(--ink);width:100%;max-width:560px;max-height:92dvh;border-radius:var(--r-l) var(--r-l) 0 0;display:flex;flex-direction:column;box-shadow:var(--lift);overflow:hidden}
+.vk-laag.groot .vk-doos{max-width:1100px;height:92dvh}
+.vk-kop{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md);border-bottom:1px solid var(--hair);flex-shrink:0}
+.vk-kop h2{flex:1;font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);text-transform:uppercase;letter-spacing:.3px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vk-sluit{width:44px;height:44px;border-radius:var(--r-pill);background:var(--surface-2);display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0}
+.vk-body{overflow-y:auto;padding:var(--space-md) var(--space-md) calc(var(--space-lg) + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:var(--space-sm)}
+@media (min-width:760px){
+  .vk-laag{align-items:center;padding:var(--space-lg)}
+  .vk-doos{border-radius:var(--r-l)}
+}
+
+/* kaart */
+.vk-kaart{position:relative;overflow:hidden;border-radius:var(--r-m);background:#2b3527;border:1px solid var(--hair);user-select:none;-webkit-user-select:none}
+.vk-kaart:not(.vk-vast){touch-action:none;cursor:grab}
+.vk-kaart:not(.vk-vast):active{cursor:grabbing}
+.vk-kaart-groot{height:min(58dvh,520px);min-height:280px}
+.vk-kaart-klein{height:210px}
+.vk-schuif{position:absolute;inset:0;will-change:transform}
+.vk-tegels img{position:absolute;width:256px;height:256px;max-width:none;pointer-events:none}
+.vk-lagen{position:absolute;inset:0;pointer-events:none}
+.vk-bron{position:absolute;right:6px;bottom:6px;font-size:var(--t-2xs);font-weight:600;color:#fff;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:6px;pointer-events:none}
+.vk-zoom{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.vk-zoom button{width:44px;height:44px;border-radius:12px;background:rgba(16,18,22,.78);color:#fff;font-size:22px;font-weight:700;line-height:1;border:1px solid rgba(255,255,255,.2)}
+
+/* velden op de luchtfoto */
+.vk-veld{position:absolute;box-sizing:border-box}
+.vk-veld i{position:absolute;border:1.5px solid rgba(255,255,255,.85);pointer-events:none}
+.vk-l-rand{inset:0}
+.vk-l-mid{left:50%;top:0;bottom:0;border-width:0 0 0 1.5px !important}
+.vk-l-cirkel{left:50%;top:50%;width:18%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.vk-veld.doel{outline:3px solid #e2342f;outline-offset:2px;box-shadow:0 0 0 7px rgba(226,52,47,.28)}
+.vk-veld.gekozen{outline:3px dashed #fff;outline-offset:2px}
+.vk-veld.dim::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.vk-veld-naam,.vk-deel span{font-size:11px;font-weight:800;color:#fff;background:rgba(0,0,0,.62);padding:1px 7px;border-radius:999px;white-space:nowrap}
+.vk-veld-naam{position:absolute;left:50%;top:50%;translate:-50% -50%}
+.vk-deel{position:absolute;box-sizing:border-box;border:1.5px dashed rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center}
+.vk-deel.doel{background:rgba(226,52,47,.45);border:3px solid #e2342f}
+.vk-deel.doel span{background:#e2342f}
+.vk-deel.dim{background:rgba(0,0,0,.3)}
+.vk-stip{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid #fff}
+.vk-stip span{position:absolute;left:18px;top:-4px;font-size:11px;font-weight:800;color:#fff;background:rgba(0,0,0,.62);padding:1px 7px;border-radius:999px;white-space:nowrap}
+.vk-stip.dim{opacity:.6}
+.vk-wijzer{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;z-index:1}
+.vk-wijzer span{display:flex;align-items:center;gap:4px;background:#e2342f;color:#fff;font-weight:800;font-size:12px;padding:4px 10px 4px 7px;border-radius:999px;white-space:nowrap;box-shadow:0 6px 18px rgba(226,52,47,.4)}
+.vk-wijzer::after{content:'';width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #e2342f}
+
+/* tekst en acties */
+.vk-pillen{display:flex;flex-wrap:wrap;gap:var(--space-2xs)}
+.vk-uitleg{font-size:var(--t-md);line-height:1.5;color:var(--ink-2);margin:0}
+.vk-uitleg b{color:var(--ink)}
+.vk-zacht{display:flex;align-items:center;gap:6px;font-size:var(--t-sm);line-height:1.45;color:var(--ink-2);margin:0}
+.vk-ok{display:flex;align-items:center;gap:6px;font-size:var(--t-sm);font-weight:600;color:var(--ok);margin:0}
+.vk-let{display:flex;align-items:flex-start;gap:var(--space-xs);padding:var(--space-sm);border-radius:var(--r-s);background:var(--surface-2);border:1px solid var(--hair);font-size:var(--t-sm);line-height:1.45;margin:0}
+.vk-let svg{color:var(--warn);flex-shrink:0}
+.vk-acties{display:flex;flex-direction:column;gap:var(--space-xs)}
+.vk-acties.vk-rij{flex-direction:row;flex-wrap:wrap}
+.vk-acties .knop{min-height:44px}
+.vk-meld-link{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;min-height:44px;padding:0 var(--space-2xs);color:var(--ink-2);font-size:var(--t-sm);font-weight:600;text-decoration:none}
+.vk-meld-link:hover{color:var(--ink)}
+.vk-inline{display:flex;flex-direction:column;gap:var(--space-xs)}
+.vk-label{display:block;font-size:var(--t-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:var(--space-xs) 0 var(--space-2xs)}
+.vk-label span{text-transform:none;letter-spacing:0;color:var(--ink);margin-left:4px}
+
+/* melden */
+.vk-redenen{display:flex;flex-direction:column;gap:var(--space-xs)}
+.vk-reden{display:flex;align-items:center;gap:var(--space-sm);min-height:44px;padding:0 var(--space-sm);border-radius:var(--r-s);background:var(--surface-2);border:1.5px solid var(--hair);font-size:var(--t-md);font-weight:600;text-align:left;color:var(--ink)}
+.vk-reden.aan{border-color:var(--accent);background:color-mix(in srgb, var(--accent-vlak) 14%, var(--surface-2))}
+.vk-radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink-2);flex-shrink:0;position:relative}
+.vk-reden.aan .vk-radio{border-color:var(--accent)}
+.vk-reden.aan .vk-radio::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--accent)}
+.vk-body textarea.invoer{resize:vertical;min-height:64px}
+.vk-bedankt{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-xs);padding:var(--space-md) 0}
+.vk-bedankt > svg{color:var(--ok)}
+.vk-bedankt h3{font-family:var(--font-display);font-size:var(--t-2xl);text-transform:uppercase;margin:0}
+.vk-bedankt p{color:var(--ink-2);font-size:var(--t-md);margin:0 0 var(--space-xs)}
+
+/* clubbeheer: sportpark */
+.vk-seg{flex-shrink:0}
+.vk-tel{font-style:normal;font-size:var(--t-2xs);font-weight:700;background:var(--accent-vlak);color:var(--accent-ink);padding:1px 6px;border-radius:999px;margin-left:4px}
+.vk-zoek{display:flex;gap:var(--space-xs)}
+.vk-zoek .invoer{flex:1;min-width:0}
+.vk-beheer{display:flex;flex-wrap:wrap;gap:var(--space-md);align-items:flex-start}
+.vk-beheer-kaart{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:var(--space-2xs)}
+.vk-beheer-zij{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:var(--space-sm)}
+.vk-hint{font-size:var(--t-sm);color:var(--ink-2);margin:0}
+.vk-veldlijst{display:flex;flex-wrap:wrap;gap:var(--space-2xs)}
+.vk-chip{min-height:36px;padding:0 var(--space-sm);border-radius:var(--r-pill);background:var(--surface-2);border:1.5px solid var(--hair);font-size:var(--t-sm);font-weight:700;color:var(--ink)}
+.vk-chip.aan{border-color:var(--accent);background:color-mix(in srgb, var(--accent-vlak) 16%, var(--surface-2))}
+.knop.aan{outline:2px solid var(--accent);outline-offset:1px}
+.vk-editor{display:flex;flex-direction:column;padding:var(--space-sm);border-radius:var(--r-m);background:var(--surface);border:1px solid var(--hair)}
+.vk-editor input[type=range]{width:100%;accent-color:var(--accent);min-height:32px}
+.vk-indeling{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-xs)}
+.vk-ind{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:72px;border-radius:var(--r-s);background:var(--surface-2);border:1.5px solid var(--hair);font-size:var(--t-sm);font-weight:700;color:var(--ink-2)}
+.vk-ind.aan{border-color:var(--accent);color:var(--ink);background:color-mix(in srgb, var(--accent-vlak) 16%, var(--surface-2))}
+.vk-delen{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs);margin-top:var(--space-xs)}
+.vk-delen label{display:flex;flex-direction:column;gap:2px;font-size:var(--t-2xs);font-weight:700;color:var(--ink-2);text-transform:uppercase}
+.vk-sl{display:flex;flex-direction:column}
+.vk-sl-rij{display:flex;align-items:center;gap:var(--space-xs);padding:var(--space-xs) 0;border-top:1px solid var(--hair);font-size:var(--t-sm)}
+.vk-sl-rij b{flex:1}
+.vk-c-ok{color:var(--ok);display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.vk-c-let{color:var(--warn);display:inline-flex;align-items:center;gap:4px;font-weight:700}
+.vk-melding{display:flex;flex-direction:column;gap:4px;padding:var(--space-sm);border-radius:var(--r-m);background:var(--surface);border:1px solid var(--hair)}
+.vk-melding p{margin:0;font-size:var(--t-sm);line-height:1.45}
+.vk-melding-kop{display:flex;align-items:center;gap:var(--space-xs)}
+.vk-melding-kop b{flex:1;font-size:var(--t-md)}
+.vk-nieuw{font-size:var(--t-2xs);font-weight:700;background:var(--accent-vlak);color:var(--accent-ink);padding:2px 8px;border-radius:999px}
+@media (prefers-reduced-motion:reduce){.vk-schuif{will-change:auto}}
