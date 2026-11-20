@@ -66,3 +66,36 @@ Hebben jullie al een regel `match /clubs/{clubId}/{document=**}` die alles onder
 ## 3. Wat er gebeurt zonder deze regels
 
 De app blijft werken. Het veld-label opent de kaart, maar je ziet "geen rechten" en er wordt niets opgeslagen. De Sportpark-tegel bij Club laat dezelfde melding zien.
+
+## 4. [20261120p] Foto van de veldindeling (Firebase Storage)
+
+Coaches kunnen bij een melding een foto meesturen, bijvoorbeeld van het bord met de veldindeling op een sportpark. De app verkleint de foto tot maximaal 1600 px (JPEG, meestal 100 tot 300 kB) en zet hem in Storage onder `veldfotos/{clubId}/{uid}/{tijd}.jpg`. De melding krijgt `fotoUrl` en `fotoPad`. De Firestore-regels hoeven daarvoor niet te veranderen.
+
+Voeg in de Firebase-console → Storage → Rules dit blok toe binnen `match /b/{bucket}/o { … }`:
+
+```
+    // ===== [20261120p] Veldkaart: foto van de veldindeling =====
+    match /veldfotos/{clubId}/{uid}/{bestand} {
+      function vkClub() {
+        return firestore.get(/databases/(default)/documents/clubs/$(clubId)).data;
+      }
+      function vkAdmin() {
+        return request.auth != null
+          && (vkClub().get('admins', {}).get(request.auth.uid, false) == true
+              || request.auth.token.email == 'pclijten@gmail.com');
+      }
+      function vkLid() {
+        return request.auth != null
+          && (vkClub().get('leden', {}).get(request.auth.uid, false) == true || vkAdmin());
+      }
+      allow create: if request.auth != null && request.auth.uid == uid && vkLid()
+                    && request.resource.size < 3 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      allow read: if request.auth != null && (request.auth.uid == uid || vkAdmin());
+      allow delete: if vkAdmin();
+    }
+```
+
+`firestore.get` in Storage-regels vraagt bij het publiceren één keer toestemming om Firestore te mogen lezen; klik op Toestaan.
+
+Zonder dit blok werkt alles behalve de foto: de coach ziet "Foto uploaden mislukt: geen rechten (Storage-regels)" en er wordt niets verstuurd. Een melding zonder foto kan wel.

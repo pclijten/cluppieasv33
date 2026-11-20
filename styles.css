@@ -7937,3 +7937,12 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .vk-nummer{display:flex;flex-direction:column;gap:var(--space-2xs);padding:var(--space-sm);margin-bottom:var(--space-sm);border-radius:var(--r-s);background:var(--surface-2);border:2px solid var(--accent);font-size:var(--t-sm)}
 .vk-nummer > span{opacity:.8}
 .vk-nummer .vk-rij{display:flex;gap:var(--space-xs);flex-wrap:wrap}
+
+/* [20261120p] veldkaart: foto van de veldindeling */
+.vk-foto-oproep{display:grid;grid-template-columns:auto 1fr;gap:var(--space-xs) var(--space-sm);align-items:start;padding:var(--space-sm);border-radius:var(--r-s);background:color-mix(in srgb, var(--accent-vlak) 12%, var(--surface-2));border:1px solid var(--accent);font-size:var(--t-sm);line-height:1.45}
+.vk-foto-oproep > svg{color:var(--accent);margin-top:2px}
+.vk-foto-oproep .knop{grid-column:2;justify-self:start}
+.vk-foto-vak{display:flex;flex-direction:column;gap:var(--space-xs);margin-top:var(--space-sm)}
+.vk-foto-knop{cursor:pointer}
+.vk-foto{display:block;max-width:100%;max-height:220px;border-radius:var(--r-s);border:1px solid var(--hair);object-fit:cover}
+.vk-foto-link{display:inline-flex;flex-direction:column;gap:4px;font-size:var(--t-sm);margin:var(--space-2xs) 0}

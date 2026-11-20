@@ -46,7 +46,7 @@
      adres      PDOK Locatieserver (alleen het adres van het sportpark)
      clubnaam   OpenStreetMap Nominatim (alleen de zoektekst, bij Zoek)
    Geen GPS of locatie van de gebruiker. */
-import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from './firebase.js?v=20261106r';
+import { db, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp, storage, sRef, uploadBytes, getDownloadURL } from './firebase.js?v=20261106r';
 import { S, esc, meld, isBeheerder } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik } from './tracker.js?v=20261111g';
@@ -685,6 +685,11 @@ function bronHtml(i, b, admin){
     : `<div class="vk-let">${ico('action-info', 18)}<span>${esc(veld)} staat nog niet op de kaart. Weet jij waar het ligt? Laat het clubbeheer weten met "Meld het" hieronder.</span></div>`;
 }
 
+/* [20261120p] Staat het veld (of zijn indeling) niet op de kaart? */
+const veldindelingMist = b => !b.fout && (!b.doel || !!b.doel.deelOnbekend || !(b.park?.velden || []).some(v => v.lengte));
+const fotoOproepHtml = () => `<div class="vk-foto-oproep">${I_FOTO(22)}
+    <span><b>Ben je op het sportpark?</b> Maak een foto van het bord met de veldindeling (vaak bij de ingang of de kantine). Dan zet clubbeheer het op de kaart, voor iedereen.</span>
+    <button type="button" class="knop fluo klein" data-vk-foto-oproep>Foto sturen</button></div>`;
 export async function openVeldkaart(i){
   if (!kanKaart(i)) return;
   telGebruik('veldkaart');
@@ -720,7 +725,9 @@ export async function openVeldkaart(i){
   const kleedRegel = i.kleed && b.kleed ? `<p class="vk-zacht">${plekIco('kleedkamer', 16)}${esc(/^\d/.test(i.kleed) ? 'Kleedkamer ' + i.kleed : i.kleed)} zit in ${esc(b.kleed.naam)} (rood op de kaart)</p>` : '';
   /* [20261120k] voor clubbeheer: welk park en welke Sportlink-namen er gebruikt worden */
   const beheerInfo = admin ? `<p class="vk-zacht vk-beheerinfo">${ico('action-info', 16)}<span>Kaart van <b>${esc(b.park ? (b.park.id === 'eigen' ? 'eigen sportpark' : b.park.naam || b.park.id) : 'geen ingetekend sportpark')}</b>${b.park ? ` (${(b.park.velden || []).length} velden)` : ''} · Sportlink: veld “${esc(i.veld || '–')}”${i.kleed ? `, kleedkamer “${esc(i.kleed)}”` : ''}${i.naam ? `, sportpark “${esc(i.naam)}”` : ''} · ${esc(NIVEAU_NAAM[niveauVanVorm(i.vorm)].toLowerCase())}</span></p>` : '';
-  onder.innerHTML = `${bronHtml(i, b, admin)}${kleedRegel}${beheerInfo}
+  /* [20261120p] Veldindeling ontbreekt? Vraag wie er is om een foto van het bord. */
+  const fotoOproep = veldindelingMist(b) ? fotoOproepHtml() : '';
+  onder.innerHTML = `${bronHtml(i, b, admin)}${fotoOproep}${kleedRegel}${beheerInfo}
     ${b.midden && navigator.geolocation ? `<p class="vk-zacht">${svgI('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/>', 16)}Op het sportpark? Tik op het rondje rechtsboven om te zien waar je staat.</p>` : ''}
     <div class="vk-acties">
       ${route ? `<a class="knop vol fluo" href="${esc(route)}" target="_blank" rel="noopener">${ico('match-departure', 20)}Navigeer</a>` : ''}
@@ -731,6 +738,7 @@ export async function openVeldkaart(i){
   onder.querySelector('[data-vk-aanwijzen]')?.addEventListener('click', () => openAanwijzen(i, b));
   onder.querySelector('[data-vk-beheer]')?.addEventListener('click', () => openSportparkBeheer(i.club, 'velden', i.park,
     i.thuis ? null : { naam:i.naam || `Sportpark van ${String(i.tegen || '').replace(/\s+(JO|MO|O)\d.*$/i, '')}`, plaats:i.plaats, adres:i.adres, ...(b.midden ? { lat:rond(b.midden.lat), lon:rond(b.midden.lon), zoom:17 } : {}) }));
+  onder.querySelector('[data-vk-foto-oproep]')?.addEventListener('click', () => openMelden(i, 'foto'));
   onder.querySelector('[data-vk-melden]').addEventListener('click', () => openMelden(i, !b.doel && i.veld ? 'ontbreekt' : ''));
 }
 
@@ -750,9 +758,10 @@ export async function vulVeldkaarten(root){
     if (!b.midden){ el.remove(); continue; }
     new Kaart(vak, { ...b.midden, z:b.zoom, lagen:wedstrijdLagen(b, true, niveauVanVorm(i.vorm)) });
     const admin = await isClubAdmin(i.club);
-    onder.innerHTML = `${bronHtml(i, b, admin)}
+    onder.innerHTML = `${bronHtml(i, b, admin)}${veldindelingMist(b) ? fotoOproepHtml() : ''}
       <div class="vk-acties"><button type="button" class="knop vol licht" data-vk="${esc(JSON.stringify(i))}">${I_GROOT}Vergroot de kaart</button></div>
       <button type="button" class="vk-meld-link" data-vk-melden>${ico('action-warning', 16)}Klopt er iets niet? Meld het</button>`;
+    onder.querySelector('[data-vk-foto-oproep]')?.addEventListener('click', () => openMelden(i, 'foto'));
     onder.querySelector('[data-vk-melden]').addEventListener('click', () => openMelden(i));
   }
 }
@@ -812,7 +821,7 @@ async function openAanwijzen(i, b){
 /* ==================== FOUT MELDEN ==================== */
 const REDENEN = [
   ['ontbreekt', 'Veld staat nog niet op de kaart'], ['veld', 'Verkeerd veld aangewezen'], ['indeling', 'Veld is anders ingedeeld'],
-  ['plek', 'Sportpark ligt ergens anders'], ['kleedkamer', 'Kleedkamer klopt niet'], ['anders', 'Iets anders'],
+  ['plek', 'Sportpark ligt ergens anders'], ['kleedkamer', 'Kleedkamer klopt niet'], ['foto', 'Foto van de veldindeling'], ['anders', 'Iets anders'],
 ];
 export const redenTekst = r => (REDENEN.find(([k]) => k === r) || [, 'Melding'])[1];
 async function adminMail(club){
@@ -823,33 +832,89 @@ async function adminMail(club){
   }
   return '';
 }
+/* [20261120p] Foto van het bord met de veldindeling: verkleind tot max. 1600 px
+   (JPEG), naar Storage veldfotos/{club}/{uid}/. Clubbeheer ziet hem bij de melding. */
+async function verklein(bestand, max = 1600){
+  try {
+    const bm = await createImageBitmap(bestand, { imageOrientation:'from-image' });
+    const f = Math.min(1, max / Math.max(bm.width, bm.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bm.width * f); c.height = Math.round(bm.height * f);
+    c.getContext('2d').drawImage(bm, 0, 0, c.width, c.height);
+    bm.close?.();
+    const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', .82));
+    if (blob) return blob;
+  } catch (e){ console.warn('[veldkaart] verkleinen', e); }
+  return bestand.size < 3e6 ? bestand : null;
+}
+async function uploadVeldfoto(club, bestand){
+  const blob = await verklein(bestand);
+  if (!blob) throw Object.assign(new Error('Foto is te groot'), { code:'te-groot' });
+  const pad = `veldfotos/${club}/${S.user?.uid || 'onbekend'}/${Date.now()}.jpg`;
+  const r = sRef(storage, pad);
+  await binnen(60000, uploadBytes(r, blob, { contentType:'image/jpeg' }), 'Foto uploaden');
+  return { pad, url:await getDownloadURL(r) };
+}
+const I_FOTO = g => svgI('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>', g);
 async function openMelden(i, voorkeur = ''){
   let reden = '';
   const plek = `${metVeld(i.veld) || 'Het veld'} · ${i.thuis ? 'eigen sportpark' : (i.naam || 'sportpark tegenstander')}`;
   const body = toonLaag('Wat klopt er niet?', `<p class="vk-uitleg">Over ${esc(plek)}. Je melding gaat naar clubbeheer.</p>
     <div class="vk-redenen" role="radiogroup" aria-label="Wat klopt er niet">${REDENEN.map(([k, t]) =>
       `<button type="button" role="radio" aria-checked="false" class="vk-reden" data-vk-reden="${k}"><span class="vk-radio"></span>${esc(t)}</button>`).join('')}</div>
+    <div class="vk-foto-vak">
+      <label class="knop licht vol vk-foto-knop">${I_FOTO(20)}<span data-vk-fototekst>Foto toevoegen</span>
+        <input type="file" accept="image/*" data-vk-foto hidden></label>
+      <div data-vk-fotovoorbeeld></div>
+      <p class="vk-zacht">Sta je op het sportpark? Maak een foto van het bord met de veldindeling. Clubbeheer zet het dan op de kaart.</p></div>
     <label class="vk-label" for="vkToel">Toelichting (optioneel)</label>
     <textarea id="vkToel" class="invoer" rows="2" maxlength="500" placeholder="Bijvoorbeeld: we speelden op het achterste deel"></textarea>
     <p class="vk-zacht">${ico('match-location', 16)}De wedstrijd en het veld gaan automatisch mee.</p>
     <div class="vk-acties"><button type="button" class="knop vol fluo" data-vk-stuur disabled>Kies eerst wat er niet klopt</button></div>
     <div data-vk-mail></div>`);
   if (voorkeur) setTimeout(() => body.querySelector(`[data-vk-reden="${voorkeur}"]`)?.click(), 0);
+  let foto = null;
+  const stuurKnop = () => {
+    const s = body.querySelector('[data-vk-stuur]');
+    const klaar = reden && (reden !== 'foto' || foto);
+    s.disabled = !klaar;
+    s.innerHTML = klaar ? `${ico('communication-message', 20)}Melding versturen` : reden === 'foto' ? 'Voeg eerst een foto toe' : 'Kies eerst wat er niet klopt';
+  };
+  body.querySelector('[data-vk-foto]').onchange = e => {
+    foto = e.target.files?.[0] || null;
+    const vb = body.querySelector('[data-vk-fotovoorbeeld]');
+    if (vb._url) URL.revokeObjectURL(vb._url);
+    vb._url = foto ? URL.createObjectURL(foto) : '';
+    vb.innerHTML = foto ? `<img class="vk-foto" src="${vb._url}" alt="Gekozen foto">` : '';
+    body.querySelector('[data-vk-fototekst]').textContent = foto ? 'Andere foto kiezen' : 'Foto toevoegen';
+    stuurKnop();
+  };
   body.querySelectorAll('[data-vk-reden]').forEach(b => b.onclick = () => {
     reden = b.dataset.vkReden;
     body.querySelectorAll('[data-vk-reden]').forEach(x => { const aan = x === b; x.classList.toggle('aan', aan); x.setAttribute('aria-checked', String(aan)); });
-    const s = body.querySelector('[data-vk-stuur]'); s.disabled = false; s.innerHTML = `${ico('communication-message', 20)}Melding versturen`;
+    stuurKnop();
   });
   adminMail(i.club).then(m => {
     const vak = body.querySelector('[data-vk-mail]');
     if (m && vak) vak.innerHTML = `<a class="vk-meld-link" href="mailto:${esc(m)}?subject=${encodeURIComponent('Veldkaart: ' + plek)}">${ico('communication-mail', 16)}Liever mailen? Mail clubbeheer</a>`;
   });
   body.querySelector('[data-vk-stuur]').onclick = async e => {
-    if (!reden) return;
+    if (!reden || (reden === 'foto' && !foto)) return;
     const knop = e.currentTarget;
     knop.disabled = true;
     try {
+      let f = null;
+      if (foto){
+        knop.innerHTML = `${ico('action-loading', 20)}Foto uploaden…`;
+        try { f = await uploadVeldfoto(i.club, foto); }
+        catch (err){
+          console.error('[veldkaart] foto', err);
+          meld(err?.code === 'storage/unauthorized' ? 'Foto uploaden mislukt: geen rechten (Storage-regels).' : err?.code === 'te-groot' ? 'Deze foto is te groot. Kies een andere.' : 'Foto uploaden mislukt. Controleer je verbinding en probeer het opnieuw.');
+          stuurKnop(); return;
+        }
+      }
       await addDoc(meldCol(i.club), {
+        ...(f ? { fotoUrl:f.url, fotoPad:f.pad } : {}),
         park:i.park, parkNaam:i.thuis ? 'Eigen sportpark' : (i.naam || i.adres || ''), parkPlaats:i.plaats || '', parkAdres:i.adres || '', thuis:i.thuis, veld:i.veld, reden,
         toelichting:String(body.querySelector('#vkToel').value || '').trim().slice(0, 500),
         datum:i.datum, tegenstander:i.tegen, wid:i.wid, teamId:i.teamId, teamNaam:i.team,
@@ -857,7 +922,7 @@ async function openMelden(i, voorkeur = ''){
       });
       telGebruik('veldkaart_melding');
       body.innerHTML = `<div class="vk-bedankt">${ico('action-check', 32)}<h3>Melding verstuurd</h3>
-        <p>Clubbeheer kijkt ernaar. Is het aangepast, dan krijgt ${esc(i.team || 'je team')} daar een bericht over in Cluppie.</p>
+        <p>${foto ? 'Dank voor de foto! ' : ''}Clubbeheer kijkt ernaar. Is het aangepast, dan krijgt ${esc(i.team || 'je team')} daar een bericht over in Cluppie.</p>
         <button type="button" class="knop vol licht" data-vk-terug>Terug naar de kaart</button></div>`;
       body.querySelector('[data-vk-terug]').onclick = () => openVeldkaart(i);
     } catch (err){
@@ -1456,6 +1521,7 @@ async function tekenMeldingen(paneel){
   const kaart = m => `<div class="vk-melding">
       <div class="vk-melding-kop"><b>${esc(redenTekst(m.reden))}</b>${m.status === 'opgelost' ? `<span class="vk-c-ok">${ico('action-check', 14)}Opgelost</span>` : '<span class="vk-nieuw">Open</span>'}</div>
       <p>${esc(metVeld(m.veld) || 'Veld onbekend')} · ${esc(m.parkNaam || '')}${m.toelichting ? ` · “${esc(m.toelichting)}”` : ''}</p>
+      ${m.fotoUrl ? `<a class="vk-foto-link" href="${esc(m.fotoUrl)}" target="_blank" rel="noopener"><img class="vk-foto" src="${esc(m.fotoUrl)}" alt="Foto van de veldindeling" loading="lazy"><span>Foto groot openen</span></a>` : ''}
       <p class="vk-zacht">${esc(m.teamNaam || 'Coach')} · ${esc(datumKort(m.ms))}${m.tegenstander ? ` · ${m.thuis ? 'tegen' : 'bij'} ${esc(m.tegenstander)}` : ''}</p>
       ${m.status === 'opgelost' ? '' : `<div class="vk-acties vk-rij">
         <button type="button" class="knop licht klein" data-vk-bekijk="${esc(m.id)}">${ico('match-location', 16)}Bekijk en pas aan</button>
