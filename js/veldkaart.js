@@ -159,7 +159,10 @@ function plekkenLaag(k, plekken, o = {}){
   const { doel = null, gekozen = null, greep = false, klein = false } = o;
   return (plekken || []).filter(p => p.lat != null).map(p => {
     const q = k.px(p.lat, p.lon), isDoel = doel?.id === p.id, kies = gekozen === p.id;
-    return `<div class="vk-plek${isDoel ? ' doel' : ''}${kies ? ' gekozen' : ''}${klein ? ' klein' : ''}" style="left:${q.x}px;top:${q.y}px"${kies && greep ? ' data-vk-greep="sleep"' : ''}>${plekIco(p.soort, 14)}${klein && !isDoel ? '' : `<span>${esc(p.naam || PLEK[p.soort]?.naam || 'Plek')}</span>`}</div>`;
+    /* [20261120h] een plek kan gedraaid staan, bv. langs een gebouw of weg */
+    const h = p.hoek || 0, grepen = kies && greep;
+    return `<div class="vk-plek${isDoel ? ' doel' : ''}${kies ? ' gekozen' : ''}${klein ? ' klein' : ''}" style="left:${q.x}px;top:${q.y}px;transform:translate(-50%,-50%) rotate(${h}deg)"${grepen ? ' data-vk-greep="sleep"' : ''}>${plekIco(p.soort, 14)}${klein && !isDoel ? '' : `<span>${esc(p.naam || PLEK[p.soort]?.naam || 'Plek')}</span>`}${
+      grepen ? `<b class="vk-greep vk-greep-draai" data-vk-greep="draai" title="Sleep om te draaien">${svgI('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>', 18)}</b>` : ''}</div>`;
   }).join('');
 }
 
@@ -899,7 +902,7 @@ function hint(){
   if (B.modus === 'plaats') return 'Tik op het midden van het nieuwe veld.';
   if (B.modus.startsWith('plek:')) return `Tik op de plek van ${PLEK[B.modus.slice(5)]?.naam.toLowerCase() || 'de plek'}.`;
   if (gekozenVeld()?.lengte) return 'Sleep het veld om het te verplaatsen, het rondje om te draaien en de hoek rechtsonder om de maat te veranderen.';
-  if (gekozenPlek()) return 'Sleep de plek om hem te verplaatsen.';
+  if (gekozenPlek()) return 'Sleep de plek om hem te verplaatsen en het rondje om hem te draaien.';
   return B.park.velden.length || B.park.plekken.length ? 'Tik op een veld of plek om het aan te passen. Sleep om de kaart te verschuiven.' : 'Kies Veld toevoegen en tik op het midden van een veld.';
 }
 /* Greepjes op het gekozen veld of de gekozen plek (zie Kaart.grijp). */
@@ -985,6 +988,10 @@ function plekEditor(p){
     <div class="vk-label">Soort</div>
     <div class="vk-veldlijst">${Object.entries(PLEK).map(([k, d]) => `<button type="button" class="vk-chip${p.soort === k ? ' aan' : ''}" data-vk-soort="${k}">${plekIco(k, 16)}${esc(d.naam)}</button>`).join('')}</div>
     <label class="vk-label" for="vkPlekNaam">Naam</label><input id="vkPlekNaam" class="invoer" value="${esc(p.naam)}" maxlength="40">
+    <label class="vk-label" for="vkPlekHoek">Draaien <span data-vk-w="hoek">${p.hoek || 0}°</span></label>
+    <input id="vkPlekHoek" type="range" min="-90" max="90" step="1" value="${p.hoek || 0}" data-vk-r="hoek">
+    <div class="vk-draai-knoppen">${[[-5, '−5°'], [-1, '−1°'], [1, '+1°'], [5, '+5°'], [90, '90°'], [0, 'Recht']].map(([d, t]) =>
+      `<button type="button" class="vk-chip" data-vk-draai="${d}" aria-label="${d ? 'Draai ' + t : 'Zet recht'}">${t}</button>`).join('')}</div>
     ${p.soort === 'kleedkamer' ? '<p class="vk-zacht">Zet de nummers in de naam, bijvoorbeeld "Kleedkamers 1–4" of "Kleedkamer 5 en 6". Dan licht bij een wedstrijd de juiste kleedkamer op.</p>' : ''}
     <div class="vk-acties vk-rij"><button type="button" class="knop gevaar klein" data-vk-weg>${ico('admin-delete', 16)}Verwijderen</button></div>
   </div>`;
@@ -1050,6 +1057,13 @@ function tekenZij(){
     };
   } else if (pl){
     zij.querySelector('#vkPlekNaam').oninput = e => { pl.naam = e.target.value; B.kaart.tekenLagen(); tekenSl(); };
+    zij.querySelector('#vkPlekHoek').oninput = e => { pl.hoek = +e.target.value; werkWaardenBij(pl); B.kaart.tekenLagen(); };
+    zij.querySelectorAll('[data-vk-draai]').forEach(b => b.onclick = () => {
+      const d = Number(b.dataset.vkDraai);
+      let h = d === 0 ? 0 : (pl.hoek || 0) + d;
+      while (h > 90) h -= 180; while (h <= -90) h += 180;
+      pl.hoek = h; werkWaardenBij(pl); B.kaart.tekenLagen();
+    });
     zij.querySelectorAll('[data-vk-soort]').forEach(b => b.onclick = () => {
       const oud = PLEK[pl.soort]?.naam;
       pl.soort = b.dataset.vkSoort;
@@ -1074,7 +1088,7 @@ async function bewaarBeheer(){
     if (v.ms) x.ms = v.ms;
     return x;
   });
-  const plekken = B.park.plekken.map(p => ({ id:p.id, soort:PLEK[p.soort] ? p.soort : 'overig', naam:String(p.naam || '').trim().slice(0, 40) || PLEK[p.soort]?.naam || 'Plek', lat:p.lat, lon:p.lon }));
+  const plekken = B.park.plekken.map(p => ({ id:p.id, soort:PLEK[p.soort] ? p.soort : 'overig', naam:String(p.naam || '').trim().slice(0, 40) || PLEK[p.soort]?.naam || 'Plek', lat:p.lat, lon:p.lon, hoek:Math.round(p.hoek || 0) }));
   const c = B.kaart ? { lat:rond(B.kaart.lat), lon:rond(B.kaart.lon), zoom:B.kaart.z } : {};
   const eigen = B.parkId === 'eigen';
   if (await bewaarPark(B.club, B.parkId, { naam:B.park.naam || (eigen ? 'Eigen sportpark' : 'Sportpark'), adres:B.park.adres || '', plaats:B.park.plaats || '', eigen, ...c, velden, plekken })){
