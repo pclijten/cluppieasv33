@@ -893,17 +893,58 @@ export async function openSportparkBeheer(club, tab, parkId = 'eigen', nieuw = n
    Veel sportparken zijn in OpenStreetMap ingetekend (vorm, maat, stand),
    maar zonder veldnummers. We halen de voetbalvelden rond het midden van de
    kaart op, maken er rechthoeken van en laten clubbeheer de nummers aantikken. */
-const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-async function overpass(q){
-  let laatste;
-  for (const url of OVERPASS){
-    try {
-      const r = await binnen(20000, fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } }), 'Kaartgegevens ophalen');
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return await r.json();
-    } catch (e){ laatste = e; console.warn('[veldkaart] overpass', url, e?.message); }
+/* [20261120o] Bron: de OpenStreetMap-kaarttegels van OpenFreeMap (CDN, snel
+   en altijd bereikbaar), niet meer de Overpass-servers die vaak overbelast zijn.
+   Laag "landuse" class "pitch" = de vorm van elk sportveld; laag "poi" geeft
+   per veld een punt met de sport, zodat tennis, hockey enz. eruit kunnen. */
+const TEGEL_Z = 14;
+let _tilejson = null;
+function tegelUrl(){
+  _tilejson ||= binnen(10000, fetch('https://tiles.openfreemap.org/planet'), 'Kaart ophalen').then(r => r.json()).then(j => j.tiles[0])
+    .catch(e => { _tilejson = null; throw e; });
+  return _tilejson;
+}
+/* minimale Mapbox-vectortegel-lezer (protobuf): alleen wat we nodig hebben */
+function leesTegel(buf){
+  const b = new Uint8Array(buf), td = new TextDecoder();
+  let p = 0;
+  const vi = () => { let r = 0, s = 0, x; do { x = b[p++]; r += (x & 0x7f) * 2 ** s; s += 7; } while (x & 0x80); return r; };
+  const velden = (eind, cb) => { while (p < eind){ const k = vi(), f = k >> 3, t = k & 7;
+    if (t === 2){ const l = vi(), e = p + l; cb(f, t, e); p = e; } else if (t === 0) cb(f, t, vi()); else if (t === 5) p += 4; else if (t === 1) p += 8; else return; } };
+  const lagen = {};
+  velden(b.length, (f, t, e) => {
+    if (f !== 3) return;
+    const L = { naam:'', feats:[], keys:[], vals:[], extent:4096 };
+    velden(e, (f2, t2, e2) => {
+      if (f2 === 1) L.naam = td.decode(b.subarray(p, e2));
+      else if (f2 === 3) L.keys.push(td.decode(b.subarray(p, e2)));
+      else if (f2 === 4){ let v = null; velden(e2, (f3, t3, e3) => { if (f3 === 1) v = td.decode(b.subarray(p, e3)); else if (t3 === 0) v = e3; }); L.vals.push(v); }
+      else if (f2 === 5) L.extent = e2;
+      else if (f2 === 2){ const F = { tags:[], geom:[], type:0 };
+        velden(e2, (f3, t3, e3) => { if (f3 === 2 || f3 === 4){ const a = f3 === 2 ? F.tags : F.geom; while (p < e3) a.push(vi()); } else if (f3 === 3) F.type = e3; });
+        L.feats.push(F); }
+    });
+    lagen[L.naam] = L;
+  });
+  return lagen;
+}
+function tagsVan(L, F){ const t = {}; for (let i = 0; i < F.tags.length; i += 2) t[L.keys[F.tags[i]]] = L.vals[F.tags[i + 1]]; return t; }
+/* geometrie → ringen (polygoon) of punten, in lat/lon */
+function geomVan(L, F, tx, ty){
+  const ll = (gx, gy) => naarLL((tx + gx / L.extent) * TS, (ty + gy / L.extent) * TS, TEGEL_Z);
+  const ringen = []; let x = 0, y = 0, ring = null, i = 0;
+  const zz = v => (v >> 1) ^ -(v & 1);
+  while (i < F.geom.length){
+    const c = F.geom[i++], cmd = c & 7, aantal = c >> 3;
+    if (cmd === 7){ if (ring) ringen.push(ring); ring = null; continue; }
+    for (let k = 0; k < aantal; k++){
+      x += zz(F.geom[i++]); y += zz(F.geom[i++]);
+      if (cmd === 1){ if (ring && F.type !== 3) ringen.push(ring); ring = []; }
+      ring.push(ll(x, y));
+    }
   }
-  throw laatste || new Error('geen antwoord');
+  if (ring) ringen.push(ring);
+  return ringen;
 }
 /* kleinste omsluitende rechthoek (draaiende schuifmaat over de convexe schil) */
 function rechthoekVan(punten){
@@ -930,18 +971,43 @@ function rechthoekVan(punten){
   while (hoek > 90) hoek -= 180; while (hoek <= -90) hoek += 180;
   return { lat:rond(m.lat), lon:rond(m.lon), lengte:Math.round(Math.max(du, dw)), breedte:Math.round(Math.min(du, dw)), hoek:Math.round(hoek) };
 }
+const GEEN_VOETBAL = /^(tennis|padel|field_hockey|hockey|baseball|softball|basketball|volleyball|beachvolleyball|korfball|handball|athletics|running|equestrian|golf|cricket|skateboard|boules|petanque|bmx|cycling)$/;
 async function haalOsmVelden(lat, lon, straal = 600){
-  const q = `[out:json][timeout:20];way[leisure=pitch](around:${straal},${lat},${lon});out tags geom;`;
-  const j = await overpass(q);
+  const url = await tegelUrl();
+  /* alle tegels binnen de straal (meestal 1 tot 4) */
+  const hoek1 = verschuif({ lat, lon }, -straal, -straal), hoek2 = verschuif({ lat, lon }, straal, straal);
+  const t1 = naarPx(hoek1.lat, hoek1.lon, TEGEL_Z), t2 = naarPx(hoek2.lat, hoek2.lon, TEGEL_Z);
+  const tegels = [];
+  for (let tx = Math.floor(t1.x / TS); tx <= Math.floor(t2.x / TS); tx++)
+    for (let ty = Math.floor(t1.y / TS); ty <= Math.floor(t2.y / TS); ty++) tegels.push([tx, ty]);
+  const stukken = [], sporten = [];
+  await Promise.all(tegels.map(async ([tx, ty]) => {
+    const r = await binnen(15000, fetch(url.replace('{z}', TEGEL_Z).replace('{x}', tx).replace('{y}', ty)), 'Kaarttegel ophalen');
+    if (!r.ok) throw new Error('kaarttegel HTTP ' + r.status);
+    const L = leesTegel(await r.arrayBuffer());
+    for (const F of L.landuse?.feats || []) if (F.type === 3 && tagsVan(L.landuse, F).class === 'pitch'){
+      const ring = geomVan(L.landuse, F, tx, ty)[0];
+      if (ring?.length > 2) stukken.push(ring);
+    }
+    for (const F of L.poi?.feats || []){ const t = tagsVan(L.poi, F); if (t.class === 'pitch' && F.type === 1) sporten.push({ ...geomVan(L.poi, F, tx, ty)[0][0], sport:t.subclass || '' }); }
+  }));
+  /* een veld op de rand van twee tegels staat in beide (afgeknipt): stukken die overlappen samenvoegen */
+  const groepen = [];
+  for (const ring of stukken){
+    const r = rechthoekVan(ring);
+    if (!r) continue;
+    const krimp = v => ({ ...v, lengte:v.lengte - 2, breedte:v.breedte - 2 });
+    const g = groepen.find(x => binnenVeld(x.r, r) || binnenVeld(r, x.r) || ring.some(q => binnenVeld(krimp(x.r), q)) || x.ring.some(q => binnenVeld(krimp(r), q)));
+    if (g){ g.ring.push(...ring); g.r = rechthoekVan(g.ring); } else groepen.push({ ring:[...ring], r });
+  }
   const uit = [];
-  for (const e of j.elements || []){
-    const t = e.tags || {};
-    if (t.sport && !/(^|;)\s*(soccer|football|multi)\s*(;|$)/.test(t.sport)) continue;
-    if (/^(asphalt|concrete|paving_stones|sand)$/.test(t.surface || '')) continue;
-    const r = rechthoekVan((e.geometry || []).map(g => ({ lat:g.lat, lon:g.lon })));
+  for (const { r } of groepen){
     if (!r || r.lengte < 45 || r.breedte < 25 || r.lengte > 130) continue;
-    const nr = String(t.ref || '').match(/\d+/)?.[0];
-    uit.push({ ...r, naam:nr ? `Veld ${nr}` : '?', kunstgras:/artificial/.test(t.surface || '') });
+    const d = meterVerschil({ lat, lon }, r);
+    if (Math.hypot(d.x, d.y) > straal) continue;
+    const hier = sporten.filter(s => binnenVeld(r, s)).map(s => s.sport);
+    if (hier.length && !hier.some(s => /soccer|football|multi/.test(s)) && hier.every(s => GEEN_VOETBAL.test(s))) continue;
+    uit.push({ ...r, naam:'?' });
   }
   return uit;
 }
