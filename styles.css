@@ -7634,6 +7634,114 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .te-sam-focus .t svg{vertical-align:-3px;color:var(--accent)}
 .te-ns-bron .jr{display:flex;align-items:flex-start;padding-top:1px;width:28px}
 
+/* [20261120r] Teamevaluatie-venster, redesign (Hallmark · redesign: full · scope: app).
+   Eén idee: elke kleur draagt zijn naam en de zin eronder is het oordeel.
+   Stappen zijn vlakke secties met een haarlijn; alleen het doel en de groepen
+   zijn een vlak. Rood is er voor opslaan en voor de gekozen optie, verder niet.
+   Alles staat onder .te-form, dus het dashboard en de beoordelingsschaal van
+   spelers (.vb-schaal) blijven zoals ze waren. */
+.te-kop{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-sm);margin-bottom:var(--space-md)}
+.te-kop-w{min-width:0}
+.te-kop .nm{font-weight:600;font-size:var(--t-lg);line-height:1.3;color:var(--ink);overflow-wrap:anywhere}
+.te-kop .pos{font-size:var(--t-sm);color:var(--ink-2);margin-top:var(--space-3xs)}
+.te-naslag-knop{display:inline-flex;align-items:center;gap:var(--space-2xs);flex-shrink:0;min-height:40px;padding:0 var(--space-sm);border-radius:var(--r-pill);border:1px solid var(--hair);background:none;color:var(--ink);font-size:var(--t-sm);font-weight:600;white-space:nowrap;cursor:pointer;transition:background-color var(--dur-micro)}
+.te-naslag-knop svg{color:var(--accent);flex-shrink:0}
+.te-naslag-knop:hover{background:var(--op-vlak)}
+.te-naslag-knop:active{background:var(--op-vlak-2)}
+
+.te-nieuw{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r-m);margin:0 0 var(--space-md)}
+.te-nieuw-kop{padding:var(--space-sm) var(--space-md);min-height:56px;cursor:pointer}
+.te-nieuw-t{font-size:var(--t-md)}
+.te-nieuw-t small{font-size:var(--t-xs);margin-top:var(--space-3xs)}
+.te-nieuw-in{padding:0 var(--space-md) var(--space-md)}
+.te-nieuw.open .te-nieuw-in{border-top:1px solid var(--hair);padding-top:var(--space-md)}
+.te-nieuw-in p{font-size:var(--t-sm);line-height:1.55;margin:0 0 var(--space-sm);max-width:62ch}
+.te-nieuw-in p b{display:block;font-weight:600;margin-bottom:var(--space-3xs)}
+.te-nieuw-knoppen{margin-top:var(--space-md);gap:var(--space-xs)}
+
+.te-form .te-oud{display:flex;align-items:flex-start;gap:var(--space-xs);background:none;border-radius:0;padding:0;margin:0 0 var(--space-md);font-size:var(--t-sm);line-height:1.5;color:var(--ink-2)}
+.te-form .te-oud svg{flex-shrink:0;margin-top:var(--space-3xs)}
+
+.te-sectie{padding-top:var(--space-lg);margin-top:var(--space-lg);border-top:1px solid var(--hair)}
+.te-form .te-stapkop{align-items:baseline;gap:var(--space-xs);margin-bottom:var(--space-sm)}
+.te-form .te-stap{width:auto;height:auto;min-width:1ch;background:none;border-radius:0;color:var(--ink-2);font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);line-height:1.1}
+.te-vraag{font-family:var(--font-display);font-weight:700;font-size:var(--t-2xl);line-height:1.1;text-transform:uppercase;letter-spacing:.3px;color:var(--ink);margin:0;min-width:0;overflow-wrap:break-word}
+.te-vraag .te-opt{font-family:var(--font-body);font-size:var(--t-sm);font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-2)}
+.te-tel{margin-left:auto;font-size:var(--t-sm);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.te-veld{display:block;margin-bottom:var(--space-sm)}
+.te-form .te-hint{font-size:var(--t-xs);line-height:1.5;margin-top:var(--space-xs)}
+.te-form .te-intro{font-size:var(--t-sm);margin:0 0 var(--space-md)}
+
+.te-blokregel{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-sm)}
+.te-form .te-blok-naam{font-family:var(--font-body);font-size:var(--t-sm);font-weight:600;text-transform:none;line-height:1.3;color:var(--ink)}
+.te-form .te-blok-wk{margin:0;font-size:var(--t-xs);white-space:nowrap}
+.te-form .nu-blok-balk{margin:var(--space-xs) 0 var(--space-md)}
+.te-form .te-doel{gap:var(--space-sm);padding:var(--space-md);border:1px solid var(--hair);border-radius:var(--r-m);background:var(--surface);margin-bottom:var(--space-xs)}
+.te-form .te-doel .t{font-size:var(--t-base);font-weight:600;line-height:1.4}
+.te-form .te-doel .bron{font-size:var(--t-xs);font-weight:400;text-transform:none;letter-spacing:0;margin:0 0 var(--space-3xs)}
+.te-form .te-doel .vk{margin-top:var(--space-3xs)}
+.te-form .te-doel.vast{border-color:var(--hair);background:var(--surface)}
+.te-form .te-doel.vast .t{font-size:var(--t-xl);line-height:1.3}
+.te-form .te-doel.radio{min-height:56px;cursor:pointer;transition:background-color var(--dur-micro)}
+.te-form .te-doel.radio:hover{background:var(--surface-2)}
+.te-form .te-doel.radio.aan{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.te-form .te-geen{border:0;background:none;border-radius:0;padding:0;margin:0 0 var(--space-sm);color:var(--ink-2)}
+
+.te-form .te-focus{border:0;padding:0;margin:0}
+.te-form .te-focus textarea{margin-top:var(--space-sm)}
+.te-form .te-spoor{gap:var(--space-2xs);font-size:var(--t-xs);margin:0 0 var(--space-sm)}
+.te-form .te-spoor span{margin-right:var(--space-2xs)}
+.te-form .te-spoor i{width:12px;height:12px}
+.te-form .te-schaal{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.95fr) minmax(0,.85fr) minmax(0,.85fr) minmax(0,1.3fr);gap:var(--space-2xs)}
+.te-form .te-crit,.te-form .te-focus{container-type:inline-size}
+@container (max-width:290px){
+  .te-form .te-schaal{grid-template-columns:minmax(0,1.25fr) minmax(0,.95fr) minmax(0,.85fr) minmax(0,.85fr) minmax(0,1.45fr);gap:var(--space-3xs)}
+  .te-form .vb-schaal.te-schaal button{padding:0;font-size:var(--t-2xs);letter-spacing:-.01em}
+}
+.te-form .te-schaal .kn1{--te-k:var(--n1)}
+.te-form .te-schaal .kn2{--te-k:var(--n2)}
+.te-form .te-schaal .kn3{--te-k:var(--n3)}
+.te-form .te-schaal .kn4{--te-k:var(--n4)}
+.te-form .te-schaal .kn5{--te-k:var(--n5)}
+.te-form .te-schaal button{height:44px;min-width:0;padding:0 var(--space-3xs);border:0;border-radius:var(--r-s);background:var(--te-k);color:var(--zwart);font-family:var(--font-body);font-size:var(--t-xs);font-weight:600;line-height:1;white-space:nowrap;transition:transform var(--dur-micro) var(--ease-out),background-color var(--dur-micro)}
+.te-form .te-schaal button:hover{filter:brightness(1.08)}
+.te-form .te-schaal button.gekozen{box-shadow:0 0 0 2px var(--ink)}
+.te-form .te-schaal button.gekozen::after{content:none}
+.te-form .te-schaal:has(.gekozen) button:not(.gekozen){opacity:1;background:color-mix(in srgb,var(--te-k) 24%,var(--surface-2));color:var(--ink)}
+.te-form .te-anker{min-height:2.9em;margin-top:var(--space-xs);font-size:var(--t-sm);line-height:1.45;color:var(--ink)}
+.te-form .te-leeg{color:var(--ink-2)}
+
+.te-form .te-groep{padding:var(--space-md);margin-bottom:var(--space-sm)}
+.te-form .te-groep:last-child{margin-bottom:0}
+.te-form .te-groep-kop{align-items:baseline;gap:var(--space-xs);margin-bottom:var(--space-md)}
+.te-form .te-groep-kop .gn{font-size:var(--t-xl)}
+.te-form .te-groep-kop .gs{font-size:var(--t-xs);margin-top:var(--space-3xs)}
+.te-form .te-groep-kop .gs-stip{width:10px;height:10px;border-radius:3px}
+.te-form .te-crit{margin:0;padding-top:var(--space-md);border-top:1px solid var(--hair)}
+.te-form .te-crit + .te-crit{margin-top:var(--space-sm)}
+.te-form .te-crit-naam{gap:var(--space-xs);font-size:var(--t-md);margin-bottom:var(--space-xs)}
+.te-form .te-crit-naam .vb-badge{font-size:var(--t-2xs);font-weight:600;padding:var(--space-3xs) var(--space-xs)}
+.te-form .te-overslaan{font-size:var(--t-xs)}
+
+.te-form .te-uitklap{align-items:baseline;gap:var(--space-xs);min-height:44px;cursor:pointer}
+.te-form .te-uitklap .te-chevron{align-self:center}
+.te-form .te-uitklap-in.open{margin-top:var(--space-sm)}
+.te-form .te-stem{flex-direction:column;gap:0;margin:0}
+.te-form .te-stem>div{display:flex;align-items:center;justify-content:space-between;gap:var(--space-sm);background:none;border:0;border-top:1px solid var(--hair);border-radius:0;padding:var(--space-xs) 0;text-align:left}
+.te-form .te-stem .e{flex-direction:row;align-items:center;gap:var(--space-xs)}
+.te-form .te-stem .e small{font-size:var(--t-md);font-weight:600;color:var(--ink)}
+.te-form .te-stem .tel{gap:var(--space-sm);margin:0}
+.te-form .te-stem .tel button{width:44px;height:44px;font-size:var(--t-xl);cursor:pointer;transition:background-color var(--dur-micro)}
+.te-form .te-stem .tel button:hover{background:var(--op-vlak-2)}
+.te-form .te-stem .tel b{min-width:2ch;text-align:center;font-family:var(--font-display);font-size:var(--t-2xl);font-variant-numeric:tabular-nums}
+
+.te-actie{position:sticky;bottom:calc(-20px - env(safe-area-inset-bottom));z-index:2;display:flex;align-items:center;gap:var(--space-md);margin:var(--space-lg) calc(-1 * var(--space-md)) 0;padding:var(--space-sm) var(--space-md) calc(var(--space-sm) + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--hair)}
+.te-form .te-voortgang{flex:1;min-width:0;margin:0;font-size:var(--t-sm);line-height:1.45;text-wrap:balance}
+.te-actie .knop{flex-shrink:0;min-width:140px;min-height:48px}
+.te-form .te-weg{min-height:44px;margin-top:var(--space-xs);background:none}
+.te-form .te-weg:hover{background:var(--op-vlak)}
+.te-voet{margin:var(--space-sm) 0 0;font-size:var(--t-xs);line-height:1.5;color:var(--ink-2);text-align:center}
+
 /* ==================== OPSTELLINGSADVISEUR (opstelling-advies.js) ====================
    [20261120a] Paneel "Opstelling voorstellen": instellen en voorstel. Telefoon:
    volledig scherm; desktop: paneel rechts (data-vorm="paneel"). Alleen tokens. */
