@@ -25,11 +25,14 @@ import {
   db, collection, doc, getDoc, getDocs, addDoc, query, where, documentId, serverTimestamp
 } from './firebase.js?v=20261106r';
 import { priveBeoordelingenVan } from './beoordelingen-prive.js?v=20261113v';
+/* [20261120m] Rechtstreeks uit de Firebase-SDK (zelfde URL als firebase.js, dus
+   dezelfde Firestore-instantie); firebase.js zelf blijft ongewijzigd. */
+import { getDocFromCache, getDocsFromCache } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, niveauKleur, TEAM_TAGS } from './config.js?v=20261111g';
 import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teVervolg, teLeeftijd, teCriteriaVoor, teScores, teIsNieuw, teGroepWaarden, teKleur, teCijfer, teZinnen } from './team-evaluatie-criteria.js?v=20261119e';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261120l';
-import { openUitleenForm } from './uitleen-form.js?v=20261120l';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261120m';
+import { openUitleenForm } from './uitleen-form.js?v=20261120m';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111d';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { analyseWedstrijd } from './analyse.js?v=20261111g';
@@ -170,24 +173,26 @@ function verbergTerugPil(){ if (terugPil){ terugPil.remove(); terugPil = null; }
    laadtijd. Ook teamevaluaties (na de wedstrijd, apart van de losse
    spelersbeoordelingen) worden nu meegenomen — die ontbraken volledig. */
 async function haalTeamData(team, seizoen){
-  const veilig = async (label, promise) => {
-    try { return await promise; }
+  /* [20261120m] elke lees-stap met tijdslimiet en cache-terugval (zie leesClubDoc) */
+  const veilig = async (label, ref) => {
+    const isQ = ref.type !== 'document';
+    try { return await serverOfCache(`${label} (${team.naam})`, () => isQ ? getDocs(ref) : getDoc(ref), () => isQ ? getDocsFromCache(ref) : getDocFromCache(ref)); }
     catch(e){
       console.error(`[Cluppie] bouw-hub: "${label}" ophalen mislukt voor team ${team.naam} (${team.id}):`, e.code, e.message);
       throw e;
     }
   };
   const [ssnap, wsnap, psnap, poulesnap, uitslagensnap, bsnap, tesnap, progsnap, priveLijst] = await Promise.all([
-    veilig('spelers', getDocs(collection(db,'teams',team.id,'spelers'))),
-    veilig('wedstrijden', getDocs(query(collection(db,'teams',team.id,'wedstrijden'), where('seizoen','==',seizoen)))),
-    veilig('presentie', getDocs(query(collection(db,'teams',team.id,'presentie'), where('seizoen','==',seizoen)))),
-    veilig('poule/stand', getDoc(doc(db,'teams',team.id,'poule','stand'))),
-    veilig('poule/uitslagen', getDoc(doc(db,'teams',team.id,'poule','uitslagen'))),
-    veilig('beoordelingen', getDocs(query(collection(db,'teams',team.id,'beoordelingen'), where('seizoen','==',seizoen)))),
-    veilig('teamevaluaties', getDocs(query(collection(db,'teams',team.id,'teamevaluaties'), where('seizoen','==',seizoen)))),
+    veilig('spelers', collection(db,'teams',team.id,'spelers')),
+    veilig('wedstrijden', query(collection(db,'teams',team.id,'wedstrijden'), where('seizoen','==',seizoen))),
+    veilig('presentie', query(collection(db,'teams',team.id,'presentie'), where('seizoen','==',seizoen))),
+    veilig('poule/stand', doc(db,'teams',team.id,'poule','stand')),
+    veilig('poule/uitslagen', doc(db,'teams',team.id,'poule','uitslagen')),
+    veilig('beoordelingen', query(collection(db,'teams',team.id,'beoordelingen'), where('seizoen','==',seizoen))),
+    veilig('teamevaluaties', query(collection(db,'teams',team.id,'teamevaluaties'), where('seizoen','==',seizoen))),
     // [20260923h] Ook het programma-doc: de sync zet gespeelde uitslagen daar
     // (met uitslag-veld) — het losse uitslagen-doc is alleen nog fallback.
-    getDoc(doc(db,'teams',team.id,'poule','programma')).catch(e => { console.warn(`[Cluppie] bouw-hub: poule/programma niet gelezen voor ${team.naam}`, e.code); return null; }),
+    binnenTijd(SERVER_MS, getDoc(doc(db,'teams',team.id,'poule','programma')), 'poule/programma').catch(e => { console.warn(`[Cluppie] bouw-hub: poule/programma niet gelezen voor ${team.naam}`, e.code); return null; }),
     // [20261113v] privé-rondebeoordelingen (coördinator ziet ze allemaal)
     priveBeoordelingenVan(team.id),
   ]);
@@ -213,7 +218,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261120l'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261120m'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -282,10 +287,11 @@ export async function laadBouwData(clubId, bouw){
   /* [20260923d] Eigen bouw (clubs/{id}.eigenBouwen): alle teams van de club
      ophalen en filteren op de gekoppelde team-id's. Standaardbouw: zoals voorheen. */
   const standaard = BOUWEN.some(b => b.id === bouw);
+  const teamsQ = standaard ? query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))
+                           : query(collection(db,'teams'), where('club','==',clubId));
   const [snap, clubSnap] = await Promise.all([
-    getDocs(standaard ? query(collection(db,'teams'), where('club','==',clubId), where('bouw','==',bouw))
-                      : query(collection(db,'teams'), where('club','==',clubId))),
-    getDoc(doc(db,'clubs',clubId)),
+    serverOfCache('teams van de bouw', () => getDocs(teamsQ), () => getDocsFromCache(teamsQ)),
+    leesClubDoc(clubId),
   ]);
   const eigen = standaard ? null : ((clubSnap.exists() ? clubSnap.data().eigenBouwen : null) || []).find(b => b.id === bouw);
   const teams = snap.docs.map(d => ({id:d.id, ...d.data()})).filter(t => standaard || (eigen?.teams || []).includes(t.id)).sort((a,b) => (a.naam||'').localeCompare(b.naam||'', 'nl', {numeric:true}));
@@ -302,6 +308,36 @@ export async function laadBouwData(clubId, bouw){
 }
 export function zetBouwContext(ctx){ huidigeContext = ctx; }
 
+/* [20261120m] Nooit eeuwig "Gegevens ophalen…". Het club-document heeft
+   (via de seizoen-listener in teams.js) al een open listener; hapert die
+   verbinding (Firestore-kanaal geeft 400), dan wacht getDoc() op hetzelfde
+   doel en komt nooit terug. Daarom: tijdslimiet, dan terugvallen op de
+   lokale cache (offline-persistence staat aan) en als laatste op S.club. */
+const SERVER_MS = 8000;
+function binnenTijd(ms, belofte, wat){
+  let t;
+  return Promise.race([belofte, new Promise((_, nee) => { t = setTimeout(() => nee(Object.assign(new Error(`${wat} duurde te lang`), { code:'timeout' })), ms); })])
+    .finally(() => clearTimeout(t));
+}
+async function serverOfCache(wat, server, cache, ms = SERVER_MS){
+  try { return await binnenTijd(ms, server(), wat); }
+  catch(e){
+    if (e?.code !== 'timeout') throw e;
+    console.warn(`[Cluppie] bouw-hub: ${wat} reageert niet, terugval op de lokale cache`);
+    try { return await cache(); }
+    catch(e2){ throw e; }   // ook niet in de cache: de oorspronkelijke time-out melden
+  }
+}
+async function leesClubDoc(clubId){
+  const ref = doc(db,'clubs',clubId);
+  try { return await serverOfCache('club-document', () => getDoc(ref), () => getDocFromCache(ref)); }
+  catch(e){
+    const c = S.club?.id === clubId ? S.club : null;
+    if (e?.code === 'timeout' && c){ const { id, ...rest } = c; return { exists: () => true, data: () => rest }; }
+    throw e;
+  }
+}
+
 /* [20260923e] Uitleningen per team ophalen ("van dit team" + "naar dit team").
    Vroeger in één keer ALLE uitleningen van de club: dat mag volgens de rules
    alleen een clubadmin, dus voor een gewone bouwcoördinator mislukte het hele
@@ -311,8 +347,8 @@ export function zetBouwContext(ctx){ huidigeContext = ctx; }
 async function haalUitleningenVoorTeams(clubId, teamIds){
   const kol = collection(db,'clubs',clubId,'uitleningen');
   const vragen = teamIds.flatMap(id => [
-    getDocs(query(kol, where('vanTeam','==',id))).catch(() => null),
-    getDocs(query(kol, where('naarTeam','==',id))).catch(() => null),
+    binnenTijd(SERVER_MS, getDocs(query(kol, where('vanTeam','==',id))), 'uitleningen').catch(() => null),
+    binnenTijd(SERVER_MS, getDocs(query(kol, where('naarTeam','==',id))), 'uitleningen').catch(() => null),
   ]);
   const map = new Map();
   for (const snap of await Promise.all(vragen)){
@@ -871,7 +907,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261120l');
+      const m = await import('./teams.js?v=20261120m');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });

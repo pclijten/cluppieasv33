@@ -18,7 +18,7 @@ import {
 } from './team-evaluatie-criteria.js?v=20261119e';
 import { ico } from './icons.js?v=20261106r';
 
-import { htmlStats } from './wedstrijd.js?v=20261120l';
+import { htmlStats } from './wedstrijd.js?v=20261120m';
 import { telGebruik } from './tracker.js?v=20261111g';
 
 /* Kleine lokale kopie van de deelnemer-helper (ook aanwezig in teams-spelers.js)
