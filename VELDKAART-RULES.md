@@ -9,7 +9,7 @@ Sinds release `20261120e` kan een coach bij een wedstrijd een luchtfoto van het 
 | pad | inhoud | wie schrijft |
 | --- | --- | --- |
 | `clubs/{clubId}/sportparken/eigen` | eigen sportpark: `naam`, `adres`, `lat`, `lon`, `zoom`, `eigen: true`, `velden` (per veld naam, middelpunt, lengte, breedte, hoek, `splits: { half, kwart }` en namen van de delen), `plekken` (kantine, kleedkamers, ingang, parkeren: soort, naam, punt) | alleen clubbeheer (`clubs.admins`) |
-| `clubs/{clubId}/sportparken/p-<naam-plaats>` | sportpark van een tegenstander: zelfde velden, maar per veld alleen een stip met `door: { uid, team }` | elke coach van de club (`clubs.leden`) |
+| `clubs/{clubId}/sportparken/p-<naam-plaats>` | sportpark van een tegenstander: zelfde opbouw (velden, plekken) | alleen clubbeheer (`clubs.admins`) of de eindbaas — sinds `20261120g` |
 | `clubs/{clubId}/veldmeldingen/{id}` | melding: `park`, `parkNaam`, `veld`, `reden`, `toelichting` (max. 500 tekens), wedstrijddatum, tegenstander, `teamId`, `teamNaam`, `door` (uid), `ms`, `status` | aanmaken: elke coach; lezen en afhandelen: clubbeheer |
 
 Er staan geen spelersgegevens in. Naar buiten gaan alleen het adres of de zoektekst (PDOK, OpenStreetMap Nominatim) en de kaarttegels. De knop "Mijn plek" gebruikt de locatie alleen op het toestel; die wordt nergens opgeslagen of verstuurd.
@@ -37,11 +37,10 @@ Gebruikt de bestaande hulpfunctie `isEchteGebruiker()`. Zet dit blok binnen `mat
 
     match /clubs/{clubId}/sportparken/{parkId} {
       allow read: if vkIsClubLid(clubId);
-      // Eigen sportpark: alleen clubbeheer. Sportparken van tegenstanders:
-      // elke coach van de club mag een veld aanwijzen.
-      allow create, update: if (parkId == 'eigen' && vkIsClubAdmin(clubId))
-                            || (parkId != 'eigen' && vkIsClubLid(clubId));
-      allow delete: if vkIsClubAdmin(clubId);
+      // [20261120g] Alle sportparken (eigen en van tegenstanders): alleen
+      // clubbeheer of de eindbaas. Coaches sturen een melding.
+      allow create, update: if vkIsClubAdmin(clubId) || isBeheerder();
+      allow delete: if vkIsClubAdmin(clubId) || isBeheerder();
     }
 
     match /clubs/{clubId}/veldmeldingen/{meldingId} {
@@ -60,7 +59,7 @@ Hebben jullie al een regel `match /clubs/{clubId}/{document=**}` die alles onder
 
 1. **Lezen eigen sportpark** als coach (uid staat in `clubs/{clubId}.leden`): `get /clubs/{clubId}/sportparken/eigen` → toegestaan.
 2. **Schrijven eigen sportpark** als dezelfde coach → geweigerd. Als clubbeheerder (uid in `admins`) → toegestaan.
-3. **Veld aanwijzen** bij een tegenstander als coach: `set /clubs/{clubId}/sportparken/p-test` → toegestaan.
+3. **Veld aanwijzen** bij een tegenstander als coach: `set /clubs/{clubId}/sportparken/p-test` → geweigerd; als clubbeheerder → toegestaan.
 4. **Melding maken** als coach met `door` = eigen uid en `status: 'open'` → toegestaan; met een andere `door` → geweigerd.
 5. **Meldingen lezen** als coach → geweigerd; als clubbeheerder → toegestaan.
 
