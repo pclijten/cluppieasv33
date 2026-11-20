@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261120m'); }
+async function teamsModule(){ return await import('./teams.js?v=20261120n'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261120m').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261120n').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1130,8 +1130,8 @@ async function renderClub(opts = {}){
   // hub-tegels (en de banner) koppelen
   v.querySelectorAll('[data-club-open]').forEach(b => b.onclick = () => naarClubTab(b.dataset.clubOpen));
   /* [20261120e] Sportpark-tegel: los venster uit veldkaart.js (dynamisch geladen) */
-  v.querySelectorAll('[data-vk-sportpark]').forEach(b => b.onclick = () => import('./veldkaart.js?v=20261120m').then(m => m.openSportparkBeheer(S.clubId)));
-  { const bad = v.querySelector('[data-vk-badge]'); if (bad) import('./veldkaart.js?v=20261120m').then(m => m.vulMeldBadge(bad, S.clubId)); }
+  v.querySelectorAll('[data-vk-sportpark]').forEach(b => b.onclick = () => import('./veldkaart.js?v=20261120n').then(m => m.openSportparkBeheer(S.clubId)));
+  { const bad = v.querySelector('[data-vk-badge]'); if (bad) import('./veldkaart.js?v=20261120n').then(m => m.vulMeldBadge(bad, S.clubId)); }
 
   // statistieken-sync (handmatig)
   const btnSyncStats = v.querySelector('#btnSyncStats');
