@@ -22,8 +22,8 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { veldkaartInlineHtml, vulVeldkaarten } from './veldkaart.js?v=20261120j';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120j';
+import { veldkaartInlineHtml, vulVeldkaarten } from './veldkaart.js?v=20261120k';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120k';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -606,7 +606,7 @@ function koppel(body){
     if (adv){
       const id = adv.dataset.vbAdvies;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120j');
+      const m = await import('./wedstrijd.js?v=20261120k');
       m.openWedstrijdMetAdvies(id);
       return;
     }
@@ -614,7 +614,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120j');
+      const m = await import('./wedstrijd.js?v=20261120k');
       m.openWedstrijd(id);
       return;
     }

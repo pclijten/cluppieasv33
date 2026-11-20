@@ -213,10 +213,14 @@ export function plekPillenHtml(w, klasse = 'nu-plek-pil'){
 const parkRef = (club, id) => doc(db, 'clubs', club, 'sportparken', id);
 const meldCol = club => collection(db, 'clubs', club, 'veldmeldingen');
 const _park = new Map();
+/* [20261120k] Nooit eeuwig "Kaart laden…": elke stap krijgt een tijdslimiet. */
+function binnen(ms, belofte, wat){
+  return Promise.race([belofte, new Promise((_, nee) => setTimeout(() => nee(Object.assign(new Error(`${wat} duurde te lang`), { code:'timeout' })), ms))]);
+}
 function laadPark(club, id, vers){
   const k = club + '/' + id;
   if (!vers && _park.has(k)) return _park.get(k);
-  const p = getDoc(parkRef(club, id)).then(s => s.exists() ? { id, ...s.data() } : null)
+  const p = binnen(10000, getDoc(parkRef(club, id)), 'Sportpark laden').then(s => s.exists() ? { id, ...s.data() } : null)
     .catch(e => { console.warn('[veldkaart] sportpark laden', e); _park.delete(k); return { fout:e?.code || 'fout' }; });
   _park.set(k, p);
   return p;
@@ -238,7 +242,7 @@ async function bewaarPark(club, id, data){
 const _club = new Map();
 function laadClub(club){
   if (S.club?.id === club) return Promise.resolve(S.club);
-  if (!_club.has(club)) _club.set(club, getDoc(doc(db, 'clubs', club)).then(s => s.exists() ? { id:club, ...s.data() } : null).catch(() => null));
+  if (!_club.has(club)) _club.set(club, binnen(10000, getDoc(doc(db, 'clubs', club)), 'Club laden').then(s => s.exists() ? { id:club, ...s.data() } : null).catch(() => null));
   return _club.get(club);
 }
 async function isClubAdmin(club){
@@ -253,7 +257,7 @@ function zoekAdres(q){
   q = String(q || '').trim();
   if (!q) return Promise.resolve(null);
   if (_geo.has(q)) return _geo.get(q);
-  const p = fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&rows=1&fl=centroide_ll,weergavenaam`)
+  const p = binnen(8000, fetch(`https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(q)}&rows=1&fl=centroide_ll,weergavenaam`), 'Adres zoeken')
     .then(r => r.json()).then(j => {
       const d = j?.response?.docs?.[0], m = /POINT\(([-\d.]+) ([-\d.]+)\)/.exec(d?.centroide_ll || '');
       return m ? { lat:+m[2], lon:+m[1], naam:d.weergavenaam || q } : null;
@@ -582,7 +586,7 @@ const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekk
 const parkNaamNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/sportpark|sportcomplex|sportvelden/g, '').replace(/[^a-z0-9]+/g, '');
 const _alle = new Map();
 function alleParken(club){
-  if (!_alle.has(club)) _alle.set(club, haalParken(club).catch(() => { _alle.delete(club); return []; }));
+  if (!_alle.has(club)) _alle.set(club, binnen(10000, haalParken(club), 'Sportparken laden').catch(e => { console.warn('[veldkaart] sportparken laden', e); _alle.delete(club); return []; }));
   return _alle.get(club);
 }
 async function zoekPark(i){
@@ -623,6 +627,7 @@ function wedstrijdLagen(b, klein, niveau){
 function bronHtml(i, b, admin){
   const veld = metVeld(i.veld) || 'het veld';
   if (b.fout === 'permission-denied') return `<p class="vk-let">${ico('action-warning', 18)}<span>De kaart kon niet laden: geen rechten. De Firestore-regels voor de veldkaart zijn waarschijnlijk nog niet gepubliceerd.</span></p>`;
+  if (b.fout) return `<p class="vk-let">${ico('action-warning', 18)}<span>Het sportpark kon niet geladen worden (${esc(b.fout)}). Controleer je verbinding en open de kaart opnieuw.</span></p>`;
   if (b.doel?.deelOnbekend) return `<p class="vk-let">${ico('action-info', 18)}<span>${esc(metVeld(b.doel.veld.naam))} staat op de kaart, maar niet hoe het is opgedeeld. ${admin && i.thuis ? 'Deel het veld op bij Sportpark.' : 'Clubbeheer kan dat aanvullen.'}</span></p>`;
   const niv = niveauVanVorm(i.vorm);
   if (b.doel && !b.doel.deel && niv !== 'heel' && splitsVan(b.doel.veld)[niv])
@@ -644,10 +649,19 @@ export async function openVeldkaart(i){
   telGebruik('veldkaart');
   const kop = [i.veld ? `<span class="nu-plek-pil">${esc(metVeld(i.veld))}</span>` : '', i.kleed ? `<span class="nu-plek-pil">${esc(/^\d/.test(i.kleed) ? 'Kleedkamer ' + i.kleed : i.kleed)}</span>` : ''].join('');
   const body = toonLaag(i.thuis ? 'Waar spelen we' : (i.naam || 'Waar spelen we'), `${kop ? `<div class="vk-pillen">${kop}</div>` : ''}<div class="vk-kaart-groot" data-vk-kaart></div><div data-vk-onder>${laden('Kaart laden…')}</div>`);
-  const [b, admin] = await Promise.all([bepaal(i), isClubAdmin(i.club)]);
+  let b, admin;
+  try { [b, admin] = await Promise.all([bepaal(i), isClubAdmin(i.club)]); }
+  catch (e){
+    console.error('[veldkaart] kaart laden', e);
+    if (body.isConnected) body.querySelector('[data-vk-onder]').innerHTML = `<p class="vk-let">${ico('action-warning', 18)}<span>De kaart kon niet laden: ${esc(e?.message || e?.code || 'onbekende fout')}. Probeer het zo opnieuw.</span></p>`;
+    return;
+  }
   if (!body.isConnected) return;
   const vak = body.querySelector('[data-vk-kaart]'), onder = body.querySelector('[data-vk-onder]');
-  if (b.midden) new Kaart(vak, { ...b.midden, z:b.zoom, interactief:true, locatieKnop:true, lagen:wedstrijdLagen(b, false, niveauVanVorm(i.vorm)) });
+  if (b.midden){
+    try { new Kaart(vak, { ...b.midden, z:b.zoom, interactief:true, locatieKnop:true, lagen:wedstrijdLagen(b, false, niveauVanVorm(i.vorm)) }); }
+    catch (e){ console.error('[veldkaart] kaart tekenen', e); vak.innerHTML = `<p class="vk-let">${ico('action-warning', 18)}<span>Kaart tekenen mislukt: ${esc(e?.message || 'onbekende fout')}</span></p>`; }
+  }
   else if (i.thuis) vak.outerHTML = `<p class="vk-let">${ico('action-info', 18)}<span>Het eigen sportpark staat nog niet op de kaart.${admin ? '' : ' Clubbeheer kan het instellen bij Club → Sportpark.'}</span></p>`;
   else {
     /* [20261120f] Adres onbekend: zoek het sportpark op clubnaam. */
@@ -663,7 +677,9 @@ export async function openVeldkaart(i){
   const route = !i.thuis ? routeNaar(i) : '';
   const magAanwijzen = admin && !i.thuis && i.veld && b.midden && b.fout !== 'permission-denied';
   const kleedRegel = i.kleed && b.kleed ? `<p class="vk-zacht">${plekIco('kleedkamer', 16)}${esc(/^\d/.test(i.kleed) ? 'Kleedkamer ' + i.kleed : i.kleed)} zit in ${esc(b.kleed.naam)} (rood op de kaart)</p>` : '';
-  onder.innerHTML = `${bronHtml(i, b, admin)}${kleedRegel}
+  /* [20261120k] voor clubbeheer: welk park en welke Sportlink-namen er gebruikt worden */
+  const beheerInfo = admin ? `<p class="vk-zacht vk-beheerinfo">${ico('action-info', 16)}<span>Kaart van <b>${esc(b.park ? (b.park.id === 'eigen' ? 'eigen sportpark' : b.park.naam || b.park.id) : 'geen ingetekend sportpark')}</b>${b.park ? ` (${(b.park.velden || []).length} velden)` : ''} · Sportlink: veld “${esc(i.veld || '–')}”${i.kleed ? `, kleedkamer “${esc(i.kleed)}”` : ''}${i.naam ? `, sportpark “${esc(i.naam)}”` : ''} · ${esc(NIVEAU_NAAM[niveauVanVorm(i.vorm)].toLowerCase())}</span></p>` : '';
+  onder.innerHTML = `${bronHtml(i, b, admin)}${kleedRegel}${beheerInfo}
     ${b.midden && navigator.geolocation ? `<p class="vk-zacht">${svgI('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/>', 16)}Op het sportpark? Tik op het rondje rechtsboven om te zien waar je staat.</p>` : ''}
     <div class="vk-acties">
       ${route ? `<a class="knop vol fluo" href="${esc(route)}" target="_blank" rel="noopener">${ico('match-departure', 20)}Navigeer</a>` : ''}
@@ -686,7 +702,8 @@ export function veldkaartInlineHtml(w){
 export async function vulVeldkaarten(root){
   for (const el of root.querySelectorAll('[data-vk-inline]')){
     let i; try { i = JSON.parse(el.dataset.vkInline); } catch { continue; }
-    const b = await bepaal(i);
+    let b;
+    try { b = await bepaal(i); } catch (e){ console.error('[veldkaart] kaart laden', e); el.remove(); continue; }
     if (!el.isConnected) continue;
     const vak = el.querySelector('[data-vk-klein]'), onder = el.querySelector('[data-vk-klein-onder]');
     if (!b.midden){ el.remove(); continue; }
