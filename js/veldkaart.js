@@ -223,6 +223,7 @@ function laadPark(club, id, vers){
 }
 async function bewaarPark(club, id, data){
   const k = club + '/' + id, volledig = { ...data, bijgewerktMs:Date.now() };
+  _alle.delete(club);
   try {
     await setDoc(parkRef(club, id), volledig, { merge:true });
     const oud = await (_park.get(k) || Promise.resolve(null));
@@ -573,10 +574,35 @@ const routeNaar = i => i.adres || i.naam ? 'https://www.google.com/maps/dir/?api
 const datumKort = ms => ms ? new Date(ms).toLocaleDateString('nl-NL', { day:'numeric', month:'short' }) : '';
 
 /* Bepaalt park, doel en middelpunt. Nooit een fout naar boven: zonder alles → { geen:true }. */
-async function bepaal(i){
+/* [20261120i] Welk sportpark hoort bij deze wedstrijd? Eerst het vaste id
+   ('eigen' of p-<naam-plaats>). Is dat leeg, dan het park dat clubbeheer als
+   thuispark heeft gemarkeerd (thuis), of een park met dezelfde naam als in
+   Sportlink, ook als de plaats anders is geschreven. */
+const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekken || []).length || p.lat != null));
+const parkNaamNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/sportpark|sportcomplex|sportvelden/g, '').replace(/[^a-z0-9]+/g, '');
+const _alle = new Map();
+function alleParken(club){
+  if (!_alle.has(club)) _alle.set(club, haalParken(club).catch(() => { _alle.delete(club); return []; }));
+  return _alle.get(club);
+}
+async function zoekPark(i){
   const park = await laadPark(i.club, i.park);
+  if (park?.fout || heeftInhoud(park)) return park;
+  const alle = (await alleParken(i.club)).filter(heeftInhoud);
+  if (i.thuis){ const t = alle.find(x => x.thuispark); if (t) return t; }
+  const n = parkNaamNorm(i.naam);
+  if (n.length > 2){
+    const m = alle.find(x => parkNaamNorm(x.naam) === n)
+      || alle.find(x => { const y = parkNaamNorm(x.naam); return y.length > 4 && n.length > 4 && (y.includes(n) || n.includes(y)); });
+    if (m) return m;
+  }
+  return park;
+}
+async function bepaal(i){
+  const park = await zoekPark(i);
   const fout = park?.fout || '';
   const p = fout ? null : park;
+  if (p?.id && p.id !== i.park) i.park = p.id;   /* aanwijzen, melden en inrichten gaan naar het gevonden park */
   const doel = p ? zoekDoel(p, i.veld) : null;
   const kleed = p ? zoekKleedkamer(p, i.kleed) : null;
   let midden = doel ? middenVan(doel.veld, doel.deel) : p?.lat != null ? { lat:p.lat, lon:p.lon } : null;
@@ -816,8 +842,9 @@ async function tekenParken(paneel){
   const rijPark = p => {
     const v = (p.velden || []).length, pl = (p.plekken || []).length;
     return `<div class="vk-parkrij${p.id === B.parkId ? ' aan' : ''}">
-      <button type="button" class="vk-parkrij-hoofd" data-vk-park="${esc(p.id)}">${ico('match-location', 20)}<span><b>${esc(p.id === 'eigen' ? (p.naam || 'Eigen sportpark') + ' (eigen)' : p.naam || p.id)}</b>
+      <button type="button" class="vk-parkrij-hoofd" data-vk-park="${esc(p.id)}">${ico('match-location', 20)}<span><b>${esc(p.id === 'eigen' ? (p.naam || 'Eigen sportpark') + ' (eigen)' : (p.naam || p.id) + (p.thuispark ? ' (thuispark)' : ''))}</b>
         <small>${esc([p.plaats, `${v} veld${v === 1 ? '' : 'en'}`, pl ? `${pl} plek${pl === 1 ? '' : 'ken'}` : ''].filter(Boolean).join(' · '))}${p.lat == null ? ' · nog niet op de kaart' : ''}</small></span></button>
+      ${p.id === 'eigen' ? '' : `<button type="button" class="vk-chip${p.thuispark ? ' aan' : ''}" data-vk-thuis="${esc(p.id)}" aria-pressed="${!!p.thuispark}" title="Thuiswedstrijden gebruiken dit sportpark">${ico('navigation-home', 16)}Thuis</button>`}
       ${p.id === 'eigen' ? '' : `<button type="button" class="knop gevaar klein" data-vk-parkweg="${esc(p.id)}" aria-label="${esc(p.naam || p.id)} verwijderen">${ico('admin-delete', 16)}</button>`}</div>`;
   };
   const eigen = bekend.get('eigen') || { id:'eigen', naam:'Eigen sportpark', velden:[] };
@@ -829,6 +856,7 @@ async function tekenParken(paneel){
     ${nieuwUit.length ? `<div class="vk-label">Uit het wedstrijdprogramma, nog niet op de kaart</div>
       <p class="vk-zacht">Zo heten ze in Sportlink. Tik er een aan om de velden en plekken in te tekenen; bij die wedstrijden staat het dan meteen goed.</p>
       ${nieuwUit.map((x, n) => `<button type="button" class="vk-zoekrij" data-vk-uitprog="${n}">${ico('match-away', 18)}<span><b>${esc(x.naam)}</b><small>${esc([x.plaats, x.tegen, `${x.keer}× in het programma`].filter(Boolean).join(' · '))}</small></span></button>`).join('')}` : ''}
+    <p class="vk-zacht">${ico('navigation-home', 16)}Met "Thuis" kies je welk sportpark bij thuiswedstrijden hoort, als dat niet het eigen sportpark bovenaan is.</p>
     <div class="vk-label">Zelf een sportpark toevoegen</div>
     <form class="vk-nieuwpark" data-vk-nieuwpark>
       <label class="vk-label" for="vkPnaam">Naam (zoals in Sportlink)</label><input id="vkPnaam" class="invoer" required maxlength="60" placeholder="Bijv. Sportpark De Hoef">
@@ -848,12 +876,24 @@ async function tekenParken(paneel){
     if (bekend.has(id)) return openSportparkBeheer(B.club, 'velden', id);
     openSportparkBeheer(B.club, 'velden', id, { naam, plaats });
   };
+  paneel.querySelectorAll('[data-vk-thuis]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.vkThuis, aan = !bekend.get(id)?.thuispark;
+    b.disabled = true;
+    try {
+      for (const p of parken) if (p.id !== 'eigen' && (p.id === id ? aan !== !!p.thuispark : (aan && p.thuispark)))
+        await setDoc(parkRef(B.club, p.id), { thuispark:p.id === id ? aan : false }, { merge:true });
+      for (const p of parken) _park.delete(B.club + '/' + p.id);
+      _alle.delete(B.club);
+      meld(aan ? 'Thuiswedstrijden gebruiken nu dit sportpark' : 'Thuispark uitgezet');
+      tekenParken(paneel);
+    } catch (err){ meld('Opslaan mislukt: ' + (err?.code || err?.message || 'onbekende fout')); b.disabled = false; }
+  });
   paneel.querySelectorAll('[data-vk-parkweg]').forEach(b => b.onclick = async () => {
     const p = bekend.get(b.dataset.vkParkweg);
     if (!p || !confirm(`${p.naam || 'Dit sportpark'} met alle velden en plekken verwijderen?`)) return;
     try {
       await deleteDoc(parkRef(B.club, p.id));
-      _park.delete(B.club + '/' + p.id);
+      _park.delete(B.club + '/' + p.id); _alle.delete(B.club);
       meld('Sportpark verwijderd');
       if (B.parkId === p.id) return openSportparkBeheer(B.club, 'parken');
       tekenParken(paneel);
@@ -1126,7 +1166,7 @@ async function sportlinkNamen(club){
 function tekenSl(){
   const vak = document.querySelector('#vkLaag [data-vk-sl]');
   if (!vak) return;
-  if (B.parkId !== 'eigen'){ vak.innerHTML = ''; return; }   /* Sportlink-namen gelden voor thuiswedstrijden */
+  if (B.parkId !== 'eigen' && !B.park.thuispark){ vak.innerHTML = ''; return; }   /* Sportlink-namen gelden voor thuiswedstrijden */
   if (!B.slNamen){
     vak.innerHTML = laden('Namen uit Sportlink ophalen…');
     B.slNamen = sportlinkNamen(B.club);
