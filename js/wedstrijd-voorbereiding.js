@@ -22,7 +22,8 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal, isBeheerder } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120d';
+import { veldkaartInlineHtml, vulVeldkaarten } from './veldkaart.js?v=20261120e';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120e';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -283,6 +284,7 @@ function tabPraktisch(w){
   const afgelast = isAfgelast(w) ? `<p class="nu-melding" role="status">${ico('action-warning', 20)}<span><b>Sportlink meldt deze wedstrijd als afgelast.</b></span></p>` : '';
   return `${afgelast}${vertrek}${kaart('Weer bij aanvang', weer)}
     ${kaart('Waar en wanneer', `${veldInfo}${plek || leeg('Nog geen locatie, veld of kleedkamer bekend. Vul die in bij Wijzig opzet.')}${bel}`)}
+    ${(() => { const vk = veldkaartInlineHtml(w); return vk ? kaart('Waar spelen we', vk) : ''; })()}
     <div class="nu-acties">${knop('Deel in de groepsapp', 'action-whatsapp', 'data-vb-deel')}</div>
     <p class="vb-bron">Zonder spelersnamen: alleen datum, tijd, plek en weer.</p>`;
 }
@@ -524,6 +526,7 @@ function teken(){
   const inhoud = tab === 'praktisch' ? tabPraktisch(w) : tab === 'plan' ? tabPlan(w) : tab === 'scouting' ? tabScouting(w) : tabTegenstander(w);
   body.innerHTML = `${kopHtml(w)}<div id="vbPaneel" role="tabpanel" aria-labelledby="vbTab-${tab}" class="vb-paneel">${inhoud}</div>`;
   if (tab === 'praktisch'){
+    vulVeldkaarten(body);   /* [20261120e] luchtfoto met het veld */
     const vak = body.querySelector('[data-vb-weer]');
     if (vak){
       haalWeer(weerPlaats(w), w.datum).then(r => {
@@ -603,7 +606,7 @@ function koppel(body){
     if (adv){
       const id = adv.dataset.vbAdvies;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120d');
+      const m = await import('./wedstrijd.js?v=20261120e');
       m.openWedstrijdMetAdvies(id);
       return;
     }
@@ -611,7 +614,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120d');
+      const m = await import('./wedstrijd.js?v=20261120e');
       m.openWedstrijd(id);
       return;
     }

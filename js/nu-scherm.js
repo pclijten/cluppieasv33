@@ -22,6 +22,7 @@ import { momentenVanTeam } from './trainingsmomenten.js?v=20261111g';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
 import { effectieveSelectie, spelersOpWedstrijd, spelersOpTraining } from './uitleen-regels.js?v=20261111d';
 import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106r';
+import { veldPilHtml } from './veldkaart.js?v=20261120e';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -175,7 +176,8 @@ export function plekHtml(w){
   const naam = !w.thuis ? String(w.locatie || w.adres || w.slAccommodatie?.naam || '').trim() : '';
   if (!naam && !veld && !kleed) return '';
   const url = !w.thuis ? routeUrl(w) : '';
-  const pillen = [veld, kleed].filter(Boolean).map(x => `<span class="nu-plek-pil">${esc(x)}</span>`).join('');
+  /* [20261120e] Het veld-label is een knop die de veldkaart opent (veldkaart.js). */
+  const pillen = (veld ? veldPilHtml(w, veld) : '') + (kleed ? `<span class="nu-plek-pil">${esc(kleed)}</span>` : '');
   return `<div class="nu-plek${naam ? '' : ' alleen-pillen'}">
       <span class="nu-plek-ico">${ico('match-location', 20)}</span>
       <span class="nu-plek-tekst">${naam ? `<span class="nu-plek-naam">${esc(naam)}${w.plaats && !w.adres ? `<span class="nu-plek-plaats">${esc(plaatsNaam(w.plaats))}</span>` : ''}</span>` : ''}${pillen ? `<span class="nu-plek-pillen">${pillen}</span>` : ''}</span>
@@ -457,9 +459,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261120d'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261120e'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261120d'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261120e'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
