@@ -502,9 +502,15 @@ class Kaart {
     return `<div class="vk-mij" style="left:${p.x}px;top:${p.y}px"><i style="width:${2 * r}px;height:${2 * r}px"></i><b></b></div>`;
   }
   wisselLocatie(knop){
-    if (this._watch != null){ this.stopLocatie(); knop.setAttribute('aria-pressed', 'false'); knop.classList.remove('aan'); this.tekenLagen(); return; }
+    if (this._watch != null){
+      this.stopLocatie(); knop.setAttribute('aria-pressed', 'false'); knop.classList.remove('aan');
+      /* [20261120q] stonden we op jouw plek omdat je ver weg was: terug naar het sportpark */
+      if (this._voorMij){ const v = this._voorMij; this._voorMij = null; this.centreer(v, v.z); } else this.tekenLagen();
+      return;
+    }
     knop.setAttribute('aria-pressed', 'true'); knop.classList.add('aan');
     let eerste = true;
+    meld('Je locatie wordt opgezocht…');
     this._watch = navigator.geolocation.watchPosition(pos => {
       if (!this.el.isConnected) return this.opruimen();
       this.mij = { lat:pos.coords.latitude, lon:pos.coords.longitude, acc:pos.coords.accuracy };
@@ -529,8 +535,12 @@ class Kaart {
         this.lat = m.lat; this.lon = m.lon; this.z = z; this.teken(); return;
       }
     }
+    /* [20261120q] te ver weg om allebei te tonen: ga naar jouw plek (blauwe stip);
+       nog een keer op het rondje brengt je terug naar het sportpark */
     const d = meterVerschil(this, p), km = Math.hypot(d.x, d.y) / 1000;
-    meld(`Je bent nog ${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km van het sportpark.`);
+    this._voorMij = { lat:this.lat, lon:this.lon, z:this.z };
+    this.lat = p.lat; this.lon = p.lon; this.z = Math.max(ZMIN, Math.min(17, this.z)); this.teken();
+    meld(`Je bent ${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km van het sportpark. De kaart staat nu op jouw plek; tik nog een keer op het rondje om terug te gaan.`);
   }
   /* Eén keer de huidige positie (voor "Ik sta nu op dit veld"). */
   static positie(){
