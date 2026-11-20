@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261119e';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120c';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -288,6 +288,12 @@ function tabPraktisch(w){
 }
 
 /* ==================== TAB: PLAN ==================== */
+/* [20261120a] Opstellingsadviseur: alleen vóór de aftrap en niet bij toernooien. */
+const ADVIES_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg>';
+function kanAdvies(w){
+  if (!w || w.type === 'toernooi' || isAfgelast(w)) return false;
+  return !Object.values(w.kwarten || {}).some(k => (k?.events || []).length || (k?.klok?.base || 0) > 0 || k?.klok?.running);
+}
 function tabPlan(w){
   const p = presentieWedstrijd(w), ok = opstellingKlaar(w);
   const pct = p.totaal ? Math.round(p.ja / p.totaal * 100) : 0;
@@ -314,7 +320,7 @@ function tabPlan(w){
 
   return `${kaart('Beschikbaarheid', pres)}
     ${kaart('Aandachtspunten', plan)}
-    ${kaart('Opstelling', `${opst}<div class="nu-acties">${knop('Opstelling', 'football-lineup', `data-vb-wedstrijd="${esc(w.id)}"`)}</div>`)}
+    ${kaart('Opstelling', `${opst}<div class="nu-acties">${kanAdvies(w) ? `<button type="button" class="knop vol licht" data-vb-advies="${esc(w.id)}">${ADVIES_SVG}Opstelling voorstellen</button>` : ''}${knop('Opstelling', 'football-lineup', `data-vb-wedstrijd="${esc(w.id)}"`)}</div>`)}
     ${kaart('Na afloop', na)}`;
 }
 
@@ -590,11 +596,19 @@ function koppel(body){
     if (t){ S._vbTab = t.dataset.vbTab; teken(); telNav('wedstrijd:voorbereiding:' + S._vbTab, 'tab'); return; }
     const w = huidig();
     if (!w) return;
+    const adv = ev.target.closest('[data-vb-advies]');
+    if (adv){
+      const id = adv.dataset.vbAdvies;
+      sluitModal();
+      const m = await import('./wedstrijd.js?v=20261120c');
+      m.openWedstrijdMetAdvies(id);
+      return;
+    }
     const wd = ev.target.closest('[data-vb-wedstrijd]');
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261119w');
+      const m = await import('./wedstrijd.js?v=20261120c');
       m.openWedstrijd(id);
       return;
     }

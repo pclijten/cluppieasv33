@@ -21,7 +21,7 @@ import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
 import { spelersOpWedstrijd, ontbrekendeLeners, leenErbijNa } from './uitleen-regels.js?v=20261111d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261119e';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261120c';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
   elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261111g';
 
@@ -467,6 +467,47 @@ export function modalNieuweWedstrijd(){
   };
 }
 
+/* ==================== OPSTELLINGSADVISEUR ====================
+   [20261120a] Zie opstelling-advies.js. Lazy geladen: het rekenmodel en het
+   scherm komen pas binnen als de coach erom vraagt. Na toepassen slaat
+   wedstrijd.js op en hertekent, zodat er één schrijfpad blijft. */
+function openAdvies(){
+  const w = S.wedstrijd;
+  if (!w) return;
+  import('./opstelling-advies.js?v=20261120b')
+    .then(m => m.openOpstellingAdvies(w, () => { S.kwart = '1'; bewaarWedstrijd(); renderWedstrijd(); }))
+    .catch(e => { console.error('[Cluppie] opstellingsadviseur laden mislukt', e); meld('Kon het opstellingsvoorstel niet openen, probeer het opnieuw'); });
+}
+/* [20261120b] Hele opstelling leegmaken (alle periodes), alleen vóór de aftrap.
+   Wist per periode de opstelling en geplande wissels, plus de disciplinaire
+   bankbeurten die de opstellingsadviseur zette. Selectie, formatie, aanvoerder,
+   doel en notities blijven staan. */
+function kanLeegmaken(w){
+  if (!w) return false;
+  const kw = Object.values(w.kwarten || {});
+  const begonnen = kw.some(k => (k.events || []).length || (k.klok?.base || 0) > 0 || k.klok?.running);
+  return !begonnen && kw.some(k => Object.keys(k.lineup || {}).length || (k.plan || []).length);
+}
+function leegOpstelling(w){
+  for (const k of Object.values(w.kwarten || {})){ k.lineup = {}; k.plan = []; k.correcties = {}; }
+  for (const [pid, rec] of Object.entries(w.startBankReden || {})) if (rec?.bron === 'advies') delete w.startBankReden[pid];
+  delete w.advies;
+  telGebruik('opstelling_leeg');
+}
+/* Vanuit de wedstrijdvoorbereiding: eerst de wedstrijd openen, en zodra de
+   wedstrijd binnen is het voorstel. */
+export function openWedstrijdMetAdvies(wid){
+  if (S.wedstrijdId !== wid) S.wedstrijd = null;   // nooit het voorstel op een vorige wedstrijd openen
+  openWedstrijd(wid);
+  const start = Date.now();
+  const wacht = () => {
+    if (S.wedstrijdId !== wid) return;
+    if (S.wedstrijd && !S._wizardActief) return openAdvies();
+    if (Date.now() - start < 6000) setTimeout(wacht, 150);
+  };
+  setTimeout(wacht, 150);
+}
+
 /* ==================== OPENEN & OPSLAAN ==================== */
 
 /* Vult ontbrekende wedstrijdvelden aan (bv. geïmporteerde voetbal.nl-wedstrijden
@@ -544,7 +585,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261119w').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261120c').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -590,7 +631,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261119w').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261120c').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2648,7 +2689,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261119w').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261120c').then(m => m.renderTeam?.());
   });
 }
 
@@ -3279,7 +3320,13 @@ ${confroHtml}
       if (Number(S.kwart) !== 1) return '';
       const leeg = !Object.values(w.kwarten || {}).some(k => Object.keys(k.lineup || {}).length);
       if (!leeg) return '';
-      return `<button class="sj-invoeg-knop" id="opstellingInvoegen">
+      /* [20261120a] Opstellingsadviseur: voorstel voor alle periodes. Niet bij toernooien. */
+      const advies = isToernooi(w) ? '' : `<button class="sj-invoeg-knop oa-knop" id="opstellingAdvies">
+        <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg></span>
+        <span class="tk"><span class="tt">Opstelling voorstellen</span>
+          <span class="ts">Op basis van wie er is, speeltijd, opkomst en resultaat. Vult alle ${periodeNaam(w) === 'Helft' ? 'helften' : 'kwarten'}.</span></span>
+        <span class="pijl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7"/></svg></span></button>`;
+      return advies + `<button class="sj-invoeg-knop" id="opstellingInvoegen">
         <span class="ico">⧉</span>
         <span class="tk"><span class="tt">Opstelling invoegen</span>
           <span class="ts">Uit een sjabloon of vorige wedstrijd, vult alle kwarten in één keer</span></span>
@@ -3472,7 +3519,7 @@ ${confroHtml}
   /* Acties die in het oude scherm onderaan staan en in het zijlijnscherm ook in het menu. */
   const acties = {
     verslag: modalVerslag,
-    evaluatie: () => import('./teams.js?v=20261119w').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
+    evaluatie: () => import('./teams.js?v=20261120c').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
     tactiek: () => import('./tactiekbord.js?v=20261111g').then(m => m.openTactiekLijst(w)),
     bijwerk: () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); },
     sjabloon: () => bewaarWedstrijdAlsSjabloon(w),
@@ -3543,7 +3590,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261119w').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261120c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3606,6 +3653,8 @@ ${confroHtml}
     zetNaToepassenCallback(() => { S.kwart = '1'; bewaarWedstrijd(); renderWedstrijd(); });
     openInvoegSheet(w);
   };
+  const oadv = v.querySelector('#opstellingAdvies');
+  if (oadv) oadv.onclick = () => openAdvies();
   const nvo = v.querySelector('#neemVorigeOver');
   if (nvo) nvo.onclick = () => {
     const vorige = laatsteOpstelling(w.format);
@@ -3720,7 +3769,9 @@ function toonWijzigOpzet(sectie){
       <div id="woEigen">${eigenFormatieInvoerHtml()}</div>
       <p class="u-t-xs u-zacht u-mt-xs">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
       <div id="woFormatieHint"></div></div>
+    ${isToernooi(w) ? '' : `<button class="knop licht vol u-mt-3xs" id="woAdvies" ><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg> Opstelling voorstellen</button>`}
     <button class="knop licht vol u-mt-3xs" id="woSjabloon" >⧉ Standaardopstelling invoegen</button>
+    ${kanLeegmaken(w) ? `<button class="knop gevaar vol u-mt-3xs" id="woLeeg" ><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M9 7V4.8h6V7"/><path d="M6.5 7l1 12.2h9l1-12.2"/><path d="M10 11v5M14 11v5"/></svg> Opstelling leegmaken</button>` : ''}
     <p class="u-t-2xs u-zacht u-mt-2xs">Vult alle kwarten met een opgeslagen sjabloon of een vorige wedstrijd. Dit vervangt de huidige opstellingen.</p>
 
     <div class="wo-sectiekop" id="woSecDoel"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg></span><span>Doel & notitie</span><div class="wo-lijn"></div></div>
@@ -3906,6 +3957,16 @@ function toonWijzigOpzet(sectie){
   terugLaag('wo', { z:52, open: () => !!$('#woAchter')?.classList.contains('open'), sluit: sluitOpzet });
   $('#woAchter').onclick = (e) => { if (e.target.id === 'woAchter') sluitOpzet(); };
 
+  const woLeeg = $('#woLeeg');
+  if (woLeeg) woLeeg.onclick = () => {
+    if (!confirm('De opstelling en geplande wissels van alle periodes worden gewist. Selectie, formatie en aanvoerder blijven staan. Doorgaan?')) return;
+    leegOpstelling(S.wedstrijd);
+    verbergWijzigOpzet();
+    S.kwart = '1'; bewaarWedstrijd(); renderWedstrijd();
+    meld('Opstelling leeggemaakt, je kunt opnieuw beginnen');
+  };
+  const woAdv = $('#woAdvies');
+  if (woAdv) woAdv.onclick = () => { verbergWijzigOpzet(); openAdvies(); };
   const woSj = $('#woSjabloon');
   if (woSj) woSj.onclick = () => {
     // sluit eerst het wijzig-opzet-paneel zodat de invoeg-sheet er bovenop komt,
