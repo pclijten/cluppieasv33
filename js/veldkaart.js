@@ -98,17 +98,43 @@ export function niveauVanVorm(vorm){
   return !n ? 'heel' : n <= 6 ? 'kwart' : n <= 8 ? 'half' : 'heel';
 }
 
+/* [20261120n] Sportlink-veldcodes: "veld 7 A", "veld 4 B1", "veld 1 A1a",
+   "veld 3 A1 - kunstgras", "Veld 1 B2 - Hoofdveld". Na het nummer: A/B is de
+   helft, 1/2 het kwart binnen die helft, a/b het achtste (telt als kwart).
+   Wat na " - " staat (kunstgras, hoofdveld) is een omschrijving. */
+export function ontleedVeld(tekst){
+  const s = String(tekst || '').split(/\s+[-–]\s+/)[0].trim();
+  const m = /^(?:veld\s*)?(\d+)\s*([ab])?\s*([12])?\s*([ab])?$/i.exec(s);
+  if (!m) return null;
+  return { nr:m[1], helft:(m[2] || '').toLowerCase(), kwart:m[3] || '', achtste:(m[4] || '').toLowerCase() };
+}
+/* De naam waaronder een veld uit Sportlink op de kaart hoort: "Veld 4" voor "veld 4 B1". */
+export const veldBasis = t => { const c = ontleedVeld(t); return c ? `Veld ${c.nr}` : String(t || '').trim(); };
+const KWART_CODE = { a1:'a voor', a2:'a achter', b1:'b voor', b2:'b achter' };
+
 /* Welk (deel)veld bedoelt Sportlink of de coach? Exacte naam eerst, dan een
-   deelnaam, dan alleen het nummer (dan weten we het veld, niet het deel). */
-export function zoekDoel(park, veldTekst){
+   deelnaam, dan de Sportlink-code (nummer + helft/kwart), dan alleen het nummer.
+   niveau = waar het team op speelt (heel/half/kwart); leeg = volg de code. */
+export function zoekDoel(park, veldTekst, niveau){
   const n = veldNorm(veldTekst), velden = park?.velden || [];
   if (!n || !velden.length) return null;
   for (const v of velden) if (veldNorm(v.naam) === n) return { veld:v, niveau:'heel' };
   for (const niv of ['half', 'kwart'])
     for (const v of velden) for (const [k] of delenVan(v, niv)) if (veldNorm(deelNaam(v, k)) === n) return { veld:v, deel:k, niveau:niv };
-  const nr = (n.match(/^\d+/) || [])[0];
-  if (nr) for (const v of velden) if (veldNorm(v.naam) === nr) return { veld:v, deelOnbekend:true };
-  return null;
+  const c = ontleedVeld(veldTekst);
+  const nr = c?.nr || (n.match(/^\d+/) || [])[0];
+  const v = nr ? velden.find(x => veldNorm(x.naam) === nr) : null;
+  if (!v) return null;
+  if (!c || !c.helft) return niveau && niveau !== 'heel' && !splitsVan(v)[niveau] ? { veld:v, deelOnbekend:true } : { veld:v, niveau:'heel' };
+  /* hoe fijn de code is, begrensd door waar het team op speelt */
+  const codeNiv = c.kwart ? 'kwart' : 'half';
+  let niv = niveau || codeNiv;
+  if (niv === 'kwart' && codeNiv === 'half') niv = 'half';
+  if (niv === 'heel') return { veld:v, niveau:'heel' };
+  const sp = splitsVan(v);
+  if (niv === 'kwart' && !sp.kwart && sp.half) niv = 'half';
+  if (!sp[niv]) return { veld:v, deelOnbekend:true };
+  return { veld:v, deel:niv === 'half' ? c.helft : KWART_CODE[c.helft + c.kwart], niveau:niv };
 }
 /* Middelpunt van een (deel)veld in lat/lon. */
 function middenVan(v, deel){
@@ -437,6 +463,18 @@ class Kaart {
   }
   zoom(d){ const z = Math.min(ZMAX, Math.max(ZMIN, this.z + d)); if (z !== this.z){ this.z = z; this.teken(); } }
   centreer(p, z){ this.lat = p.lat; this.lon = p.lon; if (z) this.z = z; this.teken(); }
+  /* [20261120n] zoom zo dat alle punten (met wat rand) in beeld zijn */
+  pasIn(punten, rand = 60){
+    if (!punten.length) return;
+    const W = this.el.clientWidth || 360, H = this.el.clientHeight || 360;
+    let z = ZMAX;
+    for (; z > ZMIN; z--){
+      const ps = punten.map(q => naarPx(q.lat, q.lon, z)), xs = ps.map(q => q.x), ys = ps.map(q => q.y);
+      if (Math.max(...xs) - Math.min(...xs) + rand * 2 <= W && Math.max(...ys) - Math.min(...ys) + rand * 2 <= H) break;
+    }
+    const lat = punten.map(q => q.lat), lon = punten.map(q => q.lon);
+    this.centreer({ lat:(Math.min(...lat) + Math.max(...lat)) / 2, lon:(Math.min(...lon) + Math.max(...lon)) / 2 }, Math.min(z, 18));
+  }
   px(lat, lon){ const p = naarPx(lat, lon, this.z); return { x:p.x - this.x0, y:p.y - this.y0 }; }
   ll(x, y){ return naarLL(this.x0 + x, this.y0 + y, this.z); }
   m2px(m){ return m / mpp(this.lat, this.z); }
@@ -616,7 +654,7 @@ async function bepaal(i){
   const fout = park?.fout || '';
   const p = fout ? null : park;
   if (p?.id && p.id !== i.park) i.park = p.id;   /* aanwijzen, melden en inrichten gaan naar het gevonden park */
-  const doel = p ? zoekDoel(p, i.veld) : null;
+  const doel = p ? zoekDoel(p, i.veld, niveauVanVorm(i.vorm)) : null;
   const kleed = p ? zoekKleedkamer(p, i.kleed) : null;
   let midden = doel ? middenVan(doel.veld, doel.deel) : p?.lat != null ? { lat:p.lat, lon:p.lon } : null;
   if (!midden && !i.thuis && (i.adres || i.naam)) midden = await zoekAdres(i.adres || `${i.naam} ${i.plaats}`);
@@ -722,7 +760,7 @@ export async function vulVeldkaarten(root){
 /* ==================== AANWIJZEN (coach, sportpark van de tegenstander) ==================== */
 async function openAanwijzen(i, b){
   if (!(await isClubAdmin(i.club))) return meld('Alleen clubbeheer kan velden aanwijzen. Stuur een melding als iets niet klopt.');
-  const naam = metVeld(i.veld);
+  const naam = metVeld(veldBasis(i.veld));   /* [20261120n] "veld 4 B1" → Veld 4 */
   let gekozen = null;
   let midden = { ...b.midden };
   const body = toonLaag('Veld aanwijzen', `<p class="vk-uitleg"><b>Waar ligt ${esc(naam)}?</b> Tik op het midden van het veld. Sleep om de kaart te verschuiven.</p>
@@ -730,7 +768,7 @@ async function openAanwijzen(i, b){
     ${navigator.geolocation ? `<div class="vk-acties"><button type="button" class="knop vol licht" data-vk-hier>${svgI('<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>', 20)}Ik sta nu op ${esc(naam)}</button></div>` : ''}
     <div data-vk-keuze></div>
     <details class="vk-elders"><summary>Staat de kaart op de verkeerde plek? Zoek het sportpark</summary>${zoekHtml('vkZoekAanw', String(i.tegen || '').replace(/\s+(JO|MO|O)\d.*$/i, '').trim())}</details>`);
-  const andere = (b.park?.velden || []).filter(v => veldNorm(v.naam) !== veldNorm(i.veld));
+  const andere = (b.park?.velden || []).filter(v => veldNorm(v.naam) !== veldNorm(veldBasis(i.veld)));
   const keuze = body.querySelector('[data-vk-keuze]');
   const tekenKeuze = () => {
     keuze.innerHTML = gekozen
@@ -759,7 +797,7 @@ async function openAanwijzen(i, b){
   koppelZoek(body.querySelector('.vk-elders'), r => { midden = { lat:r.lat, lon:r.lon }; gekozen = null; k.centreer(midden, 17); tekenKeuze(); body.querySelector('.vk-elders').open = false; });
   async function bewaar(){
     const knop = keuze.querySelector('[data-vk-opslaan]'); if (knop) knop.disabled = true;
-    const veld = { id:'v' + Date.now().toString(36), naam:i.veld, lat:rond(gekozen.lat), lon:rond(gekozen.lon), door:{ uid:S.user?.uid || '', team:i.team || '' }, ms:Date.now() };
+    const veld = { id:'v' + Date.now().toString(36), naam:veldBasis(i.veld), lat:rond(gekozen.lat), lon:rond(gekozen.lon), door:{ uid:S.user?.uid || '', team:i.team || '' }, ms:Date.now() };
     const velden = [...andere, veld];
     const verplaatst = midden.lat !== b.midden.lat || midden.lon !== b.midden.lon;
     const basis = b.park && !verplaatst ? {} : { naam:i.naam || b.park?.naam || '', adres:i.adres, plaats:i.plaats, lat:rond(midden.lat), lon:rond(midden.lon), zoom:17, eigen:false };
@@ -850,6 +888,100 @@ export async function openSportparkBeheer(club, tab, parkId = 'eigen', nieuw = n
   B.park.velden ||= [];
   B.park.plekken ||= [];
   tekenBeheer();
+}
+/* ---------- [20261120n] velden ophalen uit OpenStreetMap ----------
+   Veel sportparken zijn in OpenStreetMap ingetekend (vorm, maat, stand),
+   maar zonder veldnummers. We halen de voetbalvelden rond het midden van de
+   kaart op, maken er rechthoeken van en laten clubbeheer de nummers aantikken. */
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+async function overpass(q){
+  let laatste;
+  for (const url of OVERPASS){
+    try {
+      const r = await binnen(20000, fetch(url, { method:'POST', body:'data=' + encodeURIComponent(q), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } }), 'Kaartgegevens ophalen');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e){ laatste = e; console.warn('[veldkaart] overpass', url, e?.message); }
+  }
+  throw laatste || new Error('geen antwoord');
+}
+/* kleinste omsluitende rechthoek (draaiende schuifmaat over de convexe schil) */
+function rechthoekVan(punten){
+  if (punten.length < 3) return null;
+  const o = punten[0];
+  const xy = punten.map(p => meterVerschil(o, p)).sort((a, b) => a.x - b.x || a.y - b.y);
+  const kruis = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const onder = [], boven = [];
+  for (const p of xy){ while (onder.length > 1 && kruis(onder.at(-2), onder.at(-1), p) <= 0) onder.pop(); onder.push(p); }
+  for (const p of [...xy].reverse()){ while (boven.length > 1 && kruis(boven.at(-2), boven.at(-1), p) <= 0) boven.pop(); boven.push(p); }
+  const schil = [...onder.slice(0, -1), ...boven.slice(0, -1)];
+  if (schil.length < 3) return null;
+  let best = null;
+  for (let i = 0; i < schil.length; i++){
+    const a = schil[i], b = schil[(i + 1) % schil.length], h = Math.atan2(b.y - a.y, b.x - a.x), c = Math.cos(h), s = Math.sin(h);
+    let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+    for (const p of schil){ const u = p.x * c + p.y * s, w = -p.x * s + p.y * c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+    const opp = (u1 - u0) * (w1 - w0);
+    if (!best || opp < best.opp) best = { opp, h, c, s, u:(u0 + u1) / 2, w:(w0 + w1) / 2, du:u1 - u0, dw:w1 - w0 };
+  }
+  const { h, c, s, u, w, du, dw } = best;
+  const m = verschuif(o, u * c - w * s, u * s + w * c);
+  let hoek = (du >= dw ? h : h + Math.PI / 2) / RAD;
+  while (hoek > 90) hoek -= 180; while (hoek <= -90) hoek += 180;
+  return { lat:rond(m.lat), lon:rond(m.lon), lengte:Math.round(Math.max(du, dw)), breedte:Math.round(Math.min(du, dw)), hoek:Math.round(hoek) };
+}
+async function haalOsmVelden(lat, lon, straal = 600){
+  const q = `[out:json][timeout:20];way[leisure=pitch](around:${straal},${lat},${lon});out tags geom;`;
+  const j = await overpass(q);
+  const uit = [];
+  for (const e of j.elements || []){
+    const t = e.tags || {};
+    if (t.sport && !/(^|;)\s*(soccer|football|multi)\s*(;|$)/.test(t.sport)) continue;
+    if (/^(asphalt|concrete|paving_stones|sand)$/.test(t.surface || '')) continue;
+    const r = rechthoekVan((e.geometry || []).map(g => ({ lat:g.lat, lon:g.lon })));
+    if (!r || r.lengte < 45 || r.breedte < 25 || r.lengte > 130) continue;
+    const nr = String(t.ref || '').match(/\d+/)?.[0];
+    uit.push({ ...r, naam:nr ? `Veld ${nr}` : '?', kunstgras:/artificial/.test(t.surface || '') });
+  }
+  return uit;
+}
+async function veldenOphalen(knop){
+  if (!B?.kaart) return;
+  knop.disabled = true; knop.innerHTML = `${ico('action-loading', 20)}Velden zoeken…`;
+  try {
+    const gevonden = await haalOsmVelden(B.kaart.lat, B.kaart.lon);
+    if (!B) return;
+    /* een aangewezen stip in een gevonden veld wordt een rechthoek met dezelfde naam */
+    let beter = 0;
+    for (const v of B.park.velden) if (!v.lengte){
+      const g = gevonden.find(x => binnenVeld(x, v));
+      if (g){ Object.assign(v, { lat:g.lat, lon:g.lon, lengte:g.lengte, breedte:g.breedte, hoek:g.hoek, splits:{ half:false, kwart:false } }); g.weg = true; beter++; }
+    }
+    const nieuw = gevonden.filter(g => !g.weg && !B.park.velden.some(v => binnenVeld(v, g)));
+    for (const g of nieuw) B.park.velden.push({ id:nieuwId(), naam:g.naam, lat:g.lat, lon:g.lon, lengte:g.lengte, breedte:g.breedte, hoek:g.hoek, splits:{ half:false, kwart:false } });
+    if (nieuw.length || beter) B.kaart.pasIn(B.park.velden.filter(v => v.lat != null).flatMap(v => { const r = (v.lengte || 20) / 2; return [verschuif(v, -r, -r), verschuif(v, r, r)]; }), 24);
+    if (!gevonden.length) meld('Hier staan in OpenStreetMap geen voetbalvelden. Teken ze zelf met Veld toevoegen.');
+    else if (!nieuw.length) meld(beter ? `${beter} aangewezen veld${beter === 1 ? '' : 'en'} kreeg de juiste vorm uit de kaart.` : 'Alle gevonden velden staan al op de kaart.');
+    else {
+      meld(`${nieuw.length} veld${nieuw.length === 1 ? '' : 'en'} toegevoegd. Tik ze nu aan in de volgorde van de nummers.`);
+      if (nieuw.some(g => g.naam === '?')) startNummeren();
+    }
+    B.kaart.tekenLagen(); tekenZij();
+  } catch (e){
+    meld('Velden ophalen lukte niet (' + (e?.message || 'geen verbinding') + '). Probeer het zo opnieuw of teken ze zelf.');
+    knop.disabled = false; knop.innerHTML = `${I_HAAL}Velden ophalen`;
+  }
+}
+const I_HAAL = svgI('<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>', 20);
+/* nummers aantikken: elke tik op een veld geeft het het volgende nummer */
+function vrijNummer(n, behalve){
+  const bezet = new Set(B.park.velden.filter(v => v !== behalve && v.naam !== '?').map(v => veldNorm(v.naam)));
+  while (bezet.has(String(n))) n++;
+  return n;
+}
+function startNummeren(){
+  B.modus = 'nummer'; B.sel = null;
+  B.volgende = vrijNummer(1);
 }
 /* ---------- [20261120g] alle sportparken (eigen + tegenstanders) ---------- */
 async function haalParken(club){
@@ -975,6 +1107,7 @@ function werkNiveauBij(){
 }
 function hint(){
   if (B.modus === 'plaats') return 'Tik op het midden van het nieuwe veld.';
+  if (B.modus === 'nummer') return `Tik het veld aan dat Veld ${B.volgende} wordt. Verkeerd? Tik het opnieuw aan voor het volgende nummer, of begin opnieuw.`;
   if (B.modus.startsWith('plek:')) return `Tik op de plek van ${PLEK[B.modus.slice(5)]?.naam.toLowerCase() || 'de plek'}.`;
   if (gekozenVeld()?.lengte) return 'Sleep het veld om het te verplaatsen, het rondje om te draaien en de hoek rechtsonder om de maat te veranderen.';
   if (gekozenPlek()) return 'Sleep de plek om hem te verplaatsen en het rondje om hem te draaien.';
@@ -1019,6 +1152,10 @@ function tikBeheer(p){
     const nrs = B.park.velden.map(x => parseInt(nrVan(x), 10)).filter(n => !isNaN(n));
     const nieuw = { id:nieuwId(), naam:`Veld ${(nrs.length ? Math.max(...nrs) : 0) + 1}`, lat:rond(p.lat), lon:rond(p.lon), lengte:100, breedte:64, hoek:0, splits:{ half:false, kwart:false } };
     B.park.velden.push(nieuw); B.sel = nieuw.id; B.modus = 'kijk';
+  } else if (B.modus === 'nummer'){
+    const veld = [...B.park.velden].reverse().find(x => binnenVeld(x, p));
+    if (veld){ veld.naam = '?'; veld.naam = `Veld ${vrijNummer(B.volgende, veld)}`; B.volgende = vrijNummer(+nrVan(veld) + 1); B.sel = null; }
+    if (!B.park.velden.some(v => v.naam === '?')){ B.modus = 'kijk'; meld('Alle velden hebben een nummer. Vergeet niet op te slaan.'); }
   } else if (B.modus.startsWith('plek:')){
     const soort = B.modus.slice(5);
     const nieuw = { id:nieuwId(), soort, naam:soort === 'kleedkamer' ? 'Kleedkamers 1–4' : PLEK[soort]?.naam || 'Plek', lat:rond(p.lat), lon:rond(p.lon) };
@@ -1083,7 +1220,13 @@ function tekenZij(){
     `<button type="button" class="vk-chip${x.id === B.sel ? ' aan' : ''}" data-vk-kies="${esc(x.id)}">${x.i}${esc(x.t)}</button>`).join('')}</div>` : '';
   const plekKeuze = B.modus === 'kiesPlek' || B.modus.startsWith('plek:') ? `<div class="vk-veldlijst" role="group" aria-label="Soort plek">${Object.entries(PLEK).map(([k, d]) =>
     `<button type="button" class="vk-chip${B.modus === 'plek:' + k ? ' aan' : ''}" data-vk-nieuweplek="${k}">${plekIco(k, 16)}${esc(d.naam)}</button>`).join('')}</div>` : '';
-  zij.innerHTML = `${lijst}
+  const zonderNr = B.park.velden.filter(x => x.naam === '?').length;
+  const nummer = B.modus === 'nummer' ? `<div class="vk-nummer"><b>Nummers aantikken</b><span>Volgende: Veld ${B.volgende}${zonderNr ? ` · nog ${zonderNr} zonder nummer` : ''}</span>
+      <div class="vk-rij"><button type="button" class="knop licht klein" data-vk-nropnieuw>Opnieuw bij 1</button><button type="button" class="knop fluo klein" data-vk-nrklaar>Klaar</button></div></div>` : '';
+  zij.innerHTML = `${nummer}${lijst}
+    <div class="vk-acties vk-rij">
+      <button type="button" class="knop licht" data-vk-osm title="Voetbalvelden uit OpenStreetMap rond het midden van de kaart">${I_HAAL}Velden ophalen</button>
+      ${B.park.velden.length ? `<button type="button" class="knop licht${B.modus === 'nummer' ? ' aan' : ''}" data-vk-nummer>${ico('admin-edit', 20)}Nummers aantikken</button>` : ''}</div>
     <div class="vk-acties vk-rij">
       <button type="button" class="knop licht${B.modus === 'plaats' ? ' aan' : ''}" data-vk-nieuw>${ico('action-add', 20)}Veld toevoegen</button>
       <button type="button" class="knop licht${B.modus === 'kiesPlek' || B.modus.startsWith('plek:') ? ' aan' : ''}" data-vk-plek>${plekIco('kantine', 20)}Plek toevoegen</button></div>
@@ -1097,6 +1240,10 @@ function tekenZij(){
     const x = gekozenVeld() || gekozenPlek(); if (x) B.kaart.centreer(x);
     tekenZij();
   });
+  zij.querySelector('[data-vk-osm]').onclick = e => veldenOphalen(e.currentTarget);
+  zij.querySelector('[data-vk-nummer]')?.addEventListener('click', () => { if (B.modus === 'nummer') B.modus = 'kijk'; else startNummeren(); B.kaart.tekenLagen(); tekenZij(); });
+  zij.querySelector('[data-vk-nrklaar]')?.addEventListener('click', () => { B.modus = 'kijk'; tekenZij(); });
+  zij.querySelector('[data-vk-nropnieuw]')?.addEventListener('click', () => { if (!confirm('Alle veldnummers wissen en opnieuw beginnen bij Veld 1?')) return; for (const v of B.park.velden) v.naam = '?'; B.volgende = 1; B.sel = null; B.kaart.tekenLagen(); tekenZij(); });
   zij.querySelector('[data-vk-nieuw]').onclick = () => { B.modus = B.modus === 'plaats' ? 'kijk' : 'plaats'; B.sel = null; B.kaart.tekenLagen(); tekenZij(); };
   zij.querySelector('[data-vk-plek]').onclick = () => { B.modus = B.modus === 'kiesPlek' || B.modus.startsWith('plek:') ? 'kijk' : 'kiesPlek'; B.sel = null; B.kaart.tekenLagen(); tekenZij(); };
   zij.querySelectorAll('[data-vk-nieuweplek]').forEach(b => b.onclick = () => { B.modus = 'plek:' + b.dataset.vkNieuweplek; tekenZij(); });
@@ -1153,6 +1300,9 @@ function tekenZij(){
   tekenSl();
 }
 async function bewaarBeheer(){
+  const zonderNr = B.park.velden.filter(v => v.naam === '?').length;
+  if (zonderNr && !confirm(`${zonderNr} veld${zonderNr === 1 ? ' heeft' : 'en hebben'} nog geen nummer. Toch opslaan?`)) return;
+  if (B.modus === 'nummer') B.modus = 'kijk';
   const velden = B.park.velden.map(v => {
     const x = { id:v.id, naam:String(v.naam || '').trim() || 'Veld', lat:v.lat, lon:v.lon };
     if (v.lengte){
