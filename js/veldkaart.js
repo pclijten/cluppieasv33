@@ -504,7 +504,7 @@ class Kaart {
   wisselLocatie(knop){
     if (this._watch != null){
       this.stopLocatie(); knop.setAttribute('aria-pressed', 'false'); knop.classList.remove('aan');
-      /* [20261120q] stonden we op jouw plek omdat je ver weg was: terug naar het sportpark */
+      /* [20261120r] stonden we op jouw plek omdat je ver weg was: terug naar het sportpark */
       if (this._voorMij){ const v = this._voorMij; this._voorMij = null; this.centreer(v, v.z); } else this.tekenLagen();
       return;
     }
@@ -535,7 +535,7 @@ class Kaart {
         this.lat = m.lat; this.lon = m.lon; this.z = z; this.teken(); return;
       }
     }
-    /* [20261120q] te ver weg om allebei te tonen: ga naar jouw plek (blauwe stip);
+    /* [20261120r] te ver weg om allebei te tonen: ga naar jouw plek (blauwe stip);
        nog een keer op het rondje brengt je terug naar het sportpark */
     const d = meterVerschil(this, p), km = Math.hypot(d.x, d.y) / 1000;
     this._voorMij = { lat:this.lat, lon:this.lon, z:this.z };
