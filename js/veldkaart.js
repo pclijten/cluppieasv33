@@ -578,7 +578,7 @@ const datumKort = ms => ms ? new Date(ms).toLocaleDateString('nl-NL', { day:'num
    ('eigen' of p-<naam-plaats>). Is dat leeg, dan het park dat clubbeheer als
    thuispark heeft gemarkeerd (thuis), of een park met dezelfde naam als in
    Sportlink, ook als de plaats anders is geschreven. */
-const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekken || []).length || p.lat != null));
+const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekken || []).length));
 const parkNaamNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/sportpark|sportcomplex|sportvelden/g, '').replace(/[^a-z0-9]+/g, '');
 const _alle = new Map();
 function alleParken(club){
@@ -586,10 +586,16 @@ function alleParken(club){
   return _alle.get(club);
 }
 async function zoekPark(i){
+  /* [20261120j] Een gekozen thuispark gaat bij thuiswedstrijden altijd voor.
+     Een park telt pas als ingetekend met velden of plekken; alleen een
+     middelpunt (bv. na zoeken en opslaan van het eigen park) is niet genoeg. */
+  if (i.thuis){
+    const t = (await alleParken(i.club)).find(x => x.thuispark && heeftInhoud(x));
+    if (t) return t;
+  }
   const park = await laadPark(i.club, i.park);
   if (park?.fout || heeftInhoud(park)) return park;
   const alle = (await alleParken(i.club)).filter(heeftInhoud);
-  if (i.thuis){ const t = alle.find(x => x.thuispark); if (t) return t; }
   const n = parkNaamNorm(i.naam);
   if (n.length > 2){
     const m = alle.find(x => parkNaamNorm(x.naam) === n)
