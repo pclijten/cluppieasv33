@@ -871,7 +871,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261119e');
+      const m = await import('./teams.js?v=20261119w');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });

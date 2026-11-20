@@ -594,7 +594,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261119e');
+      const m = await import('./wedstrijd.js?v=20261119w');
       m.openWedstrijd(id);
       return;
     }

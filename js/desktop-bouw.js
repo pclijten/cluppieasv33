@@ -89,7 +89,7 @@ terugView('dkbouw', () => {
     huidig.scherm = 'dash'; huidig.teamId = null; huidig.keuze = {};
     teken(); window.scrollTo(0, 0); return true;
   }
-  import('./teams.js?v=20261119e').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261119w').then(m => { m.renderTeams(); toon('teams'); });
   return true;
 });
 
