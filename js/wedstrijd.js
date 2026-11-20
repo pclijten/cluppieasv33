@@ -4,7 +4,7 @@ import {
 } from './firebase.js?v=20261106r';
 import {
   S, $, $$, esc, meld, mmss, uurMin, datumNL, speler, spelerNaam, spelerNr,
-  openModal, sluitModal, toon, stopUnsubs, modAan, bewaarPositie, terugLaag, terugLaagWeg, doeTerug
+  openModal, sluitModal, toon, stopUnsubs, modAan, bewaarPositie, terugLaag, terugLaagWeg, doeTerug, isBeheerder
 } from './state.js?v=20261111g';
 import {
   FORMATIES, LIJN_NAAM, bouwSlots, slotLijn, catInfo, isToernooi,
@@ -21,7 +21,7 @@ import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { opkomstVoor, teltMee, MIN_OPKOMST_TRAININGEN } from './opkomst.js?v=20261106r';
 import { spelersOpWedstrijd, ontbrekendeLeners, leenErbijNa } from './uitleen-regels.js?v=20261111d';
-import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261120c';
+import { openInvoegSheet, bewaarWedstrijdAlsSjabloon, zetNaToepassenCallback } from './opstelling-sjabloon.js?v=20261120d';
 import { heeftElftallen, elftalWedstrijd, elftalNaam, hoortBijElftal, spelersVoorElftal, filterOpElftal,
   elftalFilter, elftalFilterHtml } from './elftallen.js?v=20261111g';
 
@@ -471,6 +471,11 @@ export function modalNieuweWedstrijd(){
    [20261120a] Zie opstelling-advies.js. Lazy geladen: het rekenmodel en het
    scherm komen pas binnen als de coach erom vraagt. Na toepassen slaat
    wedstrijd.js op en hertekent, zodat er één schrijfpad blijft. */
+/* [20261120d] PAUZE: het opstellingsvoorstel is tijdelijk alleen zichtbaar voor
+   de clubbeheerder (om te testen). Weer voor iedereen: zet ADVIES_VOOR_IEDEREEN op
+   true (en ook in wedstrijd-voorbereiding.js). */
+const ADVIES_VOOR_IEDEREEN = false;
+export function adviesZichtbaar(){ return ADVIES_VOOR_IEDEREEN || isBeheerder(); }
 function openAdvies(){
   const w = S.wedstrijd;
   if (!w) return;
@@ -585,7 +590,7 @@ export function openWedstrijd(wid){
   if (!S.teamId || !wid){
     console.warn('[Cluppie] openWedstrijd afgebroken: ontbrekende teamId of wid', {teamId:S.teamId, wid});
     S.wedstrijdId = null;
-    if (S.teamId) import('./teams.js?v=20261120c').then(m => m.renderTeam?.());
+    if (S.teamId) import('./teams.js?v=20261120d').then(m => m.renderTeam?.());
     return;
   }
   S.wedstrijdId = wid; S.kwart = '1'; S.geselecteerd = null; S._confroOpen = false; S._wizardActief = false;
@@ -631,7 +636,7 @@ export function sluitWedstrijd(naarTab){
   verbergWijzigOpzet();
   if (typeof naarTab === 'string') S.teamTab = naarTab;
   bewaarPositie();
-  import('./teams.js?v=20261120c').then(m => { m.renderTeam(); toon('team'); });
+  import('./teams.js?v=20261120d').then(m => { m.renderTeam(); toon('team'); });
 }
 /* Speeltijd van INGELEENDE spelers in déze wedstrijd wegschrijven op het
    leen-record zelf (clubs/{clubId}/uitleningen/{leenId}), zodat het
@@ -2689,7 +2694,7 @@ export function htmlStats(){
 export function koppelStatsBlad(root){
   (root || document).querySelectorAll('[data-statsblad]').forEach(b => b.onclick = () => {
     S.statsBlad = b.dataset.statsblad;
-    import('./teams.js?v=20261120c').then(m => m.renderTeam?.());
+    import('./teams.js?v=20261120d').then(m => m.renderTeam?.());
   });
 }
 
@@ -3321,7 +3326,7 @@ ${confroHtml}
       const leeg = !Object.values(w.kwarten || {}).some(k => Object.keys(k.lineup || {}).length);
       if (!leeg) return '';
       /* [20261120a] Opstellingsadviseur: voorstel voor alle periodes. Niet bij toernooien. */
-      const advies = isToernooi(w) ? '' : `<button class="sj-invoeg-knop oa-knop" id="opstellingAdvies">
+      const advies = (isToernooi(w) || !adviesZichtbaar()) ? '' : `<button class="sj-invoeg-knop oa-knop" id="opstellingAdvies">
         <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg></span>
         <span class="tk"><span class="tt">Opstelling voorstellen</span>
           <span class="ts">Op basis van wie er is, speeltijd, opkomst en resultaat. Vult alle ${periodeNaam(w) === 'Helft' ? 'helften' : 'kwarten'}.</span></span>
@@ -3519,7 +3524,7 @@ ${confroHtml}
   /* Acties die in het oude scherm onderaan staan en in het zijlijnscherm ook in het menu. */
   const acties = {
     verslag: modalVerslag,
-    evaluatie: () => import('./teams.js?v=20261120c').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
+    evaluatie: () => import('./teams.js?v=20261120d').then(m => m.modalTeamEvaluatie(S.wedstrijdId)),
     tactiek: () => import('./tactiekbord.js?v=20261111g').then(m => m.openTactiekLijst(w)),
     bijwerk: () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); },
     sjabloon: () => bewaarWedstrijdAlsSjabloon(w),
@@ -3590,7 +3595,7 @@ ${confroHtml}
   { const bwk = v.querySelector('#bijwerkKnop'); if (bwk) bwk.onclick = () => { S.bijwerkKwart = S.kwart; toonBijwerkScherm(); }; }
   const teamEvalKnop = v.querySelector('#teamEvalKnop');
   if (teamEvalKnop) teamEvalKnop.onclick = () => {
-    import('./teams.js?v=20261120c').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
+    import('./teams.js?v=20261120d').then(m => m.modalTeamEvaluatie(S.wedstrijdId));
   };
   v.querySelectorAll('[data-corrigeer-goal]').forEach(b => b.onclick = e => {
     e.stopPropagation(); modalGoalCorrigeren(Number(b.dataset.corrigeerGoal));
@@ -3769,7 +3774,7 @@ function toonWijzigOpzet(sectie){
       <div id="woEigen">${eigenFormatieInvoerHtml()}</div>
       <p class="u-t-xs u-zacht u-mt-xs">Wijzig je het format, dan past de app de formatie automatisch aan en blijven spelers zoveel mogelijk op hun plek.</p>
       <div id="woFormatieHint"></div></div>
-    ${isToernooi(w) ? '' : `<button class="knop licht vol u-mt-3xs" id="woAdvies" ><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg> Opstelling voorstellen</button>`}
+    ${(isToernooi(w) || !adviesZichtbaar()) ? '' : `<button class="knop licht vol u-mt-3xs" id="woAdvies" ><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5l1.7 4.3 4.3 1.7-4.3 1.7L12 15.5l-1.7-4.3L6 9.5l4.3-1.7z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5.5 15.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg> Opstelling voorstellen</button>`}
     <button class="knop licht vol u-mt-3xs" id="woSjabloon" >⧉ Standaardopstelling invoegen</button>
     ${kanLeegmaken(w) ? `<button class="knop gevaar vol u-mt-3xs" id="woLeeg" ><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h16"/><path d="M9 7V4.8h6V7"/><path d="M6.5 7l1 12.2h9l1-12.2"/><path d="M10 11v5M14 11v5"/></svg> Opstelling leegmaken</button>` : ''}
     <p class="u-t-2xs u-zacht u-mt-2xs">Vult alle kwarten met een opgeslagen sjabloon of een vorige wedstrijd. Dit vervangt de huidige opstellingen.</p>
