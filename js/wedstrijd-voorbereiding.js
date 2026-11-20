@@ -22,7 +22,7 @@ import { db, doc, setDoc, updateDoc, functions, httpsCallable } from './firebase
 import { S, esc, meld, openModal, sluitModal } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { telGebruik, telNav } from './tracker.js?v=20261111g';
-import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120b';
+import { plekHtml, routeUrl, presentieWedstrijd, afwezigTekst, opstellingKlaar, isAfgelast } from './nu-scherm.js?v=20261120c';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -600,7 +600,7 @@ function koppel(body){
     if (adv){
       const id = adv.dataset.vbAdvies;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120b');
+      const m = await import('./wedstrijd.js?v=20261120c');
       m.openWedstrijdMetAdvies(id);
       return;
     }
@@ -608,7 +608,7 @@ function koppel(body){
     if (wd){
       const id = wd.dataset.vbWedstrijd;
       sluitModal();
-      const m = await import('./wedstrijd.js?v=20261120b');
+      const m = await import('./wedstrijd.js?v=20261120c');
       m.openWedstrijd(id);
       return;
     }
