@@ -584,7 +584,7 @@ const datumKort = ms => ms ? new Date(ms).toLocaleDateString('nl-NL', { day:'num
    Sportlink, ook als de plaats anders is geschreven. */
 const heeftInhoud = p => !!(p && !p.fout && ((p.velden || []).length || (p.plekken || []).length));
 const parkNaamNorm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/sportpark|sportcomplex|sportvelden/g, '').replace(/[^a-z0-9]+/g, '');
-/* [20261120l] "neul" past bij "Sportpark De Neul", "Bokt" bij "Sportpark Bokt Eindhoven".
+/* [20261120m] "neul" past bij "Sportpark De Neul", "Bokt" bij "Sportpark Bokt Eindhoven".
    Het kortste deel moet minstens 4 tekens hebben, anders past alles op alles. */
 export function naamPast(parkNaam, sportlinkNaam){
   const a = parkNaamNorm(parkNaam), b = parkNaamNorm(sportlinkNaam);
@@ -942,7 +942,7 @@ function tekenBeheer(){
   paneel.insertAdjacentHTML('beforeend', `<div class="vk-parkkop"><span>${ico('match-location', 18)}<b>${esc(B.parkId === 'eigen' ? 'Eigen sportpark' : B.park.naam || 'Sportpark')}</b>${B.park.plaats ? `<small>${esc(B.park.plaats)}</small>` : ''}</span>
     <button type="button" class="knop licht klein" data-vk-wissel>Ander sportpark</button></div>`);
   paneel.querySelector('[data-vk-wissel]').onclick = () => { B.tab = 'parken'; tekenBeheer(); };
-  /* [20261120l] naam en plaats van een sportpark van een tegenstander aanpassen */
+  /* [20261120m] naam en plaats van een sportpark van een tegenstander aanpassen */
   if (B.parkId !== 'eigen'){
     paneel.insertAdjacentHTML('beforeend', `<div class="vk-parknaam">
       <label><span class="vk-label">Naam</span><input class="invoer" data-vk-pn="naam" value="${esc(B.park.naam || '')}" maxlength="60" placeholder="Bijv. Sportpark De Neul"></label>

@@ -7928,7 +7928,7 @@ html.desk .lh-rijen .lj-rk{margin-bottom:0}
 .vk-parkrij-hoofd span{display:flex;flex-direction:column;min-width:0}
 .vk-parkrij-hoofd small{font-size:var(--t-xs);color:var(--ink-2)}
 .vk-nieuwpark{display:flex;flex-direction:column}
-/* [20261120l] naam en plaats van een sportpark */
+/* [20261120m] naam en plaats van een sportpark */
 .vk-parknaam{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-xs)}
 .vk-parknaam .vk-zacht{grid-column:1 / -1}
 .vk-parknaam label{display:flex;flex-direction:column}
