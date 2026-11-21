@@ -17,7 +17,7 @@
 import { S, esc } from './state.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { afwezigRedenInfo, isoWeek } from './config.js?v=20261111g';
-import { bepaalNu, evenementen, kiesDaarna, losseEvenementen } from './nu-context.js?v=20261117c';
+import { bepaalNu, evenementen, kiesDaarna, losseEvenementen } from './nu-context.js?v=20261121a';
 import { momentenVanTeam } from './trainingsmomenten.js?v=20261111g';
 import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
 import { effectieveSelectie, spelersOpWedstrijd, spelersOpTraining } from './uitleen-regels.js?v=20261111d';
@@ -300,11 +300,11 @@ function kaartHtml(c, nu){
     const t = `${hhmm(e.start)} tot ${hhmm(e.eind)}`;
     if (afgelastOp(e.datum)) return `${kop(tag('Afgelast', 'warn'))}${titel(`Training ${hhmm(e.start)}`)}${meta('Deze training gaat niet door.')}
       ${acties(knop('Bekijk de melding', 'communication-announcement', 'data-nu-tab="trainingen"', false))}`;
-    const label = c.fase === 'na' ? 'Training afgelopen' : c.fase === 'bezig' ? 'Training bezig' : 'Trainingsdag';
+    const label = c.fase === 'na' || c.fase === 'klaar' ? 'Training afgelopen' : c.fase === 'bezig' ? 'Training bezig' : 'Trainingsdag';
     const heeftStof = !!trainingVan(e.datum);
-    return `${kop(tag(label, c.fase === 'na' ? 'ok' : c.fase === 'bezig' ? 'accent' : 'warn'))}
+    return `${kop(tag(label, c.fase === 'na' || c.fase === 'klaar' ? 'ok' : c.fase === 'bezig' ? 'accent' : 'warn'))}
       ${titel(c.fase === 'na' ? 'Presentie afronden' : `Training ${hhmm(e.start)}`)}
-      ${meta(t, c.fase === 'voor' ? `<b>${esc(over(tot))}</b>` : c.fase === 'bezig' ? '<b>Bezig nu</b>' : '')}
+      ${meta(t, c.fase === 'voor' ? `<b>${esc(over(tot))}</b>` : c.fase === 'bezig' ? '<b>Bezig nu</b>' : c.fase === 'klaar' ? 'Presentie afgerond' : '')}
       ${oefenstofBlok(e.datum)}
       ${presKnopTraining(e.datum)}
       ${acties(c.fase === 'na'
@@ -459,9 +459,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261120r'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261121a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261120r'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261121a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;

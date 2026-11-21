@@ -82,12 +82,16 @@ export function bepaalNu({ nu, team, wedstrijden, presentie, plek }){
       opLocatie: opClub, reden: 'Er loopt een wedstrijd: alleen klok, wissels en doelpunten.' });
   }
 
-  /* 2. Wedstrijd net afgelopen */
+  /* 2. Wedstrijd afgelopen: [20261121a] een wedstrijd van vandaag blijft staan tot
+     de dag voorbij is; daarna (bv. een avondwedstrijd na middernacht) nog het venster. */
   const afgelopen = ev.filter(e => e.type === 'wedstrijd' && !e.w.afgerond &&
-    nu > e.eind && minuten(e.eind, nu) <= VENSTER.wedstrijdNa).pop();
+    nu > e.eind && (minuten(e.eind, nu) <= VENSTER.wedstrijdNa ||
+      (e.datum === vandaag && !ev.some(x => x.type === 'wedstrijd' && x.datum === vandaag && x.start > nu)))).pop();
   if (afgelopen){
     return uit({ soort: 'na', fase: 'afronden', event: afgelopen, daarna: rest(afgelopen), opLocatie: opClub,
-      reden: `De wedstrijd is ${minuten(afgelopen.eind, nu)} min geleden afgelopen: nu afronden.` });
+      reden: minuten(afgelopen.eind, nu) <= VENSTER.wedstrijdNa
+        ? `De wedstrijd is ${minuten(afgelopen.eind, nu)} min geleden afgelopen: nu afronden.`
+        : 'De wedstrijd van vandaag is gespeeld; morgen zie je de volgende.' });
   }
 
   /* 3. Wedstrijddag, voor aanvang */
@@ -108,20 +112,23 @@ export function bepaalNu({ nu, team, wedstrijden, presentie, plek }){
       reden: 'Het is de avond voor de wedstrijd: opstelling klaarzetten en delen.' });
   }
 
-  /* 5. Trainingsdag (van 3 uur voor start tot 1 uur na einde) */
-  const tr = ev.find(e => e.type === 'training' && e.datum === vandaag &&
-    minuten(nu, e.start) <= VENSTER.trainingVoor && minuten(e.eind, nu) <= VENSTER.trainingNa);
+  /* 5. Trainingsdag (van 3 uur voor start tot het eind van de dag).
+     [20261121a] Na afloop blijft de training staan tot middernacht; is de
+     presentie al klaar, dan is de fase 'klaar' in plaats van 'na'. */
+  const tr = ev.filter(e => e.type === 'training' && e.datum === vandaag &&
+    minuten(nu, e.start) <= VENSTER.trainingVoor).find(e => nu < e.eind) ||
+    ev.filter(e => e.type === 'training' && e.datum === vandaag && nu >= e.eind).pop();
   if (tr){
     const p = presentie?.[tr.datum];
     let fase;
-    if (nu >= tr.eind) fase = 'na';
+    if (nu >= tr.eind) fase = p?.afgerond ? 'klaar' : 'na';
     else if (nu >= tr.start) fase = 'bezig';
     else if (opClub && minuten(nu, tr.start) <= VENSTER.clubAanloop) fase = 'opclub';
     else fase = 'voor';
-    if (fase === 'na' && p?.afgerond){ /* presentie al klaar: geen reden meer om dit te tonen */ }
-    else return uit({ soort: 'training', fase, event: tr, daarna: rest(tr), opLocatie: opClub && (fase === 'opclub' || fase === 'bezig'),
+    return uit({ soort: 'training', fase, event: tr, daarna: rest(tr), opLocatie: opClub && (fase === 'opclub' || fase === 'bezig'),
       reden: fase === 'opclub' ? 'Trainingsdag en je bent bij de club: direct starten of afvinken.'
-           : fase === 'na' ? 'Training is net afgelopen: presentie afronden.'
+           : fase === 'na' ? 'Training is afgelopen: presentie afronden.'
+           : fase === 'klaar' ? 'Training van vandaag is klaar; morgen zie je de volgende.'
            : 'Trainingsdag: het plan staat bovenaan.' });
   }
 
