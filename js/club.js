@@ -20,7 +20,7 @@ import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261111g';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261117e';
-import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel, weekStartBijLabel, isoWeekNr, kortDatum as planKortDatum } from './training-plan.js?v=20261116a';
+import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel, weekStartBijLabel, isoWeekNr, isoJaar, kortDatum as planKortDatum } from './training-plan.js?v=20261116a';
 import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261111g';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261113v';
 
@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261121a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261122a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261121a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261122a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1678,14 +1678,36 @@ function htmlClubTrainingenDesk(teams, trainingen){
         return gi.length && gi.length === set.size && gi.every(id => set.has(id));
       });
     };
+    // [20261122a] groep met een paar teams eruit (vervangen door een andere training)
+    const bijnaGroepVan = ids => groepen.find(g => {
+      const gi = (g.teams || []).filter(id => teamById.has(id));
+      return ids.length && ids.length < gi.length && gi.length - ids.length <= 2 && ids.every(id => gi.includes(id));
+    });
+    const dubbel = dubbelKaart(trainingen);
+    const dubbelHtml = t => (dubbel.get(t.id) || []).length
+      ? `<button type="button" class="trd-dubbel" data-tbewerk="${t.id}" title="Dit team heeft op dezelfde plek nog een training. Klik om te kiezen welke blijft.">${ico('action-warning', 13)}Dubbel bij ${esc(dubbel.get(t.id).map(id => teamById.get(id)?.naam || '?').join(', '))}</button>` : '';
     const teamsHtml = t => {
       const ids = (t.teams || []);
       if (!ids.length) return '<span class="trd-leeg">geen team</span>';
       const g = groepVan(ids);
-      if (g) return `<span class="trd-tg groep">${esc(g.naam || ('Groep ' + g.id))}<span class="sep" aria-hidden="true"></span>${ids.length} team${ids.length===1?'':'s'}</span>`;
-      const namen = ids.map(id => teamById.get(id)?.naam || '?');
-      const zicht = namen.slice(0, 5).map(n => `<span class="trd-tg">${esc(n)}</span>`).join('');
-      return zicht + (namen.length > 5 ? `<span class="trd-tg" title="${esc(namen.slice(5).join(', '))}">+${namen.length - 5}</span>` : '');
+      if (g) return `<span class="trd-tg groep">${esc(g.naam || ('Groep ' + g.id))}<span class="sep" aria-hidden="true"></span>${ids.length} team${ids.length===1?'':'s'}</span>` + dubbelHtml(t);
+      const bg = bijnaGroepVan(ids);
+      if (bg){
+        const gi = (bg.teams || []).filter(id => teamById.has(id));
+        const zonder = gi.filter(id => !ids.includes(id)).map(id => teamById.get(id)?.naam || '?').join(', ');
+        return `<span class="trd-tg groep" title="Zonder ${esc(zonder)}: die ${gi.length - ids.length === 1 ? 'krijgt' : 'krijgen'} een andere training">${esc(bg.naam || ('Groep ' + bg.id))}<span class="sep" aria-hidden="true"></span>${ids.length} van ${gi.length}<span class="trd-zacht">zonder ${esc(zonder)}</span></span>` + dubbelHtml(t);
+      }
+      const vervangt = (t.vervangt && typeof t.vervangt === 'object') ? t.vervangt : {};
+      const tg = id => {
+        const n = teamById.get(id)?.naam || '?';
+        const oud = vervangt[id] ? trainingen.find(x => x.id === vervangt[id]) : null;
+        return oud
+          ? `<span class="trd-tg wissel" title="Krijgt deze training in plaats van ${esc(oud.titel || 'de eigen training')}">${ico('football-substitution', 12)}${esc(n)}<span class="trd-zacht">i.p.v. ${esc(trainingTeamsKort(oud, teams))}</span></span>`
+          : `<span class="trd-tg">${esc(n)}</span>`;
+      };
+      const zicht = ids.slice(0, 5).map(tg).join('');
+      const rest = ids.slice(5).map(id => teamById.get(id)?.naam || '?');
+      return zicht + (rest.length ? `<span class="trd-tg" title="${esc(rest.join(', '))}">+${rest.length}</span>` : '') + dubbelHtml(t);
     };
 
     const rij = t => {
@@ -1767,6 +1789,7 @@ function htmlClubTrainingen(teams, trainingen){
   }
 
   // Lijst: alle trainingen van de club, nieuw → oud zoals ze binnenkomen.
+  const dubbelM = dubbelKaart(trainingen);   // [20261122a]
   const lijst = trainingen.length ? trainingen.map(t => {
     const teamNamen = (t.teams||[]).map(tid => (teams.find(x => x.id === tid)?.naam) || '?').join(', ');
     const heeftAi = Array.isArray(t.oefeningen) && t.oefeningen.length;
@@ -1784,7 +1807,8 @@ function htmlClubTrainingen(teams, trainingen){
         <div class="t"><div class="t-titel">${esc(t.titel || t.bestandsnaam)}</div>
           ${toonBest ? `<div class="t-best">${esc(t.bestandsnaam)}</div>` : ''}
           <div class="t-meta">${esc(t.week || '')}${t.week?'<span class="sep" aria-hidden="true"></span>':''}${esc(teamNamen)}</div>
-          ${zichtbaarLabel(t) ? `<div class="bp-zv-badge">${esc(zichtbaarLabel(t))}</div>` : ''}</div>
+          ${zichtbaarLabel(t) ? `<div class="bp-zv-badge">${esc(zichtbaarLabel(t))}</div>` : ''}
+          ${(dubbelM.get(t.id) || []).length ? `<button type="button" class="trd-dubbel" data-tbewerk="${t.id}">${ico('action-warning', 13)}Dubbel bij ${esc(dubbelM.get(t.id).map(id => teams.find(x => x.id === id)?.naam || '?').join(', '))}</button>` : ''}</div>
         <div class="acties">
           <button data-tdownload="${esc(t.url)}" title="Openen">↗</button>
           ${tekstKnop}
@@ -3577,6 +3601,93 @@ function toonAlleenPdfKeuze(file, meta, ctx, boodschap){
   $('#trOpnieuw2').onclick = () => startTrainingHerstructureer(file, meta, ctx);
 }
 
+/* ==================== TRAINING VAN ANDERE GROEP (vervangen) ====================
+   [20261122a] Een team krijgt af en toe de training van een andere groep. Heeft
+   het team in dezelfde week al dezelfde training (zelfde trainingsnummer) van
+   zijn eigen groep, dan neemt de nieuwe training die plek over: het team gaat
+   uit de teams-lijst van de oude training. Op de nieuwe training onthoudt
+   `vervangt: { teamId: oudeTrainingId }` wat er vervangen is, voor het label in
+   de lijst en om het later terug te kunnen draaien. */
+
+/* "2026-48-1" (jaar-week-trainingnr), of null als we het niet zeker weten. */
+function trainingSlot(t){
+  if (!t) return null;
+  let jaar, wk;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t.weekStart || '')){
+    wk = isoWeekNr(t.weekStart); jaar = isoJaar(t.weekStart);
+  } else {
+    const m = String(t.week || '').match(/(\d{1,2})/) || String(t.titel || '').match(/week\s*(\d{1,2})/i);
+    const g = t.gemaakt?.seconds ? new Date(t.gemaakt.seconds * 1000) : null;
+    if (!m || !g) return null;
+    wk = +m[1]; jaar = g.getFullYear();
+    const gw = isoWeek(g);
+    if (wk < gw - 26) jaar++; else if (wk > gw + 26) jaar--;
+  }
+  const nr = Number(t.trainingNr) || Number((String(t.titel || '').match(/training\s*(\d+)/i) || [])[1]) || 0;
+  if (!wk || !nr) return null;
+  return `${jaar}-${wk}-${nr}`;
+}
+
+/* Andere trainingen die voor teamId op dezelfde plek staan als t. */
+function slotConflicten(t, teamIds, trainingen){
+  const slot = trainingSlot(t);
+  if (!slot) return [];
+  const uit = [];
+  for (const tid of teamIds){
+    for (const o of trainingen){
+      if (o.id === t.id || !(o.teams || []).includes(tid)) continue;
+      if (trainingSlot(o) === slot) uit.push({ teamId: tid, training: o });
+    }
+  }
+  return uit;
+}
+
+/* Is dit de 'gewone' training van het team: de teams vormen (bijna) een
+   trainingsgroep waar het team in zit? */
+function isEigenGroepTraining(t, teamId){
+  const ids = new Set(t.teams || []);
+  return trainingsGroepen().some(g => (g.teams || []).includes(teamId)
+    && (t.teams || []).every(id => (g.teams || []).includes(id)) && ids.size >= Math.max(1, (g.teams || []).length - 2));
+}
+
+/* Per training: teams die er op dezelfde plek nog een training naast hebben.
+   Het label komt bij de afwijkende training (niet de eigen-groeptraining);
+   is dat niet te zeggen, dan bij allebei. */
+function dubbelKaart(trainingen){
+  const per = new Map();
+  for (const t of trainingen){
+    const slot = trainingSlot(t); if (!slot) continue;
+    for (const tid of (t.teams || [])){
+      const k = slot + '|' + tid;
+      if (!per.has(k)) per.set(k, []);
+      per.get(k).push(t);
+    }
+  }
+  const uit = new Map();
+  for (const [k, lijst] of per){
+    if (lijst.length < 2) continue;
+    const tid = k.split('|')[1];
+    const afwijkend = lijst.filter(t => !isEigenGroepTraining(t, tid));
+    const label = afwijkend.length && afwijkend.length < lijst.length ? afwijkend : lijst;
+    for (const t of label){
+      if (!uit.has(t.id)) uit.set(t.id, []);
+      if (!uit.get(t.id).includes(tid)) uit.get(t.id).push(tid);
+    }
+  }
+  return uit;
+}
+
+/* Korte naam voor de teams van een training: "Groep D" of de teamnamen. */
+function trainingTeamsKort(t, teams){
+  const ids = t.teams || [];
+  const g = trainingsGroepen().find(x => {
+    const gi = (x.teams || []).filter(id => teams.some(tm => tm.id === id));
+    return gi.length && ids.length && ids.every(id => gi.includes(id)) && ids.length >= gi.length - 2;
+  });
+  if (g) return g.naam || ('Groep ' + g.id);
+  return ids.slice(0, 3).map(id => teams.find(tm => tm.id === id)?.naam || '?').join(', ') + (ids.length > 3 ? ' +' + (ids.length - 3) : '');
+}
+
 /* Toewijzing (titel, week, teams) van een bestaande training achteraf aanpassen
    — zonder het PDF-bestand opnieuw te uploaden. */
 function modalBewerkTraining(t, teams){
@@ -3617,9 +3728,37 @@ function modalBewerkTraining(t, teams){
         <button class="knop licht klein" id="mTbAlle">Alle teams</button>
         <button class="knop licht klein" id="mTbGeen">Geen</button>
       </div>
+      <div id="mTbVervang"></div>
     </div>
     <button class="knop vol" id="mTbOk">Wijzigingen opslaan</button>`);
-  const sync = () => $$('#mTbTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
+  // [20261122a] teams die op dezelfde plek al een training van een andere groep hebben
+  const alleTr = S.clubTrainingen || [];
+  const keuzes = new Map();   // "teamId|trainingId" → 'vervang' | 'beide'
+  const tekenVervang = () => {
+    const bak = $('#mTbVervang'); if (!bak) return;
+    const aan = $$('#mTbTeams input').filter(c => c.checked).map(c => c.dataset.tid);
+    const conf = slotConflicten(t, aan, alleTr);
+    if (!conf.length){ bak.innerHTML = ''; return; }
+    const nr = (trainingSlot(t) || '').split('-')[2];
+    const vandaag = new Date(); vandaag.setHours(0,0,0,0);
+    bak.innerHTML = `<div class="tr-vervang">
+      <div class="tr-vervang-kop">${ico('action-warning', 16)}<span>${conf.length === 1 ? 'Een team heeft' : 'Teams hebben'} deze week al training ${esc(nr)} van een andere groep</span></div>
+      <ul>${conf.map(c => {
+        const k = c.teamId + '|' + c.training.id;
+        if (!keuzes.has(k)) keuzes.set(k, 'vervang');
+        const kz = keuzes.get(k);
+        const naam = teams.find(x => x.id === c.teamId)?.naam || '?';
+        return `<li><span><b>${esc(naam)}</b><small>heeft al "${esc(c.training.titel || c.training.bestandsnaam || 'Training')}" van ${esc(trainingTeamsKort(c.training, teams))}</small></span>
+          <span class="tr-vervang-keuze" data-vk="${esc(k)}"><button type="button" data-k="vervang" class="${kz === 'vervang' ? 'aan' : ''}">Vervangen</button><button type="button" data-k="beide" class="${kz === 'beide' ? 'aan' : ''}">Allebei houden</button></span></li>`;
+      }).join('')}</ul>
+      <p class="bp-hint">Vervangen: het team krijgt alleen deze training, de andere teams houden hun eigen training. Aantekeningen die een coach al bij de oude training maakte, blijven bewaard maar zijn dan niet meer zichtbaar.</p>
+    </div>`;
+    bak.querySelectorAll('[data-vk] button').forEach(b => b.onclick = () => {
+      keuzes.set(b.parentElement.dataset.vk, b.dataset.k); tekenVervang();
+    });
+  };
+  const sync = () => { $$('#mTbTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked)); tekenVervang(); };
+  tekenVervang();
   $$('#mTbTeams input').forEach(c => c.onchange = sync);
   $('#mTbAlle').onclick = () => { $$('#mTbTeams input').forEach(c => c.checked = true); sync(); };
   $('#mTbGeen').onclick = () => { $$('#mTbTeams input').forEach(c => c.checked = false); sync(); };
@@ -3644,15 +3783,47 @@ function modalBewerkTraining(t, teams){
     const doelen = mTbLeesDoelen();   // lezen vóór sluitModal — daarna is de DOM weg
     // [20261013g] zichtbaarheidsdatum ook vóór sluitModal lezen (leeg = meteen)
     const zicht = ($('#mTbZicht')?.value || '').trim();
+    // [20261122a] vervangen/terugzetten bepalen vóór sluitModal
+    const vervangNu = slotConflicten(t, gekozen, alleTr).filter(c => keuzes.get(c.teamId + '|' + c.training.id) !== 'beide');
+    const oudVervangt = (t.vervangt && typeof t.vervangt === 'object') ? t.vervangt : {};
+    const terug = Object.entries(oudVervangt).filter(([tid]) => !gekozen.includes(tid))
+      .map(([tid, oid]) => ({ teamId: tid, training: alleTr.find(x => x.id === oid) })).filter(x => x.training);
+    let terugJa = false;
+    if (terug.length){
+      const namen = terug.map(x => teams.find(tm => tm.id === x.teamId)?.naam || '?').join(', ');
+      terugJa = confirm(`${namen} weer de oorspronkelijke training geven (${terug.map(x => x.training.titel || 'training').join(', ')})?`);
+    }
     sluitModal();
     try {
       // [20261116a] weeklabel en weekStart horen bij elkaar te blijven: wie het
       // weeknummer met de hand aanpast, verhuist de training ook echt. Voorheen
       // bleef weekStart staan en stond de training bij coaches in de oude week.
       const nieuweStart = ingepland ? weekStartBijLabel(week, t.weekStart) : null;
-      await updateDoc(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null,
+      const vervangt = { ...oudVervangt };
+      for (const tid of Object.keys(vervangt)) if (!gekozen.includes(tid)) delete vervangt[tid];
+      const batch = writeBatch(db);
+      // per oude training de nieuwe teamlijst opbouwen (één training kan meerdere teams verliezen/terugkrijgen)
+      const nieuweTeams = new Map();
+      const teamsVan = o => nieuweTeams.get(o.id) || [...(o.teams || [])];
+      for (const c of vervangNu){
+        nieuweTeams.set(c.training.id, teamsVan(c.training).filter(id => id !== c.teamId));
+        vervangt[c.teamId] = c.training.id;
+      }
+      if (terugJa) for (const x of terug){
+        const l = teamsVan(x.training); if (!l.includes(x.teamId)) l.push(x.teamId);
+        nieuweTeams.set(x.training.id, l);
+      }
+      for (const [oid, l] of nieuweTeams) batch.update(doc(db,'trainingen',oid), { teams: l });
+      batch.update(doc(db,'trainingen',t.id), {teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null,
+        vervangt: Object.keys(vervangt).length ? vervangt : deleteField(),
         ...(nieuweStart && nieuweStart !== t.weekStart ? { weekStart: nieuweStart } : {})});
-      meld('Training bijgewerkt'); renderClub();
+      await batch.commit();
+      // lokale lijst meteen bijwerken zodat de labels kloppen zonder herladen
+      for (const [oid, l] of nieuweTeams){ const o = alleTr.find(x => x.id === oid); if (o) o.teams = l; }
+      Object.assign(t, { teams: gekozen, titel, week, doelen, zichtbaarVanaf: zicht || null });
+      if (Object.keys(vervangt).length) t.vervangt = vervangt; else delete t.vervangt;
+      meld(vervangNu.length ? `Training bijgewerkt, ${vervangNu.length === 1 ? 'training vervangen' : vervangNu.length + ' trainingen vervangen'}` : 'Training bijgewerkt');
+      renderClub();
     } catch(e){
       console.error(e); meld('Opslaan mislukt: ' + (e.code || e.message));
     }
