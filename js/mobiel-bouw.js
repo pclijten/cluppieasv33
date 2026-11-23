@@ -10,11 +10,11 @@
 ================================================================= */
 import { S, $, esc, meld, toon, terugView } from './state.js?v=20261111g';
 import { BOUWEN } from './config.js?v=20261111g';
-import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20261122b';
-import { zetBouwContext, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261122b';
-import { trekUitleningIn, wijzigUitlening } from './teams-spelers.js?v=20261122b';
-import { htmlMobielTeam } from './desktop-schermen.js?v=20261122b';
-import { isSelectieBouw, htmlRadarMobiel, htmlSelectieTegelMobiel, htmlSelectieMobiel, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261122b';
+import { laadBouw, teamRijen, richting } from './desktop-bouw.js?v=20261123a';
+import { zetBouwContext, modalNieuweUitleningVanuitBouw, splitsUitleningen, leenKaartInfo } from './bouw-hub.js?v=20261123a';
+import { trekUitleningIn, wijzigUitlening } from './teams-spelers.js?v=20261123a';
+import { htmlMobielTeam } from './desktop-schermen.js?v=20261123a';
+import { isSelectieBouw, htmlRadarMobiel, htmlSelectieTegelMobiel, htmlSelectieMobiel, selectieKlik, selectieInvoer } from './selectie-bouw.js?v=20261123a';
 /* [20261116b] Trainingen van de week: kaart op het dashboard + tab Training */
 import { zorgVoorTrainingen, htmlDashBlok, htmlTrainingenScherm, trainingenKlik } from './bouw-trainingen.js?v=20261116b';
 
@@ -181,7 +181,7 @@ async function klik(e){
   if (a === 'terug'){
     if (st.teamId){ st.teamId = null; st.keuze = {}; teken(); return; }
     if (st.tab === 'selmaken'){ st.tab = 'dash'; teken(); window.scrollTo(0, 0); return; }
-    const m = await import('./teams.js?v=20261122b'); m.renderTeams(); toon('teams'); return;
+    const m = await import('./teams.js?v=20261123a'); m.renderTeams(); toon('teams'); return;
   }
   if (a === 'tab'){ st.tab = id; st.teamId = null; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
   if (a === 'team'){ st.teamId = id; st.pag = 'sel'; st.keuze = {}; teken(); window.scrollTo(0, 0); return; }
@@ -189,7 +189,7 @@ async function klik(e){
   if (a === 'selmaken'){ st.tab = 'selmaken'; st.teamId = null; teken(); window.scrollTo(0, 0); return; }
   if (a === 'speler'){ st.pag = 'evs'; st.keuze = { speler:id }; teken(); return; }
   if (a === 'wedstrijd'){ st.keuze = { wedstrijd:id }; teken(); return; }
-  if (a === 'eigen'){ const m = await import('./teams.js?v=20261122b'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
+  if (a === 'eigen'){ const m = await import('./teams.js?v=20261123a'); m.openTeam(st.teamId, { sel:'spelers', evs:'spelers', evw:'evaluatie', stat:'stats' }[st.pag] || 'hub'); return; }
   if (a === 'nieuwleen'){ zetBouwContext(cache); modalNieuweUitleningVanuitBouw(() => teken()); return; }
   if (a === 'wijzig-leen'){ const u = cache.uitleningen.find(x => x.id === id); if (!u) return;
     wijzigUitlening(u, st.clubId, nieuw => {
