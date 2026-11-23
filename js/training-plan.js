@@ -15,6 +15,8 @@
    5. en biedt daarna een "Plannen"-weergave waarin je een week kunt laten
       vervallen: alle latere trainingen schuiven dan een week op, inclusief
       titel ("Week 47 - training 1" → "Week 48 - training 1") en zichtbaarheid.
+      [20261123a] In die weergave sleep je ook een week naar een andere week:
+      alle trainingen van die week gaan in één keer mee (zie onderaan).
 
    De gewone upload (één PDF, of meerdere PDF's verdelen per groep) blijft
    ongewijzigd; deze flow start alleen bij een zip of bij meerdere PDF's met
@@ -98,7 +100,6 @@ export function planWeken(start, vrij, aantal){
    láágste blokweek uit de upload; anders schoof alles (laagste - 1) weken op. */
 const eersteVan = st => Math.min(...st.a.items.map(i => i.week));
 const spanVan = st => Math.max(1, st.weken - eersteVan(st) + 1);
-const planEerste = plan => Math.max(1, Number(plan?.eerste) || 1);
 
 /* [20261116a] Het weeklabel van een ingeplande training is met de hand aangepast
    ("Week 1" -> "Week 46"): geef de maandag die bij dat weeknummer hoort, zo
@@ -475,7 +476,24 @@ async function naarWachtrij(st, ctx){
   ctx.renderClub?.();
 }
 
-/* ==================== Plannen-weergave (clubbeheer → Trainingen) ==================== */
+/* ==================== Plannen-weergave (clubbeheer → Trainingen) ====================
+   [20261123a] De strook leest de week uit de trainingen zelf (weekStart) in
+   plaats van hem uit plan.start + plan.vrij te rekenen. Daardoor kan een week
+   los worden versleept (naar een lege of vrije week, of wisselen met een
+   bezette week) en klopt de strook ook nadat een weeklabel met de hand is
+   aangepast.
+   - slepen: muis direct, vinger na even vasthouden (pointer events). Elke
+     week met trainingen is op te pakken, ook een voorbije.
+   - tikken: week laten vervallen of terugzetten, zoals voorheen (alleen deze
+     week en later).
+   Vrije weken (plan.vrij) tellen niet als plek: wat meeschuift slaat ze over,
+   zodat een training niet in een vakantieweek belandt. */
+const WS_RE = /^\d{4}-\d{2}-\d{2}$/;
+const wsVan = t => WS_RE.test(t?.weekStart || '') ? maandagVan(t.weekStart) : null;
+const hoofd = s => s.charAt(0).toUpperCase() + s.slice(1);
+const nTr = n => `${n} training${n === 1 ? '' : 'en'}`;
+const LEEG_VOOR = 3, LEEG_NA = 2;      // lege weken vóór en ná de reeks, als plek om naartoe te slepen
+
 function plannenUit(trainingen){
   const plannen = new Map();
   for (const t of trainingen){
@@ -486,107 +504,349 @@ function plannenUit(trainingen){
   return plannen;
 }
 
+/* ---------- Rekenregels (zonder Firestore, los te testen) ---------- */
+/* Per kalenderweek (maandag): welke blokweken er staan en hoeveel trainingen. */
+export function planStand(items){
+  const m = new Map();
+  for (const t of items){
+    const ws = wsVan(t); if (!ws) continue;
+    if (!m.has(ws)) m.set(ws, { bws: new Set(), n: 0 });
+    const c = m.get(ws);
+    if (Number(t.blokWeek)) c.bws.add(Number(t.blokWeek));
+    c.n++;
+  }
+  return m;
+}
+const bwTekst = c => c.bws.size ? 'week ' + [...c.bws].sort((a, b) => a - b).join('+') : 'training';
+/* één plek verder (dir 1) of terug (dir -1); vrije weken V slaan we over */
+const stap = (m, dir, V) => { do { m = plusDagen(m, 7 * dir); } while (V.has(m)); return m; };
+const schuif = (m, n, V) => { for (let i = 0; i < Math.abs(n); i++) m = stap(m, Math.sign(n), V); return m; };
+function plekAfstand(van, naar, V){
+  const dir = naar > van ? 1 : -1;
+  let n = 0, m = van;
+  while (m !== naar && Math.abs(n) < 200){
+    m = stap(m, dir, V); n += dir;
+    if (dir > 0 ? m > naar : m < naar) break;
+  }
+  return n;
+}
+/* Slepen van week `van` naar week `naar`. Staat daar al iets, dan wisselen de
+   twee. Anders verhuist alleen deze week ('een') of schuift alles erna even-
+   veel plekken mee ('rest'). Geeft { zet: Map(oud → nieuw), botsing, vrij, st }. */
+export function rekenSleep(items, vrij, van, naar, modus){
+  const st = planStand(items);
+  const V = new Set((vrij || []).filter(m => !st.has(m) && m !== naar));
+  const zet = new Map();
+  if (st.has(naar)){ zet.set(van, naar); zet.set(naar, van); }
+  else {
+    zet.set(van, naar);
+    if (modus === 'rest'){
+      const n = plekAfstand(van, naar, V);
+      [...st.keys()].filter(c => c > van).forEach(c => zet.set(c, schuif(c, n, V)));
+    }
+  }
+  return rond(st, zet, V);
+}
+/* Tikken op week m: staat er iets, dan wordt de week vrij en schuift alles
+   vanaf daar één plek op; is hij vrij, dan komt alles erna één plek terug. */
+export function rekenVrij(items, vrij, m){
+  const st = planStand(items);
+  const V = new Set((vrij || []).filter(x => !st.has(x)));
+  const zet = new Map();
+  const wordtVrij = st.has(m);
+  if (wordtVrij){ V.add(m); [...st.keys()].filter(c => c >= m).forEach(c => zet.set(c, stap(c, 1, V))); }
+  else { V.delete(m); [...st.keys()].filter(c => c > m).forEach(c => zet.set(c, stap(c, -1, V))); }
+  return { ...rond(st, zet, V), wordtVrij };
+}
+function rond(st, zet, V){
+  for (const [oud, nieuw] of [...zet]) if (oud === nieuw) zet.delete(oud);
+  const blijft = new Set([...st.keys()].filter(c => !zet.has(c)));
+  const botsing = [...zet.values()].find(n => blijft.has(n)) || null;
+  const straks = [...new Set([...blijft, ...zet.values()])].sort();
+  const eerste = straks[0], laatste = straks[straks.length - 1];
+  const bezet = new Set(straks);
+  // vrije weken buiten de reeks hebben geen betekenis meer
+  const vrij = [...V].filter(m => !bezet.has(m) && m > eerste && m < laatste).sort();
+  return { zet, botsing, vrij, st, eerste };
+}
+
+/* ---------- Tekenen ---------- */
+/* wat koppelPlannen en de vensters nodig hebben; gevuld bij elke render */
+const pl = { trainingen: [], teams: [], ctx: null, v: null };
+const GRIP = `<svg class="bp-grip" viewBox="0 0 6 10" fill="currentColor" aria-hidden="true"><circle cx="1.2" cy="1.2" r="1.2"/><circle cx="4.8" cy="1.2" r="1.2"/><circle cx="1.2" cy="5" r="1.2"/><circle cx="4.8" cy="5" r="1.2"/><circle cx="1.2" cy="8.8" r="1.2"/><circle cx="4.8" cy="8.8" r="1.2"/></svg>`;
+const WAARSCHUW = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/></svg>`;
+
 export function htmlPlannen(trainingen, teams, groepen = []){
+  pl.teams = teams || [];
   const plannen = plannenUit(trainingen);
   if (!plannen.size){
     return `<div class="kaart leeg">Nog geen ingeplande blokken.<br>Upload een zip, of meerdere PDF's met namen als "Blok 2 - Week 1 - Training 1", en je plant het hele blok in één keer in.</div>`;
   }
   const nuMa = maandagVan(vandaagIso());
   return [...plannen.values()]
-    .sort((x, y) => (y.plan.start || '').localeCompare(x.plan.start || ''))
-    .map(({ plan, items }) => {
-      const eersteWk = planEerste(plan);
-      const aantal = Math.max(1, (plan.weken || Math.max(...items.map(i => i.blokWeek || 1))) - eersteWk + 1);
-      const map = planWeken(plan.start, plan.vrij, aantal);
-      const laatste = map[map.length - 1];
-      const strip = [];
-      for (let m = plan.start; m <= plusDagen(laatste, 7); m = plusDagen(m, 7)) strip.push(m);
-      const chips = strip.map(m => {
-        const k = map.indexOf(m);
-        const vrij = (plan.vrij || []).includes(m);
-        const voorbij = m <= nuMa;
-        const cls = vrij ? 'vrij' : k >= 0 ? 'plan' : 'leeg';
-        const sub = vrij ? 'vrij' : k >= 0 ? `week ${k + eersteWk}` : 'leeg';
-        const uit = voorbij || cls === 'leeg';
-        return `<button type="button" class="bp-wk ${cls}${voorbij ? ' voorbij' : ''}" data-bp-pwk="${m}" data-bp-plan="${esc(plan.id)}" ${uit ? 'disabled' : ''} aria-pressed="${vrij}" title="${esc(kortDatum(m))}"><b>${isoWeekNr(m)}</b><span>${voorbij && k >= 0 ? '✓ ' : ''}${sub}</span></button>`;
-      }).join('');
+    .map(p => { const st = planStand(p.items); return { ...p, st, ks: [...st.keys()].sort() }; })
+    .sort((x, y) => (y.ks[0] || y.plan.start || '').localeCompare(x.ks[0] || x.plan.start || ''))
+    .map(({ plan, items, st, ks }) => {
       const ids = items[0].teams || [];
       const g = plan.groep ? groepen.find(x => x.id === plan.groep) : null;
       const teamsTxt = g ? `${g.naam || ('Groep ' + g.id)}, ${ids.length} team${ids.length === 1 ? '' : 's'}`
         : ids.length <= 3 ? ids.map(id => teams.find(t => t.id === id)?.naam || '?').join(', ') : `${ids.length} teams`;
       const zo = zichtbaarOptie(plan.zichtbaar);
+      const kop = extra => `<div class="bp-plan-kop"><b>${esc(plan.naam || ('Blok ' + (plan.blok || '')))}</b>
+            <span>${esc(teamsTxt)}<span class="sep" aria-hidden="true"></span>${nTr(items.length)}${extra}<span class="sep" aria-hidden="true"></span>zichtbaar: ${esc(zo.label.toLowerCase())}</span></div>`;
+      if (!ks.length){
+        return `<div class="kaart bp-plan">${kop('')}<p class="bp-hint">Deze trainingen staan niet meer in een week. Pas de week aan via de lijst.</p></div>`;
+      }
+      const eerste = ks[0], laatste = ks[ks.length - 1];
+      const V = new Set(plan.vrij || []);
+      const strook = [];
+      for (let m = plusDagen(eerste, -7 * LEEG_VOOR); m <= plusDagen(laatste, 7 * LEEG_NA); m = plusDagen(m, 7)) strook.push(m);
+      const chips = strook.map(m => {
+        const c = st.get(m);
+        const voorbij = m < nuMa, nu = m === nuMa;
+        const vrij = !c && V.has(m);
+        const cls = c ? 'plan' : vrij ? 'vrij' : 'leeg';
+        const sub = c ? bwTekst(c) : vrij ? 'vrij' : 'leeg';
+        const tik = !voorbij && (c || vrij);
+        const label = `Week ${isoWeekNr(m)}, ${kortDatum(m)}: ${c ? `blok${bwTekst(c)}, ${nTr(c.n)}${voorbij ? ', al geweest' : ''}` : sub}${nu ? ', deze week' : ''}`;
+        return `<button type="button" class="bp-wk ${cls}${voorbij ? ' voorbij' : ''}${nu ? ' nu' : ''}" data-bp-plan="${esc(plan.id)}" data-bp-m="${m}"${c ? ' data-bp-pak' : ''}${tik ? ' data-bp-tik' : ' aria-disabled="true"'} title="${esc(kortDatum(m))}${nu ? ', deze week' : ''}" aria-label="${esc(label)}">${c ? GRIP : ''}<b>${isoWeekNr(m)}</b><span>${voorbij && c ? '✓ ' : ''}${sub}</span></button>`;
+      }).join('');
       return `
         <div class="kaart bp-plan">
-          <div class="bp-plan-kop"><b>${esc(plan.naam || ('Blok ' + (plan.blok || '')))}</b>
-            <span>${esc(teamsTxt)}<span class="sep" aria-hidden="true"></span>${items.length} training${items.length === 1 ? '' : 'en'}<span class="sep" aria-hidden="true"></span>wk ${isoWeekNr(map[0])} t/m ${isoWeekNr(laatste)}<span class="sep" aria-hidden="true"></span>zichtbaar: ${esc(zo.label.toLowerCase())}</span></div>
-          <p class="bp-hint">Valt er een week uit? Tik die week aan: alle trainingen daarna schuiven een week op, met titel en zichtbaarheid. Nog een keer tikken zet het terug.</p>
+          ${kop(`<span class="sep" aria-hidden="true"></span>wk ${isoWeekNr(eerste)} t/m ${isoWeekNr(laatste)}`)}
+          <p class="bp-hint"><span class="bp-fijn">Sleep een week naar een andere week om de trainingen te verplaatsen.</span><span class="bp-grof">Houd een week even vast en sleep hem naar een andere week.</span> Valt er een week uit? Tik die week aan: alles daarna schuift een week op.</p>
           <div class="bp-weken">${chips}</div>
         </div>`;
     }).join('');
 }
 
+/* ---------- Slepen en tikken ---------- */
+let sleep = null, sleepKlaar = 0, vensterGekoppeld = false;
+
 export function koppelPlannen(v, trainingen, ctx){
-  v.querySelectorAll('[data-bp-pwk]').forEach(b => b.onclick = () =>
-    wijzigVrijeWeek(b.dataset.bpPlan, b.dataset.bpPwk, trainingen, ctx));
+  pl.v = v; pl.trainingen = trainingen; pl.ctx = ctx;
+  const bak = v.querySelector('.bp-plannen');
+  if (!bak || bak.dataset.bpGekoppeld) return;
+  bak.dataset.bpGekoppeld = '1';
+  bak.addEventListener('pointerdown', e => {
+    const chip = e.target.closest('.bp-wk[data-bp-pak]');
+    if (!chip || e.button > 0 || sleep) return;
+    sleep = { chip, plan: chip.dataset.bpPlan, van: chip.dataset.bpM, x0: e.clientX, y0: e.clientY,
+      pid: e.pointerId, vinger: e.pointerType !== 'mouse', actief: false, doel: null };
+    // vinger: pas na even vasthouden, zodat gewoon scrollen blijft werken
+    if (sleep.vinger) sleep.timer = setTimeout(() => sleep && beginSleep(sleep.x0, sleep.y0), 280);
+  });
+  bak.addEventListener('click', e => {
+    const chip = e.target.closest('.bp-wk[data-bp-tik]');
+    if (!chip || performance.now() - sleepKlaar < 450) return;    // net losgelaten na slepen: geen tik
+    openZet({ soort: 'vrij', planId: chip.dataset.bpPlan, m: chip.dataset.bpM });
+  });
+  bak.addEventListener('contextmenu', e => { if (e.target.closest('.bp-wk')) e.preventDefault(); });
+  koppelVenster();
 }
 
-function wijzigVrijeWeek(planId, maandag, trainingen, ctx){
-  const items = trainingen.filter(t => t.plan?.id === planId);
+function koppelVenster(){
+  if (vensterGekoppeld) return;
+  vensterGekoppeld = true;
+  window.addEventListener('pointermove', e => {
+    if (!sleep || e.pointerId !== sleep.pid) return;
+    if (!sleep.actief){
+      const d = Math.hypot(e.clientX - sleep.x0, e.clientY - sleep.y0);
+      if (sleep.vinger){ if (d > 10) stopSleep(); return; }       // bewegen vóór het vasthouden = scrollen
+      if (d < 6) return;
+      beginSleep(e.clientX, e.clientY);
+    }
+    beweegSleep(e.clientX, e.clientY);
+  });
+  window.addEventListener('pointerup', e => {
+    if (!sleep || e.pointerId !== sleep.pid) return;
+    const s = sleep, doel = s.actief ? s.doel : null;
+    if (s.actief) sleepKlaar = performance.now();
+    stopSleep();
+    if (doel) openZet({ soort: 'sleep', planId: s.plan, van: s.van, naar: doel.dataset.bpM, modus: 'rest' });
+  });
+  window.addEventListener('pointercancel', e => { if (sleep && e.pointerId === sleep.pid) stopSleep(); });
+  document.addEventListener('touchmove', e => { if (sleep?.actief) e.preventDefault(); }, { passive: false });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && sleep) stopSleep(); });
+}
+
+function beginSleep(x, y){
+  const s = sleep; if (!s) return;
+  clearTimeout(s.timer);
+  const kaart = s.chip.closest('.bp-plan');
+  if (!s.chip.isConnected || !kaart){ sleep = null; return; }
+  s.actief = true;
+  const r = s.chip.getBoundingClientRect();
+  s.dx = x - r.left; s.dy = y - r.top;
+  s.spook = s.chip.cloneNode(true);
+  s.spook.classList.add('bp-spook');
+  s.spook.removeAttribute('data-bp-pak'); s.spook.removeAttribute('data-bp-tik');
+  s.spook.style.width = r.width + 'px'; s.spook.style.height = r.height + 'px';
+  document.body.appendChild(s.spook);
+  document.body.classList.add('bp-sleept');
+  kaart.classList.add('bp-bron');
+  s.chip.classList.add('bp-vast');
+  kaart.querySelectorAll('.bp-wk').forEach(c => { if (c !== s.chip) c.classList.add('bp-doel'); });
+  navigator.vibrate?.(10);
+  beweegSleep(x, y);
+}
+function beweegSleep(x, y){
+  const s = sleep;
+  s.spook.style.transform = `translate(${x - s.dx}px, ${y - s.dy}px) rotate(-3deg) scale(1.06)`;
+  const el = document.elementFromPoint(x, y)?.closest?.('.bp-wk.bp-doel') || null;
+  const doel = el && el.dataset.bpPlan === s.plan ? el : null;
+  if (doel === s.doel) return;
+  zetDoel(s.doel, false); zetDoel(doel, true); s.doel = doel;
+}
+function zetDoel(c, aan){
+  if (!c) return;
+  const span = c.querySelector('span');
+  c.classList.toggle('bp-op', aan);
+  if (aan){ c.dataset.bpSub = span.textContent; span.textContent = c.hasAttribute('data-bp-pak') ? 'wissel' : 'hierheen'; }
+  else if (c.dataset.bpSub != null){ span.textContent = c.dataset.bpSub; delete c.dataset.bpSub; }
+}
+function stopSleep(){
+  const s = sleep; if (!s) return;
+  clearTimeout(s.timer);
+  zetDoel(s.doel, false);
+  s.spook?.remove();
+  document.body.classList.remove('bp-sleept');
+  document.querySelectorAll('.bp-bron,.bp-vast,.bp-doel').forEach(el => el.classList.remove('bp-bron', 'bp-vast', 'bp-doel'));
+  sleep = null;
+}
+
+/* Na opslaan tekent clubbeheer het scherm opnieuw: zet de scrollstand terug,
+   zodat je door kunt slepen zonder elke keer naar boven te springen. */
+function onthoudScroll(){
+  const y = window.scrollY, lijst = [];
+  for (let n = pl.v; n; n = n.parentElement) if (n.scrollTop) lijst.push([n, n.scrollTop]);
+  return () => { window.scrollTo(0, y); lijst.forEach(([n, top]) => { if (n.isConnected) n.scrollTop = top; }); };
+}
+
+/* Teams die door de verplaatsing in één week twee keer hetzelfde training-
+   nummer krijgen, omdat ze daar ook een training uit een andere reeks hebben. */
+function dubbelNaZet(planId, items, zet){
+  const uit = new Map(), gezien = new Set();
+  for (const t of items){
+    const oud = wsVan(t), ws = oud ? zet.get(oud) : null, nr = Number(t.trainingNr) || 0;
+    if (!ws || !nr) continue;
+    for (const o of pl.trainingen){
+      if (o.id === t.id || o.plan?.id === planId) continue;
+      if (wsVan(o) !== ws || (Number(o.trainingNr) || 0) !== nr) continue;
+      for (const tid of (t.teams || [])){
+        const k = `${tid}|${ws}|${nr}`;
+        if (!(o.teams || []).includes(tid) || gezien.has(k)) continue;
+        gezien.add(k);
+        const gk = `${tid}|${ws}`;
+        if (!uit.has(gk)) uit.set(gk, { naam: pl.teams.find(x => x.id === tid)?.naam || 'Een team', ws, nrs: [] });
+        uit.get(gk).nrs.push(nr);
+      }
+    }
+  }
+  return [...uit.values()].map(d => ({ ...d, nrs: d.nrs.sort((a, b) => a - b) }));
+}
+
+/* Bevestigen en opslaan. v = { soort:'sleep', planId, van, naar, modus } of
+   { soort:'vrij', planId, m }. */
+function openZet(v){
+  const items = pl.trainingen.filter(t => t.plan?.id === v.planId);
   if (!items.length) return;
   const plan = items[0].plan;
-  const vrij = new Set(plan.vrij || []);
-  const wordtVrij = !vrij.has(maandag);
-  wordtVrij ? vrij.add(maandag) : vrij.delete(maandag);
-  const nieuweVrij = [...vrij].sort();
-  const eersteWk = planEerste(plan);
-  const aantal = Math.max(1, (plan.weken || Math.max(...items.map(i => i.blokWeek || 1))) - eersteWk + 1);
-  const map = planWeken(plan.start, nieuweVrij, aantal);
+  const st0 = planStand(items);
   const nuMa = maandagVan(vandaagIso());
-  // alleen toekomstige weken verschuiven; wat in deze of een eerdere week valt blijft staan
-  const wijzig = items.map(t => {
-    const ws = map[(t.blokWeek || 1) - eersteWk];
-    if (!ws || ws === t.weekStart || (t.weekStart || '') <= nuMa) return null;
-    return { t, ws };
-  }).filter(Boolean);
+  const sleepVrij = v.soort === 'sleep' && !st0.has(v.naar);
+  if (v.soort === 'sleep' && (!st0.has(v.van) || v.van === v.naar)) return;
+  const titel = v.soort === 'vrij' ? (st0.has(v.m) ? 'Week laten vervallen' : 'Week terugzetten')
+    : sleepVrij ? `${hoofd(bwTekst(st0.get(v.van)))} verplaatsen` : 'Weken wisselen';
+  const zetScrollTerug = onthoudScroll();
+  const aantal = r => [...r.zet.keys()].reduce((s, m) => s + (st0.get(m)?.n || 0), 0);
 
-  const perBlokweek = new Map();
-  wijzig.forEach(w => { if (!perBlokweek.has(w.t.blokWeek)) perBlokweek.set(w.t.blokWeek, w); });
-  const rijen = [...perBlokweek.entries()].sort((a, b) => a[0] - b[0]).map(([bw, w]) =>
-    `<tr><td class="bp-bw">Week ${bw}</td><td>${esc(weekLabel(w.t.weekStart))} → <b>${esc(weekLabel(w.ws))}</b></td></tr>`).join('');
-
-  openModal(`
-    <h2>${wordtVrij ? 'Week laten vervallen' : 'Week terugzetten'}</h2>
-    <p class="bp-uitleg">Week ${isoWeekNr(maandag)} (vanaf ${esc(kortDatum(maandag))}) wordt ${wordtVrij ? '<b>vrij</b>' : 'weer een <b>trainingsweek</b>'}.
-      ${wijzig.length ? `${wijzig.length} training${wijzig.length === 1 ? ' schuift' : 'en schuiven'} een week ${wordtVrij ? 'op' : 'terug'}, met titel en zichtbaarheid.` : 'Er hoeven geen trainingen te verschuiven.'}</p>
-    ${rijen ? `<table class="bp-tabel"><thead><tr><th>Blok</th><th>Wordt</th></tr></thead><tbody>${rijen}</tbody></table>` : ''}
-    <p class="bp-hint">Heb je een titel van een van deze trainingen met de hand aangepast, dan wordt die weer "Week … - training …".</p>
-    <button class="knop vol" id="bpSchuif">${wijzig.length ? (wordtVrij ? `Schuif ${wijzig.length} op` : `Zet ${wijzig.length} terug`) : 'Opslaan'}</button>
-    <button class="knop licht vol u-mt-xs" id="bpAnnuleer" >Annuleren</button>`);
-  $('#bpAnnuleer').onclick = () => sluitModal();
-  $('#bpSchuif').onclick = async () => {
-    const knop = $('#bpSchuif'); knop.disabled = true; knop.textContent = 'Bezig…';
-    try {
-      const batch = writeBatch(db);
-      const gewijzigd = new Map(wijzig.map(w => [w.t.id, w.ws]));
-      for (const t of items){
-        const upd = { 'plan.vrij': nieuweVrij };
-        const ws = gewijzigd.get(t.id);
-        if (ws){
-          upd.weekStart = ws;
-          upd.week = weekLabel(ws);
-          upd.titel = titelVoor(ws, t.trainingNr || 1);
-          upd.zichtbaarVanaf = zichtbaarDatum(ws, plan.zichtbaar);
-        }
-        batch.update(doc(db, 'trainingen', t.id), upd);
-      }
-      await batch.commit();
-      sluitModal();
-      meld(wordtVrij ? `Week ${isoWeekNr(maandag)} vrij, ${wijzig.length} verschoven` : `Week ${isoWeekNr(maandag)} teruggezet`);
-      ctx.renderClub?.();
-    } catch(e){
-      console.error('[blokplan] verschuiven mislukt', e);
-      meld('Opslaan mislukt: ' + (e.code || e.message));
-      knop.disabled = false; knop.textContent = 'Opnieuw proberen';
+  openModal(`<h2>${esc(titel)}</h2><div id="bpZet"></div>`);
+  const teken = () => {
+    const root = document.getElementById('bpZet'); if (!root) return;
+    let r, zin, knop, keuze = '', meldTekst;
+    if (v.soort === 'vrij'){
+      r = rekenVrij(items, plan.vrij, v.m);
+      const n = aantal(r);
+      zin = `Week ${isoWeekNr(v.m)} (vanaf ${esc(kortDatum(v.m))}) wordt ${r.wordtVrij ? '<b>vrij</b>' : 'weer een <b>trainingsweek</b>'}.
+        ${n ? `${hoofd(nTr(n))} ${n === 1 ? 'schuift' : 'schuiven'} een week ${r.wordtVrij ? 'op' : 'terug'}, met titel en zichtbaarheid.` : 'Er hoeven geen trainingen te verschuiven.'}`;
+      knop = n ? (r.wordtVrij ? `Schuif ${n} op` : `Zet ${n} terug`) : 'Opslaan';
+      meldTekst = r.wordtVrij ? `Week ${isoWeekNr(v.m)} vrij, ${n} verschoven` : `Week ${isoWeekNr(v.m)} teruggezet`;
+    } else if (!sleepVrij){
+      r = rekenSleep(items, plan.vrij, v.van, v.naar, 'een');
+      zin = `<b>${esc(hoofd(bwTekst(st0.get(v.van))))}</b> en <b>${esc(bwTekst(st0.get(v.naar)))}</b> wisselen van plek. De andere weken blijven staan.`;
+      knop = `Wissel ${nTr(aantal(r))}`;
+      meldTekst = 'Weken gewisseld';
+    } else {
+      const erna = [...st0.keys()].filter(c => c > v.van).length;
+      const rest = erna ? rekenSleep(items, plan.vrij, v.van, v.naar, 'rest') : null;
+      if (!rest || rest.botsing) v.modus = 'een';
+      r = v.modus === 'rest' ? rest : rekenSleep(items, plan.vrij, v.van, v.naar, 'een');
+      zin = `<b>${esc(hoofd(bwTekst(st0.get(v.van))))}</b> gaat van week ${isoWeekNr(v.van)} naar <b>week ${isoWeekNr(v.naar)}</b> (vanaf ${esc(kortDatum(v.naar))}).`
+        + (v.modus === 'rest' ? ` De ${erna === 1 ? 'week' : erna + ' weken'} erna ${erna === 1 ? 'schuift' : 'schuiven'} mee.` : erna ? ' De andere weken blijven staan.' : '');
+      if (erna) keuze = `
+        <div class="bp-keuze">
+          <div class="segment" role="group" aria-label="Wat verplaats je?">
+            <button type="button" data-bp-modus="rest" class="${v.modus === 'rest' ? 'actief' : ''}" aria-pressed="${v.modus === 'rest'}"${rest.botsing ? ' aria-disabled="true"' : ''}>Deze week en alles erna</button>
+            <button type="button" data-bp-modus="een" class="${v.modus === 'een' ? 'actief' : ''}" aria-pressed="${v.modus === 'een'}">Alleen deze week</button>
+          </div>
+          ${rest.botsing ? `<p class="bp-hint">Alles erna meeschuiven kan hier niet: week ${isoWeekNr(rest.botsing)} is al bezet.</p>` : ''}
+        </div>`;
+      const n = aantal(r);
+      knop = `Verplaats ${nTr(n)}`;
+      meldTekst = `${hoofd(nTr(n))} verplaatst`;
     }
+    const rijen = [...r.zet].sort((a, b) => a[1].localeCompare(b[1])).map(([oud, nieuw]) => {
+      const c = st0.get(oud), zv = zichtbaarDatum(nieuw, plan.zichtbaar);
+      return `<tr><td class="bp-bw">${esc(hoofd(bwTekst(c)))}<small>${nTr(c.n)}</small></td><td>wk ${isoWeekNr(oud)} → <b>wk ${isoWeekNr(nieuw)}</b></td><td class="bp-zv">${zv ? esc(kortDatum(zv)) : 'meteen'}</td></tr>`;
+    }).join('');
+    const verleden = [...new Set([...r.zet.values()].filter(m => m < nuMa))].sort();
+    const dubbel = dubbelNaZet(plan.id, items, r.zet);
+    root.innerHTML = `
+      <p class="bp-uitleg">${zin}</p>
+      ${keuze}
+      ${rijen ? `<table class="bp-tabel"><thead><tr><th>Blok</th><th>Wordt</th><th>Zichtbaar vanaf</th></tr></thead><tbody>${rijen}</tbody></table>` : ''}
+      ${verleden.length ? `<div class="mm-samenv warn bp-let">${WAARSCHUW}<span>Let op: week ${verleden.map(isoWeekNr).join(' en ')} is al voorbij. Je kunt de trainingen daarna gewoon weer verslepen.</span></div>` : ''}
+      ${dubbel.length ? `<div class="mm-samenv warn bp-let">${WAARSCHUW}<span>${dubbel.slice(0, 3).map(d => `<b>${esc(d.naam)}</b> heeft in week ${isoWeekNr(d.ws)} al training ${d.nrs.join(' en ')} uit een andere reeks`).join('. ')}${dubbel.length > 3 ? `, en dat geldt voor nog ${dubbel.length - 3} ${dubbel.length - 3 === 1 ? 'week of team' : 'weken of teams'}` : ''}. Die training staat er dan dubbel.</span></div>` : ''}
+      ${r.zet.size ? `<p class="bp-hint">Heb je een titel van een van deze trainingen met de hand aangepast, dan wordt die weer "Week … - training …".</p>` : ''}
+      <button class="knop fluo vol u-mt-xs" id="bpSchuif">${knop}</button>
+      <button class="knop licht vol u-mt-xs" id="bpAnnuleer">Annuleren</button>`;
+    root.querySelectorAll('[data-bp-modus]').forEach(b => b.onclick = () => {
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      v.modus = b.dataset.bpModus; teken();
+      document.querySelector(`#bpZet [data-bp-modus="${v.modus}"]`)?.focus();
+    });
+    $('#bpAnnuleer').onclick = () => sluitModal();
+    $('#bpSchuif').onclick = () => bewaarZet(plan, items, r, meldTekst, zetScrollTerug);
   };
+  teken();
+}
+
+async function bewaarZet(plan, items, r, meldTekst, zetScrollTerug){
+  const knop = $('#bpSchuif'); knop.disabled = true; knop.textContent = 'Bezig…';
+  try {
+    const batch = writeBatch(db);
+    for (const t of items){
+      // plan.start blijft de week van de eerste training, zodat het plan zelf blijft kloppen
+      const upd = { 'plan.vrij': r.vrij, 'plan.start': r.eerste };
+      const oud = wsVan(t), ws = oud ? r.zet.get(oud) : null;
+      if (ws){
+        upd.weekStart = ws;
+        upd.week = weekLabel(ws);
+        upd.titel = titelVoor(ws, t.trainingNr || 1);
+        upd.zichtbaarVanaf = zichtbaarDatum(ws, plan.zichtbaar);
+      }
+      batch.update(doc(db, 'trainingen', t.id), upd);
+    }
+    await batch.commit();
+  } catch(e){
+    console.error('[blokplan] verplaatsen mislukt', e);
+    meld('Opslaan mislukt: ' + (e.code || e.message));
+    knop.disabled = false; knop.textContent = 'Opnieuw proberen';
+    return;
+  }
+  sluitModal();
+  meld(meldTekst);
+  try { await pl.ctx?.renderClub?.(); zetScrollTerug(); }
+  catch(e){ console.error('[blokplan] hertekenen mislukt', e); }
 }

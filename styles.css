@@ -5785,6 +5785,32 @@ button.cb-mnaam{height:44px}
 .bp-plan-kop{display:flex;flex-direction:column;gap:var(--space-2xs)}
 .bp-plan-kop b{font-size:var(--t-lg)}
 .bp-plan-kop span{font-size:var(--t-sm);color:var(--ink-2)}
+/* [20261123a] Plannen: een week verslepen naar een andere week */
+.bp-plannen .bp-wk{position:relative;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.bp-plannen .bp-wk[aria-disabled="true"]{cursor:default}
+.bp-plannen .bp-wk[aria-disabled="true"]:hover{filter:none}
+.bp-plannen .bp-wk[data-bp-pak]{cursor:grab}
+.bp-plannen .bp-wk.nu{box-shadow:0 0 0 2px color-mix(in srgb, var(--ink) 38%, transparent)}
+.bp-grip{position:absolute;top:5px;right:5px;width:6px;height:10px;opacity:.55;color:var(--warn);pointer-events:none}
+.bp-grof{display:none}
+@media (pointer:coarse){ .bp-fijn{display:none} .bp-grof{display:inline} }
+body.bp-sleept, body.bp-sleept *{cursor:grabbing !important;-webkit-user-select:none;user-select:none}
+.bp-sleept .bp-plan:not(.bp-bron){opacity:.4}
+.bp-sleept .bp-wk{transition:opacity .12s ease, border-color .12s ease, background-color .12s ease, transform .12s ease}
+.bp-wk.bp-vast{opacity:.45;border-style:dashed}
+.bp-wk.bp-vast .bp-grip{display:none}
+.bp-wk.bp-doel{opacity:1;border-style:dashed;border-color:color-mix(in srgb, var(--in) 70%, transparent)}
+.bp-wk.bp-doel.bp-op{border-style:solid;border-color:var(--in);background:color-mix(in srgb, var(--in) 18%, transparent);transform:scale(1.06)}
+.bp-wk.bp-doel.bp-op span{color:var(--in)}
+.bp-wk.bp-doel.bp-op b{text-decoration:none;color:var(--ink)}
+.bp-wk.bp-spook{position:fixed;left:0;top:0;z-index:9999;margin:0;pointer-events:none;opacity:1;background:color-mix(in srgb, var(--warn) 22%, var(--card));box-shadow:0 14px 34px color-mix(in srgb, var(--zwart, #000) 55%, transparent);will-change:transform}
+.bp-spook .bp-grip{display:none}
+.bp-keuze{margin:var(--space-sm) 0 0}
+.bp-keuze .segment button{min-height:44px;white-space:normal}
+.bp-keuze .segment button[aria-disabled="true"]{opacity:.45;cursor:default}
+.bp-let{align-items:flex-start}
+.bp-let svg{flex-shrink:0;margin-top:1px}
+@media (prefers-reduced-motion:reduce){ .bp-sleept .bp-wk{transition:none} .bp-wk.bp-doel.bp-op{transform:none} }
 .bp-zv-badge{display:inline-block;margin-top:var(--space-2xs);font-size:var(--t-xs);font-weight:600;color:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 45%, transparent);border-radius:999px;padding:1px var(--space-xs)}
 .bp-uitleg{font-size:var(--t-md);line-height:1.5;margin:0 0 var(--space-xs)}
 
