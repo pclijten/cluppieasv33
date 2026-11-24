@@ -524,7 +524,7 @@ function videoRijHtml(vid, nr){
     ? `<img src="${esc(youtubeThumb(id))}" alt="" loading="lazy"><span class="play">▶</span>`
     : `<span class="play">▶</span>${upload ? '<span class="u-t-2xs u-fw-7" style="position:absolute;bottom:2px;right:3px;letter-spacing:.5px;color:var(--wit);background:color-mix(in srgb, var(--zwart) 55%, transparent);padding:1px var(--space-2xs);border-radius:3px;line-height:1">MP4</span>' : ''}`;
   return `
-    <div class="video-rij" data-open-video="${esc(href)}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
+    <div class="video-rij" data-open-video="${esc(href)}" data-video-id="${esc(vid.id || '')}" data-video-type="${upload ? 'upload' : 'youtube'}" data-video-titel="${esc(vid.titel || 'Video')}" style="cursor:pointer">
       <div class="thumb">${thumbInner}<span class="tv-nr">${nr}</span></div>
       <div class="v"><div class="v-titel">${esc(vid.titel || 'Video')}</div>
         <div class="v-meta">${vid.clubNaam ? esc(vid.clubNaam) : (upload ? 'Eigen video' : 'YouTube')}</div></div>

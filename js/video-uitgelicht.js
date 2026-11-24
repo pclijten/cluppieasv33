@@ -69,3 +69,56 @@ export async function markeerGezien(uid, videoId){
     await setDoc(doc(db, 'gebruikers', uid, 'meta', 'onboarding'), { videoGezien: { [videoId]: nu } }, { merge: true });
   } catch (err) { console.warn('[video] gezien niet bewaard', err); }
 }
+
+/* ==================== WIE HEEFT EEN VIDEO BEKEKEN [20261124c] ====================
+   Elke keer dat een trainer een video opent, tellen we dat in zijn eigen document
+     gebruik/{uid}_video_{clubId} = { uid, clubId, soort:'video', videos: { <videoId>: { n, laatst } } }
+   Dat document mag alleen de trainer zelf schrijven en alleen de clubbeheerder lezen (zelfde
+   regels als de gebruiksteller). Zonder `datum`, zodat de bestaande tellingen het overslaan.
+   We weten alleen dat de video geopend is, niet of hij is uitgekeken. */
+export async function logBekeken(uid, clubId, videoId){
+  if (!uid || !clubId || !videoId) return;
+  try {
+    const { db, doc, setDoc, increment, serverTimestamp } = await import(FIREBASE);
+    await setDoc(doc(db, 'gebruik', `${uid}_video_${clubId}`), { uid, clubId, soort: 'video', laatste: serverTimestamp(),
+      videos: { [videoId]: { n: increment(1), laatst: Date.now() } } }, { merge: true });
+  } catch (err) { console.warn('[video] bekijken niet geteld', err); }
+}
+
+/* Voor de beheerder: { <videoId>: { <uid>: { n, laatst } } } van de hele club. */
+export async function laadBekeken(clubId){
+  const { db, collection, getDocs, query, where } = await import(FIREBASE);
+  const snap = await getDocs(query(collection(db, 'gebruik'), where('soort', '==', 'video'), where('clubId', '==', clubId)));
+  return bekekenPerVideo(snap.docs.map(d => d.data()));
+}
+export function bekekenPerVideo(docs){
+  const uit = {};
+  for (const d of docs || []){
+    if (!d || !d.uid) continue;
+    for (const [vid, k] of Object.entries(d.videos || {})){
+      const n = Number(k?.n) || 0; if (n <= 0) continue;
+      ((uit[vid] ||= {})[d.uid] = { n, laatst: Number(k.laatst) || 0 });
+    }
+  }
+  return uit;
+}
+
+/* Overzicht van één video: per team de trainers met wel of niet bekeken, plus wie hem opende
+   zonder trainer van een van die teams te zijn (beheerders, coördinatoren).
+   teams: [{ id, naam, leden: { uid: true }, ledenInfo: { uid: { naam } } }], namen: { uid: naam } */
+export function bekekenOverzicht(vid, teams, bekeken, namen = {}){
+  const kijkers = (bekeken && bekeken[vid.id]) || {};
+  const trainers = new Set();
+  const perTeam = (vid.teams || []).map(tid => (teams || []).find(t => t.id === tid)).filter(Boolean).map(t => ({
+    id: t.id, naam: t.naam || 'Team',
+    trainers: Object.keys(t.leden || {}).filter(u => t.leden[u] === true).map(u => {
+      trainers.add(u);
+      return { uid: u, naam: t.ledenInfo?.[u]?.naam || namen[u] || 'Trainer', n: kijkers[u]?.n || 0, laatst: kijkers[u]?.laatst || 0 };
+    }).sort((a, b) => (b.n > 0) - (a.n > 0) || a.naam.localeCompare(b.naam, 'nl')),
+  }));
+  const anderen = Object.keys(kijkers).filter(u => !trainers.has(u))
+    .map(u => ({ uid: u, naam: namen[u] || 'Iemand anders van de club', n: kijkers[u].n, laatst: kijkers[u].laatst }))
+    .sort((a, b) => a.naam.localeCompare(b.naam, 'nl'));
+  return { perTeam, anderen, totaal: trainers.size, gezien: [...trainers].filter(u => kijkers[u]?.n > 0).length,
+    keer: Object.values(kijkers).reduce((s, k) => s + k.n, 0) };
+}
