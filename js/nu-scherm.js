@@ -23,6 +23,7 @@ import { vastePrefill } from './vaste-afmeldingen.js?v=20261106r';
 import { effectieveSelectie, spelersOpWedstrijd, spelersOpTraining } from './uitleen-regels.js?v=20261111d';
 import { doelTeksten, samenvattingNu, haalSamenvatting } from './doel-samenvatting.js?v=20261106r';
 import { veldPilHtml } from './veldkaart.js?v=20261120r';
+import { kiesUitgelicht, gezienNu, gezienGeladen, laadGezien, markeerGezien } from './video-uitgelicht.js?v=20261124a';
 
 const p2 = n => String(n).padStart(2, '0');
 const isoVan = d => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
@@ -388,6 +389,29 @@ function dagItem(r, nu){
   </div>`;
 }
 
+/* ---------- Uitgelichte video (uitleg per blok) [20261124a] ----------
+   Een video die de clubbeheerder uitlicht staat groot boven de Nu-kaart tot de coach hem één
+   keer geopend heeft. Daarna (of na "Later") blijft er een kleine regel onder de kaart staan. */
+function uitlegHtml(){
+  let k;
+  try {
+    k = kiesUitgelicht({ videos: S.videos, teamId: S.teamId, gezien: gezienNu(),
+      geladen: gezienGeladen(S.user?.uid), later: S._uitlegLater });
+  } catch (err) { console.warn('[nu] uitgelichte video niet bepaald', err); return { boven: '', onder: '' }; }
+  const boven = k.nieuw ? `<div class="nu-uitleg">
+      <button type="button" class="nu-uitleg-open" data-nu-uitleg="${esc(k.nieuw.id)}">
+        <span class="nu-uitleg-play" aria-hidden="true">${ico('training-video', 24)}</span>
+        <span class="nu-uitleg-tekst"><span class="nu-uitleg-label">Nieuw: bekijk de uitleg</span>
+          <b>${esc(k.nieuw.titel || 'Video')}</b>
+          <span class="nu-uitleg-sub">Tik om te kijken. Daarna vind je hem terug bij Video’s.</span></span>
+      </button>
+      <button type="button" class="nu-uitleg-later" data-nu-uitleg-later="${esc(k.nieuw.id)}" aria-label="Later bekijken" title="Later">&times;</button>
+    </div>` : '';
+  const onder = k.terug.length ? `<div class="nu-uitleg-terug">${k.terug.map(v =>
+      `<button type="button" class="nu-uitleg-klein" data-nu-uitleg="${esc(v.id)}">${ico('training-video', 16)}<span>${esc(v.titel || 'Video')}</span></button>`).join('')}</div>` : '';
+  return { boven, onder };
+}
+
 /* ---------- publiek ---------- */
 export function htmlNu(opties = {}){
   if (!S.team) return '';
@@ -414,8 +438,11 @@ export function htmlNu(opties = {}){
       wedstrijdDatums: new Set((S.wedstrijden || []).map(w => w.datum).filter(Boolean)),
       afgelast: e => e.type === 'training' ? !!afgelastOp(e.datum) : isAfgelast(e.w?._w) });
   } catch (err) { console.warn('[nu] kon Daarna niet bepalen', err); rijen = (c.daarna || []).map(e => ({ ...e, prio: 3 })); }
+  const uitleg = uitlegHtml();
   return `<section class="nu-blokje" aria-label="Nu">
+    ${uitleg.boven}
     <div class="nu-kaart${live ? ' nu-s-live' : ''}">${kaartHtml(c, nu)}</div>
+    ${uitleg.onder}
     ${rijen.length ? `<h2 class="nu-sectiekop">Daarna<button type="button" class="nu-agenda" data-nu-tab="planning" hidden>Agenda &#8250;</button></h2><div class="nu-daarna">${rijen.map(r => r.type === 'dag' ? dagItem(r, nu) : daarnaItem(r, nu)).join('')}</div>` : ''}
   </section>`;
 }
@@ -425,6 +452,18 @@ export function koppelNu(v, ctx){
   const blok = v.querySelector('.nu-blokje');
   if (!blok) return;
   blok.addEventListener('click', async ev => {
+    /* [20261124a] uitgelichte video: openen telt als gezien, het kruisje zet hem voor nu opzij */
+    const ul = ev.target.closest('[data-nu-uitleg-later]');
+    if (ul){ (S._uitlegLater ||= new Set()).add(ul.dataset.nuUitlegLater); document.activeElement?.blur?.(); S._nuVervers?.(); return; }
+    const uv = ev.target.closest('[data-nu-uitleg]');
+    if (uv){
+      const vid = (S.videos || []).find(x => x.id === uv.dataset.nuUitleg);
+      if (!vid) return;
+      ctx.openVideo?.(vid);
+      markeerGezien(S.user?.uid, vid.id);
+      document.activeElement?.blur?.(); S._nuVervers?.();
+      return;
+    }
     const dk = ev.target.closest('[data-nu-doel]');
     if (dk){
       const sl = dk.dataset.nuDoel, open = !(S._nuDoelOpen ||= new Set()).has(sl);
@@ -459,9 +498,9 @@ export function koppelNu(v, ctx){
     const pw = ev.target.closest('[data-nu-pres-wedstrijd]');
     if (pw){ S._presWedstrijdId = pw.dataset.nuPresWedstrijd; ctx.zetTeamTab('preswedstrijd'); return; }
     const vb = ev.target.closest('[data-nu-voorbereiding]');
-    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261123a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
+    if (vb){ const m = await import('./wedstrijd-voorbereiding.js?v=20261124a'); m.openVoorbereiding(vb.dataset.nuVoorbereiding, ctx); return; }
     const w = ev.target.closest('[data-nu-wedstrijd]');
-    if (w){ const m = await import('./wedstrijd.js?v=20261123a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
+    if (w){ const m = await import('./wedstrijd.js?v=20261124a'); m.openWedstrijd(w.dataset.nuWedstrijd); return; }
     const tr = ev.target.closest('[data-nu-training]');
     if (tr){
       const gelukt = ctx.openTraining ? await ctx.openTraining(tr.dataset.nuTraining) : false;
@@ -484,6 +523,8 @@ export function koppelNu(v, ctx){
     return true;
   };
   S._nuVervers = ververs;
+  /* [20261124a] wat deze coach elders al gezien heeft: één keer ophalen, dan pas de grote kaart tonen */
+  if (S.user?.uid && !gezienGeladen(S.user.uid)) laadGezien(S.user.uid).then(() => ververs());
   /* Elke minuut bijwerken zolang de hub open staat (aftellen, live, fase). */
   clearInterval(S._nuTik);
   S._nuTik = setInterval(() => { if (!ververs()) clearInterval(S._nuTik); }, 60000);

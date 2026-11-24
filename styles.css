@@ -6154,6 +6154,23 @@ html.desk .trw-nav { top: var(--dk-kop, 64px); }
 /* ══ 3e. Nu-scherm in de team-hub (js/nu-scherm.js) ══════════════════ */
 .nu-blokje { margin: var(--space-md) 0 var(--space-lg); }
 .nu-kaart { padding: var(--space-md); border: 1px solid var(--line-d); border-radius: var(--radius); background: var(--surface); }
+/* Uitgelichte video (js/video-uitgelicht.js): groot boven de Nu-kaart tot hij één keer geopend is, daarna klein eronder */
+.nu-uitleg { display: flex; align-items: stretch; margin-bottom: var(--space-sm); border-radius: var(--radius); background: var(--accent-vlak); color: var(--accent-ink); overflow: hidden; }
+.nu-uitleg-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-xs) var(--space-sm) var(--space-md); background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.nu-uitleg-play { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+.nu-uitleg-tekst { min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+.nu-uitleg-tekst b { font-size: var(--t-lg, 1.05rem); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.nu-uitleg-label { font-size: var(--t-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; opacity: .9; }
+.nu-uitleg-sub { font-size: var(--t-sm); opacity: .9; }
+.nu-uitleg-later { flex: none; width: 44px; background: none; border: 0; color: inherit; font-size: 24px; line-height: 1; cursor: pointer; opacity: .85; }
+.nu-uitleg-open:focus-visible, .nu-uitleg-later:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: -3px; }
+.nu-uitleg-terug { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-xs); }
+.nu-uitleg-klein { display: inline-flex; align-items: center; gap: var(--space-xs); max-width: 100%; min-height: 36px; padding: 0 var(--space-sm); border: 1px solid var(--line-d); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: var(--t-sm); font-weight: 600; cursor: pointer; }
+.nu-uitleg-klein span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-team.hub-pas[data-nu-krap] .nu-uitleg-sub { display: none; }
+.uitlicht-keuze { display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.uitlicht-keuze input { flex: none; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+.v-uitgelicht { display: inline-block; margin-left: var(--space-xs); padding: 1px var(--space-xs); border-radius: 999px; background: var(--accent-vlak); color: var(--accent-ink); font-size: var(--t-2xs, 11px); font-weight: 700; vertical-align: middle; }
 .nu-kaart.nu-s-live { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .nu-kaart-kop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); margin-bottom: var(--space-sm); }
 .nu-tag { display: inline-flex; align-items: center; min-height: 26px; padding: 0 var(--space-sm); border-radius: 999px; background: var(--surface-2); font-size: var(--t-sm); font-weight: 600; line-height: 1; }
