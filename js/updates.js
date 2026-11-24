@@ -23,6 +23,8 @@ import { ico } from './icons.js?v=20261106r';
    - tekst:     coach-uitleg, 1–3 zinnen */
 const RELEASES = [
   { maand: 'November 2026', tag: 'Nieuwste', items: [
+    ['training-video', 'Zien wie een video heeft bekeken', 'VIDEO', true,
+      'Voor clubbeheerders: bij elke video onder Club, Video\u2019s staat nu hoeveel trainers hem hebben geopend. Tik erop en je ziet per team wie hem wel en wie hem nog niet heeft bekeken. Trainers: de beheerder ziet alleen dat je een video hebt geopend en wanneer, niet of je hem hebt uitgekeken.'],
     ['training-video', 'Uitlegvideo bovenaan je startscherm', 'VIDEO', true,
       'Zet de club een nieuwe uitlegvideo klaar, bijvoorbeeld bij het begin van een blok, dan zie je die meteen bovenaan je startscherm. Heb je hem \u00e9\u00e9n keer geopend, dan verdwijnt hij van je startscherm. Je vindt hem daarna terug bij Video\u2019s. Clubbeheerders zetten dit aan met het potlood bij een video: vink "Uitlichten op het startscherm" aan.'],
   ]},

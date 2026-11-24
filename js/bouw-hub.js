@@ -31,8 +31,8 @@ import { getDocFromCache, getDocsFromCache } from 'https://www.gstatic.com/fireb
 import { BOUWEN, bouwNaam, SKILLS, SEIZOEN_FALLBACK, niveauKleur, TEAM_TAGS } from './config.js?v=20261111g';
 import { TE_GROEPEN, TE_NIV, TE_FOCUS_LADDER, TE_STEM, teDoelIco, teVervolg, teLeeftijd, teCriteriaVoor, teScores, teIsNieuw, teGroepWaarden, teKleur, teCijfer, teZinnen } from './team-evaluatie-criteria.js?v=20261119e';
 import { ico } from './icons.js?v=20261106r';
-import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261124b';
-import { openUitleenForm } from './uitleen-form.js?v=20261124b';
+import { trekUitleningIn, definitiefOverzetten, wijzigUitlening } from './teams-spelers.js?v=20261124c';
+import { openUitleenForm } from './uitleen-form.js?v=20261124c';
 import { vandaagLokaal, plusDagen, leenActief, leenStatus, leenSoortLabel, leenOmschrijving } from './uitleen-regels.js?v=20261111d';
 import { telGebruik } from './tracker.js?v=20261111g';
 import { analyseWedstrijd } from './analyse.js?v=20261111g';
@@ -218,7 +218,7 @@ export async function openBouwHub(clubId, bouw, isHerbezoek){
      lijn met de desktop. Lukt het laden daarvan niet, dan valt hij terug op
      het oude overlay-dashboard hieronder. */
   if (!isHerbezoek && !window.matchMedia('(min-width:1100px) and (min-height:520px)').matches){
-    try { const m = await import('./mobiel-bouw.js?v=20261124b'); await m.openMobielBouw(clubId, bouw); return; }
+    try { const m = await import('./mobiel-bouw.js?v=20261124c'); await m.openMobielBouw(clubId, bouw); return; }
     catch(e){ console.warn('[Cluppie] mobiele bouw-omgeving niet geladen, terug naar het oude dashboard', e); }
   }
   const el = bouwLaag();
@@ -907,7 +907,7 @@ function renderTeamsScherm(){
   inhoud.querySelectorAll('[data-bh-open-team]').forEach(b => {
     b.onclick = async () => {
       sluitBouwHub(); toonTerugPil();
-      const m = await import('./teams.js?v=20261124b');
+      const m = await import('./teams.js?v=20261124c');
       m.openTeam(b.dataset.bhOpenTeam);
     };
   });

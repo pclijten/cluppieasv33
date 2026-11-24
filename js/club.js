@@ -20,6 +20,7 @@ import { telGebruik, telNav } from './tracker.js?v=20261111g';
 import { ico } from './icons.js?v=20261106r';
 import { htmlTraincoKaart, koppelTraincoKaart } from './trainco-beheer.js?v=20261111g';
 import { htmlTeamsBeheer, koppelTeamsBeheer, htmlTeamBeheer, koppelTeamBeheer, htmlCoaches, koppelCoaches, aandachtRedenen, groepen as beheerGroepen } from './club-beheer.js?v=20261117e';
+import { laadBekeken, bekekenOverzicht } from './video-uitgelicht.js?v=20261124c';
 import { isBlokUpload, isZip, startBlokUpload, hervatBlokUpload, htmlPlannen, koppelPlannen, zichtbaarLabel, weekStartBijLabel, isoWeekNr, isoJaar, kortDatum as planKortDatum } from './training-plan.js?v=20261123a';
 import { initWachtrij, voegToeAanWachtrij, htmlUploadPaneel, htmlModelKeuze } from './upload-wachtrij.js?v=20261111g';
 import { rondesVan, voortgangOphalen, htmlEvalRondes, htmlRondeDetail, htmlRondeFormulier, koppelRondeFormulier, koppelRondeDetail, startConcept } from './evaluatierondes.js?v=20261113v';
@@ -54,7 +55,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261124b'); }
+async function teamsModule(){ return await import('./teams.js?v=20261124c'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -99,8 +100,8 @@ export function openClub(clubId){
 
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
-  S.clubId = null; S.club = null;
-  import('./teams.js?v=20261124b').then(m => { m.renderTeams(); toon('teams'); });
+  S.clubId = null; S.club = null; S.clubVideoBekeken = null;
+  import('./teams.js?v=20261124c').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -1963,6 +1964,30 @@ function modalVideoCategorieen(videos, focusNieuw = false){
   if (focusNieuw) $('#mVcNieuw')?.focus();
 }
 
+/* [20261124c] Wie heeft een video bekeken? Telling per trainer (video-uitgelicht.js), alleen voor de beheerder. */
+const clubNamen = (teams) => {
+  const n = {};
+  for (const t of teams) for (const [u, i] of Object.entries(t.ledenInfo || {})) if (i?.naam) n[u] = i.naam;
+  for (const bron of [S.club?.adminsInfo, S.club?.bouwCoordinatorenInfo, S.club?.trainingscoordinatorenInfo])
+    for (const [u, i] of Object.entries(bron || {})) if (i?.naam && !n[u]) n[u] = i.naam;
+  return n;
+};
+function bekekenTekst(vid, teams){
+  const o = bekekenOverzicht(vid, teams, S.clubVideoBekeken, {});
+  if (!o.keer) return o.totaal ? `Nog door niemand bekeken (${o.totaal} trainer${o.totaal === 1 ? '' : 's'})` : 'Nog niet bekeken';
+  return `Bekeken door ${o.gezien} van ${o.totaal} trainer${o.totaal === 1 ? '' : 's'}, ${o.keer} keer geopend ›`;
+}
+function modalVideoBekeken(vid, teams){
+  const o = bekekenOverzicht(vid, teams, S.clubVideoBekeken, clubNamen(teams));
+  const dag = ms => ms ? new Date(ms).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) : '';
+  const rij = p => `<div class="vk-rij ${p.n ? 'ja' : 'nee'}"><span class="vk-stip" aria-hidden="true">${p.n ? '✓' : ''}</span><span class="vk-naam">${esc(p.naam)}</span><span class="vk-info">${p.n ? `${p.n}× · ${esc(dag(p.laatst))}` : 'nog niet'}</span></div>`;
+  openPaneel(`
+    <h2>Wie heeft dit bekeken?</h2>
+    <p class="u-t-sm u-zacht u-mb-sm"><b>${esc(vid.titel || 'Video')}</b><br>${o.gezien} van ${o.totaal} trainer${o.totaal === 1 ? '' : 's'} bekeken, in totaal ${o.keer} keer geopend.</p>
+    ${o.perTeam.map(t => `<div class="vk-team"><h3>${esc(t.naam)}</h3>${t.trainers.length ? t.trainers.map(rij).join('') : '<p class="u-t-sm u-zacht">Geen trainers bij dit team.</p>'}</div>`).join('')}
+    ${o.anderen.length ? `<div class="vk-team"><h3>Anderen</h3>${o.anderen.map(rij).join('')}</div>` : ''}
+    <p class="u-t-2xs u-zacht u-mt-sm">Je ziet of iemand de video heeft geopend, niet of hij is uitgekeken. Er wordt geteld sinds 24 november 2026. Alleen clubbeheerders zien dit overzicht.</p>`);
+}
 function htmlClubVideos(teams, videos){
   const actief = S.clubVideoBouw || 'onder';
   const telPerBouw = {onder:0, midden:0, boven:0};
@@ -2016,7 +2041,8 @@ function htmlClubVideos(teams, videos){
         <span class="vsort-nr">${i + 1}</span>
         <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener" draggable="false">${thumbInner}</a>
         <div class="v"><div class="v-titel">${titel}${vid.uitgelicht ? '<span class="v-uitgelicht">Uitgelicht</span>' : ''}</div>
-          <div class="v-meta">${esc(teamNamen || '—')}</div></div>
+          <div class="v-meta">${esc(teamNamen || '—')}</div>
+          <button type="button" class="v-bekeken" data-vkijk="${vid.id}"${S.clubVideoBekeken ? '' : ' hidden'}>${S.clubVideoBekeken ? esc(bekekenTekst(vid, teams)) : ''}</button></div>
         <div class="acties">
           <button data-vschuif="${vid.id}" data-stap="-1" ${i === 0 ? 'disabled' : ''} aria-label="${titel} omhoog" title="Omhoog">${V_PIJL_OP}</button>
           <button data-vschuif="${vid.id}" data-stap="1" ${i === zichtbaar.length - 1 ? 'disabled' : ''} aria-label="${titel} omlaag" title="Omlaag">${V_PIJL_NEER}</button>
@@ -2622,6 +2648,18 @@ function koppelClubTab(v, tab, teams, trainingen, videos, documenten){
         const files = [...(e.target.files || [])]; if (!files.length) return;
         modalUploadVideo(files, teams, S.clubVideoBouw);
       };
+    }
+    /* [20261124c] wie heeft bekeken: één keer per minuut ophalen en de regels in de lijst invullen */
+    const vulBekeken = () => v.querySelectorAll('[data-vkijk]').forEach(b => {
+      const vid = videos.find(x => x.id === b.dataset.vkijk); if (!vid) return;
+      b.textContent = bekekenTekst(vid, teams); b.hidden = false;
+      b.onclick = () => modalVideoBekeken(vid, teams);
+    });
+    if (S.clubVideoBekeken) vulBekeken();
+    if (S.clubId && !(S._vkTijd && S._vkClub === S.clubId && Date.now() - S._vkTijd < 60000)){
+      S._vkTijd = Date.now(); S._vkClub = S.clubId;
+      laadBekeken(S.clubId).then(b => { S.clubVideoBekeken = b; if (S.clubTab === 'videos') vulBekeken(); })
+        .catch(e => console.warn('[club] bekeken-telling niet opgehaald:', e?.code || e?.message));
     }
     v.querySelectorAll('[data-vbewerk]').forEach(b => b.onclick = () => {
       const vid = videos.find(x => x.id === b.dataset.vbewerk);

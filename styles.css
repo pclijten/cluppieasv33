@@ -6170,6 +6170,16 @@ html.desk .trw-nav { top: var(--dk-kop, 64px); }
 #view-team.hub-pas[data-nu-krap] .nu-uitleg-sub { display: none; }
 .uitlicht-keuze { display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .uitlicht-keuze input { flex: none; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); }
+.v-bekeken { display: block; margin-top: 2px; padding: 2px 0; background: none; border: 0; color: var(--accent); font: inherit; font-size: var(--t-sm); font-weight: 600; text-align: left; cursor: pointer; }
+.v-bekeken[hidden] { display: none; }
+.vk-team { margin-top: var(--space-md); }
+.vk-team h3 { margin: 0 0 var(--space-2xs); font-size: var(--t-lg); }
+.vk-rij { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-xs) 0; border-bottom: 1px solid var(--line-d); }
+.vk-stip { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line-d); font-size: 13px; font-weight: 700; }
+.vk-rij.ja .vk-stip { background: var(--accent-vlak); border-color: var(--accent-vlak); color: var(--accent-ink); }
+.vk-naam { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vk-rij.nee .vk-naam { color: var(--ink-2); }
+.vk-info { flex: none; font-size: var(--t-sm); color: var(--ink-2); }
 .v-uitgelicht { display: inline-block; margin-left: var(--space-xs); padding: 1px var(--space-xs); border-radius: 999px; background: var(--accent-vlak); color: var(--accent-ink); font-size: var(--t-2xs, 11px); font-weight: 700; vertical-align: middle; }
 .nu-kaart.nu-s-live { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .nu-kaart-kop { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-sm); margin-bottom: var(--space-sm); }

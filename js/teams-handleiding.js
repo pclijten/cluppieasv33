@@ -4,7 +4,7 @@
    wat hierboven al in dit bestand staat. De zoekfunctionaliteit
    (#helpZoek) wordt door de hub (teams.js/koppelTeamTab) aangesloten,
    want die werkt direct op het gerenderde DOM-element. */
-import { onboardingHerstartBlok } from './onboarding.js?v=20261124b';
+import { onboardingHerstartBlok } from './onboarding.js?v=20261124c';
 
 export function htmlHandleiding(){
   return `<div class="hl">
@@ -301,7 +301,7 @@ export function htmlHandleiding(){
     </ul>
     </section>
 
-    <section class="hl-sec" data-zoek="privacy & namen cluppie gaat zorgvuldig om met de gegevens van (vaak minderjarige) spelers: in de app zie je standaard alleen voornamen . de achternaam wordt wél opgeslagen, maar nergens in de app getoond. de achternaam blijft binnen je eigen team en is alleen zichtbaar voor de coaches van dat team. leen je een speler uit, dan ziet de andere coach alleen de voorletter. beoordelingen en leerpunten zijn coach-only : spelers en ouders zien deze niet. verwijder je een speler, dan worden zijn gegevens (inclusief beoordelingen en leerpunten) verwijderd. deel gegevens uit spelersprofielen niet buiten het technisch kader. heb je vragen over privacy binnen de club? stem af met je hoofdcoach of clubbeheerder.">
+    <section class="hl-sec" data-zoek="privacy & namen cluppie gaat zorgvuldig om met de gegevens van (vaak minderjarige) spelers: in de app zie je standaard alleen voornamen . de achternaam wordt wél opgeslagen, maar nergens in de app getoond. de achternaam blijft binnen je eigen team en is alleen zichtbaar voor de coaches van dat team. leen je een speler uit, dan ziet de andere coach alleen de voorletter. beoordelingen en leerpunten zijn coach-only : spelers en ouders zien deze niet. verwijder je een speler, dan worden zijn gegevens (inclusief beoordelingen en leerpunten) verwijderd. deel gegevens uit spelersprofielen niet buiten het technisch kader. video's: de clubbeheerder kan zien welke trainers een video hebben geopend en wanneer. er wordt niet bijgehouden of je de video uitkijkt. heb je vragen over privacy binnen de club? stem af met je hoofdcoach of clubbeheerder.">
     <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4.6" y="10.4" width="14.8" height="9.8" rx="2.4"/><path d="M8 10.4V8a4 4 0 0 1 8 0v2.4"/><circle cx="12" cy="15.2" r="1.4" fill="currentColor" stroke="none"/></svg> Privacy &amp; namen</h3>
     <p>Cluppie gaat zorgvuldig om met de gegevens van (vaak minderjarige) spelers:</p>
     <ul>
@@ -310,6 +310,7 @@ export function htmlHandleiding(){
       <li>Beoordelingen en leerpunten zijn <b>coach-only</b>: spelers en ouders zien deze niet.</li>
       <li>Verwijder je een speler, dan worden zijn gegevens (inclusief beoordelingen en leerpunten) verwijderd.</li>
     </ul>
+    <p><b>Video’s:</b> de clubbeheerder kan zien welke trainers een video hebben geopend en wanneer, bijvoorbeeld om te weten of de uitleg van een nieuw blok is aangekomen. Er wordt niet bijgehouden of je de video uitkijkt.</p>
     <div class="tip">Deel gegevens uit spelersprofielen niet buiten het technisch kader. Heb je vragen over privacy binnen de club? Stem af met je hoofdcoach of clubbeheerder.</div>
 
     
