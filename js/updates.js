@@ -24,7 +24,7 @@ import { ico } from './icons.js?v=20261106r';
 const RELEASES = [
   { maand: 'November 2026', tag: 'Nieuwste', items: [
     ['training-video', 'Uitlegvideo bovenaan je startscherm', 'VIDEO', true,
-      'Zet de club een nieuwe uitlegvideo klaar, bijvoorbeeld bij het begin van een blok, dan zie je die meteen bovenaan je startscherm. Heb je hem \u00e9\u00e9n keer geopend, dan maakt hij plaats voor een klein knopje onder de kaart, zodat je hem altijd terugvindt. Hij staat ook gewoon bij Video\u2019s. Clubbeheerders zetten dit aan met het potlood bij een video: vink "Uitlichten op het startscherm" aan.'],
+      'Zet de club een nieuwe uitlegvideo klaar, bijvoorbeeld bij het begin van een blok, dan zie je die meteen bovenaan je startscherm. Heb je hem \u00e9\u00e9n keer geopend, dan verdwijnt hij van je startscherm. Je vindt hem daarna terug bij Video\u2019s. Clubbeheerders zetten dit aan met het potlood bij een video: vink "Uitlichten op het startscherm" aan.'],
   ]},
 
   { maand: 'September 2026', items: [

@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261124a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261124b'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261124a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261124b').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -4060,7 +4060,7 @@ function modalBewerkVideo(vid, teams){
     </div>
     <div class="veldgroep">
       <label class="uitlicht-keuze"><input type="checkbox" id="mVbUit" ${vid.uitgelicht ? 'checked' : ''}>
-        <span><b>Uitlichten op het startscherm</b><br><span class="u-t-sm u-zacht">Staat bovenaan bij de gekozen teams tot een trainer de video één keer heeft geopend. Daarna blijft hij daar klein staan om terug te vinden.</span></span></label>
+        <span><b>Uitlichten op het startscherm</b><br><span class="u-t-sm u-zacht">Staat bovenaan bij de gekozen teams tot een trainer de video één keer heeft geopend. Daarna vinden ze hem terug bij Video’s.</span></span></label>
     </div>
     <button class="knop vol" id="mVbOk">Wijzigingen opslaan</button>`);
   const sync = () => $$('#mVbTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
