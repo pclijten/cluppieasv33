@@ -54,7 +54,7 @@ const DOC_CATEGORIEN = [
 
 /* openTeam en modalNieuwTeam komen uit teams.js; om kringverwijzing te
    vermijden importeren we ze lui binnen de functies die ze nodig hebben. */
-async function teamsModule(){ return await import('./teams.js?v=20261123a'); }
+async function teamsModule(){ return await import('./teams.js?v=20261124a'); }
 
 /* ==================== CLUB AANMAKEN ==================== */
 export function modalNieuwClub(){
@@ -100,7 +100,7 @@ export function openClub(clubId){
 export function verlaatClubView(){
   stopUnsubs('club', 'clubContent');
   S.clubId = null; S.club = null;
-  import('./teams.js?v=20261123a').then(m => { m.renderTeams(); toon('teams'); });
+  import('./teams.js?v=20261124a').then(m => { m.renderTeams(); toon('teams'); });
 }
 
 async function clubTeamsOphalen(){
@@ -2015,7 +2015,7 @@ function htmlClubVideos(teams, videos){
         <span class="vsort-greep" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
         <span class="vsort-nr">${i + 1}</span>
         <a class="thumb" href="${esc(href)}" target="_blank" rel="noopener" draggable="false">${thumbInner}</a>
-        <div class="v"><div class="v-titel">${titel}</div>
+        <div class="v"><div class="v-titel">${titel}${vid.uitgelicht ? '<span class="v-uitgelicht">Uitgelicht</span>' : ''}</div>
           <div class="v-meta">${esc(teamNamen || '—')}</div></div>
         <div class="acties">
           <button data-vschuif="${vid.id}" data-stap="-1" ${i === 0 ? 'disabled' : ''} aria-label="${titel} omhoog" title="Omhoog">${V_PIJL_OP}</button>
@@ -4058,6 +4058,10 @@ function modalBewerkVideo(vid, teams){
         <button class="knop licht klein" id="mVbGeen">Geen</button>
       </div>
     </div>
+    <div class="veldgroep">
+      <label class="uitlicht-keuze"><input type="checkbox" id="mVbUit" ${vid.uitgelicht ? 'checked' : ''}>
+        <span><b>Uitlichten op het startscherm</b><br><span class="u-t-sm u-zacht">Staat bovenaan bij de gekozen teams tot een trainer de video één keer heeft geopend. Daarna blijft hij daar klein staan om terug te vinden.</span></span></label>
+    </div>
     <button class="knop vol" id="mVbOk">Wijzigingen opslaan</button>`);
   const sync = () => $$('#mVbTeams label').forEach(l => l.classList.toggle('aan', l.querySelector('input').checked));
   $$('#mVbTeams input').forEach(c => c.onchange = sync);
@@ -4068,6 +4072,9 @@ function modalBewerkVideo(vid, teams){
     if (!gekozen.length) return meld('Kies minstens één team');
     const titel = $('#mVbTitel').value.trim() || 'Video';
     const wijziging = {titel, teams: gekozen, ...videoCatVelden('mVbCat')};
+    // [20261124a] Uitlichten: bovenaan het Nu-scherm van de gekozen teams (zie video-uitgelicht.js)
+    const uit = $('#mVbUit').checked;
+    if (uit !== !!vid.uitgelicht){ wijziging.uitgelicht = uit; if (uit) wijziging.uitgelichtOp = serverTimestamp(); }
     if (!upload){
       const url = $('#mVbUrl').value.trim();
       if (!youtubeId(url)) return meld('Plak een geldige YouTube-link');

@@ -22,7 +22,12 @@ import { ico } from './icons.js?v=20261106r';
    - nieuw:     true → groene NIEUW-badge (spaarzaam gebruiken)
    - tekst:     coach-uitleg, 1–3 zinnen */
 const RELEASES = [
-  { maand: 'September 2026', tag: 'Nieuwste', items: [
+  { maand: 'November 2026', tag: 'Nieuwste', items: [
+    ['training-video', 'Uitlegvideo bovenaan je startscherm', 'VIDEO', true,
+      'Zet de club een nieuwe uitlegvideo klaar, bijvoorbeeld bij het begin van een blok, dan zie je die meteen bovenaan je startscherm. Heb je hem \u00e9\u00e9n keer geopend, dan maakt hij plaats voor een klein knopje onder de kaart, zodat je hem altijd terugvindt. Hij staat ook gewoon bij Video\u2019s. Clubbeheerders zetten dit aan met het potlood bij een video: vink "Uitlichten op het startscherm" aan.'],
+  ]},
+
+  { maand: 'September 2026', items: [
     ['team-coach', 'Bouwcoördinatoren', 'ALGEMEEN', true,
       'Nieuwe rol voor wie meerdere teams binnen een bouw (onder/midden/boven) overziet: een clubadmin wijst coördinatoren aan onder Instellingen. Een coördinator krijgt op het startscherm een eigen dashboard voor zijn bouw, met een teamkaart per team (poulestand, vorm, presentie, evaluatie-voortgang), spelers over de hele bouw met positie/opkomst/cijfer, uitleningen (incl. zelf een speler uitlenen), en alle evaluaties per team.'],
     ['action-share', 'Training delen met een ouder', 'TRAINING', true,
