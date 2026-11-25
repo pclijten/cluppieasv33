@@ -69,16 +69,19 @@ export function htmlRondeBalk(rondes, teamId, spelers, beoordelingen){
     const verlopen = d != null && d < 0;
     const kleur = pctKleur(pct, verlopen);
     const termijn = r.tot ? (verlopen ? `einddatum ${datumKort(r.tot)} is verstreken` : `t/m ${datumKort(r.tot)}`) : '';
+    /* [20261125b] de balk opent het teamoverzicht (ronde-overzicht.js): alle spelers en scores in één beeld */
     if (totaal && klaar >= totaal) return `
-      <div class="cb-rondebalk klaar"><div class="cb-rondebalk-kop">${ico('action-check', 20)}
-        <div class="cb-team-naam">${esc(r.naam)}<small>Alle ${totaal} spelers zijn beoordeeld. Top!</small></div></div></div>`;
+      <button type="button" class="cb-rondebalk klaar" data-ronde-overzicht="${esc(r.id)}"><div class="cb-rondebalk-kop">${ico('action-check', 20)}
+        <div class="cb-team-naam">${esc(r.naam)}<small>Alle ${totaal} spelers zijn beoordeeld. Bekijk je teamoverzicht.</small></div>
+        <span class="cb-pijl">${ico('navigation-forward', 18)}</span></div></button>`;
     return `
       <div class="cb-rondebalk">
         <div class="cb-rondebalk-kop">${ico('attendance-evaluatie', 20)}
           <div class="cb-team-naam">${esc(r.naam)}<small>Vul voor elke speler een ${soortTekst(r.soort)} in${termijn ? '<span class="sep" aria-hidden="true"></span>' + esc(termijn) : ''}</small></div></div>
         <div class="cb-ronde-cijfers"><b style="color:${kleur}">${klaar}/${totaal}</b><span>spelers gedaan</span></div>
         ${balk(pct, kleur)}
-        <button class="knop fluo vol" data-ronde-start="${esc(r.id)}" style="margin-top:var(--space-sm)">${klaar ? 'Verder met de volgende speler' : 'Beginnen'} →</button>
+        <div class="ro-knoppen"><button class="knop fluo" data-ronde-start="${esc(r.id)}">${klaar ? 'Verder beoordelen' : 'Beginnen'} →</button>
+          <button class="knop licht" data-ronde-overzicht="${esc(r.id)}">${ico('attendance-overview', 16)} Overzicht</button></div>
       </div>`;
   }).join('');
 }
@@ -149,7 +152,7 @@ export function htmlEvalRondes(rondes, voortgang){
     <div class="sectie-kop">Loopt nu</div>
     ${lopend.map(kaart).join('') || '<div class="kaart leeg">Er loopt geen evaluatieronde.</div>'}
     ${dicht.length ? `<div class="sectie-kop">Afgesloten</div>${dicht.map(kaart).join('')}` : ''}
-    <p class="cb-uitleg u-tc u-mt-sm">Cijfers en radars per team vind je onder Inzicht → Evaluaties.</p>`;
+    <p class="cb-uitleg u-tc u-mt-sm">Cijfers en radars per team vind je onder Inzicht → Evaluaties. Wie al klaar is, wie bezig is en alle scores van een ronde: open de bouw en kies Evaluatieronde.</p>`;
 }
 
 /* Eén ronde: voortgang per team, gegroepeerd per bouw. `groepen` = bouwGroepen(teams). */
