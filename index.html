@@ -1,218 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8">
-<script>
-/* Scripts draaien: elementen die pas via JS verschijnen (melding, coachmark)
-   mogen dan in rust verborgen staan. Zonder JS blijft alles zichtbaar. */
-document.documentElement.classList.add('js');
-/* Landingspagina-gate:wie de app al geïnstalleerd heeft (standalone), al eerder
-   is doorgeklikt, of via een specifieke link komt (bv. ?team=CODE uitnodiging),
-   gaat direct naar het inlogscherm. Nieuwe browserbezoekers zien eerst over.html. */
-(function(){
-  try{
-    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    var algezien = localStorage.getItem('cluppieIntroGezien') === '1';
-    var heeftParams = location.search.length > 0;
-    if (!standalone && !algezien && !heeftParams){
-      location.replace('over.html');
-    }
-  } catch(e){ /* localStorage geblokkeerd o.i.d. — dan gewoon het inlogscherm tonen */ }
-})();
-</script>
-<script>
-/* Thema-gate (vóór paint, tegen flash): zet data-thema op <html> op basis van
-   de laatst bekende clubdwang of persoonlijke voorkeur. De echte bron is het
-   clubdocument (themaModus), maar dat is bij eerste paint nog niet geladen —
-   daarom cachen we de laatst toegepaste stand in localStorage. thema.js
-   corrigeert later zodra het clubdocument binnen is. Zonder keuze: donker,
-   tenzij het systeem expliciet licht vraagt. */
-(function(){
-  try{
-    var dwang = localStorage.getItem('cluppieThemaDwang');      // 'donker'|'licht'|'' (leeg = coach kiest)
-    var eigen = localStorage.getItem('cluppieThemaEigen');      // 'donker'|'licht'|null
-    var deflt = localStorage.getItem('cluppieThemaDefault');    // 'licht'|'' (leeg = systeem)
-    var t;
-    if (dwang === 'donker' || dwang === 'licht'){
-      t = dwang;                                                 // clubdwang wint altijd
-    } else if (eigen === 'donker' || eigen === 'licht'){
-      t = eigen;                                                 // persoonlijke voorkeur
-    } else if (deflt === 'licht'){
-      t = 'licht';                                               // club-default 'standaard licht'
-    } else {
-      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'licht' : 'donker';
-    }
-    document.documentElement.setAttribute('data-thema', t);
-    var mc = document.querySelector('meta[name="theme-color"]');
-    if (mc) mc.setAttribute('content', t === 'licht' ? '#f4f6f8' : '#0e1116');
-  } catch(e){ document.documentElement.setAttribute('data-thema','donker'); }
-})();
-/* Lettergrootte-gate (vóór paint): zet --fs op <html> uit de persoonlijke
-   voorkeur, zodat tekst niet naspringt bij opstart. Alleen 0.9/1/1.15 toegestaan. */
-(function(){
-  try{
-    var g = localStorage.getItem('cluppieLettergrootte');   // '0.9'|'1'|'1.15'|null
-    var fs = (g === '0.9' || g === '1.15') ? g : '1';
-    document.documentElement.style.setProperty('--fs', fs);
-  } catch(e){}
-})();
-</script>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <meta name="theme-color" content="#0e1116">
-<title>Cluppie: coach je team</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Cluppie</title>
+<link rel="canonical" href="https://www.cluppie.io/">
+<link rel="icon" href="/icons/icon-192.png">
+<!-- Doorverwijspagina van cluppieasv33.nl naar www.cluppie.io (verhuizing ASV'33).
+     Dit ene bestand staat op het oude adres als index.html, 404.html, over.html, readme.html en nu-test.html.
+     Bron: tools/verhuis-asv33/doorverwijzing/ in de repo cluppie; uitleg in VERHUIZING-ASV33.md. -->
 <style>
-/* Opstart-laadscherm "tactisch bord": inline zodat het ook toont als styles.css traag laadt.
-   Vóór het inloggen is de club onbekend, dus dit scherm is neutraal Cluppie-rood. --club-kleur is het
-   enige knopje: zet je die op #opstart, dan volgen verloop, icoon-C en tinten vanzelf. De ruimtematen
-   zijn dezelfde als in styles.css. Barlow Condensed 800 komt lokaal uit fonts/ (de Google-fonts hieronder laden alleen 500-700). */
-@font-face{font-family:'Barlow Condensed';font-style:normal;font-weight:800;font-display:swap;src:url('fonts/barlow-condensed-latin-800-normal.woff2') format('woff2')}
-:root{--club-kleur:#cc2620;--op-wit:#fdfdfe;--op-tekst:rgba(253,253,254,.78);--op-schaduw:rgba(11,13,16,.3);--op-bal:#0e1013;
-  --op-font:"Barlow Condensed","Arial Narrow",sans-serif;--op-tekstfont:"Inter",ui-sans-serif,system-ui,sans-serif;--space-xs:8px;--space-md:16px;--space-lg:24px}
-#opstart{--op-boven:#d23c36;--op-onder:#7f1814;
-  --op-boven:color-mix(in srgb,var(--club-kleur) 92%,#fff 8%);--op-onder:color-mix(in srgb,var(--club-kleur) 58%,#070707 42%);
-  position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-lg);overflow:hidden;
-  background:var(--club-kleur);background:linear-gradient(165deg,var(--op-boven) 0%,var(--club-kleur) 45%,var(--op-onder) 100%);
-  font-family:var(--op-tekstfont);-webkit-font-smoothing:antialiased;transition:opacity .35s ease}
-#opstart.weg{opacity:0;pointer-events:none}
-/* stippenraster van het tactiekbord, vervaagt naar de randen */
-.opstart-raster,.opstart-lijnen{position:absolute;inset:0;pointer-events:none;-webkit-mask-image:radial-gradient(circle at 50% 45%,#000 22%,transparent 76%);mask-image:radial-gradient(circle at 50% 45%,#000 22%,transparent 76%)}
-.opstart-raster{background-image:radial-gradient(rgba(255,255,255,.09) 1px,transparent 1px);background-size:24px 24px;opacity:.9}
-.opstart-lijnen svg{width:100%;height:100%;display:block}
-.opstart-lijn{fill:none;stroke:rgba(255,255,255,.11);stroke-width:1.5}
-.opstart-loop{fill:none;stroke:rgba(255,255,255,.22);stroke-width:1.75;stroke-dasharray:6 6;stroke-dashoffset:120;animation:opstartLoop 1.8s cubic-bezier(.25,1,.5,1) forwards}
-.opstart-merk{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;transform:translateY(-1.5vh)}
-/* app-icoon met een voortgangsring eromheen */
-.opstart-ring{position:relative;width:112px;height:112px;display:flex;align-items:center;justify-content:center}
-.opstart-ring>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.opstart-ring-bg,.opstart-ring-vol{fill:none;stroke-width:2.5}
-.opstart-ring-bg{stroke:rgba(255,255,255,.16)}
-.opstart-ring-vol{stroke:var(--op-wit);stroke-linecap:round;stroke-dasharray:314;stroke-dashoffset:314;animation:opstartRing 2.2s cubic-bezier(.45,.05,.55,.95) infinite}
-.opstart-logo{width:86px;height:86px;border-radius:22.5%;background:var(--op-wit);display:block;box-shadow:0 18px 36px -8px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.2);animation:opstartPop .55s cubic-bezier(.16,1,.3,1) both}
-.opstart-logo svg{width:100%;height:100%;display:block;overflow:visible}
-.opstart-c{fill:none;stroke:var(--club-kleur);stroke-width:18;stroke-linecap:round}
-.opstart-bal{fill:var(--op-bal);transform-box:fill-box;transform-origin:center;animation:opstartPass .85s cubic-bezier(.22,1,.36,1) .2s both}
-.opstart-naam{margin-top:20px;font-family:var(--op-font);font-weight:800;font-size:38px;letter-spacing:.12em;text-indent:.12em;color:var(--op-wit);text-transform:uppercase;line-height:1;animation:opstartOp .55s cubic-bezier(.16,1,.3,1) .15s both}
-/* wisselende statusregel */
-.opstart-status{position:relative;margin-top:12px;height:20px;width:240px;text-align:center;animation:opstartOp .55s ease .3s both}
-.opstart-status span{position:absolute;inset:0;font-size:13px;font-weight:500;letter-spacing:.02em;color:var(--op-tekst);opacity:0;animation:opstartTekst 4.5s ease-in-out infinite}
-.opstart-status span:nth-child(2){animation-delay:1.5s}
-.opstart-status span:nth-child(3){animation-delay:3s}
-@keyframes opstartPop{0%{opacity:0;transform:scale(.86)}100%{opacity:1;transform:scale(1)}}
-@keyframes opstartPass{0%{opacity:0;transform:translate(24px,-16px) scale(.75)}70%{opacity:1;transform:translate(-2px,1px) scale(1.04)}100%{opacity:1;transform:none}}
-@keyframes opstartRing{0%{stroke-dashoffset:314}55%{stroke-dashoffset:70}100%{stroke-dashoffset:-314}}
-@keyframes opstartLoop{to{stroke-dashoffset:0}}
-@keyframes opstartOp{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}
-@keyframes opstartTekst{0%,5%{opacity:0;transform:translateY(4px)}12%,28%{opacity:1;transform:none}35%,100%{opacity:0;transform:translateY(-4px)}}
-.opstart-geduld{position:relative;z-index:1;margin-top:var(--space-lg);max-width:280px;font-size:13px;line-height:1.5;text-align:center;color:var(--op-tekst);background:var(--op-schaduw);padding:var(--space-xs) var(--space-md);border-radius:12px;transition:opacity .4s ease,transform .4s ease}
-.js .opstart-geduld{opacity:0;transform:translateY(6px)}
-.js .opstart-geduld.zichtbaar{opacity:1;transform:translateY(0)}
-@media (prefers-reduced-motion: reduce){
-  .opstart-logo,.opstart-bal,.opstart-naam,.opstart-status,.opstart-status span,.opstart-ring-vol,.opstart-loop{animation:none;opacity:1;transform:none}
-  .opstart-ring-vol{stroke-dashoffset:90}.opstart-loop{stroke-dashoffset:0}
-  .opstart-status span:not(:first-child){display:none}
-  #opstart,.opstart-geduld{transition:none}}
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;background:#0e1116;color:#e8ebf0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+  img{width:84px;height:84px;border-radius:22.5%;margin-bottom:20px}
+  p{margin:0 0 16px;max-width:30em}
+  a{display:inline-block;min-height:44px;line-height:44px;padding:0 20px;border-radius:10px;background:#cc2620;color:#fdfdfe;text-decoration:none;font-weight:600}
+  a:focus-visible{outline:3px solid #fdfdfe;outline-offset:3px}
 </style>
-<link rel="stylesheet" href="styles.css?v=20261125b">
 </head>
 <body>
-<!-- Tijdelijke melding tijdens de verhuizing naar cluppie.io (27-11-2026). Vervalt zodra de doorverwijzing aanstaat. -->
-<div role="alert" style="position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#0b3d2e;color:#fff;font:600 15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)">
-  Cluppie is vanochtend even niet bereikbaar. We zetten de app over naar een nieuwe plek. Binnen een uur werkt alles weer en je hoeft zelf niets te doen.
-</div>
-<div id="opstart" role="status" aria-label="Cluppie wordt geladen">
-  <div class="opstart-raster" aria-hidden="true"></div>
-  <div class="opstart-lijnen" aria-hidden="true">
-    <svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
-      <circle class="opstart-lijn" cx="500" cy="485" r="240"/>
-      <line class="opstart-lijn" x1="180" y1="805" x2="820" y2="165"/>
-      <path class="opstart-loop" d="M 240 740 Q 320 520 430 485"/>
-      <path class="opstart-loop" d="M 760 230 Q 680 450 570 485"/>
-    </svg>
-  </div>
-  <div class="opstart-merk">
-    <div class="opstart-ring">
-      <svg viewBox="0 0 112 112" aria-hidden="true">
-        <rect class="opstart-ring-bg" x="2" y="2" width="108" height="108" rx="30"/>
-        <rect class="opstart-ring-vol" x="2" y="2" width="108" height="108" rx="30" pathLength="314"/>
-      </svg>
-      <!-- het app-icoon (icons/icon.svg) in negatief: witte tegel, C in de clubkleur, bal die binnenkomt als een pass -->
-      <div class="opstart-logo"><svg viewBox="-24.83 -25.33 170.67 170.67" aria-hidden="true">
-        <path class="opstart-c" d="M90.64 34.29 A40 40 0 1 0 90.64 85.71"/>
-        <circle class="opstart-bal" cx="100" cy="60" r="10"/>
-      </svg></div>
-    </div>
-    <div class="opstart-naam">Cluppie</div>
-    <div class="opstart-status" aria-hidden="true"><span>Opstelling klaarzetten…</span><span>Tactiekbord openen…</span><span>Spelersdata laden…</span></div>
-  </div>
-  <div class="opstart-geduld" id="opstartGeduld">Duurt langer dan normaal: controleer je internetverbinding. De app blijft het proberen.</div>
-</div>
-<div id="login" class="login" style="display:none">
-  <div class="bord">
-    <img src="icons/icon-192.png" alt="Cluppie" class="login-logo">
-    <h1>Cluppie</h1>
-    <p>Maak per kwart je opstelling, sleep wissels het veld in en zie precies wie hoeveel speelt.</p>
-    <a href="over.html" target="_blank" rel="noopener" class="login-meer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11.4v5.4"/><circle cx="12" cy="8.2" r="0.7" fill="currentColor" stroke="none"/></svg> Meer over Cluppie</a>
-    <button class="knop fluo vol" id="googleLogin">Inloggen met Google</button>
-    <div class="of"><span>of met e-mail</span></div>
-    <form id="mailLoginForm" class="login-form" autocomplete="on">
-      <div class="veldgroep"><label for="loginEmail" class="login-label">Je e-mailadres</label>
-        <input class="invoer donker" id="loginEmail" name="email" type="email" inputmode="email" placeholder="naam@voorbeeld.nl" autocomplete="email"></div>
-      <div class="veldgroep"><label for="loginWachtwoord" class="login-label">Wachtwoord</label>
-        <input class="invoer donker" id="loginWachtwoord" name="password" type="password" placeholder="Minstens 6 tekens" autocomplete="current-password"></div>
-      <button class="knop fluo vol" id="wwLoginOk" type="submit">Inloggen</button>
-      <p class="login-klein">Nog geen account? Vul je e-mail en een wachtwoord in, dan wordt het account automatisch aangemaakt. <button type="button" id="wwVergeten" class="login-link">Wachtwoord vergeten?</button></p>
-    </form>
-  </div>
-</div>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <p>Cluppie heeft een nieuw adres: <b>cluppie.io</b>. Je wordt doorgestuurd.</p>
+  <a id="verder" href="https://www.cluppie.io/">Verder naar cluppie.io</a>
+</main>
+<script type="module">
+/* 1. Waarheen: zelfde pad, zelfde vraagteken-deel (teamcode, clubcode, deellink, hulplink), zelfde hekje. */
+const NIEUW = 'https://www.cluppie.io';
+const BEKEND = ['/', '/over.html', '/readme.html', '/privacy.html'];          // pagina's die op cluppie.io bestaan
+let pad = location.pathname.replace(/\/index\.html$/, '/');
+if (!BEKEND.includes(pad)) pad = '/';
+const doel = bewijs => {
+  const hekje = bewijs ? (location.hash ? location.hash + '&' : '#') + 'verhuis=' + encodeURIComponent(bewijs) : location.hash;
+  return NIEUW + pad + location.search + hekje;
+};
+document.getElementById('verder').href = doel('');
+let weg = false;
+const ga = bewijs => { if (weg) return; weg = true; location.replace(doel(bewijs)); };
 
-<div id="uitnodiging" class="login" style="display:none">
-  <div class="bord">
-    <h1 id="uitnodigTitel">Welkom!</h1>
-    <p id="uitnodigSubtitel">Je bent uitgenodigd als coach. Log in om aan te sluiten.</p>
-    <a href="over.html" target="_blank" rel="noopener" class="login-meer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11.4v5.4"/><circle cx="12" cy="8.2" r="0.7" fill="currentColor" stroke="none"/></svg> Meer over Cluppie</a>
-    <div class="login-form">
-      <button class="knop fluo vol" id="uitnodigGoogle">Aansluiten met Google</button>
-      <div class="of"><span>of met e-mail</span></div>
-      <form id="uitnodigForm" autocomplete="on">
-        <div class="veldgroep"><label for="uitnodigEmail" class="login-label">Je e-mailadres</label>
-          <input class="invoer donker" id="uitnodigEmail" name="email" type="email" inputmode="email" placeholder="naam@voorbeeld.nl" autocomplete="email"></div>
-        <div class="veldgroep"><label for="uitnodigWachtwoord" class="login-label">Wachtwoord</label>
-          <input class="invoer donker" id="uitnodigWachtwoord" name="password" type="password" placeholder="Minstens 6 tekens" autocomplete="current-password"></div>
-        <button class="knop fluo vol" id="uitnodigWwOk" type="submit">Aansluiten</button>
-        <p class="login-klein">Nog geen account? Vul je e-mail en een wachtwoord in, dan wordt het account automatisch aangemaakt.</p>
-      </form>
-      <p class="login-klein login-midden">Niet de juiste persoon? <button type="button" id="uitnodigAnders" class="login-link">Gebruik een ander account</button></p>
-    </div>
-  </div>
-</div>
+/* 2. Oude versie van de app van dit apparaat halen (anders toont de telefoon zonder bereik nog de oude app). */
+try {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(l => l.forEach(r => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then(l => l.forEach(k => caches.delete(k))).catch(() => {});
+} catch (e) {}
 
-<!-- [20260921] Openbare pagina voor een ouder die een training-deel-link opent
-     (?deel=<id>) — volledig los van de normale login/app-flow, geen navigatie,
-     geen toegang tot iets anders dan die ene gedeelde training. Zie
-     js/deel-boot.js. Standaard leeg/verborgen; main.js vult 'm alleen als de
-     URL een ?deel=-parameter bevat. -->
-<div id="deel" class="deel-pagina" style="display:none"></div>
-
-<div class="app" id="app" style="display:none">
-  <div id="view-teams" class="view"></div>
-  <div id="view-team" class="view"></div>
-  <div id="view-wedstrijd" class="view"></div>
-  <div id="view-club" class="view"></div>
-</div>
-
-<div id="sleepKloon" style="display:none"></div>
-<div class="modal-achter" id="modalAchter"><div class="modal" id="modalInhoud"></div></div>
-<div class="wz-achter" id="wizardAchter"></div>
-<div class="wo-achter" id="woAchter"><div class="wo-paneel" id="woPaneel"></div></div>
-<div class="melding" id="melding"></div>
-
-<script type="module" src="js/main.js?v=20261125b"></script>
+/* 3. Wie hier nog ingelogd is, hoeft op cluppie.io niet opnieuw in te loggen: vraag een eenmalig inlogbewijs
+      voor hetzelfde account (Cloud Function verhuisLogin van cluppie.io). Lukt dat niet binnen een paar tellen,
+      dan gaat de trainer gewoon door en logt daar in. Niet voor ouders op een deel- of hulplink (geen account). */
+const zoek = new URLSearchParams(location.search);
+async function inlogbewijs(){
+  if (zoek.get('deel') || zoek.get('hulp')) return '';
+  const [{ initializeApp }, { getAuth }] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js')]);
+  const auth = getAuth(initializeApp({
+    apiKey: "AIzaSyBA_bCwzw_sggWBo53GiEOdmMahUEFTJLo",
+    authDomain: "cluppieasv33.firebaseapp.com",
+    projectId: "cluppieasv33",
+    appId: "1:883305195610:web:81b08d8a450184404cd063"
+  }));
+  await auth.authStateReady();
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous) return '';
+  const idToken = await u.getIdToken();
+  const stop = new AbortController(); setTimeout(() => stop.abort(), 5000);
+  const r = await fetch('https://europe-west1-cluppie-ad329.cloudfunctions.net/verhuisLogin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { idToken } }), signal: stop.signal });
+  if (!r.ok) return '';
+  const j = await r.json();
+  return (j && j.result && typeof j.result.token === 'string') ? j.result.token : '';
+}
+setTimeout(() => ga(''), 7000);                                              // nooit blijven hangen
+inlogbewijs().then(b => ga(b), () => ga(''));
+</script>
+<noscript><p>Open <a href="https://www.cluppie.io/">www.cluppie.io</a>.</p></noscript>
 </body>
 </html>

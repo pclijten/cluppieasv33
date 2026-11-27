@@ -1,173 +1,80 @@
-<!DOCTYPE html>
-<html lang="nl" data-thema="donker" style="--fs:1">
+<!doctype html>
+<html lang="nl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0e1116">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Cluppie — Nu-scherm (testapp)</title>
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261125b">
+<meta name="theme-color" content="#0e1116">
+<title>Cluppie</title>
+<link rel="canonical" href="https://www.cluppie.io/">
+<link rel="icon" href="/icons/icon-192.png">
+<!-- Doorverwijspagina van cluppieasv33.nl naar www.cluppie.io (verhuizing ASV'33).
+     Dit ene bestand staat op het oude adres als index.html, 404.html, over.html, readme.html en nu-test.html.
+     Bron: tools/verhuis-asv33/doorverwijzing/ in de repo cluppie; uitleg in VERHUIZING-ASV33.md. -->
 <style>
-/* Alleen voor het Nu-scherm; alles andere komt uit de echte styles.css */
-.nu-wrap{padding-bottom:150px}
-.nu-kaart{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin:0 0 4px;border:1.5px solid transparent;transition:border-color .2s}
-.nu-kaart.nu-opclub{border-color:var(--accent)}
-.nu-s-live{border-color:var(--accent)}
-.nu-tag{display:inline-block;font-size:calc(12px * var(--fs));font-weight:600;padding:3px 10px;border-radius:999px;margin-bottom:10px;background:var(--op-vlak-2);color:var(--ink)}
-.nu-tag-live{background:var(--accent);color:#fff}
-.nu-tag-ok{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
-.nu-tag-warn{background:color-mix(in srgb,var(--warn) 24%,transparent);color:var(--warn)}
-.nu-tag-accent{background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
-.nu-plek{display:flex;align-items:center;gap:6px;font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-bottom:8px}
-.nu-titel{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(28px * var(--fs));line-height:1.1;text-transform:uppercase;letter-spacing:.3px}
-.nu-sub{font-size:calc(14px * var(--fs));color:var(--ink-2);margin:3px 0 12px}
-.nu-rij{display:flex;justify-content:space-between;gap:12px;font-size:calc(14px * var(--fs));padding:9px 0;border-top:1px solid var(--hair)}
-.nu-rij span:first-child{color:var(--ink-2);flex-shrink:0}
-.nu-rij span:last-child{text-align:right}
-.nu-let{color:var(--warn);font-weight:600}
-.nu-kaart .knop{margin-top:10px}
-.nu-kaart .knop:first-of-type{margin-top:14px}
-.nu-klok{text-align:center;margin:2px 0 12px}
-.nu-klok-sub{font-size:calc(12.5px * var(--fs));color:var(--ink-2)}
-.nu-klok-tijd{font-size:calc(54px * var(--fs));font-weight:700;line-height:1.05;letter-spacing:1px}
-.nu-stand{font-size:calc(17px * var(--fs));font-weight:600}
-.nu-waarom{display:flex;gap:6px;align-items:flex-start;font-size:calc(12px * var(--fs));color:var(--ink-2);margin:10px 2px 0;line-height:1.4}
-.nu-waarom svg{flex-shrink:0;margin-top:1px}
-.nu-daarna-kop{font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:16px 4px 6px}
-.nu-daarna{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:2px 14px}
-.nu-daarna .nu-rij-d:first-child{border-top:none}
-.nu-rij-d{padding:11px 0}
-.nu-hubkop{font-size:calc(12.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:22px 4px 0}
-.nu-blok{background:var(--op-vlak);border:1px solid var(--hair);border-radius:12px;padding:10px 12px;margin:2px 0 12px}
-.nu-blok-kop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.nu-blok-naam{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(17px * var(--fs));text-transform:uppercase;letter-spacing:.4px;color:var(--accent)}
-.nu-blok-wk{font-size:calc(12.5px * var(--fs));color:var(--ink-2);font-variant-numeric:tabular-nums}
-.nu-blok-balk{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin:8px 0 8px}
-.nu-blok-balk span{height:7px;border-radius:4px;background:var(--op-vlak-2)}
-.nu-blok-balk span.af{background:color-mix(in srgb,var(--accent) 55%,transparent)}
-.nu-blok-balk span.nu{background:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
-.nu-blok-seiz{display:flex;align-items:center;justify-content:space-between;font-size:calc(11.5px * var(--fs));color:var(--ink-2)}
-.nu-blok-stip{display:flex;gap:5px}
-.nu-blok-stip span{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:1px solid var(--hair);color:var(--ink-2)}
-.nu-blok-stip span.af{background:var(--op-vlak-2);color:var(--ink)}
-.nu-blok-stip span.nu{background:var(--accent);border-color:var(--accent);color:#fff}
-.nu-doel{display:flex;gap:8px;align-items:flex-start;font-size:calc(13.5px * var(--fs));line-height:1.45;color:var(--ink);padding:0 0 10px;margin-top:-2px}
-.nu-doel svg{flex-shrink:0;color:var(--accent);margin-top:2px}
-.nu-pres{display:grid;grid-template-columns:1fr auto;grid-template-areas:"g p" "a p";gap:2px 10px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-radius:12px;background:var(--op-vlak);border:1px solid var(--hair)}
-.nu-pres-getal{grid-area:g;font-size:calc(14px * var(--fs))}
-.nu-pres-af{grid-area:a;font-size:calc(12.5px * var(--fs));color:var(--warn);font-weight:500}
-.nu-pres-pijl{grid-area:p;color:var(--ink-2)}
-.nu-rij-knop{width:100%;text-align:left}
-.nu-rij-knop em{font-style:normal;color:var(--ink-2);font-size:calc(12px * var(--fs));margin-left:6px;font-variant-numeric:tabular-nums}
-.nu-sheet{position:fixed;inset:0;z-index:70}
-.nu-sheet[hidden]{display:none}
-.nu-sheet-achter{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-.nu-sheet-paneel{position:absolute;left:0;right:0;bottom:0;max-width:540px;margin:0 auto;background:var(--surface-2);border-radius:18px 18px 0 0;padding:8px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:85vh;overflow:auto;box-shadow:0 -10px 30px rgba(0,0,0,.4)}
-.nu-sheet-greep{width:40px;height:4px;border-radius:2px;background:var(--hair);margin:4px auto 12px}
-.nu-sheet-kop{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.nu-sheet-titel{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:calc(22px * var(--fs));text-transform:uppercase}
-.nu-sheet-sub{font-size:calc(12.5px * var(--fs));color:var(--ink-2);margin-top:2px}
-.nu-sheet-tel{margin:12px 0 2px;font-size:calc(15px * var(--fs))}
-.nu-sheet-hint{font-size:calc(12px * var(--fs));color:var(--ink-2);margin-bottom:10px}
-.nu-sheet-lijst{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.nu-sp{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--hair);background:var(--card);text-align:left}
-.nu-sp-naam{font-weight:600;font-size:calc(15px * var(--fs))}
-.nu-sp-st{display:flex;align-items:center;gap:5px;font-size:calc(12px * var(--fs));font-weight:600}
-.nu-sp.er .nu-sp-st{color:var(--ok)}
-.nu-sp.weg{border-color:color-mix(in srgb,var(--warn) 60%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--card))}
-.nu-sp.weg .nu-sp-st{color:var(--warn)}
-.hub-tegel.nu-flits{animation:nuFlits .7s ease-in-out 2}
-@keyframes nuFlits{50%{box-shadow:0 0 0 3px var(--accent)}}
-
-/* Testbediening (alleen in de testapp) */
-.nu-paneel{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface-2);border-top:1px solid var(--hair);box-shadow:0 -6px 20px rgba(0,0,0,.35);max-width:540px;margin:0 auto;border-radius:16px 16px 0 0}
-.nu-paneel summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;font-size:calc(13.5px * var(--fs));font-weight:600}
-.nu-paneel summary::-webkit-details-marker{display:none}
-.nu-paneel summary small{font-weight:500;color:var(--ink-2)}
-.nu-paneel-in{padding:0 16px 16px;max-height:56vh;overflow:auto}
-.nu-l{font-size:calc(11.5px * var(--fs));font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 6px}
-.nu-chips{display:flex;flex-wrap:wrap;gap:6px}
-.nu-chip{font-size:calc(12.5px * var(--fs));font-weight:500;padding:7px 10px;border-radius:9px;background:var(--op-vlak);border:1px solid var(--hair);color:var(--ink)}
-.nu-chip.actief{background:var(--accent);border-color:var(--accent);color:#fff}
-.nu-paneel input[type=datetime-local]{padding:8px 10px;border:1px solid var(--hair);border-radius:9px;background:var(--op-vlak);color:var(--ink);font-size:calc(14px * var(--fs))}
-.nu-debug{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink-2);margin-top:12px}
-.nu-toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-80px);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-size:13.5px;font-weight:600;z-index:80;transition:transform .25s;box-shadow:var(--shadow);max-width:90vw}
-.nu-toast.zichtbaar{transform:translate(-50%,0)}
-.nu-testband{background:var(--accent);color:#fff;text-align:center;font-size:12px;font-weight:600;padding:6px 10px;letter-spacing:.3px}
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;background:#0e1116;color:#e8ebf0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+  img{width:84px;height:84px;border-radius:22.5%;margin-bottom:20px}
+  p{margin:0 0 16px;max-width:30em}
+  a{display:inline-block;min-height:44px;line-height:44px;padding:0 20px;border-radius:10px;background:#cc2620;color:#fdfdfe;text-decoration:none;font-weight:600}
+  a:focus-visible{outline:3px solid #fdfdfe;outline-offset:3px}
 </style>
 </head>
 <body>
-<div class="nu-testband">TESTAPP · nepdata · geen koppeling met Firebase</div>
-<div class="app">
-  <div class="view actief nu-wrap">
-    <div class="welkom-kop hub-kop">
-      <div class="asv-streep" aria-hidden="true"></div>
-      <img src="icons/asv-schild.png" alt="ASV'33" class="welkom-schild">
-      <div class="welkom-tekst">
-        <div class="welkom-datum" id="nuDatum"></div>
-        <h1 class="welkom-groet">Hoi <span class="groet-naam">Paul</span></h1>
-      </div>
-    </div>
-    <div class="hub-teamrij">
-      <button class="hub-teamnaam" type="button">JO12-1
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4 4 4-4"/></svg></button>
-      <span class="hub-teamsub">O12 · 8 tegen 8</span>
-    </div>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <p>Cluppie heeft een nieuw adres: <b>cluppie.io</b>. Je wordt doorgestuurd.</p>
+  <a id="verder" href="https://www.cluppie.io/">Verder naar cluppie.io</a>
+</main>
+<script type="module">
+/* 1. Waarheen: zelfde pad, zelfde vraagteken-deel (teamcode, clubcode, deellink, hulplink), zelfde hekje. */
+const NIEUW = 'https://www.cluppie.io';
+const BEKEND = ['/', '/over.html', '/readme.html', '/privacy.html'];          // pagina's die op cluppie.io bestaan
+let pad = location.pathname.replace(/\/index\.html$/, '/');
+if (!BEKEND.includes(pad)) pad = '/';
+const doel = bewijs => {
+  const hekje = bewijs ? (location.hash ? location.hash + '&' : '#') + 'verhuis=' + encodeURIComponent(bewijs) : location.hash;
+  return NIEUW + pad + location.search + hekje;
+};
+document.getElementById('verder').href = doel('');
+let weg = false;
+const ga = bewijs => { if (weg) return; weg = true; location.replace(doel(bewijs)); };
 
-    <div id="nuKaart" class="nu-kaart"></div>
-    <div id="nuWaarom" class="nu-waarom"></div>
-    <div id="nuDaarna"></div>
+/* 2. Oude versie van de app van dit apparaat halen (anders toont de telefoon zonder bereik nog de oude app). */
+try {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(l => l.forEach(r => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then(l => l.forEach(k => caches.delete(k))).catch(() => {});
+} catch (e) {}
 
-    <div class="nu-hubkop">Alles in de hub</div>
-    <div id="nuHub"></div>
-  </div>
-</div>
-
-<details class="nu-paneel" open>
-  <summary><span>Testbediening</span><small id="nuKlokTekst"></small></summary>
-  <div class="nu-paneel-in">
-    <div class="nu-l">Spring naar een moment</div>
-    <div class="nu-chips" id="nuPresets"></div>
-
-    <div class="nu-l">Eigen tijdstip</div>
-    <div class="nu-chips"><input type="datetime-local" id="nuTijdInvoer"><button class="nu-chip" id="nuEcht" type="button">Echte tijd</button></div>
-
-    <div class="nu-l">Waar ben je</div>
-    <div class="nu-chips">
-      <button class="nu-chip" data-plek="club" type="button">Op de club</button>
-      <button class="nu-chip" data-plek="elders" type="button">Elders</button>
-      <button class="nu-chip" data-plek="onbekend" type="button">Onbekend</button>
-      <button class="nu-chip" id="nuGps" type="button">Echte GPS: <span id="nuGpsTekst">uit</span></button>
-    </div>
-
-    <div class="nu-l">Wedstrijd en weergave</div>
-    <div class="nu-chips">
-      <button class="nu-chip" id="nuThuisUit" type="button">Zaterdag: uit</button>
-      <button class="nu-chip" id="nuOpstelling" type="button">Opstelling gedeeld</button>
-      <button class="nu-chip" id="nuThema" type="button">Wissel thema</button>
-    </div>
-    <div class="nu-debug" id="nuDebug"></div>
-  </div>
-</details>
-<div class="nu-sheet" id="nuSheet" hidden>
-  <div class="nu-sheet-achter" data-pres-dicht="1"></div>
-  <div class="nu-sheet-paneel" role="dialog" aria-labelledby="nuSheetTitel">
-    <div class="nu-sheet-greep"></div>
-    <div class="nu-sheet-kop">
-      <div><div class="nu-sheet-titel" id="nuSheetTitel"></div><div class="nu-sheet-sub" id="nuSheetSub"></div></div>
-      <button class="knop klein fluo" data-pres-dicht="1" type="button">Klaar</button>
-    </div>
-    <div class="nu-sheet-tel" id="nuSheetTel"></div>
-    <div class="nu-sheet-hint">Tik op een speler om aanwezig of afwezig te wisselen.</div>
-    <div class="nu-sheet-lijst" id="nuSheetLijst"></div>
-  </div>
-</div>
-<div class="nu-toast" id="nuToast" role="status"></div>
-<script type="module" src="js/nu-test.js?v=20261121a"></script>
+/* 3. Wie hier nog ingelogd is, hoeft op cluppie.io niet opnieuw in te loggen: vraag een eenmalig inlogbewijs
+      voor hetzelfde account (Cloud Function verhuisLogin van cluppie.io). Lukt dat niet binnen een paar tellen,
+      dan gaat de trainer gewoon door en logt daar in. Niet voor ouders op een deel- of hulplink (geen account). */
+const zoek = new URLSearchParams(location.search);
+async function inlogbewijs(){
+  if (zoek.get('deel') || zoek.get('hulp')) return '';
+  const [{ initializeApp }, { getAuth }] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js')]);
+  const auth = getAuth(initializeApp({
+    apiKey: "AIzaSyBA_bCwzw_sggWBo53GiEOdmMahUEFTJLo",
+    authDomain: "cluppieasv33.firebaseapp.com",
+    projectId: "cluppieasv33",
+    appId: "1:883305195610:web:81b08d8a450184404cd063"
+  }));
+  await auth.authStateReady();
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous) return '';
+  const idToken = await u.getIdToken();
+  const stop = new AbortController(); setTimeout(() => stop.abort(), 5000);
+  const r = await fetch('https://europe-west1-cluppie-ad329.cloudfunctions.net/verhuisLogin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { idToken } }), signal: stop.signal });
+  if (!r.ok) return '';
+  const j = await r.json();
+  return (j && j.result && typeof j.result.token === 'string') ? j.result.token : '';
+}
+setTimeout(() => ga(''), 7000);                                              // nooit blijven hangen
+inlogbewijs().then(b => ga(b), () => ga(''));
+</script>
+<noscript><p>Open <a href="https://www.cluppie.io/">www.cluppie.io</a>.</p></noscript>
 </body>
 </html>
-
