@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0e1116">
+<title>Cluppie</title>
+<link rel="canonical" href="https://www.cluppie.io/">
+<link rel="icon" href="/icons/icon-192.png">
+<!-- Doorverwijspagina van cluppieasv33.nl naar www.cluppie.io (verhuizing ASV'33).
+     Dit ene bestand staat op het oude adres als index.html, 404.html, over.html, readme.html en nu-test.html.
+     Bron: tools/verhuis-asv33/doorverwijzing/ in de repo cluppie; uitleg in VERHUIZING-ASV33.md. -->
+<style>
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;background:#0e1116;color:#e8ebf0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+  img{width:84px;height:84px;border-radius:22.5%;margin-bottom:20px}
+  p{margin:0 0 16px;max-width:30em}
+  a{display:inline-block;min-height:44px;line-height:44px;padding:0 20px;border-radius:10px;background:#cc2620;color:#fdfdfe;text-decoration:none;font-weight:600}
+  a:focus-visible{outline:3px solid #fdfdfe;outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <p>Cluppie heeft een nieuw adres: <b>cluppie.io</b>. Je wordt doorgestuurd.</p>
+  <a id="verder" href="https://www.cluppie.io/">Verder naar cluppie.io</a>
+</main>
+<script type="module">
+/* 1. Waarheen: zelfde pad, zelfde vraagteken-deel (teamcode, clubcode, deellink, hulplink), zelfde hekje. */
+const NIEUW = 'https://www.cluppie.io';
+const BEKEND = ['/', '/over.html', '/readme.html', '/privacy.html'];          // pagina's die op cluppie.io bestaan
+let pad = location.pathname.replace(/\/index\.html$/, '/');
+if (!BEKEND.includes(pad)) pad = '/';
+const doel = bewijs => {
+  const hekje = bewijs ? (location.hash ? location.hash + '&' : '#') + 'verhuis=' + encodeURIComponent(bewijs) : location.hash;
+  return NIEUW + pad + location.search + hekje;
+};
+document.getElementById('verder').href = doel('');
+let weg = false;
+const ga = bewijs => { if (weg) return; weg = true; location.replace(doel(bewijs)); };
+
+/* 2. Oude versie van de app van dit apparaat halen (anders toont de telefoon zonder bereik nog de oude app). */
+try {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(l => l.forEach(r => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then(l => l.forEach(k => caches.delete(k))).catch(() => {});
+} catch (e) {}
+
+/* 3. Wie hier nog ingelogd is, hoeft op cluppie.io niet opnieuw in te loggen: vraag een eenmalig inlogbewijs
+      voor hetzelfde account (Cloud Function verhuisLogin van cluppie.io). Lukt dat niet binnen een paar tellen,
+      dan gaat de trainer gewoon door en logt daar in. Niet voor ouders op een deel- of hulplink (geen account). */
+const zoek = new URLSearchParams(location.search);
+async function inlogbewijs(){
+  if (zoek.get('deel') || zoek.get('hulp')) return '';
+  const [{ initializeApp }, { getAuth }] = await Promise.all([
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js')]);
+  const auth = getAuth(initializeApp({
+    apiKey: "AIzaSyBA_bCwzw_sggWBo53GiEOdmMahUEFTJLo",
+    authDomain: "cluppieasv33.firebaseapp.com",
+    projectId: "cluppieasv33",
+    appId: "1:883305195610:web:81b08d8a450184404cd063"
+  }));
+  await auth.authStateReady();
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous) return '';
+  const idToken = await u.getIdToken();
+  const stop = new AbortController(); setTimeout(() => stop.abort(), 5000);
+  const r = await fetch('https://europe-west1-cluppie-ad329.cloudfunctions.net/verhuisLogin', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { idToken } }), signal: stop.signal });
+  if (!r.ok) return '';
+  const j = await r.json();
+  return (j && j.result && typeof j.result.token === 'string') ? j.result.token : '';
+}
+setTimeout(() => ga(''), 7000);                                              // nooit blijven hangen
+inlogbewijs().then(b => ga(b), () => ga(''));
+</script>
+<noscript><p>Open <a href="https://www.cluppie.io/">www.cluppie.io</a>.</p></noscript>
+</body>
+</html>
