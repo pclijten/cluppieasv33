@@ -1,0 +1,352 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===== Hulpfuncties =====
+    function signedIn() {
+      return request.auth != null;
+    }
+    // [20260921] Onderscheidt een échte, ingelogde coach/beheerder van een
+    // ANONIEME sessie (een ouder die op een deel-link klikt). signedIn() alleen
+    // is niet meer genoeg als toegangs-basis zodra anonieme login aanstaat —
+    // anders zou iedereen met zo'n link ineens aan signedIn() voldoen en dus
+    // (via alle bestaande "allow read: if signedIn()"-regels) bij alle teams,
+    // clubs, oefenstof enz. kunnen. Overal waar dat vroeger "signedIn()" was
+    // staat daarom nu isEchteGebruiker() — behalve op de paar plekken die
+    // bewust ook voor een geldige, tijdelijke deel-toegang openstaan (zie
+    // trainingToegang* hieronder), en het lezen van een deel-link zelf.
+    function isEchteGebruiker() {
+      return signedIn()
+             && (!('firebase' in request.auth.token) || request.auth.token.firebase.sign_in_provider != 'anonymous');
+    }
+    // 'email' in token-check voorkomt een harde fout bij een anonieme sessie
+    // (die heeft geen e-mailclaim) — anders faalt niet alleen isBeheerder()
+    // voor die sessie, maar potentieel de hele regel die 'm aanroept.
+    function isBeheerder() {
+      return signedIn() && 'email' in request.auth.token
+             && request.auth.token.email == 'pclijten@gmail.com';
+    }
+
+    // [20260921] KERNFIX (uit eerdere sessie): elke get(pad).data-toegang is
+    // voorafgegaan door exists(pad) — anders geeft get(...).data een harde
+    // fout zodra het pad niet bestaat, wat de hele regel (en soms de hele
+    // ruleset) laat mislukken.
+    //
+    // Is de ingelogde gebruiker bouwcoördinator van het team waar `teamData`
+    // bij hoort?
+    function isBouwCoordinatorVoorTeam(teamData) {
+      return isEchteGebruiker()
+        && 'club' in teamData && teamData.club is string
+        && 'bouw' in teamData && teamData.bouw is string
+        && exists(/databases/$(database)/documents/clubs/$(teamData.club))
+        && get(/databases/$(database)/documents/clubs/$(teamData.club)).data
+             .get('bouwCoordinatoren', {}).get(teamData.bouw, {}).get(request.auth.uid, false) == true;
+    }
+    // [20260923e] Coach gekoppeld aan een EIGEN bouw (bv. Meidenbouw).
+    // De app houdt op het clubdocument eigenBouwToegang.{teamId}.{uid} = true
+    // bij; alleen een clubadmin mag het clubdocument wijzigen, dus een coach
+    // kan zichzelf geen toegang geven.
+    function isEigenBouwCoachVoorTeam(teamId, teamData) {
+      return isEchteGebruiker()
+        && 'club' in teamData && teamData.club is string
+        && exists(/databases/$(database)/documents/clubs/$(teamData.club))
+        && get(/databases/$(database)/documents/clubs/$(teamData.club)).data
+             .get('eigenBouwToegang', {}).get(teamId, {}).get(request.auth.uid, false) == true;
+    }
+    // Kern van teamlidmaatschap: gewone coach (leden-map) ÓF bouwcoördinator.
+    function isTeamLidVoorData(t) {
+      return (isEchteGebruiker() && 'leden' in t && request.auth.uid in t.leden && t.leden[request.auth.uid] == true)
+             || isBouwCoordinatorVoorTeam(t);
+    }
+    // [20260923e] Ook een coach van een eigen bouw telt als teamlid.
+    function isTeamMember(teamId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/teams/$(teamId))
+        && (isTeamLidVoorData(get(/databases/$(database)/documents/teams/$(teamId)).data)
+            || isEigenBouwCoachVoorTeam(teamId, get(/databases/$(database)/documents/teams/$(teamId)).data));
+    }
+    function isClubAdmin(clubId) {
+      return isEchteGebruiker()
+        && exists(/databases/$(database)/documents/clubs/$(clubId))
+        && 'admins' in get(/databases/$(database)/documents/clubs/$(clubId)).data
+        && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.admins
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.admins[request.auth.uid] == true;
+    }
+    // Is de ingelogde gebruiker admin van de club waar dit team bij hoort?
+    function isTeamClubAdmin(teamId) {
+      return isEchteGebruiker()
+        && exists(/databases/$(database)/documents/teams/$(teamId))
+        && 'club' in get(/databases/$(database)/documents/teams/$(teamId)).data
+        && get(/databases/$(database)/documents/teams/$(teamId)).data.club is string
+        && isClubAdmin(get(/databases/$(database)/documents/teams/$(teamId)).data.club);
+    }
+    // Veilige teamId-toegang: voorkomt dat isTeamMember() een pad probeert te
+    // bouwen met een ontbrekend/leeg veld.
+    function isTeamMemberVeld(data, veld) {
+      return veld in data && data[veld] is string && isTeamMember(data[veld]);
+    }
+    // [20261103] Trainingscoördinator: rol staat op het clubdocument als
+    // trainingscoordinatoren.{uid} = true (alleen een club-admin kan dat zetten,
+    // zie clubs/update). De coördinator leest teams, clubs en trainingen via de
+    // bestaande isEchteGebruiker()-leesregels hieronder, en bewust NIET de
+    // spelers-subcollectie (die vereist isTeamMember) — hij ziet dus geen
+    // spelersnamen, alleen teams.spelersAantal. Schrijven mag hij nergens.
+    function voegtZichzelfToe() {
+      return isEchteGebruiker()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['leden', 'ledenInfo'])
+        && request.resource.data.leden[request.auth.uid] == true;
+    }
+
+    // [20260921] ===== Training delen met ouders =====
+    // Een coach kan één training (met de bijbehorende presentie) tijdelijk
+    // delen met bv. een meehelpende ouder, zonder dat die een Cluppie-account
+    // nodig heeft. De ouder opent een link (?deel=<id>), de app logt hem
+    // automatisch ANONIEM in bij Firebase, en wisselt de link in voor een
+    // smal begrensd toegangsbewijs (trainingToegang/{uid}) — geldig voor
+    // precies dat ene team + die ene training, tot de door de coach gekozen
+    // vervaltijd. Daarna is de link nutteloos, ook al blijft-ie bestaan.
+    //
+    // trainingDeel/{deelId}  — de deel-link zelf: teamId, trainingId, titel/
+    //   teamNaam/clubNaam (denormaliseerd, zodat de ouder geen los team- of
+    //   clubdocument hoeft te lezen), vervaltOp, gemaaktDoor.
+    // trainingToegang/{uid}  — het toegangsbewijs, documentId = de eigen
+    //   (meestal anonieme) uid van de bezoeker. Wordt éénmalig aangemaakt bij
+    //   het inwisselen van een geldige, niet-verlopen deel-link, en kopieert
+    //   daarbij teamId/trainingId/vervaltOp over — zo hoeft geen enkele andere
+    //   regel hierna nog de deel-link zelf te raadplegen, alleen dit bewijs.
+    function trainingToegangGeldig() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/trainingToegang/$(request.auth.uid))
+        && get(/databases/$(database)/documents/trainingToegang/$(request.auth.uid)).data.vervaltOp > request.time;
+    }
+    function trainingToegangVoorTeam(teamId) {
+      return trainingToegangGeldig()
+        && get(/databases/$(database)/documents/trainingToegang/$(request.auth.uid)).data.teamId == teamId;
+    }
+    function trainingToegangVoorTraining(trainingId) {
+      return trainingToegangGeldig()
+        && get(/databases/$(database)/documents/trainingToegang/$(request.auth.uid)).data.trainingId == trainingId;
+    }
+    match /trainingDeel/{deelId} {
+      // Lezen: bewust gewoon signedIn() — op het moment dat iemand deze ene,
+      // niet-te-raden document-id probeert te lezen is de app al klaar met
+      // de anonieme inlog. De inhoud (titel/teamnaam/vervaltijd) is niet
+      // gevoelig; de ECHTE toegang wordt pas verleend via trainingToegang.
+      allow read: if signedIn();
+      allow create: if isEchteGebruiker()
+                    && isTeamMember(request.resource.data.teamId)
+                    && request.resource.data.trainingId is string
+                    && request.resource.data.gemaaktDoor == request.auth.uid
+                    && request.resource.data.vervaltOp is timestamp
+                    && request.resource.data.vervaltOp > request.time
+                    && request.resource.data.vervaltOp < request.time + duration.value(7, 'd');
+      // Vroegtijdig intrekken door een coach/coördinator van hetzelfde team —
+      // een korte vervaltijd is de hoofdbescherming, dit is een extra noodrem.
+      allow update, delete: if isEchteGebruiker() && isTeamMember(resource.data.teamId);
+    }
+    match /trainingToegang/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      // create én update delen dezelfde voorwaarde: een ouder die een NIEUWE
+      // deel-link opent (zelfde anonieme sessie, andere training) overschrijft
+      // zo gewoon het oude, inmiddels irrelevante toegangsbewijs — in plaats
+      // van vast te lopen op een update die niet was toegestaan.
+      allow create, update: if signedIn() && request.auth.uid == uid
+                    && 'deelId' in request.resource.data && request.resource.data.deelId is string
+                    && exists(/databases/$(database)/documents/trainingDeel/$(request.resource.data.deelId))
+                    && get(/databases/$(database)/documents/trainingDeel/$(request.resource.data.deelId)).data.vervaltOp > request.time
+                    && request.resource.data.teamId     == get(/databases/$(database)/documents/trainingDeel/$(request.resource.data.deelId)).data.teamId
+                    && request.resource.data.trainingId == get(/databases/$(database)/documents/trainingDeel/$(request.resource.data.deelId)).data.trainingId
+                    && request.resource.data.vervaltOp  == get(/databases/$(database)/documents/trainingDeel/$(request.resource.data.deelId)).data.vervaltOp;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ===== Teams =====
+    match /teams/{teamId} {
+      allow read: if isEchteGebruiker();
+      allow create: if isBeheerder();
+      // Bouwcoördinator mag ook teamvelden bewerken (naam, categorie, instellingen).
+      // [20260923e] Coach van een eigen bouw: dezelfde rechten.
+      allow update: if (isEchteGebruiker() && 'leden' in resource.data && request.auth.uid in resource.data.leden && resource.data.leden[request.auth.uid] == true)
+                    || voegtZichzelfToe()
+                    || isBouwCoordinatorVoorTeam(resource.data)
+                    || isEigenBouwCoachVoorTeam(teamId, resource.data)
+                    // [20261103] Een club-admin stelt de trainingsmomenten (dag, begin- en
+                    // eindtijd) van elk team van zijn club in, ook als hij er zelf geen coach is.
+                    || ('club' in resource.data && resource.data.club is string && isClubAdmin(resource.data.club));
+      // Verwijderen van een heel team is bewust beperkt tot een club-admin
+      // (of de hoofdbeheerder) — niet elk teamlid.
+      allow delete: if isBeheerder()
+                    || ('club' in resource.data && resource.data.club is string && isClubAdmin(resource.data.club));
+
+      // ----- Blessures: gezondheidsgegevens (AVG art. 9) -----
+      // Expliciet blok, NIET leunend op de wildcard hieronder, zodat deze
+      // bijzonder gevoelige data altijd uitsluitend voor team-coaches is.
+      match /blessures/{blessureId} {
+        allow read:   if isTeamMember(teamId);
+        allow create: if isTeamMember(teamId)
+                      && request.resource.data.spelerId is string
+                      && request.resource.data.ernst is string;
+        allow update: if isTeamMember(teamId);
+        allow delete: if isTeamMember(teamId);
+      }
+
+      // ----- Trainer-aantekeningen bij de oefenstof -----
+      match /trainingAantekeningen/{aantekeningId} {
+        allow read: if isTeamMember(teamId) || isBeheerder();
+        allow create: if isTeamMember(teamId)
+                      && request.resource.data.auteurUid == request.auth.uid
+                      && request.resource.data.trainingId is string
+                      && request.resource.data.blokId is string
+                      && request.resource.data.type in ['aandacht', 'opmerking', 'filmpje'];
+        allow delete: if (resource.data.auteurUid == request.auth.uid) || isBeheerder();
+        allow update: if false;
+      }
+
+      // ----- Spelers (incl. gastspelers) -----
+      // Lezen: teamcoaches, clubadmin (voor "definitief overzetten"), én een
+      // ouder met geldige deel-toegang voor dit team (nodig om de spelerslijst
+      // te tonen bij het invullen van presentie). Schrijven blijft voorbehouden
+      // aan coaches/clubadmin — een ouder mag NIET spelersgegevens wijzigen.
+      match /spelers/{spelerId} {
+        allow read:  if isTeamMember(teamId) || isTeamClubAdmin(teamId) || trainingToegangVoorTeam(teamId);
+        allow write: if isTeamMember(teamId) || isTeamClubAdmin(teamId);
+      }
+
+      // ----- Presentie -----
+      // Expliciet blok (niet meer de generieke wildcard): naast teamleden nu
+      // ook een ouder met geldige, tijdelijke deel-toegang voor dit team —
+      // die mag de presentie ALLEEN LEZEN (zien wie er is), niet wijzigen.
+      // Invullen blijft aan de coach; de ouder-pagina toont dit puur read-only.
+      match /presentie/{presentieId} {
+        allow read:  if isTeamMember(teamId) || trainingToegangVoorTeam(teamId);
+        allow write: if isTeamMember(teamId);
+      }
+
+      // ----- Overige subcollecties (wedstrijden, beoordelingen, leerlijn,
+      // poule, enz.) — één niveau diep gematcht zodat de specifiekere regels
+      // hierboven niet worden overschreven door deze bredere regel. -----
+      match /{subcollection}/{documentId} {
+        allow read, write: if isTeamMember(teamId);
+      }
+    }
+    // ===== Clubs =====
+    match /clubs/{clubId} {
+      allow read: if isEchteGebruiker();
+      allow create: if isBeheerder();
+      // bouwCoordinatoren/bouwCoordinatorenInfo zijn gewone velden op het
+      // clubdocument — de bestaande admins-check dekt dat al.
+      // [20260923e] Idem voor eigenBouwen / eigenBouwToegang / eigenBouwCoaches.
+      allow update: if (isEchteGebruiker() && 'admins' in resource.data && request.auth.uid in resource.data.admins && resource.data.admins[request.auth.uid] == true)
+                    || (isEchteGebruiker()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['leden', 'ledenInfo'])
+                        && request.resource.data.leden[request.auth.uid] == true);
+      allow delete: if isEchteGebruiker() && 'admins' in resource.data && request.auth.uid in resource.data.admins && resource.data.admins[request.auth.uid] == true;
+      // Afgelast-historie: iedere ECHTE gebruiker mag de stats lezen; alleen
+      // club-admins mogen een afgelasting wegschrijven of verwijderen.
+      match /afgelastingen/{afgId} {
+        allow read: if isEchteGebruiker();
+        allow write: if isClubAdmin(clubId);
+      }
+      // Geheime tokens (voetbal.nl-koppeling): ALLEEN club-admins.
+      match /geheim/{teamId} {
+        allow read, write: if isClubAdmin(clubId);
+      }
+      // Uitleningen: een speler die tijdelijk aan een ander clubteam wordt uitgeleend.
+      match /uitleningen/{leenId} {
+        allow read: if isTeamMemberVeld(resource.data, 'vanTeam')
+                    || isTeamMemberVeld(resource.data, 'naarTeam')
+                    || isClubAdmin(clubId);
+        allow create: if isTeamMemberVeld(request.resource.data, 'vanTeam');
+        allow update: if (
+                          isTeamMemberVeld(resource.data, 'naarTeam')
+                          && request.resource.data.vanTeam  == resource.data.vanTeam
+                          && request.resource.data.naarTeam == resource.data.naarTeam
+                          && request.resource.data.spelerId == resource.data.spelerId
+                        )
+                        || isTeamMemberVeld(resource.data, 'vanTeam')
+                        || isClubAdmin(clubId);
+        allow delete: if isTeamMemberVeld(resource.data, 'vanTeam')
+                      || isTeamMemberVeld(resource.data, 'naarTeam')
+                      || isClubAdmin(clubId);
+      }
+    }
+    // ===== Trainingen =====
+    match /trainingen/{trainingId} {
+      // Naast een echte, ingelogde coach ook een ouder met geldige deel-
+      // toegang voor precies déze ene training — dat is wat de ouder de
+      // gedeelde oefenstof laat zien.
+      allow read: if isEchteGebruiker() || trainingToegangVoorTraining(trainingId);
+      allow create: if isEchteGebruiker() && isClubAdmin(request.resource.data.club);
+      allow update, delete: if isEchteGebruiker() && isClubAdmin(resource.data.club);
+
+      // AI-samenvattingen per hotspot (cache voor het beheer-overzicht).
+      match /hotspotSamenvattingen/{blokId} {
+        allow read: if isEchteGebruiker();
+        allow write: if isBeheerder();
+      }
+    }
+    // ===== Video's (YouTube-links) =====
+    match /videos/{videoId} {
+      allow read: if isEchteGebruiker();
+      allow create: if isEchteGebruiker() && isClubAdmin(request.resource.data.club);
+      allow update, delete: if isEchteGebruiker() && isClubAdmin(resource.data.club);
+    }
+    // ===== Documenten (beleid, formulieren, overig) =====
+    match /documenten/{documentId} {
+      allow read: if isEchteGebruiker();
+      allow create: if isEchteGebruiker() && isClubAdmin(request.resource.data.club);
+      allow update, delete: if isEchteGebruiker() && isClubAdmin(resource.data.club);
+    }
+    // ===== Berichten (clubadmin → teams) =====
+    match /berichten/{berichtId} {
+      allow read: if isEchteGebruiker();
+      allow create: if isEchteGebruiker() && isClubAdmin(request.resource.data.club);
+      allow update: if isEchteGebruiker() && isClubAdmin(request.resource.data.club);
+      allow delete: if isEchteGebruiker() && isClubAdmin(resource.data.club);
+    }
+    // ===== Logins (gebruiksstatistieken voor het clubdashboard) =====
+    match /logins/{loginId} {
+      allow read: if isBeheerder();
+      allow create: if isEchteGebruiker() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+    // ===== Gebruik (functiegebruik-tracker voor het clubdashboard) =====
+    match /gebruik/{gebruikId} {
+      allow read: if isBeheerder();
+      allow create: if isEchteGebruiker() && request.resource.data.uid == request.auth.uid;
+      allow update: if isEchteGebruiker()
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+    // ===== Navpaden (navigatie-/klikgedrag voor het clubdashboard) =====
+    match /navpaden/{navId} {
+      allow read: if isBeheerder();
+      allow create: if isEchteGebruiker() && request.resource.data.uid == request.auth.uid;
+      allow update: if isEchteGebruiker()
+                    && resource.data.uid == request.auth.uid
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if false;
+    }
+    // ===== Gebruikstats (vooraf-geaggregeerde statistieken voor het Inzicht-dashboard) =====
+    match /gebruikstats/{clubId} {
+      allow read: if isBeheerder();
+      allow write: if false;
+    }
+    // ===== Content (leercurve-teksten, ASV-kompas, gouden regels) =====
+    match /content/{contentId} {
+      allow read: if isEchteGebruiker();
+      allow write: if isBeheerder();
+    }
+    // ===== Gebruikers (samenvatting per account) =====
+    match /gebruikers/{userId} {
+      allow read: if isEchteGebruiker() && (request.auth.uid == userId || isBeheerder());
+      allow write: if isEchteGebruiker() && request.auth.uid == userId;
+
+      match /gelezen/{trainingId} {
+        allow read, write: if isEchteGebruiker() && request.auth.uid == userId;
+      }
+    }
+  }
+}
